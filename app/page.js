@@ -74,14 +74,7 @@ export default function Home() {
               display: "block",
               transition: "transform 120ms ease, border-color 120ms ease",
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0px)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-            }}
+
           >
             <div style={{ fontSize: 28, marginBottom: 10 }}>🖼️</div>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
@@ -124,14 +117,7 @@ export default function Home() {
               display: "block",
               transition: "transform 120ms ease, border-color 120ms ease",
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0px)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-            }}
+          
           >
             <div style={{ fontSize: 28, marginBottom: 10 }}>🎥</div>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
