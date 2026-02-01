@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,11 +10,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 export async function POST(req) {
   const sig = req.headers.get("stripe-signature");
-  if (!sig) {
-    return new Response("Missing stripe-signature", { status: 400 });
-  }
+  if (!sig) return new Response("Missing stripe-signature", { status: 400 });
 
-  const body = await req.text(); // raw body (required)
+  const body = await req.text();
 
   let event;
   try {
@@ -27,40 +26,42 @@ export async function POST(req) {
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  // ✅ Handle events
-  switch (event.type) {
-    case "checkout.session.completed":
-      console.log("✅ Checkout completed");
-      break;
+  try {
+    // ✅ Only ONE DB write for now (simple + stable)
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
 
-    case "customer.subscription.created":
-      console.log("✅ Subscription created");
-      break;
+      const email =
+        session.customer_details?.email || session.customer_email || null;
 
-    case "customer.subscription.updated":
-      console.log("🔁 Subscription updated");
-      break;
+      if (!email) {
+        console.warn("No email on checkout session");
+      } else {
+        await prisma.user.upsert({
+          where: { email },
+          create: {
+            email,
+            subscriptionStatus: "active",
+          },
+          update: {
+            subscriptionStatus: "active",
+          },
+        });
 
-    case "customer.subscription.deleted":
-      console.log("❌ Subscription cancelled");
-      break;
+        console.log("✅ User activated:", email);
+      }
+    } else {
+      console.log("Unhandled event type:", event.type);
+    }
 
-    case "invoice.paid":
-      console.log("✅ Invoice paid");
-      break;
-
-    case "invoice.payment_failed":
-      console.log("⚠️ Invoice payment failed");
-      break;
-
-    default:
-      console.log(`Unhandled event type: ${event.type}`);
+    return new Response("OK", { status: 200 });
+  } catch (err) {
+    console.error("Webhook handler error:", err);
+    return new Response("Server error", { status: 500 });
   }
-
-  return new Response("OK", { status: 200 });
 }
 
-// ✅ This removes the “sometimes 405” problem (GET/HEAD checks)
+// ✅ Prevent “405 Method Not Allowed” when something hits the URL with GET/HEAD
 export function GET() {
   return new Response("Webhook is live.", { status: 200 });
 }
