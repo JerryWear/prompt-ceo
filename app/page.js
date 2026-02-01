@@ -1,4 +1,22 @@
+"use client";
+
 export default function Home() {
+  async function startCheckout(priceId) {
+  const res = await fetch("/api/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ priceId }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data?.error || "Checkout failed");
+    return;
+  }
+
+  window.location.href = data.url;
+}
   return (
     <main
       style={{
@@ -45,7 +63,21 @@ export default function Home() {
           >
             Prompt CEO
           </h1>
-
+          <button
+  onClick={() => startCheckout("price_1SvjsEH87mhs82wLzTYNKxZB")}
+  style={{
+    marginTop: 20,
+    padding: "12px 18px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.08)",
+    color: "white",
+    cursor: "pointer",
+    fontSize: 16,
+  }}
+>
+  Subscribe — 99 NOK / month
+</button>
           <p style={{ margin: 0, fontSize: 16, opacity: 0.85, maxWidth: 720 }}>
             Choose your app. Generate structured prompts fast. Built for creators
             and teams who want consistent results.
