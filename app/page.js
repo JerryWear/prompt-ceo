@@ -8,10 +8,21 @@ export default function Home() {
     body: JSON.stringify({ priceId }),
   });
 
-  const data = await res.json();
+  const text = await res.text(); // read raw response first
+  let data = {};
+  try { data = JSON.parse(text); } catch {}
+
+  console.log("checkout status:", res.status);
+  console.log("checkout raw:", text);
+  console.log("checkout json:", data);
 
   if (!res.ok) {
-    alert(data?.error || "Checkout failed");
+    alert(data?.error || `Checkout failed (${res.status})`);
+    return;
+  }
+
+  if (!data?.url) {
+    alert("API did not return a checkout url. Check console logs.");
     return;
   }
 
