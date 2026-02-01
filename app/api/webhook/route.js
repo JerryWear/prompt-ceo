@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { prisma } from "../../../lib/prisma";
+import { getPrisma } from "../../../lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,11 +18,13 @@ export async function POST(req) {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+   const stripe = getStripe();
+event = stripe.webhooks.constructEvent(
+  body,
+  sig,
+  process.env.STRIPE_WEBHOOK_SECRET
+);
+
   } catch (err) {
     console.error("Webhook signature verification failed:", err.message);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
@@ -39,6 +41,7 @@ export async function POST(req) {
       if (!email) {
         console.warn("No email on checkout session");
       } else {
+        const prisma = getPrisma();
         await prisma.user.upsert({
           where: { email },
           create: {
