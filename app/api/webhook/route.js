@@ -1,16 +1,21 @@
 import Stripe from "stripe";
-import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
 
 export async function POST(req) {
   const sig = req.headers.get("stripe-signature");
-  const body = await req.text();
+  if (!sig) {
+    return new Response("Missing stripe-signature", { status: 400 });
+  }
+
+  const body = await req.text(); // raw body (required)
 
   let event;
-
   try {
     event = stripe.webhooks.constructEvent(
       body,
@@ -18,26 +23,48 @@ export async function POST(req) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: `Webhook signature verification failed: ${err.message}` },
-      { status: 400 }
-    );
+    console.error("Webhook signature verification failed:", err.message);
+    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  // ✅ Handle events you selected in Stripe
-  if (event.type === "checkout.session.completed") {
-    // const session = event.data.object;
-    // TODO: mark user as active / store customer id etc.
+  // ✅ Handle events
+  switch (event.type) {
+    case "checkout.session.completed":
+      console.log("✅ Checkout completed");
+      break;
+
+    case "customer.subscription.created":
+      console.log("✅ Subscription created");
+      break;
+
+    case "customer.subscription.updated":
+      console.log("🔁 Subscription updated");
+      break;
+
+    case "customer.subscription.deleted":
+      console.log("❌ Subscription cancelled");
+      break;
+
+    case "invoice.paid":
+      console.log("✅ Invoice paid");
+      break;
+
+    case "invoice.payment_failed":
+      console.log("⚠️ Invoice payment failed");
+      break;
+
+    default:
+      console.log(`Unhandled event type: ${event.type}`);
   }
 
-  if (event.type === "customer.subscription.created") {
-    // const sub = event.data.object;
-  }
+  return new Response("OK", { status: 200 });
+}
 
-  if (event.type === "customer.subscription.deleted") {
-    // const sub = event.data.object;
-  }
+// ✅ This removes the “sometimes 405” problem (GET/HEAD checks)
+export function GET() {
+  return new Response("Webhook is live.", { status: 200 });
+}
 
-  // Stripe requires a 2xx response to stop retries
-  return NextResponse.json({ received: true });
+export function HEAD() {
+  return new Response(null, { status: 200 });
 }
