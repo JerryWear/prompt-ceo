@@ -4,9 +4,11 @@ import { prisma } from "../../../lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
+  return new Stripe(key, { apiVersion: "2024-06-20" });
+}
 
 export async function POST(req) {
   const sig = req.headers.get("stripe-signature");
