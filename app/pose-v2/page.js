@@ -702,8 +702,15 @@ export default function PoseV2Page() {
   const [timeOfDay, setTimeOfDay] = useState(place?.timeOfDayOptions?.[0] ?? "");
   const [light, setLight] = useState(place?.lightOptions?.[0] ?? "");
 
-  const [moodId, setMoodId] = useState(MOODS[0].id);
-const mood = useMemo(() => MOODS.find((m) => m.id === moodId) ?? MOODS[0], [moodId]);
+const [moodId, setMoodId] = useState(MOODS[0].id)
+const mood = useMemo(() => MOODS.find((m) => m.id === moodId) ?? MOODS[0], [moodId])
+
+const [sceneId, setSceneId] = useState("")
+
+useEffect(() => {
+  const sp = new URLSearchParams(window.location.search)
+  setSceneId(sp.get("sceneId") || "")
+}, [])
 
 
   // Filter categories by environment
