@@ -1166,7 +1166,7 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function LibraryDropdown({ items, onPick, disabled, onLocked }) {
+function LibraryDropdown({ items, onPick, disabled, onLocked, lockedFromUrl }) {
   const normalized = (items || []).map((it) =>
     typeof it === 'string' ? { value: it, disabled: false } : it
   )
@@ -1175,7 +1175,7 @@ function LibraryDropdown({ items, onPick, disabled, onLocked }) {
     <select
       style={styles.select}
       defaultValue=""
-      disabled={disabled}
+      disabled={disabled || lockedFromUrl}
       onChange={(e) => {
         const v = e.target.value
         if (!v) return
@@ -1210,8 +1210,23 @@ function LibraryDropdown({ items, onPick, disabled, onLocked }) {
    MAIN
 ========================================= */
 export default function VideoPromptBuilder() {
-  const [plan, setPlan] = useState('Fanvue') // Soft | Fanvue | Unrestricted
+  const params =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : null
+
+  const lockedFromUrl = params?.get('locked') === '1'
+  const tierFromUrl = params?.get('tier')
+
+  const [plan, setPlan] = useState(() => {
+    if (tierFromUrl === 'Soft') return 'Soft'
+    if (tierFromUrl === 'Fanvue') return 'Fanvue'
+    if (tierFromUrl === 'Unrestricted') return 'Unrestricted'
+    return 'Fanvue'
+  })
+
   const [adminMode, setAdminMode] = useState(false)
+
 
   const [activePackTab, setActivePackTab] = useState('Packs') // Packs | Intensity | Locations
   const [intensity, setIntensity] = useState('Fanvue')
@@ -1666,8 +1681,9 @@ export default function VideoPromptBuilder() {
               <select
                 value={plan}
                 onChange={(e) => {
-                  const nextPlan = e.target.value
-                  setPlan(nextPlan)
+  if (lockedFromUrl) return
+  const nextPlan = e.target.value
+  setPlan(nextPlan)
 
                   // Auto-clear lingerie when switching to Soft
                   if (nextPlan === 'Soft') {
@@ -2033,14 +2049,15 @@ export default function VideoPromptBuilder() {
 
                       <div style={{ position: 'relative', opacity: locked ? 0.6 : 1 }}>
                         <LibraryDropdown
-                          items={items}
-                          disabled={locked}
-                          onPick={(val) => setBlock(key, val)}
-                          onLocked={(tier) => {
-                            setClicks((c) => c + 1)
-                            setLast(tier ? `Upgrade to ${tier} to unlock` : 'Upgrade to unlock')
-                          }}
-                        />
+  items={items}
+  disabled={locked}
+  lockedFromUrl={lockedFromUrl}
+  onPick={(val) => setBlock(key, val)}
+  onLocked={(tier) => {
+    setClicks((c) => c + 1)
+    setLast(tier ? `Upgrade to ${tier} to unlock` : 'Upgrade to unlock')
+  }}
+/>
 
                         {hasLockedItems && !locked && (
                           <div
