@@ -1,7 +1,17 @@
 "use client";
-export const dynamic = 'force-dynamic';
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export default function PoseV2Page() {
+  return (
+    <Suspense fallback={<div style={{ padding: 20, color: "white" }}>Loading…</div>}>
+      <PoseV2Inner />
+    </Suspense>
+  );
+}
 
 /**
  * POSE V2 (SAFE BUILD)
@@ -693,15 +703,22 @@ Fit notes: ${outfit?.fitNotes}
 Series tag: ${outfit?.seriesTag ?? "none"}`;
 }
 
-export default function PoseV2Page() {
+function PoseV2Inner() {
   const [placeId, setPlaceId] = useState(PLACES[0]?.id ?? "");
   const place = useMemo(() => PLACES.find((p) => p.id === placeId) ?? PLACES[0], [placeId]);
 
   const [timeOfDay, setTimeOfDay] = useState(place?.timeOfDayOptions?.[0] ?? "");
   const [light, setLight] = useState(place?.lightOptions?.[0] ?? "");
 
-  const [moodId, setMoodId] = useState(MOODS[0].id);
-const mood = useMemo(() => MOODS.find((m) => m.id === moodId) ?? MOODS[0], [moodId]);
+const [moodId, setMoodId] = useState(MOODS[0].id)
+const mood = useMemo(() => MOODS.find((m) => m.id === moodId) ?? MOODS[0], [moodId])
+
+const [sceneId, setSceneId] = useState("")
+
+useEffect(() => {
+  const sp = new URLSearchParams(window.location.search)
+  setSceneId(sp.get("sceneId") || "")
+}, [])
 
 
   // Filter categories by environment
@@ -741,12 +758,13 @@ const outfitOptions = useMemo(() => {
   );
 }, [place, timeOfDay, sceneId]);
 
+const [outfitId, setOutfitId] = useState("");
+
 const outfit = useMemo(() => {
   return outfitOptions.find((o) => o.id === outfitId) ?? outfitOptions[0] ?? null;
 }, [outfitOptions, outfitId]);
 
 useEffect(() => {
-  // auto-select first valid outfit when scene/place/time changes
   if (outfitOptions.length) setOutfitId(outfitOptions[0].id);
 }, [sceneId, placeId, timeOfDay]); // eslint-disable-line
 
