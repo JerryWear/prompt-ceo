@@ -20,20 +20,12 @@ export default async function Page({ searchParams }) {
 
   if (!payload) redirect("/");
 
-  const appsRaw = payload.apps;
-  const apps = Array.isArray(appsRaw)
-    ? appsRaw
-    : typeof appsRaw === "string"
-      ? [appsRaw]
-      : [];
-
-  const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
-  if (!canUsePhoto) redirect("/");
+  // Optional: enforce token intended for this app
+  if (payload.app && payload.app !== "photo") redirect("/");
 
   return (
     <ClientShell
       membership={{
-        tier: payload.tier,
         customerId: payload.sub,
       }}
     />

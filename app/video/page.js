@@ -1,8 +1,9 @@
-import VideoPromptBuilder from "./page.client";
+import ClientShell from "./ClientShell";
 import { verifyMembershipToken } from "@/lib/membershipLink";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export default async function Page({ searchParams }) {
   const token = searchParams?.ml;
@@ -10,15 +11,21 @@ export default async function Page({ searchParams }) {
 
   if (!token) redirect("/");
 
-  const payload = verifyMembershipToken(token, secret);
+  let payload = null;
+  try {
+    payload = verifyMembershipToken(token, secret);
+  } catch {
+    redirect("/");
+  }
 
   if (!payload) redirect("/");
-  if (!payload.apps?.includes("video")) redirect("/");
+
+  // Optional: enforce token intended for this app
+  if (payload.app && payload.app !== "video") redirect("/");
 
   return (
-    <VideoPromptBuilder
+    <ClientShell
       membership={{
-        tier: payload.tier,
         customerId: payload.sub,
       }}
     />
