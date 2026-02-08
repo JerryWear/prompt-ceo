@@ -1,33 +1,8 @@
-import ClientShell from "./ClientShell";
-import { verifyMembershipToken } from "@/lib/membershipLink";
-import { redirect } from "next/navigation";
+// app/prompt-v2/page.js
+import PromptV2Page from "./page.client";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
-export default async function Page({ searchParams }) {
-  const token = searchParams?.ml;
-  const secret = process.env.MEMBERSHIP_LINK_SECRET;
-
-  if (!token) redirect("/");
-
-  let payload = null;
-  try {
-    payload = verifyMembershipToken(token, secret);
-  } catch {
-    redirect("/");
-  }
-
-  if (!payload) redirect("/");
-
-  // Optional: enforce token intended for this app
-  if (payload.app && payload.app !== "photo") redirect("/");
-
-  return (
-    <ClientShell
-      membership={{
-        customerId: payload.sub,
-      }}
-    />
-  );
+export default function Page() {
+  return <PromptV2Page />;
 }
