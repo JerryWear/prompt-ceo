@@ -1,39 +1,37 @@
-import PromptV2Page from "./page.client";
+import dynamic from "next/dynamic";
 import { verifyMembershipToken } from "@/lib/membershipLink";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export default async function Page({ searchParams }) {
-  const tokenFromQuery = searchParams?.ml;
-  const tokenFromCookie = cookies().get("ml")?.value;
-  const token = tokenFromQuery || tokenFromCookie;
+// IMPORTANT: dynamic client-only import
+const PromptV2Page = dynamic(() => import("./page.client"), {
+  ssr: false,
+});
 
+export default async function Page({ searchParams }) {
+  const token = searchParams?.ml;
   const secret = process.env.MEMBERSHIP_LINK_SECRET;
 
-  if (!secret) redirect("/?mh=1&reason=missing_secret");
-  if (!token) redirect("/?mh=1&reason=no_token");
+  if (!token) redirect("/");
 
-  let payload = null;
+  let payload;
   try {
     payload = verifyMembershipToken(token, secret);
   } catch {
-    redirect("/?mh=1&reason=verify_throw");
+    redirect("/");
   }
 
-  if (!payload) redirect("/?mh=1&reason=bad_token");
+  if (!payload) redirect("/");
 
-  const appsRaw = payload.apps;
-  const apps = Array.isArray(appsRaw)
-    ? appsRaw
-    : typeof appsRaw === "string"
-      ? [appsRaw]
-      : [];
+  const apps = Array.isArray(payload.apps)
+    ? payload.apps
+    : [payload.apps];
 
-  const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
-  if (!canUsePhoto) redirect("/?mh=1&reason=no_photo_access");
+  if (!apps.includes("photo") && !apps.includes("prompt-v2")) {
+    redirect("/");
+  }
 
   return (
     <PromptV2Page
