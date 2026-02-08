@@ -4,7 +4,7 @@ import {
   tierFromTags,
   appsForTier,
   signMembershipToken,
-} from "../../../../lib/membershipLink";
+} from "@/lib/membershipLink";
 
 export const runtime = "nodejs";
 
