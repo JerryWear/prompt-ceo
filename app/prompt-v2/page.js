@@ -1,14 +1,9 @@
-import dynamic from "next/dynamic";
+import ClientShell from "./ClientShell";
 import { verifyMembershipToken } from "@/lib/membershipLink";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-// IMPORTANT: dynamic client-only import
-const PromptV2Page = dynamic(() => import("./page.client"), {
-  ssr: false,
-});
 
 export default async function Page({ searchParams }) {
   const token = searchParams?.ml;
@@ -16,7 +11,7 @@ export default async function Page({ searchParams }) {
 
   if (!token) redirect("/");
 
-  let payload;
+  let payload = null;
   try {
     payload = verifyMembershipToken(token, secret);
   } catch {
@@ -25,16 +20,18 @@ export default async function Page({ searchParams }) {
 
   if (!payload) redirect("/");
 
-  const apps = Array.isArray(payload.apps)
-    ? payload.apps
-    : [payload.apps];
+  const appsRaw = payload.apps;
+  const apps = Array.isArray(appsRaw)
+    ? appsRaw
+    : typeof appsRaw === "string"
+      ? [appsRaw]
+      : [];
 
-  if (!apps.includes("photo") && !apps.includes("prompt-v2")) {
-    redirect("/");
-  }
+  const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
+  if (!canUsePhoto) redirect("/");
 
   return (
-    <PromptV2Page
+    <ClientShell
       membership={{
         tier: payload.tier,
         customerId: payload.sub,
