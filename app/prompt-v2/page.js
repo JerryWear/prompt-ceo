@@ -2,11 +2,29 @@
 import PromptV2Page from "./page.client";
 import { verifyMembershipToken } from "@/lib/membershipLink";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
+function getMlFromHeaders() {
+  try {
+    const h = headers();
+    // In Next.js, this header usually contains the full path + query
+    const rawUrl = h.get("x-url") || h.get("referer") || "";
+    if (!rawUrl) return null;
+
+    const u = new URL(rawUrl, "https://prompt-ceo.vercel.app");
+    return u.searchParams.get("ml");
+  } catch {
+    return null;
+  }
+}
+
 export default async function Page({ searchParams }) {
-  const token = searchParams?.ml;
+  const token =
+    searchParams?.ml ||
+    getMlFromHeaders();
+
   const secret = process.env.MEMBERSHIP_LINK_SECRET;
 
   if (!token) {
