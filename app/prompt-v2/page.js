@@ -9,19 +9,19 @@ export default async function Page({ searchParams }) {
   const token = searchParams?.ml;
   const secret = process.env.MEMBERSHIP_LINK_SECRET;
 
-  if (!token) {
-    redirect("/");
-  }
+  // Must arrive with a token
+  if (!token) redirect("/");
 
   const payload = verifyMembershipToken(token, secret);
 
-  if (!payload) {
-    redirect("/");
-  }
+  // Token must verify
+  if (!payload) redirect("/");
 
-  if (!payload.apps?.includes("photo")) {
-    redirect("/");
-  }
+  // Accept both naming schemes: "photo" (old) and "prompt-v2" (new)
+  const apps = payload.apps || [];
+  const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
+
+  if (!canUsePhoto) redirect("/");
 
   return (
     <PromptV2Page
