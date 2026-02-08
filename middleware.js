@@ -4,8 +4,7 @@ export function middleware(req) {
   const url = req.nextUrl;
   const ml = url.searchParams.get("ml");
 
-  // Only store token if it’s within safe cookie size range
-  // (cookies have ~4KB limits; leave buffer for attributes)
+  // Cookie size safety (4KB limits). If too large, don't set cookie.
   if (ml && ml.length < 3000) {
     const res = NextResponse.next();
     res.cookies.set("ml", ml, {

@@ -1,4 +1,3 @@
-// app/prompt-v2/page.js
 import PromptV2Page from "./page.client";
 import { verifyMembershipToken } from "@/lib/membershipLink";
 import { redirect } from "next/navigation";
@@ -20,8 +19,7 @@ export default async function Page({ searchParams }) {
   let payload = null;
   try {
     payload = verifyMembershipToken(token, secret);
-  } catch (e) {
-    // prevent server crash
+  } catch {
     redirect("/?mh=1&reason=verify_throw");
   }
 
