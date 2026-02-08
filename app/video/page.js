@@ -1,6 +1,6 @@
 // app/video/page.js
 import { redirect } from "next/navigation";
-import { verifyMembershipToken } from "@/lib/membershipLink";
+import { verifyMembershipToken } from "../../lib/membershipLink";
 import VideoPromptBuilder from "./page.client";
 
 export const dynamic = "force-dynamic";

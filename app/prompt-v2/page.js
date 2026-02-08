@@ -1,7 +1,7 @@
 // app/prompt-v2/page.js
 import { redirect } from "next/navigation";
 import PromptV2Page from "./page.client";
-import { verifyMembershipToken } from "@/lib/membershipLink";
+import { verifyMembershipToken } from "../../lib/membershipLink";
 
 export const dynamic = "force-dynamic";
 
