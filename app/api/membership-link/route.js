@@ -59,6 +59,13 @@ export async function POST(req) {
     const tier = tierFromTags(tags);
     const allowedApps = appsForTier(tier);
 
+    // Normalize allowed apps so "photo" and "prompt-v2" mean the same thing
+const allowedAppsNormalized = Array.isArray(allowedApps)
+  ? allowedApps.map(a => (a === "photo" ? "prompt-v2" : a))
+  : [];
+
+// Final permission check
+
     // IMPORTANT: our allowedApps likely contains "prompt-v2" and/or "video"
     const ok = Boolean(tier) && Array.isArray(allowedApps) && allowedApps.includes(app);
 
@@ -105,7 +112,7 @@ export async function POST(req) {
     const url = `${base}${path}?ml=${encodeURIComponent(token)}`;
 
     return NextResponse.json(
-      { ok: true, tier, allowedApps, url },
+      { ok: true, tier, allowedApps: allowedAppsNormalized, url },
       { status: 200, headers }
     );
   } catch (e) {
