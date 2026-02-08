@@ -5,23 +5,27 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export default async function Page({ searchParams }) {
   const tokenFromQuery = searchParams?.ml;
   const tokenFromCookie = cookies().get("ml")?.value;
-
   const token = tokenFromQuery || tokenFromCookie;
+
   const secret = process.env.MEMBERSHIP_LINK_SECRET;
 
-  if (!token) {
-    redirect("/?mh=1&reason=no_token");
+  if (!secret) redirect("/?mh=1&reason=missing_secret");
+  if (!token) redirect("/?mh=1&reason=no_token");
+
+  let payload = null;
+  try {
+    payload = verifyMembershipToken(token, secret);
+  } catch (e) {
+    // prevent server crash
+    redirect("/?mh=1&reason=verify_throw");
   }
 
-  const payload = verifyMembershipToken(token, secret);
-
-  if (!payload) {
-    redirect("/?mh=1&reason=bad_token");
-  }
+  if (!payload) redirect("/?mh=1&reason=bad_token");
 
   const appsRaw = payload.apps;
   const apps = Array.isArray(appsRaw)
@@ -31,10 +35,7 @@ export default async function Page({ searchParams }) {
       : [];
 
   const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
-
-  if (!canUsePhoto) {
-    redirect("/?mh=1&reason=no_photo_access");
-  }
+  if (!canUsePhoto) redirect("/?mh=1&reason=no_photo_access");
 
   return (
     <PromptV2Page

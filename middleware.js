@@ -4,15 +4,16 @@ export function middleware(req) {
   const url = req.nextUrl;
   const ml = url.searchParams.get("ml");
 
-  // If token is present in the URL, store it in a cookie for later requests
-  if (ml) {
+  // Only store token if it’s within safe cookie size range
+  // (cookies have ~4KB limits; leave buffer for attributes)
+  if (ml && ml.length < 3000) {
     const res = NextResponse.next();
     res.cookies.set("ml", ml, {
       httpOnly: true,
       sameSite: "lax",
       secure: true,
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
     return res;
   }
