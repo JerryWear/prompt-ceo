@@ -59,19 +59,23 @@ export async function POST(req) {
     const tier = tierFromTags(tags);
     const allowedApps = appsForTier(tier);
 
-    // Normalize allowed apps so "photo" and "prompt-v2" mean the same thing
+    // Normalize requested app
+const normalizedApp =
+  app === "photo" || app === "prompt-v2"
+    ? "photo"
+    : app;
+
+// Normalize allowed apps
 const allowedAppsNormalized = Array.isArray(allowedApps)
-  ? allowedApps.map(a => (a === "photo" ? "prompt-v2" : a))
+  ? allowedApps.map(a =>
+      a === "prompt-v2" ? "photo" : a
+    )
   : [];
 
 // Final permission check
-
-    // IMPORTANT: our allowedApps likely contains "prompt-v2" and/or "video"
-    const ok = Boolean(tier) && Array.isArray(allowedApps) && allowedApps.includes(app);
-
-    console.log("[membership-link] origin:", origin);
-    console.log("[membership-link] customerId:", customerId, "tier:", tier, "appRaw:", appRaw, "app:", app);
-    console.log("[membership-link] allowedApps:", allowedApps, "ok:", ok);
+const ok =
+  Boolean(tier) &&
+  allowedAppsNormalized.includes(normalizedApp);
 
     if (!ok) {
       return NextResponse.json(
