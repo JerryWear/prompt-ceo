@@ -1,25 +1,41 @@
 // app/api/membership-link/route.js
 import { NextResponse } from "next/server";
-import {
-  tierFromTags,
-  appsForTier,
-  signMembershipToken,
-} from "../../../lib/membershipLink";
+import { tierFromTags, appsForTier, signMembershipToken } from "../../../lib/membershipLink";
 
 export const runtime = "nodejs";
 
-// ✅ CHANGE THIS to your Shopify domain (important)
-const ALLOWED_ORIGIN = "https://atozbodydesign.com";
+// ✅ Shopify domains allowed to call this API
+const ALLOWED_ORIGINS = new Set([
+  "https://atozbodydesign.com",
+  "https://www.atozbodydesign.com",
+]);
 
 function corsHeaders(origin) {
-  const allowOrigin = origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN;
-
+  const allowOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://atozbodydesign.com";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
   };
+}
+
+// Normalize app values coming from Shopify UI into what our backend expects
+function normalizeApp(app) {
+  const a = String(app || "").toLowerCase().trim();
+
+  // Shopify can send "photo"
+  if (a === "photo") return "prompt-v2";
+
+  // Accept common aliases
+  if (a === "prompt") return "prompt-v2";
+  if (a === "prompt-v2") return "prompt-v2";
+
+  // Video is already "video"
+  if (a === "video") return "video";
+
+  // Unknown stays unknown (will fail check)
+  return a;
 }
 
 // Preflight
@@ -30,43 +46,73 @@ export async function OPTIONS(req) {
 
 export async function POST(req) {
   const origin = req.headers.get("origin") || "";
+  const headers = corsHeaders(origin);
 
   try {
-    const { customerId, tags = [], app } = await req.json();
+    const body = await req.json();
+    const customerId = body?.customerId;
+    const tags = body?.tags || body?.customerTags || [];
+    const appRaw = body?.app;
+
+    const app = normalizeApp(appRaw);
 
     const tier = tierFromTags(tags);
     const allowedApps = appsForTier(tier);
 
-    const ok = Boolean(tier) && allowedApps.includes(app);
+    // IMPORTANT: our allowedApps likely contains "prompt-v2" and/or "video"
+    const ok = Boolean(tier) && Array.isArray(allowedApps) && allowedApps.includes(app);
+
+    console.log("[membership-link] origin:", origin);
+    console.log("[membership-link] customerId:", customerId, "tier:", tier, "appRaw:", appRaw, "app:", app);
+    console.log("[membership-link] allowedApps:", allowedApps, "ok:", ok);
 
     if (!ok) {
       return NextResponse.json(
-        { ok: false, error: "Access denied" },
-        { status: 403, headers: corsHeaders(origin) }
+        {
+          ok: false,
+          error: "Access denied",
+          debug: {
+            origin,
+            tier,
+            appRaw,
+            app,
+            allowedApps,
+          },
+        },
+        { status: 403, headers }
+      );
+    }
+
+    const secret = process.env.MEMBERSHIP_LINK_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { ok: false, error: "Server misconfigured: missing MEMBERSHIP_LINK_SECRET" },
+        { status: 500, headers }
       );
     }
 
     const token = signMembershipToken(
       {
-        sub: String(customerId),
+        sub: String(customerId || ""),
         tier,
         apps: allowedApps,
       },
-      process.env.MEMBERSHIP_LINK_SECRET
+      secret
     );
 
     const base = (process.env.APP_URL || "https://prompt-ceo.vercel.app").replace(/\/$/, "");
     const path = app === "video" ? "/video" : "/prompt-v2";
-    const url = `${base}${path}?ml=${token}`;
+    const url = `${base}${path}?ml=${encodeURIComponent(token)}`;
 
     return NextResponse.json(
       { ok: true, tier, allowedApps, url },
-      { status: 200, headers: corsHeaders(origin) }
+      { status: 200, headers }
     );
   } catch (e) {
+    console.error("[membership-link] Bad request:", e);
     return NextResponse.json(
       { ok: false, error: "Bad request" },
-      { status: 400, headers: corsHeaders(origin) }
+      { status: 400, headers }
     );
   }
 }
