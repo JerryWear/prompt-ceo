@@ -9,12 +9,16 @@ export default async function Page({ searchParams }) {
   const token = searchParams?.ml;
   const secret = process.env.MEMBERSHIP_LINK_SECRET;
 
-  if (!token) redirect("/");
+  if (!token) {
+    redirect("/?mh=1&reason=no_token");
+  }
 
   const payload = verifyMembershipToken(token, secret);
-  if (!payload) redirect("/");
 
-  // Make apps check bulletproof (array OR string OR missing)
+  if (!payload) {
+    redirect("/?mh=1&reason=bad_token");
+  }
+
   const appsRaw = payload.apps;
   const apps = Array.isArray(appsRaw)
     ? appsRaw
@@ -23,7 +27,10 @@ export default async function Page({ searchParams }) {
       : [];
 
   const canUsePhoto = apps.includes("photo") || apps.includes("prompt-v2");
-  if (!canUsePhoto) redirect("/");
+
+  if (!canUsePhoto) {
+    redirect("/?mh=1&reason=no_photo_access");
+  }
 
   return (
     <PromptV2Page
