@@ -3,15 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-/* =========================================
-   SOLID SKELETON FIRST (PRO UI)
-   - Plan tiers: Soft / Fanvue / Unrestricted
-   - Left: Packs tabs
-   - Right: Fields editor
-   - Final Prompt + Batch Packs
-   - Clean wrappers (no JSX tag issues)
-========================================= */
-
 const PLAN_TIERS = [
   { key: 'Soft', label: 'Soft (Safe / IG)' },
   { key: 'Fanvue', label: 'Fanvue (Tease)' },
@@ -24,6 +15,23 @@ const EMPTY_BLOCKS = {
   time: '',
   pose: '',
   clothing: '',
+
+  // ATTRIBUTES
+  ethnicity: '',
+  body_shape: '',
+  eye_color: '',
+  hair: '',
+  breast_size: '',
+  glute_size: '',
+
+  // PROVOCATION ENGINE
+  outfit_archetype: '',
+  undress_state: '',
+  clothing_instability: '',
+  intimate_framing: '',
+  voyeur_energy: '',
+  micro_action: '',
+
   lingerie: '',
   mood: '',
   camera: '',
@@ -36,8 +44,25 @@ const FIELD_ORDER = [
   ['identity', 'Identity'],
   ['location', 'Location'],
   ['time', 'Time'],
-  ['pose', 'Pose'],
+  ['pose', 'Pose / Staging'],
   ['clothing', 'Clothing'],
+
+  // ATTRIBUTES
+  ['ethnicity', 'Ethnicity'],
+  ['body_shape', 'Body Shape'],
+  ['eye_color', 'Eye Color'],
+  ['hair', 'Hair'],
+  ['breast_size', 'Breast Size'],
+  ['glute_size', 'Glute Size'],
+
+  // PROVOCATION ENGINE
+  ['outfit_archetype', 'Outfit Archetype'],
+  ['undress_state', 'State of Undress'],
+  ['clothing_instability', 'Clothing Instability'],
+  ['intimate_framing', 'Intimate Framing'],
+  ['voyeur_energy', 'Voyeur Energy'],
+  ['micro_action', 'Micro Action'],
+
   ['lingerie', 'Lingerie'],
   ['mood', 'Mood'],
   ['camera', 'Camera'],
@@ -46,44 +71,220 @@ const FIELD_ORDER = [
   ['quality', 'Quality'],
 ]
 
-/* =========================================
-   MINIMAL LIBRARIES (SKELETON MODE)
-   ✅ We will paste your full libraries later, safely.
-========================================= */
+const PLAN_RULES = {
+  Soft: {
+    allowFields: [
+      'identity',
+      'location',
+      'time',
+      'pose',
+      'clothing',
+      'ethnicity',
+      'body_shape',
+      'eye_color',
+      'hair',
+      'mood',
+      'camera',
+      'lighting',
+      'style',
+      'quality',
+    ],
+    allowLingerie: false,
+    allowLocationCats: [
+      'All',
+      'Countries',
+      'Cities',
+      'Beaches',
+      'Hotels',
+      'Hotel – Lobby',
+      'Hotel – Suite Bedroom',
+      'Hotel – Living Room',
+      'Home – Bedroom',
+      'Home – Kitchen',
+      'Home – Living Room',
+      'Studios',
+      'Nature',
+      'Rooftops / Penthouses',
+      'Gyms',
+    ],
+  },
+
+  Fanvue: {
+    allowFields: [
+      'identity',
+      'location',
+      'time',
+      'pose',
+      'clothing',
+      'ethnicity',
+      'body_shape',
+      'eye_color',
+      'hair',
+      'breast_size',
+      'glute_size',
+      'outfit_archetype',
+      'undress_state',
+      'clothing_instability',
+      'intimate_framing',
+      'voyeur_energy',
+      'micro_action',
+      'lingerie',
+      'mood',
+      'camera',
+      'lighting',
+      'style',
+      'quality',
+    ],
+    allowLingerie: true,
+    allowLocationCats: [
+      'All',
+      'Countries',
+      'Cities',
+      'Beaches',
+      'Hotels',
+      'Hotel – Lobby',
+      'Hotel – Suite Bedroom',
+      'Hotel – Living Room',
+      'Home – Bedroom',
+      'Home – Kitchen',
+      'Home – Living Room',
+      'Studios',
+      'Nature',
+      'Rooftops / Penthouses',
+      'Gyms',
+      'Gym – Locker Rooms',
+    ],
+  },
+
+  Unrestricted: {
+    allowFields: [
+      'identity',
+      'location',
+      'time',
+      'pose',
+      'clothing',
+      'ethnicity',
+      'body_shape',
+      'eye_color',
+      'hair',
+      'breast_size',
+      'glute_size',
+      'outfit_archetype',
+      'undress_state',
+      'clothing_instability',
+      'intimate_framing',
+      'voyeur_energy',
+      'micro_action',
+      'lingerie',
+      'mood',
+      'camera',
+      'lighting',
+      'style',
+      'quality',
+    ],
+    allowLingerie: true,
+    allowLocationCats: [
+      'All',
+      'Countries',
+      'Cities',
+      'Beaches',
+      'Nightclubs',
+      'Gyms',
+      'Gym – Locker Rooms',
+      'Gym – Showers',
+      'Hotels',
+      'Hotel – Lobby',
+      'Hotel – Suite Bedroom',
+      'Hotel – Living Room',
+      'Hotel – Shower',
+      'Home – Bedroom',
+      'Home – Shower',
+      'Home – Kitchen',
+      'Home – Living Room',
+      'Studios',
+      'Nature',
+      'Rooftops / Penthouses',
+    ],
+  },
+}
+
 const LIBRARIES = {
-    identity: [
-    // Clean / Safe / IG-compatible
+  identity: [
     'Ultra-realistic AI influencer, female, natural beauty, balanced proportions, confident but approachable presence, natural skin texture',
     'Lifestyle fashion influencer, female, healthy athletic build, relaxed confidence, clean facial features, friendly energy',
     'Luxury lifestyle creator, female, elegant posture, refined facial structure, polished but natural appearance',
 
-    // High-status / Editorial
     'Luxury fashion influencer, female, tall elegant posture, high-status presence, refined facial features, stable facial identity',
     'High-fashion editorial model, female, statuesque proportions, sharp jawline, controlled expression, commanding presence',
     'Premium brand ambassador, female, confident gaze, composed posture, elite campaign-ready look',
 
-    // Cinematic / Dramatic
     'Cinematic female character, striking facial features, strong bone structure, intense gaze, dramatic presence',
     'Editorial portrait subject, female, sculpted features, poised confidence, cinematic realism, controlled emotion',
 
-    // Consistency / Model stability
     'Ultra-realistic female AI model, consistent facial identity, symmetrical features, realistic skin pores, professional grade realism',
     'Stable AI character identity, female, repeatable facial features, clean anatomy, high realism fidelity',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Unrestricted editorial female subject, bold facial features, unapologetic confidence, dominant presence',
     'After-hours cinematic female model, intense gaze, mature sensual confidence, controlled dominance',
-    'Provocative high-fashion muse, female, sharp bone structure, fearless expression, commanding energy',
     'Dark editorial female character, powerful posture, predatory calm, unmistakable authority',
-    'Unfiltered adult editorial subject, strong facial identity, raw confident presence, assertive energy',
-],
+  ],
+
+  ethnicity: [
+    'European',
+    'Nordic',
+    'Mediterranean',
+    'Latina',
+    'East Asian',
+    'South Asian',
+    'Middle Eastern',
+    'Black',
+    'Mixed ethnicity',
+  ],
+
+  body_shape: [
+    'Slim feminine frame',
+    'Athletic toned build',
+    'Curvy hourglass shape',
+    'Soft feminine curves',
+    'Lean dancer-like physique',
+    'Fit model proportions',
+  ],
+
+  eye_color: [
+    'Brown eyes',
+    'Dark brown eyes',
+    'Hazel eyes',
+    'Green eyes',
+    'Blue eyes',
+    'Grey eyes',
+  ],
+
+  hair: [
+    'Long dark hair, loose waves',
+    'Long blonde hair, soft curls',
+    'Medium-length hair, straight and sleek',
+    'Short bob haircut, clean lines',
+    'High ponytail, sporty and confident',
+    'Messy bun, casual and intimate',
+  ],
+
+  breast_size: [
+    'Small natural bust',
+    'Medium proportional bust',
+    'Full natural bust',
+    'Full round bust, soft shape',
+  ],
+
+  glute_size: [
+    'Subtle athletic glutes',
+    'Rounded feminine glutes',
+    'Full sculpted glutes',
+    'Strong curvy glutes',
+  ],
+
   time: ['Golden hour', 'Evening', 'Night (cinematic)'],
-    pose: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+
+  pose: [
     'Standing naturally, relaxed posture, shoulders back, soft confident stance',
     'Casual standing pose, weight evenly balanced, natural body alignment',
     'Seated comfortably, upright posture, relaxed hands, calm approachable presence',
@@ -91,9 +292,6 @@ const LIBRARIES = {
     'Slight lean against wall, arms relaxed, effortless confidence',
     'Facing camera directly, neutral stance, friendly eye contact',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Standing tall, weight on one hip, subtle torso twist toward camera, confident eye contact',
     'Contrapposto stance, elongated posture, relaxed dominance, editorial balance',
     'Walking toward camera, smooth confident stride, controlled movement',
@@ -103,9 +301,6 @@ const LIBRARIES = {
     'Leaning forward slightly, elbows resting on thighs, engaged confident presence',
     'Side profile pose, chin slightly lifted, strong silhouette, editorial framing',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Back-arched pose, hands above head, confident dominance, cinematic framing',
     'Kneeling pose, arched posture, intense eye contact, provocative editorial energy',
     'Straddling a chair pose, forward lean, commanding gaze, after-hours mood',
@@ -116,19 +311,13 @@ const LIBRARIES = {
     'Seated wide stance, elbows on knees, intense gaze, raw confident energy',
   ],
 
-    clothing: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  clothing: [
     'Tailored blazer with fitted top, high-waisted trousers, heels, minimal jewelry, clean luxury styling',
     'Casual knit sweater with fitted jeans, neutral tones, relaxed lifestyle look',
     'Flowing midi dress, soft fabric, elegant silhouette, daytime lifestyle vibe',
     'Crisp button-down shirt with slim trousers, polished but approachable style',
     'Athleisure set: seamless leggings and fitted top, clean sporty aesthetic',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Form-fitting dress with subtle cutouts, elegant but teasing editorial look',
     'Off-shoulder top with tailored skirt, confident feminine styling',
     'Sheer blouse layered over fitted under-top, tasteful transparency, editorial mood',
@@ -136,9 +325,6 @@ const LIBRARIES = {
     'Open-back dress, clean lines, controlled sensuality, luxury editorial styling',
     'Fitted bodysuit paired with high-waisted pants, confident silhouette',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Unbuttoned shirt worn open over bare skin, bold confident styling, after-hours mood',
     'Sheer dress with minimal layering, exposed silhouette, unapologetic editorial presence',
     'Latex or leather-inspired outfit, high-contrast textures, dominant fashion energy',
@@ -146,29 +332,88 @@ const LIBRARIES = {
     'Open-front jacket worn without top, bold high-fashion statement',
     'Minimal clothing styling emphasizing form and posture, raw confident aesthetic',
   ],
+  outfit_archetype: [
+    'Elegant bodycon midi dress, smooth fabric, tasteful silhouette emphasis, clean luxury vibe',
+    'Athleisure set: seamless leggings + fitted top, flattering fit, sporty confidence',
+    'Silk slip dress with modest neckline, refined lounge elegance, soft glow',
 
-    lingerie: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE (tasteful, coverage-forward)
-    // --------------------------------------------------
+    'Oversized button-down shirt worn like a dress, bare legs visible, luxury tease energy',
+    'Unbuttoned blouse with lingerie subtly visible underneath, intentional tease styling',
+    'Open-back dress with thigh-high slit, confident tease, editorial elegance',
+
+    'Shirt worn open with lingerie clearly visible, bold after-hours editorial styling',
+    'Sheer dress with strategic layering (no nudity), silhouette-heavy after-hours aesthetic',
+    'Leather-inspired mini outfit with strong curves emphasis, dominant editorial vibe',
+  ],
+
+  undress_state: [
+    'Outfit freshly adjusted, casual getting-ready vibe, tasteful and clean',
+    'Hair slightly messy, cozy at-home moment, calm and natural',
+
+    'Half-dressed getting-ready moment, shirt not fully buttoned, intentional tease',
+    'Top slightly off one shoulder, exposed collarbone, soft provocative vibe',
+
+    'After-hours getting-ready moment, lingerie clearly visible, outfit not fully in place',
+    'Shirt slipping open during movement, controlled near-undone look, editorial tension',
+  ],
+
+  clothing_instability: [
+    'Slight fabric movement from wind, soft natural motion, tasteful realism',
+    'Sleeves casually rolled, relaxed styling, effortless confidence',
+
+    'Strap slipping slightly off shoulder, teasing but tasteful wardrobe tension',
+    'High slit showing more thigh during movement, controlled tease framing',
+
+    'Outer layer slipping off with lingerie fully visible, powerful after-dark styling',
+    'Dress riding higher on thigh with movement, bold provocative framing (non-nude)',
+  ],
+
+  intimate_framing: [
+    'Full-body with balanced spacing, natural proportions, lifestyle framing',
+    'Waist-up portrait framing, soft skin texture, clean composition',
+
+    'Mid-body crop emphasizing waist and hips (non-explicit), high-fashion tease composition',
+    'Upper-thigh to waist framing, leg emphasis, editorial tease crop (no explicit center)',
+
+    'Tight crop on hips/waist curve (non-explicit), provocative editorial composition',
+    'Minimal negative space, close proximity framing, raw after-dark intimacy (non-nude)',
+  ],
+
+  voyeur_energy: [
+    'Candid lifestyle energy, natural moment, relaxed and genuine',
+    'Soft awareness of the camera, friendly eye contact, calm confidence',
+
+    'Caught mid-moment, just noticed the camera, teasing awareness',
+    'Mirror reflection moment with intentional tease, non-explicit intimacy',
+
+    'After-hours “caught” vibe, intense awareness, does not stop, dominant tease energy',
+    'Direct gaze as if inviting the viewer closer, charged tension (no explicit content)',
+  ],
+
+  micro_action: [
+    'Gently adjusting hair, natural movement, calm lifestyle vibe',
+    'Light step forward, relaxed arms, casual motion realism',
+
+    'Lightly tugging jacket off one shoulder, intentional tease movement',
+    'Gentle hip shift with slow breath, subtle tension and intimacy',
+
+    'Slowly sliding jacket down the shoulders revealing lingerie, bold after-hours tease',
+    'Controlled fabric pull emphasizing silhouette (no nudity), dominant tease energy',
+  ],
+
+  lingerie: [
     'Soft lace bralette with matching high-waisted briefs, tasteful coverage, refined edges',
     'Satin camisole with matching shorts, elegant lounge set, modest silhouette',
     'Silky slip dress, tasteful neckline, smooth clean lines, editorial coverage',
     'Lace-trim lounge set, soft fabrics, comfortable fit, refined styling',
     'Sports-luxe bralette with matching bottoms, clean athletic lingerie styling',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL (suggestive, non-explicit)
-    // --------------------------------------------------
     'Black lace lingerie set with confident structure, editorial framing, tasteful coverage',
     'Strappy lingerie set with refined lines, fashion-forward tease, non-explicit styling',
     'Sheer lace bralette layered tastefully, controlled transparency, editorial tease',
     'High-cut lingerie set with clean edges, confident silhouette, tease-forward styling',
     'Corset-style lingerie top with matching bottoms, structured luxury tease',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL (bolder styling)
-    // --------------------------------------------------
     'Minimal lingerie set with bold straps and sharp lines, unapologetic after-hours editorial mood',
     'Sheer lingerie styling with strong silhouette emphasis, intense adult editorial energy',
     'Latex-inspired lingerie set with high-contrast shine, dominant fashion energy',
@@ -176,19 +421,13 @@ const LIBRARIES = {
     'Thong-and-bralette styling with strong body emphasis, raw confident after-hours vibe',
   ],
 
-      mood: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  mood: [
     'Warm approachable confidence, soft smile, relaxed posture, friendly presence',
     'Calm natural confidence, gentle eye contact, understated elegance',
     'Poised and composed energy, clean expression, lifestyle-friendly tone',
     'Relaxed confidence, open body language, effortless calm',
     'Soft self-assured presence, neutral expression, polished but natural mood',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Calm confidence, seductive but controlled, intense eye contact, poised energy',
     'Playful flirtation, teasing expression, subtle confidence, soft dominance',
     'High-status calm, confident control, minimal expression, commanding presence',
@@ -196,9 +435,6 @@ const LIBRARIES = {
     'Confident teasing energy, restrained sensuality, editorial composure',
     'Smooth controlled intensity, intentional gaze, refined seductive tone',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Moody after-hours energy, quiet dominance, intense unwavering eye contact',
     'Dark seductive presence, slow controlled movements, powerful gaze',
     'Raw confident energy, unapologetic presence, dominant posture',
@@ -206,19 +442,13 @@ const LIBRARIES = {
     'Bold commanding mood, predatory calm, unmistakable after-dark presence',
   ],
 
-    camera: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  camera: [
     'Eye-level framing, natural perspective, clean lifestyle composition',
     'Three-quarter body framing, balanced composition, friendly camera distance',
     'Medium shot, subject centered, natural breathing room, clean framing',
     'Slight wide-angle lifestyle framing, natural proportions, casual aesthetic',
     'Upper-body portrait framing, relaxed spacing, approachable visual tone',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Three-quarter body framing, shallow depth of field, cinematic composition',
     'Low-angle medium shot, subtle power emphasis, editorial confidence',
     'Tight waist-up framing, controlled intimacy, fashion editorial feel',
@@ -226,9 +456,6 @@ const LIBRARIES = {
     'Portrait framing with strong subject separation, luxury editorial composition',
     'Slow push-in cinematic framing, controlled perspective, tease-forward energy',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Low-angle close-up framing, dominant perspective, intense visual presence',
     'Tight body framing with deliberate crop, provocative editorial composition',
     'Extreme close-up detail framing, charged intimacy, cinematic tension',
@@ -237,19 +464,13 @@ const LIBRARIES = {
     'Close-range framing with minimal negative space, raw after-hours aesthetic',
   ],
 
-    lighting: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  lighting: [
     'Soft natural daylight, even exposure, clean skin tones, gentle shadows',
     'Window light with soft diffusion, bright airy feel, minimal contrast',
     'Golden hour sunlight, warm glow, soft highlights, flattering natural contrast',
     'High-key beauty lighting, smooth gradients, clean background separation',
     'Outdoor shade lighting, balanced tones, no harsh highlights, lifestyle realism',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Soft beauty lighting with controlled highlights, clean skin tones, no harsh flash',
     'Cinematic key light with gentle falloff, subtle shadows, luxury editorial mood',
     'Side-lit portrait lighting, sculpted cheek shadows, controlled contrast, editorial look',
@@ -257,9 +478,6 @@ const LIBRARIES = {
     'Warm practical ambient lights, hotel-suite glow, seductive but refined atmosphere',
     'Moody cinematic lighting with controlled shadows, tease-forward editorial energy',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Low-key lighting, deep shadows, sharp highlights, intense after-hours mood',
     'Hard side light with dramatic shadow lines, raw editorial contrast',
     'Neon accent lighting with dark ambient shadows, nightclub after-hours energy',
@@ -268,19 +486,13 @@ const LIBRARIES = {
     'Dark moody lighting with high contrast, unapologetic adult editorial atmosphere',
   ],
 
-    style: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  style: [
     'Clean lifestyle photography, natural colors, soft contrast, realistic skin texture',
     'Bright airy editorial style, minimal grain, smooth tonal transitions, modern look',
     'Natural realistic photography style, balanced saturation, true-to-life tones',
     'Well-lit commercial lifestyle campaign style, polished but natural',
     'Soft film-like realism, gentle highlight rolloff, subtle texture',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     'Ultra-realistic professional photography, cinematic grade, natural skin pores, crisp detail',
     'High-fashion editorial photography style, luxury campaign look, refined composition',
     'Glossy magazine editorial style, clean sharp detail, controlled contrast',
@@ -288,9 +500,6 @@ const LIBRARIES = {
     'Luxury brand campaign aesthetic, polished skin tones, confident editorial presence',
     'Film noir inspired editorial realism, controlled shadows, tease-forward mood',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Dark moody editorial photography, heavy contrast, intense cinematic grade',
     'After-hours cinematic realism, gritty texture, bold shadows, raw presence',
     'High-contrast neon editorial style, nightclub aesthetic, dramatic color grade',
@@ -299,27 +508,18 @@ const LIBRARIES = {
     'Luxury after-dark campaign style, deep blacks, strong highlights, dominant mood',
   ],
 
-    quality: [
-    // --------------------------------------------------
-    // SAFE / SOFT / IG-COMPATIBLE
-    // --------------------------------------------------
+  quality: [
     'High resolution, sharp focus, natural skin texture, realistic anatomy, clean composition',
     'No text, no watermark, no logo, no signatures, no captions, no UI elements',
     'Correct hands and fingers, natural proportions, clean edges, no artifacts',
     'Balanced exposure, clean colors, minimal noise, stable details',
 
-    // --------------------------------------------------
-    // FANVUE / TEASE / EDITORIAL
-    // --------------------------------------------------
     '8K, crisp detail, shallow depth of field, professional editorial sharpness',
     'Stable facial identity, consistent features, clean skin pores, realistic lighting response',
     'Clean anatomy: correct limbs, correct joints, clean hands, natural body alignment',
     'No distortion, no extra limbs, no melted hands, no duplicated fingers, no artifacts',
     'High-end editorial finish, premium color grade, controlled highlights and shadows',
 
-    // --------------------------------------------------
-    // UNRESTRICTED / AFTER-HOURS / ADULT EDITORIAL
-    // --------------------------------------------------
     'Ultra high detail, cinematic realism, intense clarity, premium texture fidelity',
     'Consistent identity across shots, repeatable face, stable proportions, no warping',
     'Anatomy perfection: clean hands, correct fingers, correct limbs, no anomalies',
@@ -327,34 +527,8 @@ const LIBRARIES = {
     'Extreme realism, sharp micro-details, clean backgrounds, no artifacts, no distortions',
   ],
 
-    // Locations (LOCKED)
-  locationCategory: [
-    'All',
-    'Countries',
-    'Cities',
-    'Beaches',
-    'Nightclubs',
-    'Gyms',
-    'Gym – Locker Rooms',
-    'Gym – Showers',
-    'Hotels',
-    'Hotel – Lobby',
-    'Hotel – Suite Bedroom',
-    'Hotel – Living Room',
-    'Hotel – Shower',
-    'Home – Bedroom',
-    'Home – Shower',
-    'Home – Kitchen',
-    'Home – Living Room',
-    'Studios',
-    'Nature',
-    'Rooftops / Penthouses',
-  ],
-
   locationByCategory: {
-    // NOTE: Keep All as optional curated pool AND also allow merge in UI (we’ll patch that in Change 3)
     All: [
-      // Smart All Pool (curated)
       'Neutral studio background with soft lighting, clean minimal setup, no distractions',
       'Modern minimalist bedroom with neutral tones, clean bedding, soft daylight through window',
       'Five-star hotel lobby with marble floors, warm soft lighting, luxury calm atmosphere',
@@ -385,7 +559,6 @@ const LIBRARIES = {
     ],
 
     Cities: [
-      // Core
       'New York City — modern skyline, high-rise rooftops, fast-paced luxury lifestyle energy',
       'Los Angeles — sunlit streets, palm trees, modern homes, influencer lifestyle vibe',
       'Miami — tropical city luxury, neon nightlife, beachfront high-rise atmosphere',
@@ -394,20 +567,15 @@ const LIBRARIES = {
       'Dubai — ultra-luxury skyline, glass towers, high-end lifestyle atmosphere',
       'Tokyo — neon-lit streets, futuristic city density, clean cinematic night mood',
       'Seoul — modern city streets, nightlife luxury, clean premium urban tone',
-
-      // Exotic / aspirational
       'Marrakech — warm terracotta tones, arched walls, exotic luxury calm',
       'Cape Town — ocean and mountain backdrop, elite lifestyle mood',
       'Cartagena — colonial balcony streets, tropical air, romantic luxury vibe',
       'Tbilisi — raw textures, emerging luxury aesthetic, editorial calm',
       'Zanzibar — warm coastal luxury, Swahili textures, golden atmosphere',
-
-      // Ultra-exotic (we’ll lock these to Unrestricted in Change 3 if you want)
       'Wadi Rum — luxury desert camp, vast red dunes, cinematic isolation',
       'Lapland — glass igloo suite, snowfields and northern lights, silent premium luxury',
       'Maldives — overwater villa deck, infinite horizon, crystal lagoon, premium fantasy',
     ],
-
     Beaches: [
       'White sand beach with turquoise water, clean open horizon, no crowds, soft sunlight',
       'Palm-lined tropical beach at golden hour, warm glow, gentle waves',
@@ -537,14 +705,54 @@ const LIBRARIES = {
       'Private penthouse balcony overlooking skyline, soft night lights and bokeh',
       'Luxury penthouse interior with floor-to-ceiling windows, skyline view, editorial mood',
       'Rooftop at night with city lights below, cinematic atmosphere, controlled highlights',
-      ],
+    ],
   },
-};
+}
 
-/* =========================================
-   PACKS (SKELETON)
-   ✅ Later we will paste your real packs back in.
-========================================= */
+const SOFT_PRESETS = [
+  {
+    name: 'Soft – IG Safe Lifestyle',
+    values: {
+      mood: 'Warm approachable confidence, soft smile, relaxed posture',
+      lighting: 'Soft natural daylight, even exposure, clean skin tones',
+      style: 'Clean lifestyle photography, natural colors, polished realism',
+      quality: 'High resolution, clean details, no text, no watermark',
+    },
+  },
+  {
+    name: 'Soft – Luxury Daylight Editorial',
+    values: {
+      identity:
+        'Luxury lifestyle creator, female, elegant posture, refined facial structure, polished but natural appearance',
+      mood: 'Calm natural confidence, gentle eye contact, understated elegance',
+      lighting: 'Golden hour daylight, warm glow, flattering natural contrast',
+      style: 'Bright airy editorial style, minimal grain, modern luxury feel',
+      quality: 'Sharp focus, natural skin texture, clean anatomy, no artifacts',
+    },
+  },
+  {
+    name: 'Soft – Fitness / Athleisure Campaign',
+    values: {
+      clothing: 'Athleisure set: seamless leggings and fitted top, clean sporty aesthetic',
+      pose: 'Standing naturally, relaxed posture, confident athletic stance',
+      mood: 'Relaxed confidence, energetic but friendly presence',
+      lighting: 'Outdoor shade lighting, balanced tones, lifestyle realism',
+      style: 'Commercial fitness lifestyle photography',
+      quality: 'Clean details, realistic proportions, no distortion',
+    },
+  },
+  {
+    name: 'Soft – Minimal Studio Portrait',
+    values: {
+      pose: 'Seated comfortably, upright posture, relaxed hands',
+      mood: 'Poised and composed energy, calm approachable presence',
+      lighting: 'High-key beauty lighting, soft gradients, clean background',
+      style: 'Minimalist studio portrait photography',
+      quality: 'Clean edges, correct anatomy, no noise or artifacts',
+    },
+  },
+]
+
 const FANVUE_PRESETS = [
   {
     name: 'Fanvue – Editorial Power',
@@ -573,40 +781,19 @@ const FANVUE_PRESETS = [
     },
   },
   {
-    name: 'Fanvue – Hotel Suite Glow',
+    name: 'Fanvue – Edge Tease (Provocation Engine)',
     values: {
-      location: 'Luxury hotel suite with skyline view, warm ambient lighting, minimal decor',
-      lingerie: 'Strappy lingerie set with refined lines, fashion-forward tease, non-explicit styling',
-      pose: 'Leaning forward slightly, elbows resting on thighs, engaged confident presence',
+      outfit_archetype: 'Oversized button-down shirt worn like a dress, bare legs visible, luxury tease energy',
+      undress_state: 'Half-dressed getting-ready moment, shirt not fully buttoned, intentional tease',
+      clothing_instability: 'Strap slipping slightly off shoulder, teasing but tasteful wardrobe tension',
+      intimate_framing: 'Upper-thigh to waist framing, leg emphasis, editorial tease crop (no explicit center)',
+      voyeur_energy: 'Caught mid-moment, just noticed the camera, teasing awareness',
+      micro_action: 'Lightly tugging jacket off one shoulder, intentional tease movement',
       mood: 'Quiet allure, slow deliberate presence, magnetic eye contact',
-      camera: 'Portrait framing with strong subject separation, luxury editorial composition',
+      camera: 'Three-quarter body framing, shallow depth of field, cinematic composition',
       lighting: 'Warm practical ambient lights, hotel-suite glow, seductive but refined atmosphere',
       style: 'Luxury brand campaign aesthetic, polished skin tones',
-      quality: 'Stable identity, clean anatomy, no distortion, no text, no watermark',
-    },
-  },
-  {
-    name: 'Fanvue – Sporty Tease',
-    values: {
-      clothing: 'Athleisure set: seamless leggings and fitted top, clean sporty aesthetic',
-      pose: 'Walking toward camera, smooth confident stride, controlled movement',
-      mood: 'Confident teasing energy, restrained sensuality, editorial composure',
-      camera: 'Medium shot, subject centered, clean framing, confident presence',
-      lighting: 'Soft natural daylight, even exposure, clean skin tones',
-      style: 'Well-lit commercial lifestyle campaign style, polished but natural',
-      quality: 'Clean details, realistic proportions, no artifacts, no text, no watermark',
-    },
-  },
-  {
-    name: 'Fanvue – Dark Tease Editorial',
-    values: {
-      lingerie: 'Corset-style lingerie top with matching bottoms, structured luxury tease',
-      pose: 'Side profile pose, chin slightly lifted, strong silhouette, editorial framing',
-      mood: 'Smooth controlled intensity, intentional gaze, refined seductive tone',
-      camera: 'Off-center framing, dynamic crop, intentional negative space',
-      lighting: 'Moody cinematic lighting with controlled shadows, tease-forward editorial energy',
-      style: 'Film noir inspired editorial realism, controlled shadows',
-      quality: '8K, sharp micro-detail, clean hands, no distortion, no text, no watermark',
+      quality: '8K, crisp detail, stable facial identity, clean anatomy, no text, no watermark',
     },
   },
 ]
@@ -627,106 +814,24 @@ const UNRESTRICTED_PRESETS = [
     },
   },
   {
-    name: 'Unrestricted – Neon Nightclub',
+    name: 'Unrestricted – Near-Edge Editorial (Provocation Engine)',
     values: {
-      location: 'Nightclub, neon accents, dark ambient atmosphere, glossy reflections, after-hours energy',
-      pose: 'Wide confident stance, dominant body language, unapologetic presence',
-      lingerie: 'Harness-style lingerie accents, bold provocative editorial styling, confident dominance',
-      mood: 'Dark seductive presence, slow controlled movements, powerful gaze',
-      camera: 'Tight body framing with deliberate crop, provocative editorial composition',
-      lighting: 'Neon accent lighting with dark ambient shadows, nightclub after-hours energy',
-      style: 'High-contrast neon editorial style, nightclub aesthetic, dramatic color grade',
-      quality: 'Extreme realism, sharp micro-details, clean anatomy, no distortion, no text, no watermark',
-    },
-  },
-  {
-    name: 'Unrestricted – Hard Contrast Studio',
-    values: {
-      location: 'Neutral studio background, controlled soft light, clean separation',
-      pose: 'Back-arched pose, hands above head, confident dominance, cinematic framing',
-      lingerie: 'Latex-inspired lingerie set with high-contrast shine, dominant fashion energy',
-      mood: 'Raw confident energy, unapologetic presence, dominant posture',
-      camera: 'Single-source spotlight look, high drama, provocative cinematic tension',
-      lighting: 'Hard side light with dramatic shadow lines, raw editorial contrast',
-      style: 'Hard-edged cinematic realism, sharp shadows, raw unfiltered atmosphere',
-      quality: 'Anatomy perfection, stable identity, no warping, no artifacts, no text, no watermark',
-    },
-  },
-  {
-    name: 'Unrestricted – Mirror Heat',
-    values: {
-      location: 'Full-length mirror scene, dark editorial interior, glossy reflections, after-hours vibe',
-      pose: 'Over-the-shoulder look with exposed back, teasing glance, bold sensual posture',
-      mood: 'Charged intimate tension, assertive dominance, unfiltered confidence',
-      camera: 'Close-range framing with minimal negative space, raw after-hours aesthetic',
-      lighting: 'Backlight with strong rim highlights, minimal fill, dominant silhouette emphasis',
-      style: 'After-hours cinematic realism, gritty texture, bold shadows, raw presence',
-      quality: 'Consistent identity across shots, clean hands, correct anatomy, no text, no watermark',
-    },
-  },
-  {
-    name: 'Unrestricted – Predatory Calm (Portrait)',
-    values: {
-      identity:
-        'Dark editorial female character, powerful posture, predatory calm, unmistakable authority',
-      pose: 'Seated wide stance, elbows on knees, intense gaze, raw confident energy',
-      mood: 'Bold commanding mood, predatory calm, unmistakable after-dark presence',
-      camera: 'Extreme close-up detail framing, charged intimacy, cinematic tension',
-      lighting: 'Single-source spotlight look, high drama, provocative cinematic tension',
-      style: 'Luxury after-dark campaign style, deep blacks, strong highlights, dominant mood',
-      quality: 'Ultra high detail, stable identity, clean anatomy, no artifacts, no distortion, no text, no watermark',
+      outfit_archetype: 'Shirt worn open with lingerie clearly visible, bold after-hours editorial styling',
+      undress_state: 'After-hours getting-ready moment, lingerie clearly visible, outfit not fully in place',
+      clothing_instability: 'Outer layer slipping off with lingerie fully visible, powerful after-dark styling',
+      intimate_framing: 'Minimal negative space, close proximity framing, raw after-dark intimacy (non-nude)',
+      voyeur_energy: 'After-hours “caught” vibe, intense awareness, does not stop, dominant tease energy',
+      micro_action: 'Slowly sliding jacket down the shoulders revealing lingerie, bold after-hours tease',
+      mood: 'Moody after-hours energy, quiet dominance, intense unwavering eye contact',
+      camera: 'Low-angle close-up framing, dominant perspective, intense visual presence',
+      lighting: 'Low-key lighting, deep shadows, sharp highlights, intense after-hours mood',
+      style: 'Dark moody editorial photography, heavy contrast, intense cinematic grade',
+      quality:
+        'Ultra high detail, cinematic realism, stable identity, clean anatomy, no artifacts, no text, no watermark',
     },
   },
 ]
 
-const SOFT_PRESETS = [
-  {
-    name: 'Soft – IG Safe Lifestyle',
-    values: {
-      mood: 'Warm approachable confidence, soft smile, relaxed posture',
-      lighting: 'Soft natural daylight, even exposure, clean skin tones',
-      style: 'Clean lifestyle photography, natural colors, polished realism',
-      quality: 'High resolution, clean details, no text, no watermark',
-    },
-  },
-  {
-    name: 'Soft – Luxury Daylight Editorial',
-    values: {
-      identity:
-        'Luxury lifestyle creator, female, elegant posture, refined facial structure, polished but natural appearance',
-      mood: 'Calm natural confidence, gentle eye contact, understated elegance',
-      lighting: 'Golden hour daylight, warm glow, flattering natural contrast',
-      style: 'Bright airy editorial style, minimal grain, modern luxury feel',
-      quality: 'Sharp focus, natural skin texture, clean anatomy, no artifacts',
-    },
-  },
-  {
-    name: 'Soft – Fitness / Athleisure Campaign',
-    values: {
-      clothing:
-        'Athleisure set: seamless leggings and fitted top, clean sporty aesthetic',
-      pose: 'Standing naturally, relaxed posture, confident athletic stance',
-      mood: 'Relaxed confidence, energetic but friendly presence',
-      lighting: 'Outdoor shade lighting, balanced tones, lifestyle realism',
-      style: 'Commercial fitness lifestyle photography',
-      quality: 'Clean details, realistic proportions, no distortion',
-    },
-  },
-  {
-    name: 'Soft – Minimal Studio Portrait',
-    values: {
-      pose: 'Seated comfortably, upright posture, relaxed hands',
-      mood: 'Poised and composed energy, calm approachable presence',
-      lighting: 'High-key beauty lighting, soft gradients, clean background',
-      style: 'Minimalist studio portrait photography',
-      quality: 'Clean edges, correct anatomy, no noise or artifacts',
-    },
-  },
-]
-
-/* =========================================
-   HELPERS
-========================================= */
 function pickRandom(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return ''
   return arr[Math.floor(Math.random() * arr.length)]
@@ -772,159 +877,44 @@ function LibraryDropdown({ items, onPick, disabled, onLocked }) {
   )
 }
 
-/* =========================================
-   MAIN
-========================================= */
-/* =========================
-   PLAN / TIER RULES (helpers)
-   Soft | Fanvue | Unrestricted
-========================= */
-
-const PLAN_RULES = {
-  Soft: {
-    allowFields: [
-      'identity',
-      'location',
-      'time',
-      'pose',
-      'clothing',
-      'mood',
-      'camera',
-      'lighting',
-      'style',
-      'quality',
-    ],
-    allowLingerie: false,
-    allowLocationCats: [
-  'All',
-  'Countries',
-  'Cities',
-  'Beaches',
-  'Hotels',
-  'Hotel – Lobby',
-  'Hotel – Suite Bedroom',
-  'Hotel – Living Room',
-  'Home – Bedroom',
-  'Home – Kitchen',
-  'Home – Living Room',
-  'Studios',
-  'Nature',
-  'Rooftops / Penthouses',
-  'Gyms',
-],
-  },
-
-  Fanvue: {
-    allowFields: [
-      'identity',
-      'location',
-      'time',
-      'pose',
-      'clothing',
-      'lingerie',
-      'mood',
-      'camera',
-      'lighting',
-      'style',
-      'quality',
-    ],
-    allowLingerie: true,
-    allowLocationCats: [
-  'All',
-  'Countries',
-  'Cities',
-  'Beaches',
-  'Hotels',
-  'Hotel – Lobby',
-  'Hotel – Suite Bedroom',
-  'Hotel – Living Room',
-  'Home – Bedroom',
-  'Home – Kitchen',
-  'Home – Living Room',
-  'Studios',
-  'Nature',
-  'Rooftops / Penthouses',
-  'Gyms',
-
-  // Optional tease tier:
-  'Gym – Locker Rooms',
-],
-  },
-
-  Unrestricted: {
-    allowFields: [
-      'identity',
-      'location',
-      'time',
-      'pose',
-      'clothing',
-      'lingerie',
-      'mood',
-      'camera',
-      'lighting',
-      'style',
-      'quality',
-    ],
-    allowLingerie: true,
-    allowLocationCats: [
-  'All',
-  'Countries',
-  'Cities',
-  'Beaches',
-  'Nightclubs',
-  'Gyms',
-  'Gym – Locker Rooms',
-  'Gym – Showers',
-  'Hotels',
-  'Hotel – Lobby',
-  'Hotel – Suite Bedroom',
-  'Hotel – Living Room',
-  'Hotel – Shower',
-  'Home – Bedroom',
-  'Home – Shower',
-  'Home – Kitchen',
-  'Home – Living Room',
-  'Studios',
-  'Nature',
-  'Rooftops / Penthouses',
-],
-  },
-}
-
 export default function PromptV2() {
-  // plan (tiers)
-const searchParams = useSearchParams()
+  const searchParams = useSearchParams()
 
-// URL lock: ?tier=Soft|Fanvue|Unrestricted&locked=1
-const urlTier = (searchParams?.get('tier') || '').trim()
-const locked = searchParams?.get('locked') === '1' || searchParams?.get('locked') === 'true'
+  const urlTier = (searchParams?.get('tier') || '').trim()
+  const locked = searchParams?.get('locked') === '1' || searchParams?.get('locked') === 'true'
 
-const normalizedTier =
-  urlTier === 'Soft' || urlTier === 'Fanvue' || urlTier === 'Unrestricted'
-    ? urlTier
-    : ''
+  const normalizedTier =
+    urlTier === 'Soft' || urlTier === 'Fanvue' || urlTier === 'Unrestricted' ? urlTier : ''
 
-const [plan, setPlan] = useState(normalizedTier || 'Fanvue')
-const [adminMode, setAdminMode] = useState(false)
+  const [plan, setPlan] = useState(normalizedTier || 'Fanvue')
+  const [adminMode, setAdminMode] = useState(false)
+  const [activePackTab, setActivePackTab] = useState('Packs')
+  const [intensity, setIntensity] = useState('Fanvue')
+  const [clicks, setClicks] = useState(0)
+  const [last, setLast] = useState('—')
+  const [copied, setCopied] = useState('')
 
-// If locked, force plan to URL tier and force admin OFF.
-useEffect(() => {
-  if (!locked) return
+  const [blocks, setBlocks] = useState(() => ({ ...EMPTY_BLOCKS }))
+  const [locks, setLocks] = useState(() =>
+    Object.fromEntries(FIELD_ORDER.map(([k]) => [k, false]))
+  )
 
-  if (normalizedTier && plan !== normalizedTier) {
-    setPlan(normalizedTier)
-  }
+  const [locationCategory, setLocationCategory] = useState('All')
+  const [lockLocationCategory, setLockLocationCategory] = useState(false)
 
-  if (adminMode) {
-    setAdminMode(false)
-  }
-}, [locked, normalizedTier, plan, adminMode])
+  const [batchCount, setBatchCount] = useState(30)
+  const [batchPack, setBatchPack] = useState('')
+  const [vary, setVary] = useState(() =>
+    Object.fromEntries(FIELD_ORDER.map(([k]) => [k, true]))
+  )
+  const [varyLocationCategory, setVaryLocationCategory] = useState(false)
 
-  // UI
-  const [activePackTab, setActivePackTab] = useState('Packs') // Packs | Intensity | Locations
-  const [intensity, setIntensity] = useState('Soft') 
+  useEffect(() => {
+    if (!locked) return
+    if (normalizedTier && plan !== normalizedTier) setPlan(normalizedTier)
+    if (adminMode) setAdminMode(false)
+  }, [locked, normalizedTier, plan, adminMode])
 
-  // Goal 1: auto-sync Intensity with Plan (safe defaults)
   useEffect(() => {
     const allowedIntensities =
       plan === 'Soft'
@@ -933,135 +923,124 @@ useEffect(() => {
           ? ['Soft', 'Fanvue']
           : ['Soft', 'Fanvue', 'Unrestricted']
 
-    const safeDefault =
-      plan === 'Soft'
-        ? 'Soft'
-        : plan === 'Fanvue'
-          ? 'Fanvue'
-          : 'Unrestricted'
+    const safeDefault = plan === 'Soft' ? 'Soft' : plan === 'Fanvue' ? 'Fanvue' : 'Unrestricted'
 
-    // Only snap if current intensity is not allowed for this plan
-    if (!allowedIntensities.includes(intensity)) {
-      setIntensity(safeDefault)
-    }
-  }, [plan])
+    if (!allowedIntensities.includes(intensity)) setIntensity(safeDefault)
+  }, [plan, intensity])
 
-// Soft | Fanvue | Unrestricted
-  const [clicks, setClicks] = useState(0)
-  const [last, setLast] = useState('—')
-  const [copied, setCopied] = useState('')
+useEffect(() => {
+  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+  if (!allowedCats.includes(locationCategory)) {
+    setLocationCategory('All')
+  }
+}, [plan, locationCategory])
 
-  // fields
-  const [blocks, setBlocks] = useState(() => ({ ...EMPTY_BLOCKS }))
-  const [locks, setLocks] = useState(() =>
-    Object.fromEntries(FIELD_ORDER.map(([k]) => [k, false]))
-  )
-
-  // locations
-  const [locationCategory, setLocationCategory] = useState('All')
-  const [lockLocationCategory, setLockLocationCategory] = useState(false)
-
-  // batch
-  const [batchCount, setBatchCount] = useState(30)
-  const [batchPack, setBatchPack] = useState('')
-  const [vary, setVary] = useState(() =>
-    Object.fromEntries(FIELD_ORDER.map(([k]) => [k, true]))
-  )
-  const [varyLocationCategory, setVaryLocationCategory] = useState(false)
-
-  // derived: plan text
   const contentMode = useMemo(() => {
     if (plan === 'Soft') return 'Safe / IG'
     if (plan === 'Fanvue') return 'Fanvue'
     return 'Unrestricted'
   }, [plan])
 
-  // derived: plan presets
   const planPresets = useMemo(() => {
     if (plan === 'Soft') return SOFT_PRESETS
     if (plan === 'Fanvue') return FANVUE_PRESETS
     return UNRESTRICTED_PRESETS
   }, [plan])
 
-// derived: location categories (auto from locationByCategory, hide empty)
-const locationCategories = useMemo(() => {
-  const by = LIBRARIES.locationByCategory || {}
-  const keys = Object.keys(by).filter((k) => k && typeof k === 'string')
+  const LIB_SPLITS = {
+    identity: { softEnd: 3, fanvueEnd: 10 },
+    pose: { softEnd: 6, fanvueEnd: 14 },
+    clothing: { softEnd: 5, fanvueEnd: 11 },
+    lingerie: { softEnd: 5, fanvueEnd: 10 },
+    mood: { softEnd: 5, fanvueEnd: 11 },
+    camera: { softEnd: 5, fanvueEnd: 11 },
+    lighting: { softEnd: 5, fanvueEnd: 11 },
+    style: { softEnd: 5, fanvueEnd: 11 },
+    quality: { softEnd: 4, fanvueEnd: 9 },
 
-  // keep only categories that actually have locations (except All)
-  const nonEmpty = keys
-    .filter((k) => k !== 'All')
-    .filter((k) => Array.isArray(by[k]) && by[k].length > 0)
+    outfit_archetype: { softEnd: 3, fanvueEnd: 6 },
+    undress_state: { softEnd: 2, fanvueEnd: 4 },
+    clothing_instability: { softEnd: 2, fanvueEnd: 4 },
+    intimate_framing: { softEnd: 2, fanvueEnd: 4 },
+    voyeur_energy: { softEnd: 2, fanvueEnd: 4 },
+    micro_action: { softEnd: 2, fanvueEnd: 4 },
+  }
 
-  // Always show All first
-  const base = ['All', ...nonEmpty]
+  const locationCategories = useMemo(() => {
+    const by = LIBRARIES.locationByCategory || {}
+    const keys = Object.keys(by).filter((k) => k && typeof k === 'string')
+    const nonEmpty = keys
+      .filter((k) => k !== 'All')
+      .filter((k) => Array.isArray(by[k]) && by[k].length > 0)
 
-  // Plan-gate categories
-  const allowed = PLAN_RULES[plan]?.allowLocationCats || base
-  return base.filter((c) => allowed.includes(c))
-}, [plan])
+    const base = ['All', ...nonEmpty]
+    const allowed = PLAN_RULES[plan]?.allowLocationCats || base
+    return base.filter((c) => allowed.includes(c))
+  }, [plan])
 
 const categoryCounts = useMemo(() => {
   const by = LIBRARIES.locationByCategory || {}
   const out = {}
+  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
 
-  let allCount = 0
-  for (const [k, arr] of Object.entries(by)) {
-    const n = Array.isArray(arr) ? arr.length : 0
-    out[k] = n
-    if (k !== 'All') allCount += n
+  for (const cat of allowedCats) {
+    if (cat === 'All') continue
+    out[cat] = Array.isArray(by[cat]) ? by[cat].length : 0
   }
 
-  out.All = allCount
+  const mergedAll = []
+  const curatedAll = Array.isArray(by.All) ? by.All : []
+  mergedAll.push(...curatedAll)
+
+  for (const cat of allowedCats) {
+    if (cat === 'All') continue
+    const arr = Array.isArray(by[cat]) ? by[cat] : []
+    mergedAll.push(...arr)
+  }
+
+  out.All = [...new Set(mergedAll)].length
   return out
-}, [])
+}, [plan])
 
-const catsSummary = useMemo(() => {
-  const cats = (locationCategories || []).filter((c) => c !== 'All')
-  const n = cats.length
-  if (!n) return 'Cats: —'
+  const catsSummary = useMemo(() => {
+    const cats = (locationCategories || []).filter((c) => c !== 'All')
+    const n = cats.length
+    if (!n) return 'Cats: —'
+    const head = cats.slice(0, 6)
+    const rest = n - head.length
+    return rest > 0 ? `Cats: ${head.join(', ')} +${rest}` : `Cats: ${head.join(', ')}`
+  }, [locationCategories])
 
-  // show first few, then +N more
-  const head = cats.slice(0, 6)
-  const rest = n - head.length
-  return rest > 0 ? `Cats: ${head.join(', ')} +${rest}` : `Cats: ${head.join(', ')}`
-}, [locationCategories])
+const locationOptions = useMemo(() => {
+  const by = LIBRARIES.locationByCategory || {}
+  const cat = locationCategory || 'All'
+  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
 
-  const locationOptions = useMemo(() => {
-    const by = LIBRARIES.locationByCategory || {}
-    const cat = locationCategory || 'All'
+  if (cat === 'All') {
+    const merged = []
+    const curated = Array.isArray(by.All) ? by.All : []
+    merged.push(...curated)
 
-    // All => curated + merge
-if (cat === 'All') {
-  const merged = []
-  const curated = Array.isArray(by.All) ? by.All : []
-  merged.push(...curated)
+    for (const allowedCat of allowedCats) {
+      if (allowedCat === 'All') continue
+      const arr = by[allowedCat]
+      if (Array.isArray(arr)) merged.push(...arr)
+    }
 
-  for (const [k, arr] of Object.entries(by)) {
-    if (k === 'All') continue
-    if (Array.isArray(arr)) merged.push(...arr)
+    return [...new Set(merged)]
   }
-  return merged
-}
 
-const inCat = by?.[cat]
-if (Array.isArray(inCat) && inCat.length) return inCat
+  const inCat = by?.[cat]
+  if (Array.isArray(inCat) && inCat.length) return inCat
+  return []
+}, [locationCategory, plan])
 
-return []
-
-    return []
-  }, [locationCategory])
-
-    const locationOptionalValue = useMemo(() => {
-  const current = String(blocks.location || '').trim()
-  if (!current) return ''
-
-  // If location is allowed by current plan/category, keep it
-  if (locationOptions.includes(current)) return current
-
-  // Otherwise block custom values (force random-from-category)
-  return ''
-}, [blocks.location, locationOptions])
+  const locationOptionalValue = useMemo(() => {
+    const current = String(blocks.location || '').trim()
+    if (!current) return ''
+    if (locationOptions.includes(current)) return current
+    return ''
+  }, [blocks.location, locationOptions])
 
   const setBlock = (key, value) => {
     setBlocks((prev) => ({ ...prev, [key]: value }))
@@ -1081,23 +1060,37 @@ return []
     }
   }
 
-  const randomizeField = (key) => {
-    if (locks[key]) return
+const randomizeField = (key) => {
+  if (locks[key]) return
 
-    if (key === 'location') {
-      const v = pickRandom(locationOptions)
-      if (!v) return
-      setBlock('location', v)
-      setLast(`Random → location (${locationCategory})`)
-      return
-    }
-
-    const lib = LIBRARIES[key] || []
-    const v = pickRandom(lib)
+  if (key === 'location') {
+    const v = pickRandom(locationOptions)
     if (!v) return
-    setBlock(key, v)
-    setLast(`Random → ${key}`)
+    setBlock('location', v)
+    setLast(`Random → location (${locationCategory})`)
+    return
   }
+
+  const itemsRaw = LIBRARIES[key] || []
+  if (!itemsRaw.length) return
+
+  let allowed = itemsRaw
+
+  if (plan === 'Soft' && key === 'lingerie') {
+    allowed = []
+  } else {
+    const split = LIB_SPLITS[key]
+    if (split) {
+      if (plan === 'Soft') allowed = itemsRaw.slice(0, split.softEnd)
+      else if (plan === 'Fanvue') allowed = itemsRaw.slice(0, split.fanvueEnd)
+    }
+  }
+
+  const v = pickRandom(allowed)
+  if (!v) return
+  setBlock(key, v)
+  setLast(`Random → ${key}`)
+}
 
   const clearField = (key) => {
     if (locks[key]) return
@@ -1128,40 +1121,55 @@ return []
 
   const finalPrompt = useMemo(() => {
     const parts = []
+
     for (const [key, label] of FIELD_ORDER) {
-    if (plan === 'Soft' && key === 'lingerie') continue
+      if (plan === 'Soft' && key === 'lingerie') continue
+
       let val = String(blocks[key] || '').trim()
+      if (!val) continue
 
-// Goal 2: apply Intensity to Mood
-if (key === 'mood' && val) {
-  if (intensity === 'Soft') {
-    val = `Soft, tasteful, PG-13 mood. ${val}`
-  } else if (intensity === 'Fanvue') {
-    val = `Flirty, teasing, suggestive but non-explicit mood. ${val}`
-  } else if (intensity === 'Unrestricted') {
-    val = `Raw, intense, unfiltered adult mood. ${val}`
-  }
-}
+      if (key === 'mood') {
+        if (intensity === 'Soft') val = `Soft, tasteful, PG-13 mood. ${val}`
+        else if (intensity === 'Fanvue') val = `Flirty, teasing, suggestive but non-explicit mood. ${val}`
+        else val = `Raw, intense, unfiltered adult mood. ${val}`
+      }
 
-// Intensity-aware lingerie handling
-if (key === 'lingerie') {
-  if (intensity === 'Soft') {
-    val = ''
-  } else if (intensity === 'Fanvue') {
-    val = val.replace(/explicit|nsfw|hardcore/gi, '').trim()
-  }
-}
+      if (key === 'lingerie') {
+        if (intensity === 'Soft') val = ''
+        else if (intensity === 'Fanvue') val = val.replace(/explicit|nsfw|hardcore/gi, '').trim()
+      }
+
+      if ((key === 'breast_size' || key === 'glute_size') && (plan === 'Soft' || intensity === 'Soft')) {
+        val = ''
+      }
+
+      if (
+        key === 'outfit_archetype' ||
+        key === 'undress_state' ||
+        key === 'clothing_instability' ||
+        key === 'intimate_framing' ||
+        key === 'voyeur_energy' ||
+        key === 'micro_action'
+      ) {
+        if (intensity === 'Soft') val = ''
+        else if (intensity === 'Fanvue') val = `Suggestive, teasing, non-explicit. ${val}`
+        else val = `After-hours editorial tension, near-edge but non-nude. ${val}`
+      }
+
       if (!val) continue
       parts.push(`${label}:\n${val}`)
     }
-    // Add header-style context (professional feel)
+
     const header = [
+      `APP: PHOTO`,
       `PLAN: ${plan}`,
       `MODE: ${contentMode}`,
+      `INTENSITY: ${intensity}`,
       `LOCATION CATEGORY: ${locationCategory}`,
     ].join(' | ')
+
     return `${header}\n\n${parts.join('\n\n')}`.trim()
-  }, [blocks, plan, contentMode, locationCategory])
+  }, [blocks, plan, contentMode, intensity, locationCategory])
 
   const generateBatchPack = () => {
     const out = []
@@ -1185,12 +1193,15 @@ if (key === 'lingerie') {
       for (const [key] of FIELD_ORDER) {
         if (locks[key]) continue
         if (!vary[key]) continue
+        if (plan === 'Soft' && key === 'lingerie') continue
 
         if (key === 'location') {
           const opts =
             catForThis === 'All'
               ? locationOptions
-              : (by?.[catForThis] && by[catForThis].length ? by[catForThis] : locationOptions)
+              : by?.[catForThis] && by[catForThis].length
+                ? by[catForThis]
+                : locationOptions
 
           const v = pickRandom(opts)
           if (v) next.location = v
@@ -1198,69 +1209,52 @@ if (key === 'lingerie') {
         }
 
         const itemsRaw = LIBRARIES[key] || []
-if (!itemsRaw.length) continue
+        if (!itemsRaw.length) continue
 
-// Tier splits (must match your dropdown splits)
-const LIB_SPLITS = {
-  identity: { softEnd: 3, fanvueEnd: 10 },
-  pose: { softEnd: 6, fanvueEnd: 14 },
-  clothing: { softEnd: 5, fanvueEnd: 11 },
-  lingerie: { softEnd: 5, fanvueEnd: 10 },
-  mood: { softEnd: 5, fanvueEnd: 11 },
-  camera: { softEnd: 5, fanvueEnd: 11 },
-  lighting: { softEnd: 5, fanvueEnd: 11 },
-  style: { softEnd: 5, fanvueEnd: 11 },
-  quality: { softEnd: 4, fanvueEnd: 9 },
-}
+        let allowed = itemsRaw
 
-// planKey normalization (use your existing planKey if it’s in scope; otherwise this is safe)
-const planKey =
-  plan === 'Soft' || plan === 'Fanvue' || plan === 'Unrestricted'
-    ? plan
-    : String(plan || '').startsWith('Soft')
-      ? 'Soft'
-      : String(plan || '').startsWith('Fanvue')
-        ? 'Fanvue'
-        : 'Unrestricted'
-
-// Build allowed pool for this plan (match dropdown rules)
-let allowed = itemsRaw
-
-// Soft plan: never randomize lingerie
-if (planKey === 'Soft' && key === 'lingerie') {
-  allowed = []
-} else {
-  const split = LIB_SPLITS[key]
-  if (split) {
-    if (planKey === 'Soft') allowed = itemsRaw.slice(0, split.softEnd)
-    else if (planKey === 'Fanvue') allowed = itemsRaw.slice(0, split.fanvueEnd)
-    // Unrestricted: full list
-  }
-}
-
-let v = pickRandom(allowed)
-if (!v) continue
-
-        // Batch: apply Intensity rules (match Final Prompt behavior)
-        if (key === 'mood') {
-          if (intensity === 'Soft') {
-            v = `Soft, tasteful, PG-13 mood. ${v}`
-          } else if (intensity === 'Fanvue') {
-            v = `Flirty, teasing, suggestive but non-explicit mood. ${v}`
-          } else if (intensity === 'Unrestricted') {
-            v = `Raw, intense, unfiltered adult mood. ${v}`
+        if (plan === 'Soft' && key === 'lingerie') {
+          allowed = []
+        } else {
+          const split = LIB_SPLITS[key]
+          if (split) {
+            if (plan === 'Soft') allowed = itemsRaw.slice(0, split.softEnd)
+            else if (plan === 'Fanvue') allowed = itemsRaw.slice(0, split.fanvueEnd)
           }
+        }
+
+        let v = pickRandom(allowed)
+        if (!v) continue
+
+        if (key === 'mood') {
+          if (intensity === 'Soft') v = `Soft, tasteful, PG-13 mood. ${v}`
+          else if (intensity === 'Fanvue') v = `Flirty, teasing, suggestive but non-explicit mood. ${v}`
+          else v = `Raw, intense, unfiltered adult mood. ${v}`
         }
 
         if (key === 'lingerie') {
-          // Soft plan OR Soft intensity => no lingerie in batch output
-          if (plan === 'Soft' || intensity === 'Soft') {
-            v = ''
-          } else if (intensity === 'Fanvue') {
-            v = String(v).replace(/explicit|nsfw|hardcore/gi, '').trim()
-          }
+          if (plan === 'Soft' || intensity === 'Soft') v = ''
+          else if (intensity === 'Fanvue') v = String(v).replace(/explicit|nsfw|hardcore/gi, '').trim()
         }
 
+        if ((key === 'breast_size' || key === 'glute_size') && (plan === 'Soft' || intensity === 'Soft')) {
+          v = ''
+        }
+
+        if (
+          key === 'outfit_archetype' ||
+          key === 'undress_state' ||
+          key === 'clothing_instability' ||
+          key === 'intimate_framing' ||
+          key === 'voyeur_energy' ||
+          key === 'micro_action'
+        ) {
+          if (intensity === 'Soft') v = ''
+          else if (intensity === 'Fanvue') v = `Suggestive, teasing, non-explicit. ${v}`
+          else v = `After-hours editorial tension, near-edge but non-nude. ${v}`
+        }
+
+        if (!v) continue
         next[key] = v
       }
 
@@ -1271,7 +1265,15 @@ if (!v) continue
         .filter(Boolean)
         .join('\n\n')
 
-      out.push(`### Prompt ${i + 1} (${plan})\n${one}`)
+      const header = [
+        `APP: PHOTO`,
+        `PLAN: ${plan}`,
+        `MODE: ${contentMode}`,
+        `INTENSITY: ${intensity}`,
+        `LOCATION CATEGORY: ${catForThis}`,
+      ].join(' | ')
+
+      out.push(`### Prompt ${i + 1}\n${header}\n\n${one}`)
     }
 
     setBatchPack(out.join('\n\n---\n\n'))
@@ -1291,32 +1293,27 @@ if (!v) continue
     URL.revokeObjectURL(url)
   }
 
-  // Make it feel like the video app: top pills
   const pill = (txt) => <span style={styles.pill}>{txt}</span>
 
   return (
     <main style={styles.page}>
-      {/* TOP HEADER BAR */}
       <div style={styles.headerBar}>
         <div>
-          <div style={styles.title}>AI Girl Prompt Builder</div>
-          <div style={styles.subtitle}>
-            Premium image prompts • professional structure • stable UI
-          </div>
+          <div style={styles.title}>AI Influencer Prompt CEO</div>
+          <div style={styles.subtitle}>Create high-conversion AI influencer images with precision controls</div>
         </div>
 
         <div style={styles.pills}>
-  {pill(`Plan: ${plan}`)}
-  {pill(`Mode: ${contentMode}`)}
-  {pill(catsSummary)}
-  {pill(`Admin: ${adminMode ? 'ON' : 'OFF'}`)}
-  {pill(`Clicks: ${clicks}`)}
-  {pill(`Last: ${last}`)}
-  {copied ? pill(`Copied: ${copied}`) : null}
-</div>
+          {pill(`Plan: ${plan}`)}
+          {pill(`Mode: ${contentMode}`)}
+          {pill(catsSummary)}
+          {pill(`Admin: ${adminMode ? 'ON' : 'OFF'}`)}
+          {pill(`Clicks: ${clicks}`)}
+          {pill(`Last: ${last}`)}
+          {copied ? pill(`Copied: ${copied}`) : null}
+        </div>
       </div>
 
-      {/* OWNER CONTROLS (like video app) */}
       <div style={styles.ownerCard}>
         <div style={styles.ownerRow}>
           <div style={styles.ownerTitle}>Owner Controls</div>
@@ -1341,17 +1338,28 @@ if (!v) continue
             <select
               value={plan}
               onChange={(e) => {
-  const nextPlan = e.target.value
-  setPlan(nextPlan)
+                if (locked) return
+                const nextPlan = e.target.value
+                setPlan(nextPlan)
 
-  // Auto-clear lingerie when switching to Soft
-  if (nextPlan === 'Soft') {
-    setBlocks((prev) => ({ ...prev, lingerie: '' }))
-  }
+                if (nextPlan === 'Soft') {
+                  setBlocks((prev) => ({
+                    ...prev,
+                    lingerie: '',
+                    breast_size: '',
+                    glute_size: '',
+                    outfit_archetype: '',
+                    undress_state: '',
+                    clothing_instability: '',
+                    intimate_framing: '',
+                    voyeur_energy: '',
+                    micro_action: '',
+                  }))
+                }
 
-  setClicks((c) => c + 1)
-  setLast(`Plan → ${nextPlan}`)
-}}
+                setClicks((c) => c + 1)
+                setLast(`Plan → ${nextPlan}`)
+              }}
               style={styles.ctrlSelect}
             >
               {PLAN_TIERS.map((t) => (
@@ -1379,68 +1387,61 @@ if (!v) continue
               }}
               style={styles.ctrlSelect}
             >
-{locationCategories.map((c) => {
-  const count = categoryCounts[c] ?? 0
-  const label = c === 'All' ? `All (all categories) • ${count}` : `${c} • ${count}`
+              {locationCategories.map((c) => {
+                const count = categoryCounts[c] ?? 0
+                const label = c === 'All' ? `All (all categories) • ${count}` : `${c} • ${count}`
 
-  return (
-    <option key={c} value={c}>
-      {label}
-    </option>
-  )
-})}
+                return (
+                  <option key={c} value={c}>
+                    {label}
+                  </option>
+                )
+              })}
             </select>
 
-          <div style={styles.inlineRow}>
-  <button
-    type="button"
-    onClick={() => {
-      setLockLocationCategory((v) => !v)
-      setClicks((c) => c + 1)
-      setLast(!lockLocationCategory ? 'Location category locked' : 'Location category unlocked')
-    }}
-    style={lockLocationCategory ? styles.lockOn : styles.lockOff}
-  >
-    {lockLocationCategory ? 'CATEGORY LOCKED' : 'LOCK CATEGORY'}
-  </button>
-</div>
+            <div style={styles.inlineRow}>
+              <button
+                type="button"
+                onClick={() => {
+                  setLockLocationCategory((v) => !v)
+                  setClicks((c) => c + 1)
+                  setLast(!lockLocationCategory ? 'Location category locked' : 'Location category unlocked')
+                }}
+                style={lockLocationCategory ? styles.lockOn : styles.lockOff}
+              >
+                {lockLocationCategory ? 'CATEGORY LOCKED' : 'LOCK CATEGORY'}
+              </button>
+            </div>
           </div>
+
           <div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>LOCATION (OPTIONAL)</div>
+            <div style={styles.ctrlLabel}>LOCATION (OPTIONAL)</div>
+            <select
+              value={locationOptionalValue}
+              onChange={(e) => {
+                const v = e.target.value
 
-  <select
-    value={locationOptionalValue}
-    onChange={(e) => {
-      const v = e.target.value
+                if (v === '') {
+                  setBlock('location', '')
+                  setClicks((c) => c + 1)
+                  setLast('Location optional → Random from category')
+                  return
+                }
 
-      if (v === '') {
-        setBlock('location', '')
-        setClicks((c) => c + 1)
-        setLast('Location optional → Random from category')
-        return
-      }
-
-      if (v === '__CUSTOM__') return
-
-      setBlock('location', v)
-      setClicks((c) => c + 1)
-      setLast('Location optional → Picked')
-    }}
-    style={styles.ctrlSelect}
-  >
-    <option value="">(Random from category)</option>
-
-    {locationOptionalValue === '__CUSTOM__' ? (
-      <option value="__CUSTOM__">(Custom location)</option>
-    ) : null}
-
-    {locationOptions.map((loc, idx) => (
-      <option key={idx} value={loc}>
-        {loc.length > 90 ? loc.slice(0, 90) + '…' : loc}
-      </option>
-    ))}
-  </select>
-</div>
+                setBlock('location', v)
+                setClicks((c) => c + 1)
+                setLast('Location optional → Picked')
+              }}
+              style={styles.ctrlSelect}
+            >
+              <option value="">(Random from category)</option>
+              {locationOptions.map((loc, idx) => (
+                <option key={idx} value={loc}>
+                  {loc.length > 90 ? loc.slice(0, 90) + '…' : loc}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div style={styles.ctrlBox}>
             <div style={styles.ctrlLabel}>GLOBAL</div>
@@ -1448,319 +1449,287 @@ if (!v) continue
               <button type="button" onClick={clearAll} style={styles.btnDanger}>
                 Clear All
               </button>
-              <button
-                type="button"
-                onClick={() => copyText(finalPrompt, 'Final Prompt')}
-                style={styles.btnGhost}
-              >
+              <button type="button" onClick={() => copyText(finalPrompt, 'Final Prompt')} style={styles.btnGhost}>
                 Copy Final
               </button>
             </div>
           </div>
         </div>
       </div>
+      <div style={styles.builderWrap}>
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>Packs</div>
 
-     {/* BUILDER WRAP */}
-<div style={styles.builderWrap}>
-  {/* LEFT: PACKS */}
-  <div style={styles.panel}>
-    <div style={styles.panelTitle}>Packs</div>
-
-    <div style={styles.tabsRow}>
-      {['Packs', 'Intensity', 'Locations'].map((tab) => (
-        <button
-          key={tab}
-          type="button"
-          onClick={() => setActivePackTab(tab)}
-          style={activePackTab === tab ? styles.tabBtnActive : styles.tabBtn}
-        >
-          {tab}
-        </button>
-      ))}
-    </div>
-
-    {/* Packs */}
-    {activePackTab === 'Packs' && (
-      <div style={{ marginTop: 12 }}>
-        <div style={styles.smallLabel}>Presets for plan: {plan}</div>
-        <div style={styles.chipRow}>
-          {planPresets.map((p, idx) => (
-            <button
-              key={`pp-${idx}`}
-              type="button"
-              onClick={() => applyPresetValues(p)}
-              style={styles.chipBtn}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
-
-        {!planPresets.length ? (
-          <div style={styles.note}>
-            No presets in this skeleton. We’ll paste your real packs after the walls are locked.
-          </div>
-        ) : null}
-      </div>
-    )}
-
-    {/* Intensity */}
-    {activePackTab === 'Intensity' && (
-      <div style={{ marginTop: 12 }}>
-        <div style={styles.smallLabel}>Intensity (Plan-aware)</div>
-        <div style={styles.note}>
-          In this skeleton, intensity is represented by preset selection. We’ll re-add your real
-          intensity engine after the UI is locked.
-        </div>
-
-        <div style={styles.chipRow}>
-          <button
-            type="button"
-            style={intensity === 'Soft' ? styles.chipBtnActive : styles.chipBtn}
-            onClick={() => {
-              setIntensity('Soft')
-              setClicks((c) => c + 1)
-              setLast('Intensity → Soft')
-            }}
-          >
-            Soft plan → safest wording
-          </button>
-
-          <button
-            type="button"
-            disabled={plan === 'Soft'}
-            style={
-              plan === 'Soft'
-                ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
-                : intensity === 'Fanvue'
-                  ? styles.chipBtnActive
-                  : styles.chipBtn
-            }
-            onClick={() => {
-              if (plan === 'Soft') return
-              setIntensity('Fanvue')
-              setClicks((c) => c + 1)
-              setLast('Intensity → Fanvue')
-            }}
-          >
-            Fanvue plan → tease allowed
-          </button>
-
-          <button
-            type="button"
-            disabled={plan !== 'Unrestricted'}
-            style={
-              plan !== 'Unrestricted'
-                ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
-                : intensity === 'Unrestricted'
-                  ? styles.chipBtnActive
-                  : styles.chipBtn
-            }
-            onClick={() => {
-              if (plan !== 'Unrestricted') return
-              setIntensity('Unrestricted')
-              setClicks((c) => c + 1)
-              setLast('Intensity → Unrestricted')
-            }}
-          >
-            Unrestricted
-          </button>
-        </div>
-      </div>
-    )}
-
-    {/* Locations */}
-    {activePackTab === 'Locations' && (
-      <div style={{ marginTop: 12 }}>
-        <div style={styles.smallLabel}>Locations (Category-aware)</div>
-        <div style={styles.note}>
-          Pick category in Owner Controls above. Then use Random on Location field.
-        </div>
-
-        <div style={styles.previewBox}>
-          <div style={styles.previewTitle}>Current Category</div>
-          <div style={styles.previewBody}>{locationCategory}</div>
-
-          <div style={{ height: 10 }} />
-
-          <div style={styles.previewTitle}>Sample Locations</div>
-          <div style={styles.previewBody}>
-            {(locationOptions || []).slice(0, 6).map((x, i) => (
-              <div key={i} style={{ opacity: 0.9 }}>
-                • {x}
-              </div>
+          <div style={styles.tabsRow}>
+            {['Packs', 'Intensity', 'Locations'].map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActivePackTab(tab)}
+                style={activePackTab === tab ? styles.tabBtnActive : styles.tabBtn}
+              >
+                {tab}
+              </button>
             ))}
-            {!locationOptions?.length ? (
-              <div style={{ opacity: 0.7 }}>No locations found for this category (skeleton).</div>
-            ) : null}
           </div>
-        </div>
-      </div>
-    )}
-  </div>
 
-  {/* RIGHT: FIELDS */}
-  <div style={styles.panel}>
-    <div style={styles.panelTitle}>Fields</div>
-
-    {FIELD_ORDER
-      .filter(([k]) => (PLAN_RULES[plan]?.allowFields || []).includes(k))
-      .map(([key, label]) => {
-        const locked = !!locks[key]
-        const itemsRaw = key === 'location' ? locationOptions : (LIBRARIES[key] || [])
-
-        const planKey =
-          plan === 'Soft' || plan === 'Fanvue' || plan === 'Unrestricted'
-            ? plan
-            : String(plan || '').startsWith('Soft')
-              ? 'Soft'
-              : String(plan || '').startsWith('Fanvue')
-                ? 'Fanvue'
-                : 'Unrestricted'
-
-        // Tier splits based on library ordering (Soft section first, then Fanvue, then Unrestricted)
-        const LIB_SPLITS = {
-          identity: { softEnd: 3, fanvueEnd: 10 },
-          pose: { softEnd: 6, fanvueEnd: 14 },
-          clothing: { softEnd: 5, fanvueEnd: 11 },
-          lingerie: { softEnd: 5, fanvueEnd: 10 },
-          mood: { softEnd: 5, fanvueEnd: 11 },
-          camera: { softEnd: 5, fanvueEnd: 11 },
-          lighting: { softEnd: 5, fanvueEnd: 11 },
-          style: { softEnd: 5, fanvueEnd: 11 },
-          quality: { softEnd: 4, fanvueEnd: 9 },
-        }
-
-        const items =
-          key === 'location'
-            ? itemsRaw
-            : itemsRaw.map((s, idx) => {
-                // Soft plan: lingerie should never be selectable from library
-                if (planKey === 'Soft' && key === 'lingerie') {
-                  return { value: s, disabled: true, requiredTier: 'Fanvue' }
-                }
-
-                const split = LIB_SPLITS[key]
-                if (!split) return { value: s, disabled: false }
-
-                const requiresFanvue = idx >= split.softEnd
-                const requiresUnrestricted = idx >= split.fanvueEnd
-
-                if (planKey === 'Soft') {
-                  if (!requiresFanvue) return { value: s, disabled: false }
-                  const requiredTier = requiresUnrestricted ? 'Unrestricted' : 'Fanvue'
-                  return { value: s, disabled: true, requiredTier }
-                }
-
-                if (planKey === 'Fanvue') {
-                  if (!requiresUnrestricted) return { value: s, disabled: false }
-                  return { value: s, disabled: true, requiredTier: 'Unrestricted' }
-                }
-
-                return { value: s, disabled: false }
-              });
-
-        const hasLockedItems =
-          Array.isArray(items) && items.some((it) => it && typeof it === 'object' && it.disabled)
-
-        return (
-          <div key={key} style={styles.fieldRow}>
-            <div style={styles.fieldTop}>
-              <div style={styles.fieldName}>{label}</div>
-
-              <div style={styles.fieldActions}>
-                <button
-                  type="button"
-                  onClick={() => randomizeField(key)}
-                  style={styles.btnGhost}
-                  disabled={locked}
-                >
-                  Random
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => clearField(key)}
-                  style={styles.btnGhost}
-                  disabled={locked}
-                >
-                  Clear
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    copyText(blocks[key] ? `${label}:\n${blocks[key]}` : '', label)
-                  }
-                  style={styles.btnGhost}
-                >
-                  Copy
-                </button>
-
-                <label style={styles.lockInline}>
-                  <input type="checkbox" checked={locked} onChange={() => toggleLock(key)} />
-                  <span style={{ marginLeft: 8 }}>{locked ? 'Locked' : 'Lock'}</span>
-                </label>
+          {activePackTab === 'Packs' && (
+            <div style={{ marginTop: 12 }}>
+              <div style={styles.smallLabel}>Presets for plan: {plan}</div>
+              <div style={styles.chipRow}>
+                {planPresets.map((p, idx) => (
+                  <button key={`pp-${idx}`} type="button" onClick={() => applyPresetValues(p)} style={styles.chipBtn}>
+                    {p.name}
+                  </button>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Dropdown + lock hint wrapper */}
-            <div style={{ position: 'relative', opacity: locked ? 0.6 : 1 }}>
-              <LibraryDropdown
-                items={items}
-                disabled={locked}
-                onPick={(val) => setBlock(key, val)}
-                onLocked={(tier) => {
-                  setClicks((c) => c + 1)
-                  setLast(tier ? `Upgrade to ${tier} to unlock` : 'Upgrade to unlock')
-                }}
-              />
+          {activePackTab === 'Intensity' && (
+            <div style={{ marginTop: 12 }}>
+              <div style={styles.smallLabel}>Intensity (Plan-aware)</div>
 
-              {hasLockedItems && !locked && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 12,
-                    fontSize: 12,
-                    fontWeight: 900,
-                    color: 'rgba(255,255,255,0.45)',
-                    pointerEvents: 'none',
+              <div style={styles.chipRow}>
+                <button
+                  type="button"
+                  style={intensity === 'Soft' ? styles.chipBtnActive : styles.chipBtn}
+                  onClick={() => {
+                    setIntensity('Soft')
+                    setClicks((c) => c + 1)
+                    setLast('Intensity → Soft')
                   }}
                 >
-                  🔒
-                </div>
-              )}
-            </div>
+                  Soft plan → safest wording
+                </button>
 
-            {/* Static hint (works even when <option disabled> prevents click events) */}
-            {hasLockedItems && !locked && (
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: 'rgba(229,231,235,0.55)',
-                }}
-              >
-                Some options are locked — upgrade to unlock more.
+                <button
+                  type="button"
+                  disabled={plan === 'Soft'}
+                  style={
+                    plan === 'Soft'
+                      ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
+                      : intensity === 'Fanvue'
+                        ? styles.chipBtnActive
+                        : styles.chipBtn
+                  }
+                  onClick={() => {
+                    if (plan === 'Soft') return
+                    setIntensity('Fanvue')
+                    setClicks((c) => c + 1)
+                    setLast('Intensity → Fanvue')
+                  }}
+                >
+                  Fanvue plan → tease allowed
+                </button>
+
+                <button
+                  type="button"
+                  disabled={plan !== 'Unrestricted'}
+                  style={
+                    plan !== 'Unrestricted'
+                      ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
+                      : intensity === 'Unrestricted'
+                        ? styles.chipBtnActive
+                        : styles.chipBtn
+                  }
+                  onClick={() => {
+                    if (plan !== 'Unrestricted') return
+                    setIntensity('Unrestricted')
+                    setClicks((c) => c + 1)
+                    setLast('Intensity → Unrestricted')
+                  }}
+                >
+                  Unrestricted
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
-            <textarea
-              value={blocks[key]}
-              onChange={(e) => setBlock(key, e.target.value)}
-              placeholder={`Write or pick ${label.toLowerCase()}…`}
-              style={styles.textarea}
-              disabled={locked}
-            />
-          </div>
-        )
-      })}
-  </div>
-</div>
+          {activePackTab === 'Locations' && (
+            <div style={{ marginTop: 12 }}>
+              <div style={styles.smallLabel}>Locations (Category-aware)</div>
+              <div style={styles.note}>Pick category in Owner Controls above. Then use Random on Location field.</div>
 
-      {/* FINAL PROMPT */}
+              <div style={styles.previewBox}>
+                <div style={styles.previewTitle}>Current Category</div>
+                <div style={styles.previewBody}>{locationCategory}</div>
+
+                <div style={{ height: 10 }} />
+
+                <div style={styles.previewTitle}>Sample Locations</div>
+                <div style={styles.previewBody}>
+                  {(locationOptions || []).slice(0, 6).map((x, i) => (
+                    <div key={i} style={{ opacity: 0.9 }}>
+                      • {x}
+                    </div>
+                  ))}
+                  {!locationOptions?.length ? (
+                    <div style={{ opacity: 0.7 }}>No locations found for this category.</div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>Fields</div>
+
+          {FIELD_ORDER
+            .filter(([k]) => (PLAN_RULES[plan]?.allowFields || []).includes(k))
+            .map(([key, label]) => {
+              const lockedField = !!locks[key]
+              const itemsRaw = key === 'location' ? locationOptions : LIBRARIES[key] || []
+
+              const items =
+                key === 'location'
+                  ? itemsRaw
+                  : itemsRaw.map((s, idx) => {
+                      if (plan === 'Soft' && key === 'lingerie') {
+                        return { value: s, disabled: true, requiredTier: 'Fanvue' }
+                      }
+
+                      const split = LIB_SPLITS[key]
+                      if (!split) return { value: s, disabled: false }
+
+                      const requiresFanvue = idx >= split.softEnd
+                      const requiresUnrestricted = idx >= split.fanvueEnd
+
+                      if (plan === 'Soft') {
+                        if (!requiresFanvue) return { value: s, disabled: false }
+                        return {
+                          value: s,
+                          disabled: true,
+                          requiredTier: requiresUnrestricted ? 'Unrestricted' : 'Fanvue',
+                        }
+                      }
+
+                      if (plan === 'Fanvue') {
+                        if (!requiresUnrestricted) return { value: s, disabled: false }
+                        return { value: s, disabled: true, requiredTier: 'Unrestricted' }
+                      }
+
+                      return { value: s, disabled: false }
+                    })
+
+              const hasLockedItems =
+                Array.isArray(items) && items.some((it) => it && typeof it === 'object' && it.disabled)
+
+              const isProvocationKey = [
+                'outfit_archetype',
+                'undress_state',
+                'clothing_instability',
+                'intimate_framing',
+                'voyeur_energy',
+                'micro_action',
+              ].includes(key)
+
+              return (
+                <div key={key}>
+                  {key === 'outfit_archetype' && plan !== 'Soft' ? (
+                    <div style={styles.sectionHeader}>
+                      <div style={styles.sectionTitle}>Provocation Engine</div>
+                      <div style={styles.sectionSub}>Near-edge tension, non-nude • strongest conversion layer</div>
+                    </div>
+                  ) : null}
+
+                  <div style={styles.fieldRow}>
+                    <div style={styles.fieldTop}>
+                      <div style={styles.fieldName}>
+                        {label}
+                        {isProvocationKey && plan !== 'Soft' ? <span style={styles.fieldBadge}>NEW</span> : null}
+                      </div>
+
+                      <div style={styles.fieldActions}>
+                        <button
+                          type="button"
+                          onClick={() => randomizeField(key)}
+                          style={styles.btnGhost}
+                          disabled={lockedField}
+                        >
+                          Random
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => clearField(key)}
+                          style={styles.btnGhost}
+                          disabled={lockedField}
+                        >
+                          Clear
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => copyText(blocks[key] ? `${label}:\n${blocks[key]}` : '', label)}
+                          style={styles.btnGhost}
+                        >
+                          Copy
+                        </button>
+
+                        <label style={styles.lockInline}>
+                          <input type="checkbox" checked={lockedField} onChange={() => toggleLock(key)} />
+                          <span style={{ marginLeft: 8 }}>{lockedField ? 'Locked' : 'Lock'}</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div style={{ position: 'relative', opacity: lockedField ? 0.6 : 1 }}>
+                      <LibraryDropdown
+                        items={items}
+                        disabled={lockedField}
+                        onPick={(val) => setBlock(key, val)}
+                        onLocked={(tier) => {
+                          setClicks((c) => c + 1)
+                          setLast(tier ? `Upgrade to ${tier} to unlock` : 'Upgrade to unlock')
+                        }}
+                      />
+
+                      {hasLockedItems && !lockedField && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 12,
+                            fontSize: 12,
+                            fontWeight: 900,
+                            color: 'rgba(255,255,255,0.45)',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          🔒
+                        </div>
+                      )}
+                    </div>
+
+                    {hasLockedItems && !lockedField && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: 'rgba(229,231,235,0.55)',
+                        }}
+                      >
+                        Some options are locked — upgrade to unlock more.
+                      </div>
+                    )}
+
+                    <textarea
+                      value={blocks[key]}
+                      onChange={(e) => setBlock(key, e.target.value)}
+                      placeholder={`Write or pick ${label.toLowerCase()}…`}
+                      style={styles.textarea}
+                      disabled={lockedField}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      </div>
+
       <div style={styles.fullWidthCard}>
         <div style={styles.cardHeaderRow}>
           <div style={styles.cardTitle}>Final Prompt</div>
@@ -1773,17 +1742,12 @@ if (!v) continue
         <textarea value={finalPrompt} readOnly style={styles.output} />
       </div>
 
-      {/* BATCH PACKS */}
       <div style={styles.fullWidthCard}>
         <div style={styles.cardHeaderRow}>
           <div style={styles.cardTitle}>Batch Packs</div>
 
           <div style={styles.row}>
-            <select
-              value={batchCount}
-              onChange={(e) => setBatchCount(Number(e.target.value))}
-              style={styles.smallSelect}
-            >
+            <select value={batchCount} onChange={(e) => setBatchCount(Number(e.target.value))} style={styles.smallSelect}>
               <option value={10}>10</option>
               <option value={30}>30</option>
               <option value={50}>50</option>
@@ -1843,10 +1807,6 @@ if (!v) continue
   )
 }
 
-/* =========================================
-   STYLES (VIDEO-APP LOOK)
-   - tabBtn + tabBtnActive used for tabs only
-========================================= */
 const styles = {
   page: {
     minHeight: '100vh',
@@ -1855,7 +1815,6 @@ const styles = {
     padding: 28,
     fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
   },
-
   headerBar: {
     maxWidth: 1500,
     margin: '0 auto 14px auto',
@@ -1869,10 +1828,8 @@ const styles = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
     boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
   },
-
   title: { fontSize: 28, fontWeight: 900, letterSpacing: 0.2 },
   subtitle: { marginTop: 6, color: 'rgba(229,231,235,0.75)', fontSize: 13 },
-
   pills: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' },
   pill: {
     padding: '8px 12px',
@@ -1884,7 +1841,6 @@ const styles = {
     color: 'rgba(229,231,235,0.92)',
     whiteSpace: 'nowrap',
   },
-
   ownerCard: {
     maxWidth: 1500,
     margin: '0 auto 14px auto',
@@ -1895,7 +1851,6 @@ const styles = {
   },
   ownerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   ownerTitle: { fontWeight: 900, fontSize: 14, color: 'rgba(255,255,255,0.9)' },
-
   checkWrap: {
     display: 'flex',
     alignItems: 'center',
@@ -1908,20 +1863,13 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.10)',
     background: 'rgba(0,0,0,0.30)',
   },
-
-  inlineRow: {
-  display: 'flex',
-  justifyContent: 'flex-end',
-  marginTop: 10,
-},
-
+  inlineRow: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 },
   ownerGrid: {
     marginTop: 12,
     display: 'grid',
     gridTemplateColumns: 'repeat(4, minmax(220px, 1fr))',
     gap: 12,
   },
-
   ctrlBox: {
     borderRadius: 14,
     border: '1px solid rgba(255,255,255,0.08)',
@@ -1953,7 +1901,6 @@ const styles = {
     fontWeight: 800,
     fontSize: 13,
   },
-
   builderWrap: {
     maxWidth: 1500,
     margin: '0 auto',
@@ -1962,19 +1909,14 @@ const styles = {
     gap: 14,
     alignItems: 'start',
   },
-
   panel: {
     borderRadius: 18,
     border: '1px solid rgba(255,255,255,0.08)',
     background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.35))',
     padding: 16,
   },
-
   panelTitle: { fontWeight: 900, marginBottom: 10, color: 'rgba(255,255,255,0.92)' },
-
   tabsRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-
-  // ✅ tabs only
   tabBtn: {
     background: 'rgba(0,0,0,0.35)',
     border: '1px solid rgba(255,255,255,0.10)',
@@ -1995,9 +1937,7 @@ const styles = {
     fontSize: 12,
     color: 'rgba(229,231,235,0.92)',
   },
-
   smallLabel: { marginTop: 6, fontSize: 12, color: 'rgba(229,231,235,0.72)', fontWeight: 800 },
-
   chipRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   chipBtn: {
     background: 'rgba(0,0,0,0.35)',
@@ -2009,27 +1949,15 @@ const styles = {
     fontSize: 12,
     color: 'rgba(229,231,235,0.92)',
   },
-
   chipBtnActive: {
-  padding: '8px 14px',
-  borderRadius: 999,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#fff',
-  border: '1px solid rgba(120,200,255,0.9)',
-  boxShadow: '0 0 0 1px rgba(120,200,255,0.35), 0 0 12px rgba(120,200,255,0.35)',
-  cursor: 'pointer',
-},
-
-  badge: {
-    padding: '8px 12px',
+    padding: '8px 14px',
     borderRadius: 999,
-    border: '1px solid rgba(255,255,255,0.10)',
-    background: 'rgba(0,0,0,0.30)',
-    fontSize: 12,
-    fontWeight: 900,
-    color: 'rgba(229,231,235,0.85)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#fff',
+    border: '1px solid rgba(120,200,255,0.9)',
+    boxShadow: '0 0 0 1px rgba(120,200,255,0.35), 0 0 12px rgba(120,200,255,0.35)',
+    cursor: 'pointer',
   },
-
   previewBox: {
     marginTop: 10,
     borderRadius: 14,
@@ -2039,7 +1967,6 @@ const styles = {
   },
   previewTitle: { fontSize: 11, fontWeight: 900, color: 'rgba(229,231,235,0.70)', letterSpacing: 0.6 },
   previewBody: { marginTop: 8, fontSize: 12, color: 'rgba(229,231,235,0.92)', lineHeight: 1.5 },
-
   fieldRow: {
     marginTop: 14,
     paddingTop: 14,
@@ -2054,9 +1981,7 @@ const styles = {
     marginBottom: 10,
   },
   fieldName: { fontWeight: 900, fontSize: 13, color: 'rgba(255,255,255,0.92)' },
-
   fieldActions: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-
   lockInline: {
     display: 'flex',
     alignItems: 'center',
@@ -2069,7 +1994,6 @@ const styles = {
     fontWeight: 900,
     color: 'rgba(229,231,235,0.90)',
   },
-
   select: {
     width: '100%',
     background: 'rgba(0,0,0,0.45)',
@@ -2080,7 +2004,6 @@ const styles = {
     outline: 'none',
     fontSize: 13,
   },
-
   textarea: {
     width: '100%',
     marginTop: 10,
@@ -2094,7 +2017,6 @@ const styles = {
     outline: 'none',
     resize: 'vertical',
   },
-
   fullWidthCard: {
     maxWidth: 1500,
     margin: '14px auto 0 auto',
@@ -2103,7 +2025,6 @@ const styles = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.35))',
     padding: 16,
   },
-
   cardHeaderRow: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -2113,7 +2034,6 @@ const styles = {
     marginBottom: 10,
   },
   cardTitle: { fontWeight: 900, color: 'rgba(255,255,255,0.92)' },
-
   output: {
     width: '100%',
     minHeight: 220,
@@ -2126,7 +2046,6 @@ const styles = {
     outline: 'none',
     whiteSpace: 'pre-wrap',
   },
-
   batchOutput: {
     width: '100%',
     minHeight: 320,
@@ -2141,9 +2060,7 @@ const styles = {
     whiteSpace: 'pre-wrap',
     resize: 'vertical',
   },
-
   varyWrap: { marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' },
-
   varyChip: {
     display: 'flex',
     alignItems: 'center',
@@ -2157,9 +2074,7 @@ const styles = {
     color: 'rgba(229,231,235,0.92)',
   },
   varyHint: { marginLeft: 10, color: 'rgba(34,197,94,0.95)', fontWeight: 900 },
-
   row: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
-
   smallSelect: {
     background: 'rgba(0,0,0,0.45)',
     color: '#fff',
@@ -2170,7 +2085,6 @@ const styles = {
     fontSize: 13,
     minWidth: 110,
   },
-
   btnPrimary: {
     background: 'rgba(56,189,248,0.95)',
     border: 'none',
@@ -2201,7 +2115,6 @@ const styles = {
     fontSize: 12,
     color: 'rgba(254,202,202,0.95)',
   },
-
   lockOn: {
     background: 'rgba(34,197,94,0.12)',
     border: '1px solid rgba(34,197,94,0.55)',
@@ -2222,11 +2135,39 @@ const styles = {
     fontSize: 12,
     color: 'rgba(229,231,235,0.80)',
   },
-
   note: {
     marginTop: 10,
     fontSize: 12,
     color: 'rgba(229,231,235,0.70)',
     lineHeight: 1.45,
+  },
+  sectionHeader: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 16,
+    border: '1px solid rgba(56,189,248,0.25)',
+    background: 'rgba(56,189,248,0.06)',
+  },
+  sectionTitle: {
+    fontWeight: 950,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    color: 'rgba(255,255,255,0.95)',
+  },
+  sectionSub: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: 800,
+    color: 'rgba(229,231,235,0.70)',
+  },
+  fieldBadge: {
+    marginLeft: 10,
+    fontSize: 10,
+    fontWeight: 950,
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: '1px solid rgba(56,189,248,0.35)',
+    background: 'rgba(56,189,248,0.10)',
+    color: 'rgba(56,189,248,0.95)',
   },
 }
