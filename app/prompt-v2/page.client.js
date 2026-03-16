@@ -47,7 +47,6 @@ const FIELD_ORDER = [
   ['pose', 'Pose / Staging'],
   ['clothing', 'Clothing'],
 
-  // ATTRIBUTES
   ['ethnicity', 'Ethnicity'],
   ['body_shape', 'Body Shape'],
   ['eye_color', 'Eye Color'],
@@ -55,7 +54,6 @@ const FIELD_ORDER = [
   ['breast_size', 'Breast Size'],
   ['glute_size', 'Glute Size'],
 
-  // PROVOCATION ENGINE
   ['outfit_archetype', 'Outfit Archetype'],
   ['undress_state', 'State of Undress'],
   ['clothing_instability', 'Clothing Instability'],
@@ -332,6 +330,7 @@ const LIBRARIES = {
     'Open-front jacket worn without top, bold high-fashion statement',
     'Minimal clothing styling emphasizing form and posture, raw confident aesthetic',
   ],
+
   outfit_archetype: [
     'Elegant bodycon midi dress, smooth fabric, tasteful silhouette emphasis, clean luxury vibe',
     'Athleisure set: seamless leggings + fitted top, flattering fit, sporty confidence',
@@ -356,7 +355,6 @@ const LIBRARIES = {
     'After-hours getting-ready moment, lingerie clearly visible, outfit not fully in place',
     'Shirt slipping open during movement, controlled near-undone look, editorial tension',
   ],
-
   clothing_instability: [
     'Slight fabric movement from wind, soft natural motion, tasteful realism',
     'Sleeves casually rolled, relaxed styling, effortless confidence',
@@ -576,6 +574,7 @@ const LIBRARIES = {
       'Lapland — glass igloo suite, snowfields and northern lights, silent premium luxury',
       'Maldives — overwater villa deck, infinite horizon, crystal lagoon, premium fantasy',
     ],
+
     Beaches: [
       'White sand beach with turquoise water, clean open horizon, no crowds, soft sunlight',
       'Palm-lined tropical beach at golden hour, warm glow, gentle waves',
@@ -584,7 +583,6 @@ const LIBRARIES = {
       'Anse Source d’Argent, Seychelles — granite boulders, shallow water, iconic luxury',
       'Tulum beach — boho luxury vibe, warm sand, lifestyle influencer atmosphere',
     ],
-
     Nightclubs: [
       'High-end nightclub lounge with neon accents and deep shadows, premium nightlife mood',
       'Luxury rooftop club at night with city lights below, VIP atmosphere, clean composition',
@@ -876,7 +874,6 @@ function LibraryDropdown({ items, onPick, disabled, onLocked }) {
     </select>
   )
 }
-
 export default function PromptV2() {
   const searchParams = useSearchParams()
 
@@ -894,6 +891,8 @@ export default function PromptV2() {
   const [last, setLast] = useState('—')
   const [copied, setCopied] = useState('')
 
+  const [feedPrompts, setFeedPrompts] = useState([])
+
   const [blocks, setBlocks] = useState(() => ({ ...EMPTY_BLOCKS }))
   const [locks, setLocks] = useState(() =>
     Object.fromEntries(FIELD_ORDER.map(([k]) => [k, false]))
@@ -908,6 +907,11 @@ export default function PromptV2() {
     Object.fromEntries(FIELD_ORDER.map(([k]) => [k, true]))
   )
   const [varyLocationCategory, setVaryLocationCategory] = useState(false)
+
+  // CHARACTER DNA
+  const [dnaProfiles, setDnaProfiles] = useState([])
+  const [activeDnaId, setActiveDnaId] = useState('')
+  const [dnaName, setDnaName] = useState('')
 
   useEffect(() => {
     if (!locked) return
@@ -928,12 +932,23 @@ export default function PromptV2() {
     if (!allowedIntensities.includes(intensity)) setIntensity(safeDefault)
   }, [plan, intensity])
 
-useEffect(() => {
-  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
-  if (!allowedCats.includes(locationCategory)) {
-    setLocationCategory('All')
-  }
-}, [plan, locationCategory])
+  useEffect(() => {
+    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+    if (!allowedCats.includes(locationCategory)) {
+      setLocationCategory('All')
+    }
+  }, [plan, locationCategory])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('promptCEO_dna_profiles')
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) setDnaProfiles(parsed)
+    } catch (err) {
+      console.error('Failed to load DNA profiles', err)
+    }
+  }, [])
 
   const contentMode = useMemo(() => {
     if (plan === 'Soft') return 'Safe / IG'
@@ -978,29 +993,29 @@ useEffect(() => {
     return base.filter((c) => allowed.includes(c))
   }, [plan])
 
-const categoryCounts = useMemo(() => {
-  const by = LIBRARIES.locationByCategory || {}
-  const out = {}
-  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+  const categoryCounts = useMemo(() => {
+    const by = LIBRARIES.locationByCategory || {}
+    const out = {}
+    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
 
-  for (const cat of allowedCats) {
-    if (cat === 'All') continue
-    out[cat] = Array.isArray(by[cat]) ? by[cat].length : 0
-  }
+    for (const cat of allowedCats) {
+      if (cat === 'All') continue
+      out[cat] = Array.isArray(by[cat]) ? by[cat].length : 0
+    }
 
-  const mergedAll = []
-  const curatedAll = Array.isArray(by.All) ? by.All : []
-  mergedAll.push(...curatedAll)
+    const mergedAll = []
+    const curatedAll = Array.isArray(by.All) ? by.All : []
+    mergedAll.push(...curatedAll)
 
-  for (const cat of allowedCats) {
-    if (cat === 'All') continue
-    const arr = Array.isArray(by[cat]) ? by[cat] : []
-    mergedAll.push(...arr)
-  }
+    for (const cat of allowedCats) {
+      if (cat === 'All') continue
+      const arr = Array.isArray(by[cat]) ? by[cat] : []
+      mergedAll.push(...arr)
+    }
 
-  out.All = [...new Set(mergedAll)].length
-  return out
-}, [plan])
+    out.All = [...new Set(mergedAll)].length
+    return out
+  }, [plan])
 
   const catsSummary = useMemo(() => {
     const cats = (locationCategories || []).filter((c) => c !== 'All')
@@ -1011,29 +1026,29 @@ const categoryCounts = useMemo(() => {
     return rest > 0 ? `Cats: ${head.join(', ')} +${rest}` : `Cats: ${head.join(', ')}`
   }, [locationCategories])
 
-const locationOptions = useMemo(() => {
-  const by = LIBRARIES.locationByCategory || {}
-  const cat = locationCategory || 'All'
-  const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+  const locationOptions = useMemo(() => {
+    const by = LIBRARIES.locationByCategory || {}
+    const cat = locationCategory || 'All'
+    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
 
-  if (cat === 'All') {
-    const merged = []
-    const curated = Array.isArray(by.All) ? by.All : []
-    merged.push(...curated)
+    if (cat === 'All') {
+      const merged = []
+      const curated = Array.isArray(by.All) ? by.All : []
+      merged.push(...curated)
 
-    for (const allowedCat of allowedCats) {
-      if (allowedCat === 'All') continue
-      const arr = by[allowedCat]
-      if (Array.isArray(arr)) merged.push(...arr)
+      for (const allowedCat of allowedCats) {
+        if (allowedCat === 'All') continue
+        const arr = by[allowedCat]
+        if (Array.isArray(arr)) merged.push(...arr)
+      }
+
+      return [...new Set(merged)]
     }
 
-    return [...new Set(merged)]
-  }
-
-  const inCat = by?.[cat]
-  if (Array.isArray(inCat) && inCat.length) return inCat
-  return []
-}, [locationCategory, plan])
+    const inCat = by?.[cat]
+    if (Array.isArray(inCat) && inCat.length) return inCat
+    return []
+  }, [locationCategory, plan])
 
   const locationOptionalValue = useMemo(() => {
     const current = String(blocks.location || '').trim()
@@ -1048,6 +1063,11 @@ const locationOptions = useMemo(() => {
     setLast(`Updated ${key}`)
   }
 
+  const saveDnaProfiles = (profiles) => {
+    setDnaProfiles(profiles)
+    localStorage.setItem('promptCEO_dna_profiles', JSON.stringify(profiles))
+  }
+
   const copyText = async (text, label) => {
     const t = String(text || '').trim()
     if (!t) return
@@ -1060,8 +1080,95 @@ const locationOptions = useMemo(() => {
     }
   }
 
+  const saveCurrentAsDna = () => {
+    const name = String(dnaName || '').trim()
+    if (!name) {
+      alert('Please enter a DNA name first.')
+      return
+    }
+
+    const profile = {
+      id: activeDnaId || `dna_${Date.now()}`,
+      name,
+      plan,
+      values: {
+        identity: blocks.identity,
+        ethnicity: blocks.ethnicity,
+        body_shape: blocks.body_shape,
+        eye_color: blocks.eye_color,
+        hair: blocks.hair,
+        breast_size: blocks.breast_size,
+        glute_size: blocks.glute_size,
+        mood: blocks.mood,
+        camera: blocks.camera,
+        lighting: blocks.lighting,
+        style: blocks.style,
+        quality: blocks.quality,
+      },
+      lockedFields: ['identity', 'ethnicity', 'body_shape', 'eye_color', 'hair'],
+      updatedAt: Date.now(),
+    }
+
+    const exists = dnaProfiles.some((p) => p.id === profile.id)
+    const next = exists
+      ? dnaProfiles.map((p) => (p.id === profile.id ? profile : p))
+      : [profile, ...dnaProfiles]
+
+    saveDnaProfiles(next)
+    setActiveDnaId(profile.id)
+    setLast(`DNA saved → ${profile.name}`)
+    setClicks((c) => c + 1)
+  }
+
+  const loadDnaProfile = (id) => {
+    const found = dnaProfiles.find((p) => p.id === id)
+    if (!found) return
+
+    setActiveDnaId(found.id)
+    setDnaName(found.name || '')
+    setPlan(found.plan || 'Fanvue')
+
+    setBlocks((prev) => ({
+      ...prev,
+      ...found.values,
+    }))
+
+    if (Array.isArray(found.lockedFields)) {
+      setLocks((prev) => {
+        const next = { ...prev }
+        found.lockedFields.forEach((key) => {
+          next[key] = true
+        })
+        return next
+      })
+    }
+
+    setClicks((c) => c + 1)
+    setLast(`DNA loaded → ${found.name}`)
+  }
+
+  const deleteDnaProfile = () => {
+    if (!activeDnaId) return
+
+    const found = dnaProfiles.find((p) => p.id === activeDnaId)
+    const next = dnaProfiles.filter((p) => p.id !== activeDnaId)
+
+    saveDnaProfiles(next)
+    setActiveDnaId('')
+    setDnaName('')
+
+    setClicks((c) => c + 1)
+    setLast(found ? `DNA deleted → ${found.name}` : 'DNA deleted')
+  }
 const randomizeField = (key) => {
   if (locks[key]) return
+
+  const activeDNA = dnaProfiles.find(p => p.id === activeDnaId)
+
+  // If DNA is active and field is locked by DNA → skip random
+  if (activeDNA && activeDNA.lockedFields?.includes(key)) {
+    return
+  }
 
   if (key === 'location') {
     const v = pickRandom(locationOptions)
@@ -1088,8 +1195,46 @@ const randomizeField = (key) => {
 
   const v = pickRandom(allowed)
   if (!v) return
+
   setBlock(key, v)
   setLast(`Random → ${key}`)
+}
+const generateInfluencerFeed = () => {
+  const count = 30
+  const prompts = []
+
+  for (let i = 0; i < count; i++) {
+    const loc = pickRandom(locationOptions)
+
+    const pose = pickRandom(LIBRARIES.pose || [])
+    const outfit = pickRandom(LIBRARIES.outfit || [])
+    const mood = pickRandom(LIBRARIES.mood || [])
+    const camera = pickRandom(LIBRARIES.camera || [])
+    const lighting = pickRandom(LIBRARIES.lighting || [])
+
+    const parts = [
+      blocks.identity,
+      blocks.ethnicity,
+      blocks.body_shape,
+      blocks.eye_color,
+      blocks.hair,
+      blocks.breast_size,
+      blocks.glute_size,
+      pose,
+      outfit,
+      mood,
+      loc,
+      camera,
+      lighting,
+      blocks.style,
+      blocks.quality
+    ].filter(Boolean)
+
+    prompts.push(parts.join(', '))
+  }
+
+  setFeedPrompts(prompts)
+  setLast(`Generated ${count} influencer prompts`)
 }
 
   const clearField = (key) => {
@@ -1114,6 +1259,8 @@ const randomizeField = (key) => {
   const clearAll = () => {
     setBlocks({ ...EMPTY_BLOCKS })
     setBatchPack('')
+    setActiveDnaId('')
+    setDnaName('')
     if (!lockLocationCategory) setLocationCategory('All')
     setClicks((c) => c + 1)
     setLast('Cleared all')
@@ -1300,7 +1447,7 @@ const randomizeField = (key) => {
       <div style={styles.headerBar}>
         <div>
           <div style={styles.title}>AI Influencer Prompt CEO</div>
-          <div style={styles.subtitle}>Create high-conversion AI influencer images with precision controls</div>
+          <div style={styles.subtitle}>Premium image prompts • professional structure • stable UI</div>
         </div>
 
         <div style={styles.pills}>
@@ -1310,6 +1457,7 @@ const randomizeField = (key) => {
           {pill(`Admin: ${adminMode ? 'ON' : 'OFF'}`)}
           {pill(`Clicks: ${clicks}`)}
           {pill(`Last: ${last}`)}
+          {activeDnaId ? pill(`DNA Active`) : null}
           {copied ? pill(`Copied: ${copied}`) : null}
         </div>
       </div>
@@ -1444,7 +1592,58 @@ const randomizeField = (key) => {
           </div>
 
           <div style={styles.ctrlBox}>
+            <div style={styles.ctrlLabel}>CHARACTER DNA</div>
+
+            <input
+              type="text"
+              value={dnaName}
+              onChange={(e) => setDnaName(e.target.value)}
+              placeholder="Character name (e.g. Sofia)"
+              style={styles.ctrlInput}
+            />
+
+            <select
+              value={activeDnaId}
+              onChange={(e) => {
+                const id = e.target.value
+                setActiveDnaId(id)
+                if (id) loadDnaProfile(id)
+              }}
+              style={styles.ctrlSelect}
+            >
+              <option value="">Select DNA profile</option>
+              {dnaProfiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            <div style={styles.row}>
+              <button type="button" onClick={saveCurrentAsDna} style={styles.btnPrimary}>
+                Save DNA
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteDnaProfile}
+                style={styles.btnDanger}
+                disabled={!activeDnaId}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.ctrlBox}>
             <div style={styles.ctrlLabel}>GLOBAL</div>
+            <button
+  type="button"
+  onClick={generateInfluencerFeed}
+  style={styles.btnPrimary}
+>
+  Generate 30 Post Feed
+</button>
             <div style={styles.row}>
               <button type="button" onClick={clearAll} style={styles.btnDanger}>
                 Clear All
@@ -1727,6 +1926,19 @@ const randomizeField = (key) => {
                 </div>
               )
             })}
+
+            {feedPrompts.length > 0 && (
+          <div style={styles.feedBox}>
+            <div style={styles.feedTitle}>Influencer Feed</div>
+
+            {feedPrompts.map((p, i) => (
+              <div key={i} style={styles.feedItem}>
+                {i + 1}. {p}
+              </div>
+            ))}
+          </div>
+        )}
+
         </div>
       </div>
 
@@ -1881,6 +2093,16 @@ const styles = {
     minHeight: 92,
   },
   ctrlLabel: { fontSize: 11, fontWeight: 900, color: 'rgba(229,231,235,0.70)', letterSpacing: 0.6 },
+  ctrlInput: {
+    width: '100%',
+    background: 'rgba(0,0,0,0.45)',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    padding: '10px 12px',
+    outline: 'none',
+    fontSize: 13,
+  },
   ctrlSelect: {
     width: '100%',
     background: 'rgba(0,0,0,0.45)',
@@ -2170,4 +2392,26 @@ const styles = {
     background: 'rgba(56,189,248,0.10)',
     color: 'rgba(56,189,248,0.95)',
   },
+  feedBox: {
+  marginTop: 18,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(56,189,248,0.20)',
+  background: 'rgba(56,189,248,0.06)',
+},
+
+feedTitle: {
+  fontSize: 13,
+  fontWeight: 900,
+  color: 'rgba(255,255,255,0.95)',
+  marginBottom: 10,
+},
+
+feedItem: {
+  fontSize: 12,
+  lineHeight: 1.5,
+  color: 'rgba(229,231,235,0.88)',
+  padding: '6px 0',
+  borderTop: '1px solid rgba(255,255,255,0.05)',
+},
 }
