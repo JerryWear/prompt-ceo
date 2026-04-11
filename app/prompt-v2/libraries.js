@@ -357,6 +357,18 @@ export const LIBRARIES = {
     'Extreme realism, sharp micro-details, clean backgrounds, no artifacts, no distortions',
   ],
 
+      environment_detail: [
+  'busy environment with people moving naturally in the background',
+  'subtle background activity, real-world presence, not empty',
+  'slight clutter: objects casually placed, lived-in feel',
+  'depth in scene, foreground and background separation',
+  'reflections and layered environment details',
+  'imperfect setup, not staged, natural surroundings',
+  'background slightly out of focus, realistic atmosphere',
+  'elements partially blocking view, natural depth',
+  'uneven lighting across environment, not studio-perfect',
+],
+
   locationByCategory: {
     All: [
       'Neutral studio background with soft lighting, clean minimal setup, no distractions',
@@ -536,17 +548,5 @@ export const LIBRARIES = {
       'Luxury penthouse interior with floor-to-ceiling windows, skyline view, editorial mood',
       'Rooftop at night with city lights below, cinematic atmosphere, controlled highlights',
     ],
-
-    environment_detail: [
-  'busy environment with people moving naturally in the background',
-  'subtle background activity, real-world presence, not empty',
-  'slight clutter: objects casually placed, lived-in feel',
-  'depth in scene, foreground and background separation',
-  'reflections and layered environment details',
-  'imperfect setup, not staged, natural surroundings',
-  'background slightly out of focus, realistic atmosphere',
-  'elements partially blocking view, natural depth',
-  'uneven lighting across environment, not studio-perfect',
-],
   },
 }    

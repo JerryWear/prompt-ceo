@@ -1,8 +1,143 @@
 export const WORLD_LONDON = {
   id: 'london',
   name: 'London High Society',
-  heroLabel: 'London',
-  theme: 'Cinematic luxury London lifestyle',
+  description:
+    'A cinematic luxury London world built around private suite mornings, polished city movement through Mayfair and iconic landmarks, refined social access, candlelit exclusivity, and a slow after-hours descent into private skyline calm.',
+
+  geography: {
+    country: 'England',
+    region: 'London luxury hotel suites, Mayfair, Knightsbridge, landmark city routes, private clubs, rooftop dining, riverside prestige',
+  },
+
+  identity: {
+    archetype: 'high-society London luxury woman',
+    vibe: [
+      'quiet old-money elegance',
+      'private suite calm',
+      'understated London luxury',
+      'soft aristocratic composure',
+      'refined feminine confidence',
+    ],
+    tone: [
+      'refined',
+      'composed',
+      'polished',
+      'editorial',
+      'high-status',
+      'softly magnetic',
+      'controlled',
+      'private',
+    ],
+    persona: [
+      'socially selective',
+      'visually disciplined',
+      'luxury-aware',
+      'quietly influential',
+      'self-possessed',
+      'emotionally controlled',
+    ],
+  },
+
+  phaseOrder: [
+    'wake',
+    'morning_refresh',
+    'getting_dressed',
+    'breakfast',
+    'late_morning',
+    'lunch',
+    'afternoon',
+    'reset',
+    'golden_hour',
+    'dinner',
+    'evening',
+    'night',
+  ],
+
+  phases: {
+    wake: {
+      label: 'Wake',
+      timeWindows: ['early morning', 'soft London dawn light', 'pale suite morning glow'],
+      pacing: 'slow',
+      subLocations: ['ritz_london_suite', 'claridges_suite', 'savoy_river_view_suite', 'connaught_suite', 'shangrila_shard_suite'],
+    },
+
+    morning_refresh: {
+      label: 'Morning Refresh',
+      timeWindows: ['morning', 'clean hotel daylight', 'soft suite daylight'],
+      pacing: 'slow',
+      subLocations: ['ritz_london_suite', 'claridges_suite', 'savoy_river_view_suite', 'connaught_suite'],
+    },
+
+    getting_dressed: {
+      label: 'Getting Dressed',
+      timeWindows: ['morning', 'clean luxury indoor light', 'suite mirror light'],
+      pacing: 'slow',
+      subLocations: ['claridges_suite', 'savoy_river_view_suite', 'connaught_suite', 'ritz_london_suite'],
+    },
+
+    breakfast: {
+      label: 'Breakfast',
+      timeWindows: ['morning', 'late morning', 'silver breakfast-service light'],
+      pacing: 'slow',
+      subLocations: ['ritz_london_suite', 'claridges_suite', 'savoy_river_view_suite'],
+    },
+
+    late_morning: {
+      label: 'Late Morning',
+      timeWindows: ['late morning', 'silver overcast city light', 'clean daytime London light'],
+      pacing: 'medium',
+      subLocations: ['black_cab_arrival', 'chauffeur_car_scene', 'bond_street', 'mayfair_streets', 'knightsbridge_harrods', 'sloane_street'],
+    },
+
+    lunch: {
+      label: 'Lunch',
+      timeWindows: ['midday', 'soft afternoon luxury light', 'clean city daylight'],
+      pacing: 'medium',
+      subLocations: ['scotts_mayfair', 'sketch_london', 'hyde_park', 'kensington_gardens', 'thames_riverside_walk'],
+    },
+
+    afternoon: {
+      label: 'Afternoon',
+      timeWindows: ['afternoon', 'warm afternoon luxury light', 'clear city light'],
+      pacing: 'medium',
+      subLocations: ['westminster_big_ben', 'buckingham_palace_gates', 'st_pauls_cathedral_steps', 'tower_bridge', 'london_eye_riverside', 'shard_view'],
+    },
+
+    reset: {
+      label: 'Reset',
+      timeWindows: ['late afternoon', 'soft hotel light', 'private suite transition light'],
+      pacing: 'slow',
+      subLocations: ['claridges_suite', 'savoy_river_view_suite', 'connaught_suite', 'shangrila_shard_suite'],
+    },
+
+    golden_hour: {
+      label: 'Golden Hour',
+      timeWindows: ['golden hour', 'golden evening reflection', 'city light beginning to warm'],
+      pacing: 'slow',
+      subLocations: ['bond_street', 'mayfair_streets', 'hyde_park', 'kensington_gardens', 'private_rooftop_dining_aqua_shard', 'private_rooftop_dining_shard'],
+    },
+
+    dinner: {
+      label: 'Dinner',
+      timeWindows: ['early evening', 'evening', 'candlelit dinner glow'],
+      pacing: 'slow',
+      subLocations: ['scotts_mayfair', 'sketch_london', 'sexy_fish_mayfair', 'annabels_private_club', 'private_members_club', 'private_rooftop_dining_aqua_shard', 'private_rooftop_dining_shard'],
+    },
+
+    evening: {
+      label: 'Evening',
+      timeWindows: ['evening', 'amber club lighting', 'wet-street evening reflections'],
+      pacing: 'slow',
+      subLocations: ['annabels_private_club', 'private_members_club', 'sexy_fish_mayfair', 'chauffeur_car_scene', 'mayfair_streets', 'shard_view'],
+    },
+
+    night: {
+      label: 'Night',
+      timeWindows: ['night', 'late night', 'city skyline night shimmer', 'dim suite light'],
+      pacing: 'slow',
+      subLocations: ['chauffeur_car_scene', 'ritz_london_suite', 'claridges_suite', 'savoy_river_view_suite', 'connaught_suite', 'shangrila_shard_suite', 'thames_riverside_walk'],
+    },
+  },
 
   locations: [
     'The Ritz London suite',
@@ -35,377 +170,2303 @@ export const WORLD_LONDON = {
     'Kensington Gardens',
   ],
 
-  moods: [
-    'quiet old-money elegance',
-    'private suite calm',
-    'understated London luxury',
-    'soft aristocratic composure',
-    'refined feminine confidence',
-    'editorial city glamour',
-    'high-status social ease',
-    'slow private sensuality',
-    'rain-glossed night prestige',
-    'midnight Mayfair magnetism',
-  ],
+  subLocations: {
+    ritz_london_suite: {
+      id: 'ritz_london_suite',
+      name: 'The Ritz London Suite',
+      mapAnchor: 'The Ritz London',
+      category: 'private-suite',
+      bestPhases: ['wake', 'morning_refresh', 'getting_dressed', 'breakfast', 'night'],
+      overlays: [
+        'Piccadilly outside',
+        'soft suite light',
+        'silver-service luxury',
+        'quiet old-money calm',
+      ],
+      locations: [
+        'The Ritz London suite bedroom',
+        'The Ritz London suite sitting room',
+        'The Ritz London suite window overlooking Piccadilly',
+        'The Ritz London private corridor',
+      ],
+    },
 
-  lighting: [
-    'soft London dawn light',
-    'pale suite morning glow',
-    'clean hotel daylight',
-    'silver overcast city light',
-    'warm afternoon luxury light',
-    'golden evening reflection',
-    'candlelit dinner glow',
-    'amber club lighting',
-    'wet-street evening reflections',
-    'city skyline night shimmer',
-  ],
+    claridges_suite: {
+      id: 'claridges_suite',
+      name: 'Claridge’s Suite',
+      mapAnchor: 'Claridge’s',
+      category: 'private-suite',
+      bestPhases: ['wake', 'morning_refresh', 'getting_dressed', 'breakfast', 'reset', 'night'],
+      overlays: [
+        'Mayfair outside',
+        'soft morning light',
+        'dressing-area mirror',
+        'clean luxury composure',
+      ],
+      locations: [
+        'Claridge’s suite bedroom',
+        'Claridge’s suite sitting room',
+        'Claridge’s suite mirror and dressing area',
+        'Claridge’s hotel entrance',
+      ],
+    },
 
-  cameras: [
-    'soft window-side portrait framing',
-    'editorial full-body composition',
-    'quiet over-shoulder luxury angle',
-    'cinematic walking profile shot',
-    'intimate suite doorway frame',
-    'street-level candid luxury frame',
-    'wide landmark establishing shot',
-    'close luxury detail crop',
-    'back-seat car perspective',
-    'rooftop skyline composition',
-  ],
+    savoy_river_view_suite: {
+      id: 'savoy_river_view_suite',
+      name: 'The Savoy River-View Suite',
+      mapAnchor: 'The Savoy',
+      category: 'private-suite',
+      bestPhases: ['wake', 'morning_refresh', 'getting_dressed', 'breakfast', 'reset', 'night'],
+      overlays: [
+        'Thames outside the windows',
+        'river-facing suite calm',
+        'silver London light',
+        'private skyline stillness',
+      ],
+      locations: [
+        'The Savoy river-view suite bedroom',
+        'The Savoy river-view suite living room',
+        'The Savoy windows facing the Thames',
+        'The Savoy suite corridor',
+      ],
+    },
 
-  times: [
-    'early morning',
-    'morning',
-    'late morning',
-    'afternoon',
-    'golden hour',
-    'early evening',
-    'evening',
-    'night',
-    'late night',
-  ],
+    connaught_suite: {
+      id: 'connaught_suite',
+      name: 'The Connaught Suite',
+      mapAnchor: 'The Connaught',
+      category: 'private-suite',
+      bestPhases: ['wake', 'morning_refresh', 'getting_dressed', 'reset', 'night'],
+      overlays: [
+        'deep Mayfair quiet',
+        'classic suite textures',
+        'understated wealth',
+        'soft private control',
+      ],
+      locations: [
+        'The Connaught suite bedroom',
+        'The Connaught suite sitting room',
+        'The Connaught suite hallway',
+        'The Connaught entrance in Mayfair',
+      ],
+    },
 
-  phaseOrder: [
-    'wake',
-    'morning',
-    'day',
-    'social',
-    'evening',
-    'night',
-  ],
+    shangrila_shard_suite: {
+      id: 'shangrila_shard_suite',
+      name: 'Shangri-La The Shard Suite',
+      mapAnchor: 'The Shard',
+      category: 'skyline-suite',
+      bestPhases: ['wake', 'reset', 'night'],
+      overlays: [
+        'city stretched below',
+        'glass wall',
+        'vertical luxury',
+        'private skyline calm',
+      ],
+      locations: [
+        'Shangri-La The Shard suite bedroom',
+        'Shangri-La The Shard skyline-facing glass wall',
+        'Shangri-La The Shard window-side seating',
+        'Shangri-La The Shard high-floor corridor',
+      ],
+    },
 
-  scenePools: {
+    bond_street: {
+      id: 'bond_street',
+      name: 'Bond Street',
+      mapAnchor: 'Bond Street',
+      category: 'luxury-street',
+      bestPhases: ['late_morning', 'golden_hour'],
+      overlays: [
+        'Dior and Chanel windows',
+        'luxury storefront reflections',
+        'editorial city movement',
+        'controlled fashion visibility',
+      ],
+      locations: [
+        'Bond Street near Dior',
+        'Bond Street near Chanel',
+        'Bond Street near Louis Vuitton',
+        'Bond Street storefront reflections',
+      ],
+    },
+
+    mayfair_streets: {
+      id: 'mayfair_streets',
+      name: 'Mayfair Streets',
+      mapAnchor: 'Mayfair',
+      category: 'city-core',
+      bestPhases: ['late_morning', 'golden_hour', 'evening'],
+      overlays: [
+        'black cars',
+        'townhouse facades',
+        'quiet wealth',
+        'polished London movement',
+      ],
+      locations: [
+        'Mount Street',
+        'Carlos Place',
+        'Berkeley Square edge',
+        'South Audley Street',
+      ],
+    },
+
+    knightsbridge_harrods: {
+      id: 'knightsbridge_harrods',
+      name: 'Knightsbridge / Harrods',
+      mapAnchor: 'Knightsbridge',
+      category: 'luxury-district',
+      bestPhases: ['late_morning'],
+      overlays: [
+        'Harrods exterior',
+        'designer storefronts',
+        'fashion-forward city presence',
+        'clean luxury pace',
+      ],
+      locations: [
+        'Harrods exterior',
+        'Brompton Road',
+        'Knightsbridge luxury storefronts',
+        'street crossing near Harrods',
+      ],
+    },
+
+    sloane_street: {
+      id: 'sloane_street',
+      name: 'Sloane Street',
+      mapAnchor: 'Sloane Street',
+      category: 'luxury-district',
+      bestPhases: ['late_morning'],
+      overlays: [
+        'stone facades',
+        'luxury entrances',
+        'editorial street rhythm',
+        'structured tailoring energy',
+      ],
+      locations: [
+        'Sloane Street storefront row',
+        'Sloane Street crossing',
+        'Sloane Street stone façades',
+        'luxury entrance along Sloane Street',
+      ],
+    },
+
+    black_cab_arrival: {
+      id: 'black_cab_arrival',
+      name: 'Black Cab Arrival',
+      mapAnchor: 'The Ritz London curbside',
+      category: 'transport',
+      bestPhases: ['late_morning'],
+      overlays: [
+        'black cab door frame',
+        'London curbside arrival',
+        'quiet polished entry',
+        'unmistakable city identity',
+      ],
+      locations: [
+        'black cab outside The Ritz London',
+        'black cab door opening on Piccadilly outside The Ritz London',
+        'The Ritz London curbside arrival',
+        'street-side black cab exit at The Ritz London',
+      ],
+    },
+
+    chauffeur_car_scene: {
+      id: 'chauffeur_car_scene',
+      name: 'Chauffeur Car Scene',
+      mapAnchor: 'Claridge’s arrival / Mayfair streets',
+      category: 'transport',
+      bestPhases: ['late_morning', 'evening', 'night'],
+      overlays: [
+        'back-seat luxury car interior',
+        'reflections on the window',
+        'private city motion',
+        'polished arrival energy',
+      ],
+      locations: [
+        'chauffeur-driven car outside Claridge’s',
+        'back-seat luxury car interior in Mayfair',
+        'Claridge’s doorway arrival from a chauffeur car',
+        'night city reflections across the car windows near Mount Street',
+      ],
+    },
+
+    scotts_mayfair: {
+      id: 'scotts_mayfair',
+      name: 'Scott’s Mayfair',
+      mapAnchor: 'Scott’s Mayfair',
+      category: 'refined-dining',
+      bestPhases: ['lunch', 'dinner'],
+      overlays: [
+        'white tablecloth setting',
+        'quiet luxury service',
+        'classic Mayfair tone',
+        'understated glamour',
+      ],
+      locations: [
+        'Scott’s Mayfair dining room',
+        'Scott’s table by soft light',
+        'Scott’s white-tablecloth setting',
+        'Scott’s entrance in Mayfair',
+      ],
+    },
+
+    sketch_london: {
+      id: 'sketch_london',
+      name: 'Sketch London',
+      mapAnchor: 'Sketch London',
+      category: 'statement-interior',
+      bestPhases: ['lunch', 'dinner'],
+      overlays: [
+        'the pink room',
+        'plush seating',
+        'theatrical elegance',
+        'soft high-status warmth',
+      ],
+      locations: [
+        'Sketch London pink room',
+        'Sketch London table setting',
+        'Sketch London plush seating',
+        'Sketch London corridor detail',
+      ],
+    },
+
+    hyde_park: {
+      id: 'hyde_park',
+      name: 'Hyde Park',
+      mapAnchor: 'Hyde Park',
+      category: 'green-space',
+      bestPhases: ['lunch', 'golden_hour'],
+      overlays: [
+        'tree-lined path',
+        'quiet greenery',
+        'luxury pause in the city',
+        'open-air calm',
+      ],
+      locations: [
+        'Hyde Park pathway',
+        'tree-lined Hyde Park edge',
+        'open green stretch in Hyde Park',
+        'stone path near park railings',
+      ],
+    },
+
+    kensington_gardens: {
+      id: 'kensington_gardens',
+      name: 'Kensington Gardens',
+      mapAnchor: 'Kensington Gardens',
+      category: 'green-space',
+      bestPhases: ['lunch', 'golden_hour'],
+      overlays: [
+        'quiet garden pathway',
+        'tree-lined softness',
+        'polished daytime calm',
+        'lighter reflective mood',
+      ],
+      locations: [
+        'Kensington Gardens pathway',
+        'quiet tree-lined stretch in Kensington Gardens',
+        'garden edge near wrought-iron fencing',
+        'open walkway through the gardens',
+      ],
+    },
+
+    thames_riverside_walk: {
+      id: 'thames_riverside_walk',
+      name: 'Thames Riverside Walk',
+      mapAnchor: 'Victoria Embankment',
+      category: 'riverside',
+      bestPhases: ['lunch', 'night'],
+      overlays: [
+        'river air',
+        'stone walkway',
+        'city-facing railing',
+        'quiet cinematic scale',
+      ],
+      locations: [
+        'Victoria Embankment stone walkway',
+        'Victoria Embankment riverside railing',
+        'Embankment riverside path',
+        'city-facing river edge along Victoria Embankment',
+      ],
+    },
+
+    westminster_big_ben: {
+      id: 'westminster_big_ben',
+      name: 'Westminster / Big Ben',
+      mapAnchor: 'Westminster',
+      category: 'landmark',
+      bestPhases: ['afternoon'],
+      overlays: [
+        'Big Ben behind',
+        'Parliament-facing pavement',
+        'historic city scale',
+        'composed city authority',
+      ],
+      locations: [
+        'Westminster Bridge approach',
+        'Big Ben viewline',
+        'Parliament-facing pavement',
+        'stone embankment near Westminster',
+      ],
+    },
+
+    buckingham_palace_gates: {
+      id: 'buckingham_palace_gates',
+      name: 'Buckingham Palace Gates',
+      mapAnchor: 'Buckingham Palace',
+      category: 'landmark',
+      bestPhases: ['afternoon'],
+      overlays: [
+        'iron gates',
+        'regal architecture',
+        'old-world prestige',
+        'quiet grandeur',
+      ],
+      locations: [
+        'Buckingham Palace gates',
+        'The Mall approach',
+        'stone perimeter and gate line',
+        'forecourt-facing perspective',
+      ],
+    },
+
+    st_pauls_cathedral_steps: {
+      id: 'st_pauls_cathedral_steps',
+      name: 'St. Paul’s Cathedral Steps',
+      mapAnchor: 'St. Paul’s Cathedral',
+      category: 'landmark',
+      bestPhases: ['afternoon'],
+      overlays: [
+        'stone steps',
+        'grand facade',
+        'historic gravity',
+        'editorial stillness',
+      ],
+      locations: [
+        'St. Paul’s Cathedral front steps',
+        'stone landing near the entrance',
+        'cathedral façade approach',
+        'viewline from the steps across the city',
+      ],
+    },
+
+    tower_bridge: {
+      id: 'tower_bridge',
+      name: 'Tower Bridge',
+      mapAnchor: 'Tower Bridge',
+      category: 'landmark',
+      bestPhases: ['afternoon'],
+      overlays: [
+        'riverside approach',
+        'bridge frame',
+        'Thames edge',
+        'cinematic London scale',
+      ],
+      locations: [
+        'Tower Bridge riverside approach',
+        'Tower Bridge stone walkway',
+        'viewline with Tower Bridge in full frame',
+        'Thames-side path near Tower Bridge',
+      ],
+    },
+
+    london_eye_riverside: {
+      id: 'london_eye_riverside',
+      name: 'London Eye Riverside',
+      mapAnchor: 'South Bank',
+      category: 'landmark',
+      bestPhases: ['afternoon'],
+      overlays: [
+        'South Bank stone walkway',
+        'river edge',
+        'landmark openness',
+        'bright city contrast',
+      ],
+      locations: [
+        'riverside path near the London Eye',
+        'South Bank stone walkway',
+        'viewline with the London Eye behind',
+        'Thames edge near the wheel',
+      ],
+    },
+
+    shard_view: {
+      id: 'shard_view',
+      name: 'The Shard View',
+      mapAnchor: 'The Shard viewpoint',
+      category: 'skyline-view',
+      bestPhases: ['afternoon', 'evening'],
+      overlays: [
+        'glass viewline',
+        'city stretched below',
+        'metropolitan calm',
+        'elevated observation',
+      ],
+      locations: [
+        'The Shard skyline viewpoint',
+        'glass viewline over London',
+        'high-level urban observation space',
+        'city-facing window edge',
+      ],
+    },
+
+    sexy_fish_mayfair: {
+      id: 'sexy_fish_mayfair',
+      name: 'Sexy Fish Mayfair',
+      mapAnchor: 'Sexy Fish Mayfair',
+      category: 'high-glamour-dining',
+      bestPhases: ['dinner', 'evening'],
+      overlays: [
+        'electric interior',
+        'bar edge glow',
+        'glamour under control',
+        'iconic Mayfair energy',
+      ],
+      locations: [
+        'Sexy Fish Mayfair dining room',
+        'Sexy Fish bar edge',
+        'Sexy Fish entrance detail',
+        'Sexy Fish table setting',
+      ],
+    },
+
+    annabels_private_club: {
+      id: 'annabels_private_club',
+      name: 'Annabel’s Private Club',
+      mapAnchor: 'Annabel’s',
+      category: 'private-club',
+      bestPhases: ['dinner', 'evening'],
+      overlays: [
+        'private-club exclusivity',
+        'floral dining details',
+        'low-lit corners',
+        'Mayfair prestige',
+      ],
+      locations: [
+        'Annabel’s entrance',
+        'Annabel’s club interior',
+        'Annabel’s floral dining room',
+        'Annabel’s low-lit private corner',
+      ],
+    },
+
+    private_members_club: {
+      id: 'private_members_club',
+      name: 'Private Members Club',
+      mapAnchor: '5 Hertford Street',
+      category: 'private-club',
+      bestPhases: ['dinner', 'evening'],
+      overlays: [
+        'low-lit club interior',
+        'quiet lounge confidence',
+        'private access',
+        'candlelight and restraint',
+      ],
+      locations: [
+        '5 Hertford Street bar',
+        '5 Hertford Street lounge seating',
+        '5 Hertford Street corridor',
+        '5 Hertford Street low-lit corner table',
+      ],
+    },
+
+    private_rooftop_dining_aqua_shard: {
+      id: 'private_rooftop_dining_aqua_shard',
+      name: 'Private Rooftop Dining at Aqua Shard',
+      mapAnchor: 'Aqua Shard',
+      category: 'rooftop-dining',
+      bestPhases: ['golden_hour', 'dinner'],
+      overlays: [
+        'candlelit skyline table',
+        'city below',
+        'private rooftop air',
+        'elevated exclusivity',
+      ],
+      locations: [
+        'Aqua Shard private dining table',
+        'Aqua Shard skyline-facing dining edge',
+        'Aqua Shard candlelit seating',
+        'Aqua Shard terrace approach',
+      ],
+    },
+
+    private_rooftop_dining_shard: {
+      id: 'private_rooftop_dining_shard',
+      name: 'Private Rooftop Dining at The Shard',
+      mapAnchor: 'Aqua Shard glass dining edge',
+      category: 'rooftop-dining',
+      bestPhases: ['golden_hour', 'dinner'],
+      overlays: [
+        'glass dining edge',
+        'twilight through the skyline',
+        'vertical city glamour',
+        'rare private height',
+      ],
+      locations: [
+        'Aqua Shard private dining space',
+        'Aqua Shard glass dining edge',
+        'Aqua Shard city-facing candlelit table',
+        'Aqua Shard night skyline frame',
+      ],
+    },
+  },
+
+  sceneGroups: {
+    ritz_london_suite: [
+      {
+        id: 'ritz-private-start',
+        name: 'Ritz Private Start',
+        phases: ['wake', 'morning_refresh', 'breakfast', 'night'],
+        scenes: [
+          'waking in The Ritz London suite with Piccadilly still quiet below',
+          'receiving breakfast in the suite with silver service calm',
+          'returning to The Ritz suite after midnight with softened glamour',
+        ],
+      },
+    ],
+
+    claridges_suite: [
+      {
+        id: 'claridges-soft-elegance',
+        name: 'Claridge’s Soft Elegance',
+        phases: ['wake', 'morning_refresh', 'getting_dressed', 'reset', 'night'],
+        scenes: [
+          'waking in a Claridge’s suite with Mayfair quiet outside',
+          'finishing morning preparation in the dressing area mirror',
+          'returning to Claridge’s at golden-hour softness before the evening sharpens',
+          'holding a private suite pause before letting the night settle fully',
+        ],
+      },
+    ],
+
+    savoy_river_view_suite: [
+      {
+        id: 'savoy-river-arc',
+        name: 'Savoy River Arc',
+        phases: ['wake', 'morning_refresh', 'getting_dressed', 'breakfast', 'reset', 'night'],
+        scenes: [
+          'waking to the Thames outside The Savoy suite windows',
+          'taking breakfast beside the river-facing window with quiet confidence',
+          'returning to the river view after dark as reflections deepen on the water',
+        ],
+      },
+    ],
+
+    connaught_suite: [
+      {
+        id: 'connaught-mayfair-stillness',
+        name: 'Connaught Mayfair Stillness',
+        phases: ['wake', 'morning_refresh', 'getting_dressed', 'reset', 'night'],
+        scenes: [
+          'waking inside The Connaught suite with deep Mayfair quiet around her',
+          'moving through the hallway in polished morning styling',
+          'standing alone in the sitting room after midnight in classic Mayfair stillness',
+        ],
+      },
+    ],
+
+    shangrila_shard_suite: [
+      {
+        id: 'shard-vertical-luxury',
+        name: 'Shard Vertical Luxury',
+        phases: ['wake', 'reset', 'night'],
+        scenes: [
+          'waking above London with the skyline stretching beneath the suite',
+          'returning to the skyline after dark with city lights filling the glass',
+          'ending the arc in suspended midnight luxury',
+        ],
+      },
+    ],
+
+    black_cab_arrival: [
+      {
+        id: 'cab-arrival-london',
+        name: 'Cab Arrival London',
+        phases: ['late_morning'],
+        scenes: [
+          'stepping out of a black cab at a luxury London entrance with quiet confidence',
+        ],
+      },
+    ],
+
+    chauffeur_car_scene: [
+      {
+        id: 'chauffeur-city-bridge',
+        name: 'Chauffeur City Bridge',
+        phases: ['late_morning', 'evening', 'night'],
+        scenes: [
+          'sliding into a chauffeur car with calm polished intent',
+          'arriving by chauffeur car at dinner with sharpened glamour',
+          'riding through London after midnight with skyline reflections on the window',
+        ],
+      },
+    ],
+
+    bond_street: [
+      {
+        id: 'bond-street-editorial',
+        name: 'Bond Street Editorial',
+        phases: ['late_morning', 'golden_hour'],
+        scenes: [
+          'walking Bond Street past Dior with composed luxury confidence',
+          'pausing near Chanel storefront reflections in polished city calm',
+          'passing luxury windows as the street lights begin to glow',
+        ],
+      },
+    ],
+
+    mayfair_streets: [
+      {
+        id: 'mayfair-polish',
+        name: 'Mayfair Polish',
+        phases: ['late_morning', 'golden_hour', 'evening'],
+        scenes: [
+          'walking Mount Street with tailored confidence',
+          'crossing Carlos Place with quiet old-money elegance',
+          'crossing Mayfair after dinner with black cars and amber lights around her',
+        ],
+      },
+    ],
+
+    knightsbridge_harrods: [
+      {
+        id: 'knightsbridge-fashion-presence',
+        name: 'Knightsbridge Fashion Presence',
+        phases: ['late_morning'],
+        scenes: [
+          'arriving outside Harrods with composed luxury energy',
+          'walking Brompton Road with clean fashion-forward confidence',
+        ],
+      },
+    ],
+
+    sloane_street: [
+      {
+        id: 'sloane-structured-city',
+        name: 'Sloane Street Structured City',
+        phases: ['late_morning'],
+        scenes: [
+          'walking Sloane Street in structured daytime styling',
+          'pausing near a luxury entrance with soft editorial calm',
+        ],
+      },
+    ],
+
+    scotts_mayfair: [
+      {
+        id: 'scotts-classic-luxury',
+        name: 'Scott’s Classic Luxury',
+        phases: ['lunch', 'dinner'],
+        scenes: [
+          'arriving at Scott’s with quiet luxury confidence',
+          'sitting down in the dining room with refined social ease',
+          'holding a white-tablecloth pause with understated glamour',
+        ],
+      },
+    ],
+
+    sketch_london: [
+      {
+        id: 'sketch-theatrical-warmth',
+        name: 'Sketch Theatrical Warmth',
+        phases: ['lunch', 'dinner'],
+        scenes: [
+          'arriving into the Sketch pink room with polished social confidence',
+          'sitting at a beautifully set table with warm luxury ease',
+          'holding a candlelit table-side pause inside Sketch London',
+        ],
+      },
+    ],
+
+    hyde_park: [
+      {
+        id: 'hyde-park-soft-break',
+        name: 'Hyde Park Soft Break',
+        phases: ['lunch', 'golden_hour'],
+        scenes: [
+          'walking a Hyde Park pathway with relaxed high-status calm',
+          'pausing near the tree line as the city noise softens behind her',
+          'crossing the park edge in late light before the evening begins',
+        ],
+      },
+    ],
+
+    kensington_gardens: [
+      {
+        id: 'kensington-gardens-reflection',
+        name: 'Kensington Gardens Reflection',
+        phases: ['lunch', 'golden_hour'],
+        scenes: [
+          'walking through Kensington Gardens with composed femininity',
+          'holding a gentle pause before returning toward the city',
+          'transitioning from open-air calm into evening London glamour',
+        ],
+      },
+    ],
+
+    thames_riverside_walk: [
+      {
+        id: 'thames-riverside-calm',
+        name: 'Thames Riverside Calm',
+        phases: ['lunch', 'night'],
+        scenes: [
+          'walking the Thames riverside with calm editorial elegance',
+          'pausing at the railing as the city opens across the water',
+          'holding a private pause by the railing in midnight calm',
+        ],
+      },
+    ],
+
+    westminster_big_ben: [
+      {
+        id: 'westminster-authority',
+        name: 'Westminster Authority',
+        phases: ['afternoon'],
+        scenes: [
+          'walking into a Westminster frame with Big Ben rising behind her',
+          'pausing near the embankment with tailored composure',
+        ],
+      },
+    ],
+
+    buckingham_palace_gates: [
+      {
+        id: 'buckingham-regal-composure',
+        name: 'Buckingham Regal Composure',
+        phases: ['afternoon'],
+        scenes: [
+          'standing near Buckingham Palace gates with quiet regal composure',
+          'walking the approach with soft old-world confidence',
+        ],
+      },
+    ],
+
+    st_pauls_cathedral_steps: [
+      {
+        id: 'st-pauls-editorial-scale',
+        name: 'St. Paul’s Editorial Scale',
+        phases: ['afternoon'],
+        scenes: [
+          'standing on the cathedral steps with polished stillness',
+          'letting the grand façade frame a refined London moment',
+        ],
+      },
+    ],
+
+    tower_bridge: [
+      {
+        id: 'tower-bridge-cinematic-scale',
+        name: 'Tower Bridge Cinematic Scale',
+        phases: ['afternoon'],
+        scenes: [
+          'approaching Tower Bridge with clean city confidence',
+          'pausing on the riverside walkway with the bridge rising behind her',
+        ],
+      },
+    ],
+
+    london_eye_riverside: [
+      {
+        id: 'south-bank-bright-openness',
+        name: 'South Bank Bright Openness',
+        phases: ['afternoon'],
+        scenes: [
+          'walking the South Bank near the London Eye with clean city elegance',
+          'pausing by the Thames with the wheel rising behind her',
+        ],
+      },
+    ],
+
+    shard_view: [
+      {
+        id: 'shard-metropolitan-pause',
+        name: 'Shard Metropolitan Pause',
+        phases: ['afternoon', 'evening'],
+        scenes: [
+          'taking in London from The Shard view with cool metropolitan calm',
+          'standing by the glass as the city stretches below',
+          'watching the city lights from above with private midnight composure',
+        ],
+      },
+    ],
+
+    sexy_fish_mayfair: [
+      {
+        id: 'sexy-fish-glamour-rise',
+        name: 'Sexy Fish Glamour Rise',
+        phases: ['dinner', 'evening'],
+        scenes: [
+          'arriving at Sexy Fish with sharpened social elegance',
+          'moving through the dining room with controlled glamour',
+          'holding a candlelit pause in the electric interior atmosphere',
+        ],
+      },
+    ],
+
+    annabels_private_club: [
+      {
+        id: 'annabels-exclusive-arc',
+        name: 'Annabel’s Exclusive Arc',
+        phases: ['dinner', 'evening'],
+        scenes: [
+          'arriving at Annabel’s with calm high-status certainty',
+          'crossing the club interior with magnetic controlled ease',
+          'leaving Annabel’s into midnight London with softened glamour',
+        ],
+      },
+    ],
+
+    private_members_club: [
+      {
+        id: 'private-members-club-ease',
+        name: 'Private Members Club Ease',
+        phases: ['dinner', 'evening'],
+        scenes: [
+          'entering a private members club interior with controlled confidence',
+          'moving through the lounge with quiet high-status ease',
+          'settling into a low-lit corner with warm social composure',
+        ],
+      },
+    ],
+
+    private_rooftop_dining_aqua_shard: [
+      {
+        id: 'aqua-shard-golden-social',
+        name: 'Aqua Shard Golden Social',
+        phases: ['golden_hour', 'dinner'],
+        scenes: [
+          'arriving at a private Aqua Shard table with warm exclusivity',
+          'sitting above the city in soft luxury evening air',
+          'holding a candlelit rooftop pause above London',
+        ],
+      },
+    ],
+
+    private_rooftop_dining_shard: [
+      {
+        id: 'shard-rooftop-vertical-glamour',
+        name: 'Shard Rooftop Vertical Glamour',
+        phases: ['golden_hour', 'dinner'],
+        scenes: [
+          'arriving above London for private rooftop dining with the skyline surrounding her',
+          'sitting at a candlelit table high above the city with calm confidence',
+          'letting the city lights become part of the dinner atmosphere',
+        ],
+      },
+    ],
+  },
+
+  sceneVariants: {
     wake: [
       'waking slowly in a luxury London suite with the city still quiet outside',
       'resting near the bed as pale morning light enters through tall windows',
-      'crossing the suite in silence before the day fully begins',
       'opening curtains to London rooftops with quiet feminine control',
-      'standing by the glass with slow private morning awareness',
-      'letting the room stay still while London wakes below',
+      'standing at the window with quiet vertical-city stillness',
     ],
-    morning: [
+
+    morning_refresh: [
       'ordering breakfast in-suite with polished calm',
+      'taking coffee in the sitting room with refined composure',
       'finishing morning preparation in a marble bathroom mirror',
-      'dressing for the city with refined, deliberate elegance',
-      'leaving the hotel through a flawless lobby with quiet status',
-      'stepping into a black cab or chauffeur car with composed presence',
-      'entering the city with clean luxury momentum',
+      'standing by the glass watching the city begin to move',
     ],
-    day: [
-      'walking through iconic London streets with confident editorial ease',
-      'moving between boutiques and landmark backdrops with measured poise',
-      'pausing at a historic setting with polished city elegance',
-      'taking in the skyline from a dramatic urban viewpoint',
-      'crossing riverside stone and pavement with cinematic restraint',
-      'softening the day through gardens, streets, and luxury storefronts',
+
+    getting_dressed: [
+      'dressing for the city with refined deliberate elegance',
+      'changing from robe into tailored day styling with composed precision',
+      'finishing morning preparation in the dressing-area mirror with quiet control',
     ],
-    social: [
-      'arriving at a refined lunch or private social setting with quiet confidence',
-      'settling into a beautiful interior with warm high-status ease',
-      'moving through a restaurant or members club with magnetic control',
-      'sharing a rooftop or riverside moment above the city',
-      'holding a table-side pause with understated glamour',
-      'letting the daytime arc become more social and intimate',
+
+    breakfast: [
+      'receiving breakfast in the suite with silver service calm',
+      'taking breakfast beside the river-facing window with quiet confidence',
+      'crossing the sitting room in polished morning stillness after breakfast',
     ],
+
+    late_morning: [
+      'stepping out of a black cab at a luxury London entrance with quiet confidence',
+      'sliding into a chauffeur car with calm polished intent',
+      'walking Bond Street past Dior with composed luxury confidence',
+      'crossing Carlos Place with quiet old-money elegance',
+      'walking Sloane Street in structured daytime styling',
+    ],
+
+    lunch: [
+      'arriving at Scott’s with quiet luxury confidence',
+      'sitting at a beautifully set table with warm luxury ease',
+      'walking a Hyde Park pathway with relaxed high-status calm',
+      'walking the Thames riverside with calm editorial elegance',
+    ],
+
+    afternoon: [
+      'walking into a Westminster frame with Big Ben rising behind her',
+      'standing near Buckingham Palace gates with quiet regal composure',
+      'standing on the cathedral steps with polished stillness',
+      'approaching Tower Bridge with clean city confidence',
+      'taking in London from The Shard view with cool metropolitan calm',
+    ],
+
+    reset: [
+      'returning to Claridge’s at golden-hour softness before the evening sharpens',
+      'returning to the river view after dark as reflections deepen on the water',
+      'holding a private suite pause before letting the evening build',
+    ],
+
+    golden_hour: [
+      'passing luxury windows as the street lights begin to glow',
+      'crossing the park edge in late light before the evening begins',
+      'arriving at a private Aqua Shard table with warm exclusivity',
+      'holding a private pause above London as twilight settles through the glass',
+    ],
+
+    dinner: [
+      'arriving at Scott’s with quiet luxury confidence',
+      'holding a candlelit table-side pause inside Sketch London',
+      'arriving at Sexy Fish with sharpened social elegance',
+      'arriving at Annabel’s with calm high-status certainty',
+      'sitting at a candlelit table high above the city with calm confidence',
+    ],
+
     evening: [
-      'preparing for dinner in a luxury suite with sharpened elegance',
-      'arriving at an exclusive London venue as the city begins to glow',
-      'descending into candlelit social energy with elevated femininity',
-      'holding a private rooftop pause above London at sunset',
-      'moving through evening Mayfair with polished allure',
-      'deepening the atmosphere into a richer, more glamorous tone',
+      'moving through the private club interior with polished allure',
+      'crossing Mayfair after dinner with black cars and amber lights around her',
+      'arriving by chauffeur car at dinner with sharpened glamour',
+      'watching the city lights from above with private after-hours composure',
     ],
+
     night: [
-      'leaving dinner into London night reflections with softened confidence',
-      'crossing a near-empty luxury corridor after midnight',
-      'riding through the city in the back seat with skyline lights outside',
-      'returning to the suite with heels in hand and lingering glamour',
-      'standing at the glass above the sleeping city in private silence',
+      'riding through London after midnight with skyline reflections on the window',
+      'returning to The Ritz suite after midnight with softened glamour',
+      'standing by the window in low suite light above Piccadilly',
+      'ending the evening in Savoy calm above the Thames',
+      'ending the arc in suspended midnight luxury',
+      'holding a private pause by the railing in midnight calm',
+    ],
+  },
+
+  actionPools: {
+    wake: [
+      'waking slowly in a London suite',
+      'resting by the bed in morning stillness',
+      'opening the curtains toward the city',
+      'standing by the glass while London wakes below',
+    ],
+
+    morning_refresh: [
+      'ordering breakfast in-suite',
+      'taking coffee in the sitting room',
+      'finishing morning preparation in the mirror',
+      'watching the city begin to move from the suite',
+    ],
+
+    getting_dressed: [
+      'changing from robe into tailored day styling',
+      'dressing for the city with refined deliberate elegance',
+      'adjusting final styling details before leaving',
+    ],
+
+    breakfast: [
+      'receiving breakfast in the suite',
+      'taking breakfast beside the river-facing window',
+      'crossing the sitting room in polished morning stillness',
+    ],
+
+    late_morning: [
+      'stepping out of a black cab',
+      'sliding into a chauffeur car',
+      'walking Bond Street past luxury boutiques',
+      'crossing Mayfair with quiet old-money elegance',
+      'moving through Knightsbridge in structured city styling',
+    ],
+
+    lunch: [
+      'arriving at a refined lunch setting',
+      'sitting down in a beautiful interior with warm luxury ease',
+      'walking through Hyde Park or Kensington Gardens',
+      'pausing along the riverside in editorial calm',
+    ],
+
+    afternoon: [
+      'walking into a Westminster frame',
+      'standing near Buckingham Palace gates',
+      'holding stillness on the cathedral steps',
+      'approaching Tower Bridge with cinematic confidence',
+      'taking in the skyline from The Shard view',
+    ],
+
+    reset: [
+      'returning to the suite before evening',
+      'holding a private room pause as the city light softens',
+      'letting the hotel interior become part of the glamour build',
+    ],
+
+    golden_hour: [
+      'passing luxury windows as the street lights begin to glow',
+      'crossing the park edge before evening fully begins',
+      'arriving at a rooftop table above London',
+      'turning slightly toward the skyline at twilight',
+    ],
+
+    dinner: [
+      'arriving at an exclusive London venue',
+      'settling into a candlelit table with composed ease',
+      'moving through a private-club or restaurant interior with polished allure',
+      'holding a rooftop pause above the city',
+    ],
+
+    evening: [
+      'moving through Mayfair with a sharper silhouette',
+      'leaving dinner into wet-street reflections',
+      'sitting back in a chauffeur car as London glows outside',
+      'carrying social energy into quieter after-hours composure',
+    ],
+
+    night: [
+      'returning to the suite after midnight',
+      'standing by the glass above the sleeping city',
+      'crossing a near-empty luxury corridor',
+      'holding a final riverside or skyline pause in private silence',
       'ending the night in dim suite light with cinematic stillness',
     ],
   },
 
-  moodProgression: {
+  environmentPools: {
+    wake: [
+      'luxury suite, pale morning light, tall windows, quiet city outside',
+      'soft bedding, polished wood, private hotel stillness',
+      'skyline-facing glass and sleeping London below',
+    ],
+
+    morning_refresh: [
+      'silver breakfast service, marble bathroom mirror, clean hotel daylight',
+      'sitting room calm, muted carpeted quiet, luxury suite interior',
+      'river-facing window with soft London brightness',
+    ],
+
+    getting_dressed: [
+      'dressing-area mirror, tailored clothing, soft suite light',
+      'private hotel room, refined preparation space, polished calm',
+    ],
+
+    breakfast: [
+      'silver breakfast tray, coffee, white linen, quiet suite interior',
+      'river-facing breakfast setting, elegant city stillness',
+    ],
+
+    late_morning: [
+      'black cab curbside, chauffeur car interior, Bond Street reflections',
+      'Mayfair townhouse facades, luxury storefronts, structured city pace',
+      'Knightsbridge and Sloane Street under clean London daylight',
+    ],
+
+    lunch: [
+      'white-tablecloth dining room, plush restaurant interior, soft luxury service',
+      'Hyde Park pathway, Kensington Gardens calm, Victoria Embankment river air',
+    ],
+
+    afternoon: [
+      'Westminster stone and skyline, palace gates, cathedral steps',
+      'Tower Bridge riverside, South Bank openness, The Shard glass viewpoint',
+    ],
+
+    reset: [
+      'suite sitting room, hotel corridor, low private room light, evening preparation calm',
+      'river-view interior and softened skyline reflections',
+    ],
+
+    golden_hour: [
+      'luxury storefront glow, late park light, rooftop glass and skyline warmth',
+      'city beginning to shimmer while still holding daylight softness',
+    ],
+
+    dinner: [
+      'candlelit dining room, private-club low light, rooftop city view, white-tablecloth elegance',
+      'Annabel’s exclusivity, Sexy Fish glow, Scott’s restraint, Aqua Shard skyline edge',
+    ],
+
+    evening: [
+      'amber club lighting, wet-street reflections, black cars in Mayfair',
+      'private bar, club corridor, chauffeur-car glass, high-floor skyline pause',
+    ],
+
+    night: [
+      'back-seat car interior, dim suite light, midnight skyline shimmer, quiet corridor calm',
+      'river reflections on dark water, glass against the sleeping city',
+    ],
+  },
+
+  moodPools: {
     wake: [
       'barely-awake calm',
       'private suite stillness',
       'soft feminine composure',
       'quiet luxury intimacy',
     ],
-    morning: [
+
+    morning_refresh: [
       'refined alertness',
       'fresh prestige',
       'polished self-possession',
       'clean city confidence',
     ],
-    day: [
+
+    getting_dressed: [
+      'controlled precision',
+      'refined self-possession',
+      'quiet readiness',
+      'tailored confidence',
+    ],
+
+    breakfast: [
+      'calm and polished',
+      'private luxury ease',
+      'unhurried suite composure',
+    ],
+
+    late_morning: [
       'editorial poise',
       'high-status independence',
       'London magnetism',
       'controlled glamour',
     ],
-    social: [
+
+    lunch: [
       'warm social elegance',
       'private-club ease',
       'composed charm',
       'elevated femininity',
     ],
-    evening: [
+
+    afternoon: [
+      'polished city confidence',
+      'historic London composure',
+      'refined landmark calm',
+      'high-status visibility',
+    ],
+
+    reset: [
+      'softened composure',
+      'private recalibration',
+      'quiet glamour building inward',
+    ],
+
+    golden_hour: [
+      'slow-building allure',
+      'glowing prestige',
+      'sharpened elegance',
+      'anticipatory warmth',
+    ],
+
+    dinner: [
       'candlelit confidence',
       'glamorous restraint',
       'high-value presence',
-      'slow-building allure',
+      'exclusive social ease',
     ],
-    night: [
+
+    evening: [
       'midnight sophistication',
       'rain-glossed prestige',
       'private after-hours calm',
       'cinematic intimacy',
     ],
+
+    night: [
+      'private midnight calm',
+      'softened glamour',
+      'city-lit solitude',
+      'untouchable composure',
+      'dim-suite stillness',
+    ],
   },
 
-  subLocationPools: {
+  cameraPools: {
     wake: [
-      'ritz_london_suite',
-      'claridges_suite',
-      'savoy_river_view_suite',
-      'connaught_suite',
-      'shangrila_shard_suite',
+      'soft window-side portrait framing',
+      'intimate suite doorway frame',
+      'quiet over-shoulder luxury angle',
     ],
-    morning: [
-      'ritz_london_suite',
-      'claridges_suite',
-      'savoy_river_view_suite',
-      'black_cab_arrival',
-      'chauffeur_car_scene',
+
+    morning_refresh: [
+      'soft window-side portrait framing',
+      'close luxury detail crop',
+      'quiet over-shoulder luxury angle',
     ],
-    day: [
-      'bond_street',
-      'mayfair_streets',
-      'knightsbridge_harrods',
-      'sloane_street',
-      'westminster_big_ben',
-      'buckingham_palace_gates',
-      'st_pauls_cathedral_steps',
-      'tower_bridge',
-      'london_eye_riverside',
-      'shard_view',
-      'hyde_park',
-      'kensington_gardens',
-      'thames_riverside_walk',
+
+    getting_dressed: [
+      'editorial full-body composition',
+      'close luxury detail crop',
+      'intimate suite doorway frame',
     ],
-    social: [
-      'sketch_london',
-      'scotts_mayfair',
-      'sexy_fish_mayfair',
-      'private_members_club',
-      'private_rooftop_dining_aqua_shard',
-      'private_rooftop_dining_shard',
+
+    breakfast: [
+      'quiet over-shoulder luxury angle',
+      'soft window-side portrait framing',
+      'close luxury detail crop',
     ],
+
+    late_morning: [
+      'street-level candid luxury frame',
+      'cinematic walking profile shot',
+      'editorial full-body composition',
+      'back-seat car perspective',
+    ],
+
+    lunch: [
+      'quiet over-shoulder luxury angle',
+      'editorial full-body composition',
+      'street-level candid luxury frame',
+    ],
+
+    afternoon: [
+      'wide landmark establishing shot',
+      'editorial full-body composition',
+      'cinematic walking profile shot',
+      'rooftop skyline composition',
+    ],
+
+    reset: [
+      'intimate suite doorway frame',
+      'soft window-side portrait framing',
+      'close luxury detail crop',
+    ],
+
+    golden_hour: [
+      'street-level candid luxury frame',
+      'rooftop skyline composition',
+      'cinematic walking profile shot',
+    ],
+
+    dinner: [
+      'close luxury detail crop',
+      'quiet over-shoulder luxury angle',
+      'rooftop skyline composition',
+      'editorial full-body composition',
+    ],
+
     evening: [
-      'annabels_private_club',
-      'sketch_london',
-      'sexy_fish_mayfair',
-      'private_rooftop_dining_aqua_shard',
-      'private_rooftop_dining_shard',
-      'claridges_suite',
-      'savoy_river_view_suite',
+      'back-seat car perspective',
+      'street-level candid luxury frame',
+      'rooftop skyline composition',
+      'close luxury detail crop',
     ],
-        night: [
-      'annabels_private_club',
-      'private_members_club',
-      'chauffeur_car_scene',
-      'shangrila_shard_suite',
-      'ritz_london_suite',
-      'claridges_suite',
-      'savoy_river_view_suite',
+
+    night: [
+      'back-seat car perspective',
+      'soft window-side portrait framing',
+      'rooftop skyline composition',
+      'intimate suite doorway frame',
+      'wide landmark establishing shot',
     ],
   },
 
-  phaseWindows: {
-    wake: ['early morning'],
-    morning: ['morning', 'late morning'],
-    day: ['late morning', 'afternoon'],
-    social: ['afternoon', 'golden hour', 'early evening'],
-    evening: ['golden hour', 'early evening', 'evening'],
-    night: ['night', 'late night'],
-  },
-
-  outfitProgression: {
+  lightingPools: {
     wake: [
-      'silk robe styling',
-      'soft luxury sleepwear',
-      'cashmere morning loungewear',
-      'minimal elegant bedroom styling',
+      'soft London dawn light',
+      'pale suite morning glow',
+      'clean hotel daylight',
     ],
-    morning: [
-      'polished breakfast styling',
-      'tailored daywear with understated luxury detail',
-      'structured city dress styling',
-      'quiet old-money London daytime look',
+
+    morning_refresh: [
+      'pale suite morning glow',
+      'clean hotel daylight',
+      'soft luxury interior light',
     ],
-    day: [
-      'Bond Street shopping styling',
-      'fashion-forward city tailoring',
-      'luxury outerwear and heels',
-      'editorial London streetwear elegance',
+
+    getting_dressed: [
+      'clean hotel daylight',
+      'suite mirror light',
+      'soft luxury indoor glow',
     ],
-      social: [
-      'refined lunch styling',
-      'soft feminine tailoring',
-      'elevated social daywear',
-      'polished restaurant and rooftop styling',
+
+    breakfast: [
+      'clean hotel daylight',
+      'silver breakfast-service light',
+      'soft river-facing morning glow',
     ],
-      evening: [
-      'sleek dinner dress',
-      'sharp cocktail silhouette',
-      'elevated black evening styling',
-      'candlelit rooftop glamour',
+
+    late_morning: [
+      'silver overcast city light',
+      'clean city daylight',
+      'soft London brightness',
     ],
-      night: [
-      'after-hours glamour',
-      'midnight coat and heels styling',
-      'late-night luxury outerwear',
-      'late-night suite return elegance',
+
+    lunch: [
+      'warm afternoon luxury light',
+      'clean daylight through elegant interiors',
+      'soft outdoor garden light',
+    ],
+
+    afternoon: [
+      'warm afternoon luxury light',
+      'silver overcast city light',
+      'clear skyline daylight',
+    ],
+
+    reset: [
+      'soft hotel light',
+      'private suite transition light',
+      'low luxury room glow',
+    ],
+
+    golden_hour: [
+      'golden evening reflection',
+      'city light beginning to warm',
+      'soft rooftop twilight',
+    ],
+
+    dinner: [
+      'candlelit dinner glow',
+      'amber club lighting',
+      'golden city reflection through glass',
+    ],
+
+    evening: [
+      'amber club lighting',
+      'wet-street evening reflections',
+      'city skyline night shimmer',
+      'car-window reflected light',
+    ],
+
+    night: [
+      'city skyline night shimmer',
+      'dim suite light',
+      'wet-street reflections',
+      'low after-hours corridor light',
+      'midnight river reflection light',
     ],
   },
 
-  humanTransitions: [
-    'opening the curtains slowly',
-    'sitting at the edge of the bed in morning stillness',
-    'crossing the suite barefoot',
-    'lifting a coffee cup with sleepy calm',
-    'adjusting a bracelet before leaving',
-    'stepping through the lobby with quiet confidence',
-    'sliding into a black cab',
-    'settling into the back seat of a chauffeur car',
-    'pausing at a boutique window before continuing',
-    'resting lightly against a stone balustrade',
-    'sitting down at a candlelit table',
-    'leaving a private club into the London night',
-    'returning to the suite with softened pace',
-  ],
+  stylingPools: {
+    wardrobe: {
+      wake: [
+        'silk robe styling',
+        'soft luxury sleepwear',
+        'cashmere morning loungewear',
+        'minimal elegant bedroom styling',
+      ],
 
-  sensoryPools: [
-    'fresh linen and polished wood',
-    'silver breakfast service and warm coffee',
-    'quiet hotel corridors and muted carpeted steps',
-    'cool glass against city skyline light',
-    'soft perfume through a lobby',
-    'heels against Mayfair pavement',
-    'luxury storefront reflections',
-    'river air along the Thames',
-    'candle warmth and champagne fizz',
-    'rain-slick black cars under London lights',
-  ],
+      morning_refresh: [
+        'polished breakfast styling',
+        'quiet luxury morningwear',
+        'fresh suite-ready elegance',
+      ],
 
-  atmospherePools: [
-    'London moving quietly beneath private luxury',
-    'a suite suspended above the city in total calm',
-    'Mayfair precision and high-status restraint',
-    'historic architecture softened by modern luxury',
-    'the city feeling elegant, expensive, and untouchable',
-    'glass, stone, tailoring, and silence',
-    'a refined day unfolding without urgency',
-    'midnight prestige with skyline shimmer',
-  ],
+      getting_dressed: [
+        'tailored daywear with understated luxury detail',
+        'structured city dress styling',
+        'quiet old-money London daytime look',
+        'clean mirror-ready tailoring',
+      ],
 
-  stylingDetailPools: [
-    'silk robe drape',
-    'cashmere texture',
-    'structured coat line',
-    'polished heel silhouette',
-    'minimal gold jewelry',
-    'diamond earring detail',
-    'luxury leather handbag',
-    'dark sunglasses and clean accessories',
-    'soft evening fabric movement',
-    'perfectly tailored sleeve and cuff detail',
-  ],
+      breakfast: [
+        'polished breakfast styling',
+        'tailored suite morningwear',
+        'understated luxury breakfast look',
+      ],
 
-  changeMomentPools: [
-    'moving from bed to window in the first light',
-    'changing from robe into tailored day styling',
-    'refreshing makeup before the afternoon social arc',
-    'switching from daytime elegance into candlelit glamour',
-    'loosening the energy again at the end of the night',
-  ],
+      late_morning: [
+        'Bond Street shopping styling',
+        'fashion-forward city tailoring',
+        'luxury outerwear and heels',
+        'editorial London streetwear elegance',
+      ],
 
-  propPools: [
-    'silver breakfast tray',
-    'espresso cup',
-    'luxury room key card',
-    'designer shopping bag',
-    'black cab door frame',
-    'chauffeur car interior',
-    'champagne glass',
-    'white tablecloth menu card',
-    'private club cocktail',
-    'phone reflected in dark glass',
-    'umbrella on a wet London evening',
-  ],
+      lunch: [
+        'refined lunch styling',
+        'soft feminine tailoring',
+        'elevated social daywear',
+        'polished restaurant and garden styling',
+      ],
 
-  bodyLanguagePools: [
-    'slow and poised',
-    'upright and self-possessed',
-    'softly withheld',
-    'quietly magnetic',
-    'measured and elegant',
-    'social but controlled',
-    'warm without losing composure',
-    'confident with understated power',
-  ],
+      afternoon: [
+        'structured London day styling',
+        'landmark-ready editorial tailoring',
+        'luxury city outerwear with heels',
+      ],
 
-  facialExpressionPools: [
-    'sleep-soft expression',
-    'quiet morning focus',
-    'calm neutral beauty',
-    'subtle knowing softness',
-    'reserved half-smile',
-    'private confidence',
-    'midnight composure',
-    'soft social warmth',
-  ],
+      reset: [
+        'private suite transition styling',
+        'softened hotel-interior elegance',
+        'pre-evening refinement look',
+      ],
 
-  handDetailPools: [
-    'fingers resting on a porcelain cup',
-    'hand on the curtain edge',
-    'light touch against window glass',
-    'adjusting sunglasses calmly',
-    'fingers grazing a handbag strap',
-    'hand resting on a car door frame',
-    'touching a champagne stem lightly',
-    'resting fingertips on a candlelit table',
-  ],
+      golden_hour: [
+        'sharpened city silhouette',
+        'golden-hour luxury outerwear',
+        'early-evening polished glamour',
+      ],
+
+      dinner: [
+        'sleek dinner dress',
+        'sharp cocktail silhouette',
+        'elevated black evening styling',
+        'candlelit rooftop glamour',
+      ],
+
+      evening: [
+        'after-hours glamour',
+        'midnight coat and heels styling',
+        'late-night luxury outerwear',
+        'polished club-to-car elegance',
+      ],
+
+      night: [
+        'late-night suite return elegance',
+        'softened post-event glamour',
+        'private skyline nightwear transition',
+      ],
+    },
+
+    details: {
+      wake: [
+        'silk robe drape',
+        'cashmere texture',
+        'minimal gold jewelry',
+        'sleep-soft luxury restraint',
+      ],
+
+      morning_refresh: [
+        'silver breakfast ritual',
+        'clean beauty detail',
+        'quiet old-money suite polish',
+      ],
+
+      getting_dressed: [
+        'perfectly tailored sleeve and cuff detail',
+        'diamond earring detail',
+        'dark sunglasses and clean accessories',
+        'structured coat line',
+      ],
+
+      breakfast: [
+        'porcelain cup detail',
+        'silver tray elegance',
+        'suite-side calm and polish',
+      ],
+
+      late_morning: [
+        'luxury leather handbag',
+        'polished heel silhouette',
+        'storefront reflections',
+        'quiet editorial city detail',
+      ],
+
+      lunch: [
+        'white tablecloth refinement',
+        'soft feminine tailoring',
+        'warm social polish',
+        'private-club calm',
+      ],
+
+      afternoon: [
+        'city-glass reflections',
+        'stone and tailoring contrast',
+        'recognizable London visual identity',
+      ],
+
+      reset: [
+        'softly restored room-side glamour',
+        'slower private luxury detail',
+        'rebuilding the visual line before evening',
+      ],
+
+      golden_hour: [
+        'street-light reflections catching polished details',
+        'sharper silhouette against warmer city light',
+        'glamour rising without excess',
+      ],
+
+      dinner: [
+        'champagne stem detail',
+        'candlelit table texture',
+        'diamond and fabric glow',
+        'high-status social finish',
+      ],
+
+      evening: [
+        'wet-street prestige',
+        'car-window city reflections',
+        'after-hours polish without strain',
+      ],
+
+      night: [
+        'phone reflected in dark glass',
+        'quiet room key or suite-corridor detail',
+        'dim-luxury closeout textures',
+      ],
+    },
+
+    changeMoments: {
+      wake: [
+        'moving from bed to window in the first light',
+        'still inside a fully private suite state',
+        'not yet visible to the city outside',
+      ],
+
+      morning_refresh: [
+        'moving from waking softness into polished private routine',
+        'letting coffee, breakfast, and mirror detail establish control',
+        'shaping the first external layer of the day from inside the suite',
+      ],
+
+      getting_dressed: [
+        'changing from robe into tailored day styling',
+        'activating the public-facing London identity',
+        'crossing from private calm into polished city visibility',
+      ],
+
+      breakfast: [
+        'holding one last quiet suite phase before departure',
+        'remaining luxurious and internal before the city fully takes over',
+        'stretching the morning into a controlled elegant pause',
+      ],
+
+      late_morning: [
+        'entering London physically through cars, streets, and storefront movement',
+        'shifting from hotel intimacy into editorial city presence',
+        'making the first outward movement feel expensive and deliberate',
+      ],
+
+      lunch: [
+        'softening from pure city movement into refined social access',
+        'using interiors, gardens, and lunch spaces to warm the world',
+        'allowing selective social ease to enter the day',
+      ],
+
+      afternoon: [
+        'widening the city through landmarks and cinematic scale',
+        'moving from intimate interiors into recognizably London prestige',
+        'letting the world feel larger without losing refinement',
+      ],
+
+      reset: [
+        'withdrawing slightly from visible city movement back into private control',
+        'allowing the suite to absorb the day before dinner begins',
+        're-centering the body and image before the evening sharpens',
+      ],
+
+      golden_hour: [
+        'switching from daytime elegance into candlelit glamour',
+        'letting the city become rarer, richer, and more private',
+        'turning polish into anticipation',
+      ],
+
+      dinner: [
+        'entering the highest-status social arc of the day',
+        'replacing movement with seated glamour, access, and atmosphere',
+        'letting exclusivity rather than scale define the world now',
+      ],
+
+      evening: [
+        'loosening the energy again at the end of the night',
+        'moving from social glow into more private after-hours rhythm',
+        'carrying glamour forward without keeping public pressure',
+      ],
+
+      night: [
+        'releasing the final public layer of the London arc',
+        'returning fully to suite stillness, skyline, and private silence',
+        'ending the city narrative in dim luxury calm',
+      ],
+    },
+  },
+
+  sensoryPools: {
+    wake: [
+      'fresh linen and polished wood',
+      'quiet hotel corridors and muted carpeted steps',
+      'cool glass against city skyline light',
+    ],
+
+    morning_refresh: [
+      'silver breakfast service and warm coffee',
+      'soft perfume through a lobby',
+      'clean marble and soft suite stillness',
+    ],
+
+    getting_dressed: [
+      'fabric moving into structure',
+      'jewelry detail catching mirror light',
+      'the sensation of private preparation becoming public polish',
+    ],
+
+    breakfast: [
+      'espresso warmth and white linen calm',
+      'quiet room service ritual in a suspended London morning',
+      'the feeling of expensive stillness before departure',
+    ],
+
+    late_morning: [
+      'heels against Mayfair pavement',
+      'luxury storefront reflections',
+      'black cab door frames and city curbside movement',
+      'the sensation of stepping fully into London with controlled confidence',
+    ],
+
+    lunch: [
+      'soft restaurant interiors, tablecloth texture, and low social warmth',
+      'garden air and city quiet balancing each other',
+      'the feeling of selective access rather than crowd-driven energy',
+    ],
+
+    afternoon: [
+      'stone, river air, architecture, and skyline scale',
+      'the visual weight of London landmarks under refined movement',
+      'the sensation of the city turning cinematic through recognizability',
+    ],
+
+    reset: [
+      'quiet suite return, softened heels, and low private room light',
+      'hotel calm reclaiming the body after visible city pace',
+      'the inward exhale before evening glamour builds',
+    ],
+
+    golden_hour: [
+      'warm reflections across glass, fabric, and street light',
+      'the city beginning to glow without losing refinement',
+      'the sensation of anticipation rising through visual detail',
+    ],
+
+    dinner: [
+      'candle warmth and champagne fizz',
+      'private-club interiors, low music, and skyline-adjacent luxury',
+      'the feeling of rare access turning the city intimate',
+    ],
+
+    evening: [
+      'rain-slick black cars under London lights',
+      'wet pavement, amber interiors, and after-hours softness',
+      'the sensation of carrying glamour through a quieter city',
+    ],
+
+    night: [
+      'phone reflected in dark glass',
+      'dim suite quiet and skyline shimmer beyond the window',
+      'the feeling of London becoming untouchable and private again',
+    ],
+  },
+
+  socialEnergyPools: {
+    wake: [
+      'fully private and untouched by the city below',
+      'no outward performance yet, only suite calm',
+      'starting from internal luxury rather than visible status',
+    ],
+
+    morning_refresh: [
+      'still private, but more polished and self-aware now',
+      'the outside city present only as a distant backdrop',
+      'social energy held outside the room for now',
+    ],
+
+    getting_dressed: [
+      'preparing for visibility without emotional openness',
+      'becoming socially legible through styling, not interaction',
+      'building outward London polish from inward control',
+    ],
+
+    breakfast: [
+      'still not social, but visibly more prepared for the world',
+      'holding luxury privately rather than sharing it',
+      'the final internal chapter before public movement begins',
+    ],
+
+    late_morning: [
+      'publicly visible through fashion, movement, and address-based identity',
+      'socially legible but emotionally withheld',
+      'seen through polish and place rather than conversation',
+    ],
+
+    lunch: [
+      'selectively social and warm, but still restrained',
+      'private-club ease rather than open public energy',
+      'access-driven elegance instead of crowd-driven attention',
+    ],
+
+    afternoon: [
+      'more city-facing than socially intimate',
+      'visible within London itself more than within any room of people',
+      'public elegance through movement, not through overt sociability',
+    ],
+
+    reset: [
+      'withdrawing from the public arc into private control',
+      'social field narrowing again inside the suite',
+      'allowing the body to recover composure before dinner',
+    ],
+
+    golden_hour: [
+      'social energy rising, but still softened by exclusivity and anticipation',
+      'transitioning toward more visible glamour',
+      'the sense of being near the social peak without being there yet',
+    ],
+
+    dinner: [
+      'socially active, but still selective, expensive, and controlled',
+      'holding high-status warmth without emotional spillage',
+      'more invitation-only than publicly open',
+    ],
+
+    evening: [
+      'social glow continuing, but now softening and narrowing',
+      'less outward performance, more after-hours composure',
+      'private luxury beginning to reclaim the arc',
+    ],
+
+    night: [
+      'fully private again except for skyline and memory',
+      'social energy resolved back into silence',
+      'the city reduced to a visual backdrop rather than an active field',
+    ],
+  },
+
+  atmospherePools: {
+    wake: [
+      'London moving quietly beneath private luxury',
+      'a suite suspended above the city in total calm',
+      'the atmosphere of high-status morning stillness before visibility',
+    ],
+
+    morning_refresh: [
+      'glass, marble, silver service, and muted confidence',
+      'a refined morning unfolding without urgency',
+      'the city still held at a distance by luxury interior calm',
+    ],
+
+    getting_dressed: [
+      'tailoring, mirrors, and polished preparation building quiet authority',
+      'the atmosphere tightening into visible readiness',
+      'private control turning into public elegance',
+    ],
+
+    breakfast: [
+      'a suite breakfast atmosphere defined by restraint and expense',
+      'quiet hospitality and slow private confidence',
+      'the last protected room of calm before the city opens',
+    ],
+
+    late_morning: [
+      'Mayfair precision and high-status restraint',
+      'historic architecture softened by modern luxury',
+      'the atmosphere of movement through expensive recognizable London',
+    ],
+
+    lunch: [
+      'beautiful interiors and open green spaces softening the city arc',
+      'a selective social atmosphere shaped by luxury access rather than noise',
+      'warmth entering the day without breaking its composure',
+    ],
+
+    afternoon: [
+      'landmark London turned cinematic through control and elegance',
+      'stone, skyline, and river space creating premium city scale',
+      'the atmosphere of being unmistakably in London without tourist chaos',
+    ],
+
+    reset: [
+      'hotel calm reclaiming the story before night',
+      'low interior light and softened movement slowing the pace',
+      'the atmosphere becoming more private and more glamorous at once',
+    ],
+
+    golden_hour: [
+      'glass, stone, street reflections, and warming light',
+      'the city feeling richer, rarer, and more anticipatory',
+      'an atmosphere on the threshold between daytime prestige and nightlife exclusivity',
+    ],
+
+    dinner: [
+      'candlelight, private clubs, skyline dining, and polished social ease',
+      'the atmosphere of expensive access and controlled glamour',
+      'London at its most editorial, exclusive, and intimate',
+    ],
+
+    evening: [
+      'wet-street prestige with interiors glowing warmly behind glass',
+      'after-hours exclusivity without chaos',
+      'the atmosphere of softened glamour moving through the city',
+    ],
+
+    night: [
+      'midnight prestige with skyline shimmer',
+      'private suite stillness after visible luxury',
+      'the final atmosphere of London as cinematic, expensive, and untouchable',
+    ],
+  },
+
+  propPools: {
+    wake: [
+      'soft bedding',
+      'curtain edge',
+      'window glass',
+      'quiet suite details',
+    ],
+
+    morning_refresh: [
+      'silver breakfast tray',
+      'espresso cup',
+      'room-service table setting',
+      'marble sink and mirror detail',
+    ],
+
+    getting_dressed: [
+      'designer handbag',
+      'minimal gold jewelry',
+      'diamond earring detail',
+      'structured coat and heels',
+    ],
+
+    breakfast: [
+      'silver breakfast tray',
+      'espresso cup',
+      'white linen',
+      'quiet porcelain detail',
+    ],
+
+    late_morning: [
+      'luxury room key card',
+      'black cab door frame',
+      'chauffeur car interior',
+      'designer shopping bag',
+      'dark sunglasses and clean accessories',
+    ],
+
+    lunch: [
+      'white tablecloth menu card',
+      'champagne glass',
+      'restaurant table setting',
+      'park-rail detail',
+    ],
+
+    afternoon: [
+      'stone balustrade',
+      'landmark railings',
+      'city-facing glass',
+      'historic architectural edges',
+    ],
+
+    reset: [
+      'suite key card',
+      'quiet dressing details',
+      'mirror-side accessories',
+      'private room objects',
+    ],
+
+    golden_hour: [
+      'shopping bag',
+      'champagne glass',
+      'rooftop table detail',
+      'glass-edge skyline reflections',
+    ],
+
+    dinner: [
+      'private club cocktail',
+      'champagne glass',
+      'white tablecloth menu card',
+      'candlelit tableware',
+    ],
+
+    evening: [
+      'umbrella on a wet London evening',
+      'car-window reflections',
+      'club cocktail detail',
+      'doorway or curbside frame',
+    ],
+
+    night: [
+      'phone reflected in dark glass',
+      'room key card',
+      'heels in hand feeling',
+      'dark suite window detail',
+    ],
+  },
+
+  bodyLanguagePools: {
+    wake: [
+      'slow and poised',
+      'softly withheld',
+      'quietly magnetic',
+    ],
+
+    morning_refresh: [
+      'upright and self-possessed',
+      'measured and elegant',
+      'private calm through small movements',
+    ],
+
+    getting_dressed: [
+      'controlled mirror-side posture',
+      'tailored alignment',
+      'quiet confidence held through stillness',
+    ],
+
+    breakfast: [
+      'seated and self-possessed',
+      'low-motion high-status calm',
+      'measured private poise',
+    ],
+
+    late_morning: [
+      'confident with understated power',
+      'cinematic city movement',
+      'street-level editorial composure',
+    ],
+
+    lunch: [
+      'social but controlled',
+      'warm without losing composure',
+      'softly open but still restrained',
+    ],
+
+    afternoon: [
+      'upright, composed, visibly premium',
+      'landmark-facing stillness with confidence',
+      'editorial city posture',
+    ],
+
+    reset: [
+      'softened private posture',
+      'luxury held without performance',
+      'the body returning inward before night',
+    ],
+
+    golden_hour: [
+      'sharpened silhouette with calm control',
+      'warmer but still withheld body language',
+      'anticipatory elegance',
+    ],
+
+    dinner: [
+      'social but measured',
+      'high-status seated glamour',
+      'warm confidence without oversharing',
+    ],
+
+    evening: [
+      'lingering glamour in slower movement',
+      'private after-hours composure',
+      'confidence carried through quiet transitions',
+    ],
+
+    night: [
+      'slowed and self-contained',
+      'standing alone with cinematic stillness',
+      'full return to private composure',
+    ],
+  },
+
+  facialExpressionPools: {
+    wake: [
+      'sleep-soft expression',
+      'quiet morning focus',
+      'calm neutral beauty',
+      'subtle knowing softness',
+    ],
+
+    morning_refresh: [
+      'private confidence',
+      'fresh polished calm',
+      'emotion held steady under luxury routine',
+    ],
+
+    getting_dressed: [
+      'controlled visual focus',
+      'slight precision in the mirror',
+      'clean self-possession',
+    ],
+
+    breakfast: [
+      'soft suite composure',
+      'quietly alert calm',
+      'private luxury ease',
+    ],
+
+    late_morning: [
+      'reserved half-smile',
+      'editorial city confidence',
+      'composed London magnetism',
+    ],
+
+    lunch: [
+      'soft social warmth',
+      'warm but measured elegance',
+      'refined ease',
+    ],
+
+    afternoon: [
+      'city-facing composure',
+      'historic-backdrop calm',
+      'high-status stillness',
+    ],
+
+    reset: [
+      'softened private glamour',
+      'emotion cooling inward before dinner',
+      'private reflective calm',
+    ],
+
+    golden_hour: [
+      'anticipatory warmth',
+      'glamour beginning to sharpen',
+      'controlled sunset softness',
+    ],
+
+    dinner: [
+      'candlelit confidence',
+      'subtle social magnetism',
+      'composed charm with high-value restraint',
+    ],
+
+    evening: [
+      'midnight composure',
+      'after-hours softness',
+      'lingering quiet confidence',
+    ],
+
+    night: [
+      'private after-hours calm',
+      'city-lit solitude',
+      'softened glamour',
+      'cinematic stillness',
+    ],
+  },
+
+  handDetailPools: {
+    wake: [
+      'hand on the curtain edge',
+      'light touch against window glass',
+      'fingers resting on bedding',
+    ],
+
+    morning_refresh: [
+      'fingers resting on a porcelain cup',
+      'light touch at the breakfast tray',
+      'mirror-side detail gestures',
+    ],
+
+    getting_dressed: [
+      'adjusting a bracelet before leaving',
+      'fingers grazing a handbag strap',
+      'small controlled mirror-side hand movements',
+    ],
+
+    breakfast: [
+      'fingers resting on a porcelain cup',
+      'touching the silver tray lightly',
+      'quiet breakfast table gestures',
+    ],
+
+    late_morning: [
+      'hand resting on a car door frame',
+      'adjusting sunglasses calmly',
+      'fingers grazing a handbag strap while walking',
+    ],
+
+    lunch: [
+      'touching a champagne stem lightly',
+      'resting fingertips on a candlelit or white-tablecloth table',
+      'light hand placement near menu or glass',
+    ],
+
+    afternoon: [
+      'hand resting on a railing or stone edge',
+      'soft landmark-adjacent hand detail',
+      'glass-edge skyline touch points',
+    ],
+
+    reset: [
+      'light contact with suite furniture or mirror edge',
+      'hand moving across fabric in private calm',
+      'minimal interior gestures before evening',
+    ],
+
+    golden_hour: [
+      'fingertips against glass or table edge',
+      'shopping-bag or outerwear detail in warm light',
+      'quiet anticipatory hand movement',
+    ],
+
+    dinner: [
+      'touching a champagne stem lightly',
+      'resting fingertips on a candlelit table',
+      'subtle glassware and menu gestures',
+    ],
+
+    evening: [
+      'hand on a car door frame',
+      'umbrella or clutch detail in wet-street light',
+      'controlled after-hours gestures',
+    ],
+
+    night: [
+      'phone reflected in dark glass held lightly',
+      'hand on the window edge above the city',
+      'minimal end-of-night room-side movement',
+    ],
+  },
 
   movementEnergyPools: {
-    wake: ['slow', 'soft', 'unhurried', 'barely-awake'],
-    morning: ['measured', 'clean', 'intentional', 'composed'],
-    day: ['fluid', 'confident', 'polished', 'editorial'],
-    social: ['easy', 'social', 'warm', 'restrained'],
-    evening: ['controlled', 'elevated', 'glamorous', 'smooth'],
-    night: ['slowed', 'private', 'lingering', 'cinematic'],
+    wake: [
+      'slow',
+      'soft',
+      'unhurried',
+      'barely-awake',
+    ],
+
+    morning_refresh: [
+      'measured',
+      'clean',
+      'intentional',
+      'composed',
+    ],
+
+    getting_dressed: [
+      'precise',
+      'structured',
+      'controlled',
+      'deliberate',
+    ],
+
+    breakfast: [
+      'slow',
+      'private',
+      'contained',
+      'luxurious',
+    ],
+
+    late_morning: [
+      'fluid',
+      'confident',
+      'polished',
+      'editorial',
+    ],
+
+    lunch: [
+      'easy',
+      'social',
+      'warm',
+      'restrained',
+    ],
+
+    afternoon: [
+      'steady',
+      'composed',
+      'city-facing',
+      'elevated',
+    ],
+
+    reset: [
+      'slowed',
+      'softened',
+      'private',
+      'restorative',
+    ],
+
+    golden_hour: [
+      'smooth',
+      'controlled',
+      'warming',
+      'anticipatory',
+    ],
+
+    dinner: [
+      'elevated',
+      'glamorous',
+      'controlled',
+      'smooth',
+    ],
+
+    evening: [
+      'lingering',
+      'private',
+      'after-hours',
+      'cinematic',
+    ],
+
+    night: [
+      'slowed',
+      'private',
+      'lingering',
+      'cinematic',
+    ],
+  },
+
+  transitionPools: {
+    human: {
+      wake: [
+        'opening the curtains slowly',
+        'sitting at the edge of the bed in morning stillness',
+        'crossing the suite barefoot before the city fully wakes',
+      ],
+
+      morning_refresh: [
+        'lifting a coffee cup with sleepy calm',
+        'letting breakfast service and mirror detail build the day with polish',
+        'keeping the first movements expensive, quiet, and controlled',
+      ],
+
+      getting_dressed: [
+        'changing from robe into tailored day styling',
+        'adjusting a bracelet before leaving',
+        'building the visible London identity inside a protected private suite',
+      ],
+
+      breakfast: [
+        'stretching the suite calm a little longer before departure',
+        'keeping the morning luxurious and internal before city momentum begins',
+        'letting the last seated pause feel expensive and composed',
+      ],
+
+      late_morning: [
+        'stepping through the lobby with quiet confidence',
+        'sliding into a black cab or settling into the back seat of a chauffeur car',
+        'entering London through motion, reflections, storefronts, and tailored visibility',
+      ],
+
+      lunch: [
+        'shifting from solo polish into selective exclusivity',
+        'warming the day through beautiful interiors, gardens, and refined table settings',
+        'letting the city arc become more social without becoming noisy',
+      ],
+
+      afternoon: [
+        'moving between landmarks with status and realism',
+        'using architecture, river space, and skyline to widen the world',
+        'keeping London recognizable, premium, and cinematic',
+      ],
+
+      reset: [
+        'returning inward before the evening sharpens',
+        'letting the hotel suite absorb the visible day and rebuild composure',
+        'using private room calm as the bridge back into glamour',
+      ],
+
+      golden_hour: [
+        'switching from daytime elegance into warmer evening prestige',
+        'letting the city light and skyline start carrying emotional weight',
+        'turning movement into anticipation',
+      ],
+
+      dinner: [
+        'arriving at beautiful interiors, private clubs, and rooftop tables with polished certainty',
+        'moving from city visibility into seated exclusivity and controlled glamour',
+        'letting the social arc feel rare, elegant, and expensive',
+      ],
+
+      evening: [
+        'leaving a private club into the London night',
+        'carrying the last of the room glow into wet pavement and black cars',
+        'loosening the social energy into after-hours composure',
+      ],
+
+      night: [
+        'returning to the suite with softened pace',
+        'standing at the glass above the sleeping city in private silence',
+        'ending in dim-room calm, skyline shimmer, and full after-hours stillness',
+      ],
+    },
   },
 
   narrativeIntentPools: {
@@ -414,797 +2475,303 @@ export const WORLD_LONDON = {
       'establish a soft high-status suite morning',
       'show feminine calm before the city fully wakes',
     ],
-    morning: [
-      'transition from suite intimacy into polished visibility',
-      'make the first outward movement feel expensive and controlled',
-      'build clean prestige before the city opens fully',
+
+    morning_refresh: [
+      'transition from suite intimacy into polished private routine',
+      'make breakfast, coffee, and mirror detail feel expensive and controlled',
+      'keep the room itself part of the London luxury fantasy',
     ],
-    day: [
+
+    getting_dressed: [
+      'turn dressing into the activation of visible London polish',
+      'make tailored preparation feel precise, high-value, and calm',
+      'show public readiness as a luxury ritual rather than a simple step',
+    ],
+
+    breakfast: [
+      'stretch the protected suite atmosphere before city movement begins',
+      'use breakfast to reinforce old-money restraint and soft prestige',
+      'hold the morning in private refinement before outward motion',
+    ],
+
+    late_morning: [
+      'make the first outward movement feel expensive and unmistakably London',
+      'present Mayfair, Bond Street, and transport moments with cinematic realism',
+      'show city visibility through place, styling, and movement rather than noise',
+    ],
+
+    lunch: [
+      'shift from solo polish into selective exclusivity',
+      'build warmth through beautiful interiors, gardens, and quiet social access',
+      'make the social arc feel elegant, selective, and expensive',
+    ],
+
+    afternoon: [
       'present London as a real luxury world built from recognizable places',
       'show movement through streets and landmarks with status and realism',
       'keep the city unmistakably premium and cinematic',
     ],
-      social: [
-      'shift from solo polish into selective exclusivity',
-      'build warmth through beautiful interiors and private access',
-      'make the social arc feel elegant, selective, and expensive',
+
+    reset: [
+      'withdraw slightly from visible city life and rebuild composure in private',
+      'use the suite to soften the public arc before night',
+      'make the return inward feel luxurious rather than empty',
     ],
-      evening: [
+
+    golden_hour: [
       'raise glamour without losing refinement',
+      'let the city start glowing in a way that feels rarer, richer, and more private',
+      'turn anticipation into part of the setting itself',
+    ],
+
+    dinner: [
       'make dinner and nightlife feel editorial and exclusive',
+      'use clubs, candlelight, rooftops, and controlled social energy to heighten the world',
       'let the evening feel rarer, richer, and more private',
     ],
-      night: [
+
+    evening: [
+      'carry social luxury into after-hours London prestige',
+      'soften the public arc without collapsing the glamour',
+      'make wet streets, black cars, and skyline reflections feel cinematic and expensive',
+    ],
+
+    night: [
       'close the arc with private after-hours sophistication',
       'leave the impression of London as cinematic and untouchable',
       'end in private silence, softened glamour, and city light',
     ],
   },
 
-  pacingProfile: {
-    wake: 'slow',
-    morning: 'measured',
-    day: 'steady',
-    social: 'flowing',
-    evening: 'elevated',
-    night: 'lingering',
-  },
-
-  subLocations: {
-    ritz_london_suite: {
-      label: 'The Ritz London suite',
-      realPlace: 'The Ritz London',
-      locations: [
-        'The Ritz London suite bedroom',
-        'The Ritz London suite sitting room',
-        'The Ritz London suite window overlooking Piccadilly',
-        'The Ritz London private corridor',
-      ],
-      sceneGroups: {
-        wake: [
-          'waking in The Ritz London suite with Piccadilly still quiet below',
-          'sitting at the edge of the bed as pale light enters the room',
-          'opening the curtains with sleepy elegance and quiet control',
-        ],
-        morning: [
-          'receiving breakfast in the suite with silver service calm',
-          'crossing the sitting room in polished morning stillness',
-          'preparing to leave with composed old-money confidence',
-        ],
-        night: [
-          'returning to The Ritz suite after midnight with softened glamour',
-          'standing by the window in low suite light above Piccadilly',
-          'ending the night in private Ritz stillness',
-        ],
-      },
+  fallbackRules: {
+    pacingProfile: {
+      wake: 'slow',
+      morning_refresh: 'slow',
+      getting_dressed: 'slow',
+      breakfast: 'slow',
+      late_morning: 'medium',
+      lunch: 'medium',
+      afternoon: 'medium',
+      reset: 'slow',
+      golden_hour: 'slow',
+      dinner: 'slow',
+      evening: 'slow',
+      night: 'slow',
     },
 
-    claridges_suite: {
-      label: 'Claridge’s suite',
-      realPlace: 'Claridge’s',
-      locations: [
-        'Claridge’s suite bedroom',
-        'Claridge’s suite sitting room',
-        'Claridge’s suite mirror and dressing area',
-        'Claridge’s hotel entrance',
-      ],
-      sceneGroups: {
-        wake: [
-          'waking in a Claridge’s suite with Mayfair quiet outside',
-          'resting by the bed as soft morning light fills the room',
-          'crossing the suite in calm private elegance',
-        ],
-        morning: [
-          'taking coffee in the sitting room with refined composure',
-          'finishing morning preparation in the dressing area mirror',
-          'leaving Claridge’s with clean luxury presence',
-        ],
-        evening: [
-          'returning to Claridge’s at golden hour with sharpened elegance',
-          'holding a private suite pause before dinner',
-          'letting the room become part of the evening glamour',
-        ],
-      },
+    repetitionBreakers: {
+      avoidBackToBackSameLocation: true,
+      avoidBackToBackSameEnvironment: true,
+      avoidBackToBackSameStylingMood: true,
+      avoidBackToBackSameCameraAngle: true,
+      avoidBackToBackSameLightingStyle: true,
+      encouragePhaseProgression: true,
+      encourageIndoorOutdoorContrast: true,
+      encouragePublicPrivateContrast: true,
+      encourageDryWetContrast: true,
+      encourageWardrobeEvolution: true,
     },
 
-    savoy_river_view_suite: {
-      label: 'The Savoy river-view suite',
-      realPlace: 'The Savoy',
-      locations: [
-        'The Savoy river-view suite bedroom',
-        'The Savoy river-view suite living room',
-        'The Savoy windows facing the Thames',
-        'The Savoy suite corridor',
-      ],
-      sceneGroups: {
-        wake: [
-          'waking to the Thames outside The Savoy suite windows',
-          'sitting quietly in the living room as river light enters softly',
-          'standing by the glass watching the city begin to move',
-        ],
-        morning: [
-          'taking breakfast beside the river-facing window with quiet confidence',
-          'crossing the suite with the Thames as the backdrop',
-          'leaving The Savoy with measured daytime elegance',
-        ],
-        evening: [
-          'returning to the river view after dark as reflections deepen on the water',
-          'holding a private window-side pause with skyline shimmer outside',
-          'ending the evening in Savoy calm above the Thames',
-        ],
-      },
-    },
-
-    connaught_suite: {
-      label: 'The Connaught suite',
-      realPlace: 'The Connaught',
-      locations: [
-        'The Connaught suite bedroom',
-        'The Connaught suite sitting room',
-        'The Connaught suite hallway',
-        'The Connaught entrance in Mayfair',
-      ],
-      sceneGroups: {
-        wake: [
-          'waking inside The Connaught suite with deep Mayfair quiet around her',
-          'crossing the room with slow private control',
-          'settling into the sitting room as daylight reaches the windows',
-        ],
-        morning: [
-          'ordering coffee in the suite before the city begins',
-          'moving through the hallway in polished morning styling',
-          'leaving The Connaught entrance with understated authority',
-        ],
-        night: [
-          'returning to the suite after the city has softened',
-          'standing alone in the sitting room after midnight',
-          'ending the night in classic Mayfair stillness',
-        ],
-      },
-    },
-
-    shangrila_shard_suite: {
-      label: 'Shangri-La The Shard suite',
-      realPlace: 'Shangri-La The Shard, London',
-      locations: [
-        'Shangri-La The Shard suite bedroom',
-        'Shangri-La The Shard skyline-facing glass wall',
-        'Shangri-La The Shard window-side seating',
-        'Shangri-La The Shard high-floor corridor',
-      ],
-      sceneGroups: {
-        wake: [
-          'waking above London with the skyline stretching beneath the suite',
-          'resting by the glass as morning haze moves across the city',
-          'standing at the window with quiet vertical-city stillness',
-        ],
-        day: [
-          'holding a pause above the skyline before going out into the city',
-          'framing against the glass with London unfolding below',
-          'moving through the suite with elevated metropolitan composure',
-        ],
-        night: [
-          'returning to the skyline after dark with city lights filling the glass',
-          'standing alone above London in a private after-hours pause',
-          'ending the arc in suspended midnight luxury',
-        ],
-      },
-    },
-
-    bond_street: {
-      label: 'Bond Street',
-      realPlace: 'Bond Street',
-      locations: [
-        'Bond Street near Dior',
-        'Bond Street near Chanel',
-        'Bond Street near Louis Vuitton',
-        'Bond Street storefront reflections',
-      ],
-      sceneGroups: {
-        day: [
-          'walking Bond Street past Dior with composed luxury confidence',
-          'pausing near Chanel storefront reflections in polished city calm',
-          'moving past Louis Vuitton with measured editorial elegance',
-        ],
-        social: [
-          'crossing Bond Street with shopping bags and quiet status energy',
-          'stepping from a boutique entrance with refined control',
-          'holding a brief street-side pause before continuing through Mayfair',
-        ],
-        evening: [
-          'passing luxury windows as the street lights begin to glow',
-          'moving through Bond Street with a sharper evening silhouette',
-          'letting the storefront light catch polished details after dusk',
-        ],
-      },
-    },
-
-    mayfair_streets: {
-      label: 'Mayfair streets',
-      realPlace: 'Mayfair',
-      locations: [
-        'Mount Street',
-        'Carlos Place',
-        'Berkeley Square edge',
-        'South Audley Street',
-      ],
-      sceneGroups: {
-        day: [
-          'walking Mount Street with tailored confidence',
-          'crossing Carlos Place with quiet old-money elegance',
-          'pausing near Berkeley Square with composed London polish',
-        ],
-        social: [
-          'moving between Mayfair addresses with private-club ease',
-          'stepping from pavement to doorway in controlled social rhythm',
-          'holding a soft smile in the middle of an expensive quiet street',
-        ],
-        night: [
-          'crossing Mayfair after dinner with black cars and amber lights around her',
-          'walking a near-empty side street in midnight composure',
-          'slowing near a townhouse façade before disappearing inside',
-        ],
-      },
-    },
-
-    knightsbridge_harrods: {
-      label: 'Knightsbridge / Harrods exterior',
-      realPlace: 'Knightsbridge',
-      locations: [
-        'Harrods exterior',
-        'Brompton Road',
-        'Knightsbridge luxury storefronts',
-        'street crossing near Harrods',
-      ],
-      sceneGroups: {
-        day: [
-          'arriving outside Harrods with composed luxury energy',
-          'walking Brompton Road with clean fashion-forward confidence',
-          'crossing Knightsbridge with designer details catching the light',
-        ],
-        social: [
-          'leaving a store entrance into the flow of Knightsbridge',
-          'pausing briefly near Harrods exterior with polished presence',
-          'moving through the district with expensive effortless rhythm',
-        ],
-        evening: [
-          'passing Harrods under evening glow with elevated glamour',
-          'crossing the street as black cabs and lights frame the moment',
-          'letting Knightsbridge feel cinematic and unmistakably London',
-        ],
-      },
-    },
-
-    sloane_street: {
-      label: 'Sloane Street',
-      realPlace: 'Sloane Street',
-      locations: [
-        'Sloane Street storefront row',
-        'Sloane Street crossing',
-        'Sloane Street stone façades',
-        'luxury entrance along Sloane Street',
-      ],
-      sceneGroups: {
-        day: [
-          'walking Sloane Street in structured daytime styling',
-          'pausing near a luxury entrance with soft editorial calm',
-          'crossing the street with measured city polish',
-        ],
-        social: [
-          'moving along Sloane Street before lunch with elegant momentum',
-          'checking a reflection in dark storefront glass',
-          'holding a refined pause between destinations',
-        ],
-        evening: [
-          'passing illuminated façades as the city shifts toward night',
-          'walking beneath a sharper evening silhouette',
-          'letting Sloane Street feel expensive and quietly theatrical',
-        ],
-      },
-    },
-
-    tower_bridge: {
-      label: 'Tower Bridge',
-      realPlace: 'Tower Bridge',
-      locations: [
-        'Tower Bridge riverside approach',
-        'Tower Bridge stone walkway',
-        'viewline with Tower Bridge in full frame',
-        'Thames-side path near Tower Bridge',
-      ],
-      sceneGroups: {
-        day: [
-          'approaching Tower Bridge with clean city confidence',
-          'pausing on the riverside walkway with the bridge rising behind her',
-          'letting the landmark frame a composed editorial moment',
-        ],
-        social: [
-          'walking the Thames edge near Tower Bridge with softened energy',
-          'turning briefly toward the water before continuing on',
-          'holding a city-facing pause with warm high-status ease',
-        ],
-        night: [
-          'seeing Tower Bridge lit against the dark water',
-          'moving through the riverside with cinematic night stillness',
-          'letting the bridge and reflections close the scene with scale',
-        ],
-      },
-    },
-
-    westminster_big_ben: {
-      label: 'Westminster / Big Ben',
-      realPlace: 'Westminster and Big Ben',
-      locations: [
-        'Westminster Bridge approach',
-        'Big Ben viewline',
-        'Parliament-facing pavement',
-        'stone embankment near Westminster',
-      ],
-      sceneGroups: {
-        day: [
-          'walking into a Westminster frame with Big Ben rising behind her',
-          'pausing near the embankment with tailored composure',
-          'crossing the landmark space with calm city authority',
-        ],
-        social: [
-          'moving past Westminster with a more open daytime rhythm',
-          'holding a brief look across the river before continuing',
-          'using the historic backdrop as part of a polished London arc',
-        ],
-        evening: [
-          'letting the Westminster skyline sharpen in fading light',
-          'walking the stone edge with evening elegance',
-          'framing Big Ben as the city begins to glow',
-        ],
-      },
-    },
-
-    buckingham_palace_gates: {
-      label: 'Buckingham Palace gates',
-      realPlace: 'Buckingham Palace',
-      locations: [
-        'Buckingham Palace gates',
-        'The Mall approach',
-        'stone perimeter and gate line',
-        'forecourt-facing perspective',
-      ],
-      sceneGroups: {
-        day: [
-          'standing near Buckingham Palace gates with quiet regal composure',
-          'walking the approach with soft old-world confidence',
-          'letting the palace setting add controlled grandeur to the frame',
-        ],
-        social: [
-          'moving past the gates with a subtle knowing elegance',
-          'pausing briefly at the perimeter before turning back toward the city',
-          'keeping the moment poised rather than tourist-facing',
-        ],
-        evening: [
-          'using the palace gates as a historic backdrop before dusk',
-          'letting the stone and ironwork sharpen the silhouette',
-          'holding a composed pause before departure',
-        ],
-      },
-    },
-
-    st_pauls_cathedral_steps: {
-      label: 'St. Paul’s Cathedral steps',
-      realPlace: 'St. Paul’s Cathedral',
-      locations: [
-        'St. Paul’s Cathedral front steps',
-        'stone landing near the entrance',
-        'cathedral façade approach',
-        'viewline from the steps across the city',
-      ],
-      sceneGroups: {
-        day: [
-          'standing on the cathedral steps with polished stillness',
-          'crossing the stone landing with quiet editorial confidence',
-          'letting the grand façade frame a refined London moment',
-        ],
-        social: [
-          'holding a brief pause on the steps before moving back into the city',
-          'using the stone setting to soften the mood into elegance',
-          'turning slightly toward the skyline with composed warmth',
-        ],
-        evening: [
-          'letting late light sharpen the cathedral architecture behind her',
-          'moving down the steps in a cleaner evening silhouette',
-          'closing the scene with historic scale and calm glamour',
-        ],
-      },
-    },
-
-    shard_view: {
-      label: 'The Shard view',
-      realPlace: 'The Shard',
-      locations: [
-        'The Shard skyline viewpoint',
-        'glass viewline over London',
-        'high-level urban observation space',
-        'city-facing window edge',
-      ],
-      sceneGroups: {
-        day: [
-          'taking in London from The Shard view with cool metropolitan calm',
-          'standing by the glass as the city stretches below',
-          'letting height and skyline create a sleek editorial frame',
-        ],
-        social: [
-          'sharing a rooftop-level pause above London with refined warmth',
-          'turning from the glass with measured social ease',
-          'holding the skyline as part of a high-status day arc',
-        ],
-        night: [
-          'watching the city lights from above with private midnight composure',
-          'standing alone at the glass after the social energy fades',
-          'ending the moment in suspended skyline silence',
-        ],
-      },
-    },
-
-    london_eye_riverside: {
-      label: 'London Eye riverside',
-      realPlace: 'London Eye',
-      locations: [
-        'riverside path near the London Eye',
-        'South Bank stone walkway',
-        'viewline with the London Eye behind',
-        'Thames edge near the wheel',
-      ],
-      sceneGroups: {
-        day: [
-          'walking the South Bank near the London Eye with clean city elegance',
-          'pausing by the Thames with the wheel rising behind her',
-          'letting the riverside feel cinematic rather than crowded',
-        ],
-        social: [
-          'moving along the river with softened luxury energy',
-          'holding a brief pause at the water’s edge before continuing',
-          'using the landmark as a bright open contrast to the private interiors',
-        ],
-        evening: [
-          'watching lights settle over the riverside as the city changes tone',
-          'walking the South Bank in a polished evening silhouette',
-          'letting the river and skyline carry the scene into dusk',
-        ],
-      },
-    },
-
-    sketch_london: {
-      label: 'Sketch London',
-      realPlace: 'Sketch London',
-      locations: [
-        'Sketch London pink room',
-        'Sketch London table setting',
-        'Sketch London plush seating',
-        'Sketch London corridor detail',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving into the Sketch pink room with polished social confidence',
-          'sitting at a beautifully set table with warm luxury ease',
-          'letting the room’s theatrical elegance soften the mood',
-        ],
-        evening: [
-          'holding a candlelit table-side pause inside Sketch London',
-          'moving through the interior with refined glamour',
-          'using the room’s iconic setting to heighten exclusivity',
-        ],
-        night: [
-          'leaving Sketch after dinner with softened charm and polished control',
-          'turning once inside the corridor before returning to the night outside',
-          'letting the final interior moment linger before departure',
-        ],
-      },
-    },
-
-    annabels_private_club: {
-      label: 'Annabel’s private club',
-      realPlace: 'Annabel’s',
-            locations: [
-        'Annabel’s entrance',
-        'Annabel’s club interior',
-        'Annabel’s floral dining room',
-        'Annabel’s low-lit private corner',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving at Annabel’s with calm high-status certainty',
-          'crossing the club interior with magnetic, controlled ease',
-          'settling into a private social corner with elevated confidence',
-        ],
-        evening: [
-          'holding an intimate candlelit moment inside Annabel’s',
-          'moving through the private club interior with polished allure',
-          'letting the exclusivity of the space deepen the evening tone',
-        ],
-        night: [
-          'leaving Annabel’s into midnight London with softened glamour',
-          'pausing near the entrance before stepping back into the street',
-          'ending the social arc with unmistakable Mayfair prestige',
-        ],
-      },
-    },
-
-    sexy_fish_mayfair: {
-      label: 'Sexy Fish Mayfair',
-      realPlace: 'Sexy Fish Mayfair',
-      locations: [
-        'Sexy Fish Mayfair dining room',
-        'Sexy Fish bar edge',
-        'Sexy Fish entrance detail',
-        'Sexy Fish table setting',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving at Sexy Fish with sharpened social elegance',
-          'moving through the dining room with controlled glamour',
-          'settling into the table with confident warm magnetism',
-        ],
-        evening: [
-          'holding a candlelit pause in the electric interior atmosphere',
-          'letting the room’s energy heighten a more glamorous tone',
-          'using the iconic Mayfair setting to push the evening upward',
-        ],
-        night: [
-          'leaving Sexy Fish after dinner into polished city darkness',
-          'carrying the last glow of the interior into the street outside',
-          'keeping the mood rich, expensive, and cinematic',
-        ],
-      },
-    },
-
-    scotts_mayfair: {
-      label: 'Scott’s Mayfair',
-      realPlace: 'Scott’s Mayfair',
-            locations: [
-        'Scott’s Mayfair dining room',
-        'Scott’s table by soft light',
-        'Scott’s white-tablecloth setting',
-        'Scott’s entrance in Mayfair',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving at Scott’s with quiet luxury confidence',
-          'sitting down in the dining room with refined social ease',
-          'holding a white-tablecloth pause with understated glamour',
-        ],
-        evening: [
-          'letting candlelight and conversation soften the room around her',
-          'moving through Scott’s with elegant, measured warmth',
-          'using the classic Mayfair setting to deepen sophistication',
-        ],
-        night: [
-          'leaving Scott’s into a polished London night',
-          'pausing briefly outside before the next destination',
-          'carrying the classic luxury mood back into the street',
-        ],
-      },
-    },
-
-    private_rooftop_dining_aqua_shard: {
-      label: 'Private rooftop dining at Aqua Shard',
-      realPlace: 'Aqua Shard',
-      locations: [
-        'Aqua Shard private dining table',
-        'Aqua Shard skyline-facing dining edge',
-        'Aqua Shard candlelit seating',
-        'Aqua Shard terrace approach',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving at a private Aqua Shard table with warm exclusivity',
-          'sitting above the city in soft luxury evening air',
-          'letting the rooftop shift the day into a more intimate social tone',
-        ],
-        evening: [
-          'holding a candlelit rooftop pause above London',
-          'turning toward the skyline with composed evening glamour',
-          'letting the city below feel distant, elegant, and private',
-        ],
-        night: [
-          'remaining on the rooftop as the city darkens around her',
-          'softening into private conversation and skyline silence',
-          'closing the scene with elevated after-hours exclusivity',
-        ],
-      },
-    },
-
-    private_rooftop_dining_shard: {
-      label: 'Private rooftop dining at The Shard',
-      realPlace: 'Aqua Shard',
-      locations: [
-        'Aqua Shard private dining space',
-        'Aqua Shard glass dining edge',
-        'Aqua Shard city-facing candlelit table',
-        'Aqua Shard night skyline frame',
-      ],
-      sceneGroups: {
-        social: [
-          'arriving above London for private rooftop dining with the skyline surrounding her',
-          'sitting at a candlelit table high above the city with calm confidence',
-          'using height and light to make the social mood feel cinematic and rare',
-        ],
-        evening: [
-          'holding a private pause above London as twilight settles through the glass',
-          'turning slightly toward the skyline with sharpened glamour',
-          'letting the city lights become part of the dinner atmosphere',
-        ],
-        night: [
-          'remaining above London as the skyline turns fully electric',
-          'letting the private rooftop scene feel untouchable and suspended',
-          'ending the rooftop arc in vertical midnight luxury',
-        ],
-      },
-    },
-
-    private_members_club: {
-      label: 'Private members club interior',
-      realPlace: '5 Hertford Street',
-      locations: [
-        '5 Hertford Street bar',
-        '5 Hertford Street lounge seating',
-        '5 Hertford Street corridor',
-        '5 Hertford Street low-lit corner table',
-      ],
-      sceneGroups: {
-        social: [
-          'entering a private members club interior with controlled confidence',
-          'moving through the lounge with quiet high-status ease',
-          'settling into a low-lit corner with warm social composure',
-        ],
-        evening: [
-          'holding a private-club pause with candlelight and polished restraint',
-          'letting the room’s exclusivity intensify the evening mood',
-          'using the low light and private access to heighten intimacy',
-        ],
-        night: [
-          'remaining in the club after the room has softened into midnight calm',
-          'leaving the lounge with lingering glamour and measured pace',
-          'ending the social sequence in unmistakable private luxury',
-        ],
-      },
-    },
-
-    black_cab_arrival: {
-      label: 'Black cab arrival',
-      realPlace: 'The Ritz London',
-      locations: [
-        'black cab outside The Ritz London',
-        'black cab door opening on Piccadilly outside The Ritz London',
-        'The Ritz London curbside arrival',
-        'street-side black cab exit at The Ritz London',
-      ],
-      sceneGroups: {
-        morning: [
-          'stepping out of a black cab at a luxury London entrance with quiet confidence',
-          'holding the cab door briefly before turning toward the hotel or street',
-          'making the arrival feel unmistakably London and polished',
-        ],
-        day: [
-          'using the black cab as part of a clean city transition between locations',
-          'pausing at the curb with refined editorial composure',
-          'letting the cab frame a grounded, cinematic London moment',
-        ],
-        night: [
-          'exiting a black cab into wet London reflections after dark',
-          'turning from the cab door with softened midnight glamour',
-          'letting the arrival feel private, elegant, and urban',
-        ],
-      },
-    },
-
-    chauffeur_car_scene: {
-      label: 'Chauffeur car scene',
-      realPlace: 'Claridge’s',
-      locations: [
-        'chauffeur-driven car outside Claridge’s',
-        'back-seat luxury car interior in Mayfair',
-        'Claridge’s doorway arrival from a chauffeur car',
-        'night city reflections across the car windows near Mount Street',
-      ],
-      sceneGroups: {
-        morning: [
-          'sliding into a chauffeur car with calm polished intent',
-          'sitting in the back seat as London begins outside the glass',
-          'using the car interior to bridge suite luxury into city motion',
-        ],
-        evening: [
-          'arriving by chauffeur car at dinner with sharpened glamour',
-          'stepping from the back seat into evening London confidence',
-          'letting the black car and city lights elevate the scene',
-        ],
-        night: [
-          'riding through London after midnight with skyline reflections on the window',
-          'resting back in the seat as the city passes in softened light',
-          'using the car interior to close the arc in private luxury motion',
-        ],
-      },
-    },
-
-    thames_riverside_walk: {
-      label: 'Thames riverside walk',
-      realPlace: 'Victoria Embankment',
-      locations: [
-        'Victoria Embankment stone walkway',
-        'Victoria Embankment riverside railing',
-        'Embankment riverside path',
-        'city-facing river edge along Victoria Embankment',
-      ],
-      sceneGroups: {
-        day: [
-          'walking the Thames riverside with calm editorial elegance',
-          'pausing at the railing as the city opens across the water',
-          'letting the river air soften the sharper city energy',
-        ],
-        social: [
-          'moving along the embankment in a more relaxed luxury rhythm',
-          'turning toward the water before continuing through the city',
-          'using the open river space to widen the mood before evening',
-        ],
-        night: [
-          'walking the riverside after dark with reflections moving across the Thames',
-          'holding a private pause by the railing in midnight calm',
-          'letting the river close the scene with quiet cinematic scale',
-        ],
-      },
-    },
-
-    hyde_park: {
-      label: 'Hyde Park',
-      realPlace: 'Hyde Park',
-      locations: [
-        'Hyde Park pathway',
-        'tree-lined Hyde Park edge',
-        'open green stretch in Hyde Park',
-        'stone path near park railings',
-      ],
-      sceneGroups: {
-        day: [
-          'walking a Hyde Park pathway with relaxed high-status calm',
-          'pausing near the tree line as the city noise softens behind her',
-          'letting the park create a quiet luxury break in the day',
-        ],
-        social: [
-          'moving through Hyde Park with a lighter, warmer rhythm',
-          'turning slightly as if between destinations and thoughts',
-          'using the greenery to soften the editorial city tone',
-        ],
-        evening: [
-          'crossing the park edge in late light before the evening begins',
-          'letting the open air sharpen the transition into night styling',
-          'using the final park moment as a calm breath before glamour',
-        ],
-      },
-    },
-
-    kensington_gardens: {
-      label: 'Kensington Gardens',
-      realPlace: 'Kensington Gardens',
-      locations: [
-        'Kensington Gardens pathway',
-        'quiet tree-lined stretch in Kensington Gardens',
-        'garden edge near wrought-iron fencing',
-        'open walkway through the gardens',
-      ],
-      sceneGroups: {
-        day: [
-          'walking through Kensington Gardens with composed femininity',
-          'pausing along a quiet path in polished daytime styling',
-          'letting the gardens soften the luxury city narrative',
-        ],
-        social: [
-          'moving through the gardens with an easier more reflective mood',
-          'holding a gentle pause before returning toward the city',
-          'using the calm landscape to balance the sharper social settings',
-        ],
-        evening: [
-          'crossing the gardens as the light begins to turn',
-          'using the tree-lined path as a final soft day scene',
-          'transitioning from open air calm into evening London glamour',
-        ],
-      },
+    worldDefaults: {
+      allowSceneGroupFallbackToPhasePools: true,
+      allowSubLocationFallbackToWorldPools: true,
+      usePhaseSubLocationsBeforeGlobalSubLocations: true,
+      preferSceneGroupsWhenPresent: true,
+      preferPhaseMatchedSubLocations: true,
     },
   },
+
+  exclusions: {
+    premium: [
+      'cheap tourist London energy',
+      'generic influencer-city chaos',
+      'messy nightlife without exclusivity',
+      'forced glamour without restraint',
+      'loud streetwear hype aesthetic',
+      'cheap club chaos',
+      'unstructured social-climbing energy',
+    ],
+
+    hard: [
+      'fantasy palace unrelated to real London',
+      'beach or tropical environment',
+      'gym or training world',
+      'office or corporate workspace as default identity',
+      'suburban low-status setting',
+      'blank studio void',
+      'non-luxury city environment with no recognizable London identity',
+    ],
+  },
+
+  routeRules: {
+    worldIdentity: [
+      'London High Society should feel refined, private, expensive, editorial, and unmistakably rooted in premium London life',
+      'the world must balance suite intimacy, city movement, selective social access, old-money restraint, and after-hours skyline calm',
+      'it should feel more socially exclusive and architecturally recognizable than a general luxury city world, with strong London identity throughout',
+    ],
+
+    humanFlow: [
+      'the day must evolve naturally from waking to sleeping',
+      'morning should feel quiet, polished, hotel-based, and visually controlled',
+      'late morning should move outward through cars, Mayfair, Bond Street, and luxury districts',
+      'lunch should soften the day into selective interiors, table settings, parks, or riverside calm',
+      'afternoon should widen into iconic London landmarks and cinematic city scale',
+      'reset should return briefly to private suite control before the evening sharpens',
+      'golden hour and dinner should raise glamour through rooftops, clubs, candlelight, and exclusivity',
+      'evening and night must move into wet-street prestige, cars, skyline reflections, and private suite silence',
+    ],
+
+    styling: [
+      'styling should evolve from silk robe and private suite softness into tailored daywear, then into editorial London city polish, then into refined social daywear, then into sleek evening glamour, and finally into softened late-night luxury return styling',
+      'the wardrobe must support old-money restraint, recognizable London polish, and private high-status confidence naturally',
+      'night styling should feel private, cinematic, and fully post-social',
+    ],
+
+    atmosphere: [
+      'the environment should remain believable, expensive, architecturally grounded, and recognizably London',
+      'use luxury suites, Mayfair streets, Bond Street, private clubs, rooftop dining, parks, riversides, and landmark-adjacent spaces as the core reality',
+      'London dawn light, silver overcast daylight, warm interior glow, candlelight, wet-street reflections, and skyline shimmer should shape the world naturally',
+    ],
+  },
+
+  realPlaces: [
+    {
+      id: 'the-ritz-london',
+      name: 'The Ritz London',
+      type: 'luxury hotel',
+      vibe: 'Piccadilly prestige, old-money glamour, silver-service luxury',
+    },
+    {
+      id: 'claridges',
+      name: 'Claridge’s',
+      type: 'luxury hotel',
+      vibe: 'Mayfair refinement, quiet authority, classic London wealth',
+    },
+    {
+      id: 'the-savoy',
+      name: 'The Savoy',
+      type: 'luxury hotel',
+      vibe: 'river-view elegance, historic prestige, theatrical refinement',
+    },
+    {
+      id: 'the-connaught',
+      name: 'The Connaught',
+      type: 'luxury hotel',
+      vibe: 'understated Mayfair wealth, classic composure, intimate status',
+    },
+    {
+      id: 'shangri-la-the-shard',
+      name: 'Shangri-La The Shard, London',
+      type: 'luxury hotel',
+      vibe: 'vertical-city luxury, skyline immersion, modern exclusivity',
+    },
+    {
+      id: 'bond-street',
+      name: 'Bond Street',
+      type: 'luxury shopping street',
+      vibe: 'editorial fashion prestige, storefront glamour, polished visibility',
+    },
+    {
+      id: 'mayfair',
+      name: 'Mayfair',
+      type: 'luxury district',
+      vibe: 'old-money restraint, townhouse elegance, black-car prestige',
+    },
+    {
+      id: 'knightsbridge',
+      name: 'Knightsbridge',
+      type: 'luxury district',
+      vibe: 'fashion-forward luxury, Harrods visibility, expensive city rhythm',
+    },
+    {
+      id: 'sloane-street',
+      name: 'Sloane Street',
+      type: 'luxury street',
+      vibe: 'structured tailoring, elegant facades, polished city calm',
+    },
+    {
+      id: 'westminster',
+      name: 'Westminster',
+      type: 'historic landmark district',
+      vibe: 'institutional scale, London authority, cinematic recognition',
+    },
+    {
+      id: 'buckingham-palace',
+      name: 'Buckingham Palace',
+      type: 'royal landmark',
+      vibe: 'regal composure, controlled grandeur, historic prestige',
+    },
+    {
+      id: 'st-pauls-cathedral',
+      name: 'St. Paul’s Cathedral',
+      type: 'historic landmark',
+      vibe: 'editorial stone scale, spiritual architecture, refined gravity',
+    },
+    {
+      id: 'tower-bridge',
+      name: 'Tower Bridge',
+      type: 'historic landmark',
+      vibe: 'riverfront cinematic identity, dark-water glamour, iconic London scale',
+    },
+    {
+      id: 'london-eye',
+      name: 'London Eye',
+      type: 'riverside landmark',
+      vibe: 'open-city contrast, bright river perspective, polished movement',
+    },
+    {
+      id: 'the-shard',
+      name: 'The Shard',
+      type: 'skyline landmark',
+      vibe: 'vertical prestige, metropolitan calm, untouchable city view',
+    },
+    {
+      id: 'annabels',
+      name: 'Annabel’s',
+      type: 'private club',
+      vibe: 'Mayfair exclusivity, floral glamour, private social power',
+    },
+    {
+      id: 'sexy-fish-mayfair',
+      name: 'Sexy Fish Mayfair',
+      type: 'restaurant',
+      vibe: 'electric glamour, high-status nightlife, polished energy',
+    },
+    {
+      id: 'scotts-mayfair',
+      name: 'Scott’s Mayfair',
+      type: 'restaurant',
+      vibe: 'classic dining prestige, white-tablecloth elegance, understated luxury',
+    },
+    {
+      id: 'aqua-shard',
+      name: 'Aqua Shard',
+      type: 'rooftop dining venue',
+      vibe: 'skyline intimacy, candlelit exclusivity, elevated city glamour',
+    },
+    {
+      id: '5-hertford-street',
+      name: '5 Hertford Street',
+      type: 'private members club',
+      vibe: 'low-lit access, private power, after-hours exclusivity',
+    },
+    {
+      id: 'victoria-embankment',
+      name: 'Victoria Embankment',
+      type: 'riverside route',
+      vibe: 'river air, cinematic railing stillness, midnight scale',
+    },
+    {
+      id: 'hyde-park',
+      name: 'Hyde Park',
+      type: 'park',
+      vibe: 'quiet luxury pause, open greenery, softened city energy',
+    },
+    {
+      id: 'kensington-gardens',
+      name: 'Kensington Gardens',
+      type: 'park',
+      vibe: 'reflective calm, tree-lined refinement, softened urban elegance',
+    },
+  ],
 }

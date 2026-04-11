@@ -10,6 +10,7 @@ import { WORLD_ONLYFANS_CREATOR } from './onlyfansCreator'
 import { WORLD_GYM_INFLUENCER } from './gymInfluencer'
 import { WORLD_PARIS } from './paris'
 import { WORLD_LONDON } from './london'
+import { WORLD_MONACO } from './monaco'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -18,6 +19,7 @@ export const WORLD_LOCATIONS = [
   WORLD_VENICE,
   WORLD_PARIS,
   WORLD_LONDON,
+    WORLD_MONACO,
 ]
 
 export const STORY_STYLE_WORLDS = [
@@ -38,8 +40,13 @@ export const WORLD_LOCATION_OPTIONS = WORLD_LOCATIONS.map((w) => ({
   region: w.region || '',
 }))
 
+const ALL_WORLDS = [
+  ...WORLD_LOCATIONS,
+  ...STORY_STYLE_WORLDS,
+]
+
 // helper (very important later)
 export const getWorldById = (id) =>
-  [...WORLD_LOCATIONS, ...STORY_STYLE_WORLDS].find((w) => w.id === id)
+  ALL_WORLDS.find((w) => w.id === id)
 
-export { WORLD_BALI, WORLD_ITALY, WORLD_AMALFI, WORLD_VENICE }
+export { WORLD_BALI, WORLD_ITALY, WORLD_AMALFI, WORLD_VENICE, WORLD_MONACO }

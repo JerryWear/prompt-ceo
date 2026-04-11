@@ -1,39 +1,51 @@
+
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildFinalPrompt } from '../lib/prompt-engine'
-import { useSearchParams } from 'next/navigation'
 
 import {
-  PLAN_TIERS,
   EMPTY_BLOCKS,
   FIELD_ORDER,
-  PLAN_RULES,
-  LIB_SPLITS,
 } from './config'
 import {
-  SOFT_PRESETS,
-  FANVUE_PRESETS,
   UNRESTRICTED_PRESETS,
 } from './presets'
 import { LIBRARIES } from './libraries'
-import { SIGNATURE_PACKS } from './signature-packs'
+import { SIGNATURE_PACKS } from './signature-packs/index'
 import {
   AGE_RANGE_OPTIONS,
   AGE_FLAT_LIBRARY,
   resolveAgeFromRange,
 } from './age-system'
 
-import { STORY_WORLDS } from './story-worlds'
+import { STORY_WORLDS } from './story-worlds/index'
 import { STORY_CHAPTERS } from './story-chapters'
 
 import { WORLD_LOCATIONS, getWorldById, WORLD_VENICE, WORLD_ITALY, WORLD_AMALFI, WORLD_BALI, WORLD_PARIS, WORLD_LONDON } from './worlds'
+import { ITALY_CINEMATIC_PHASES } from './worlds/italy'
 
 import {
   ESCALATION_BY_PHASE,
   SCENE_LOCK_BY_PHASE,
   CAMERA_SYSTEM,
-  CINEMATIC_LIGHTING_SYSTEM
+  CINEMATIC_LIGHTING_SYSTEM,
+  BALI_CINEMATIC_PHASES,
+  getBaliCinematicPhaseByIndex,
+  BALI_PHASE_SUBLOCATIONS,
+  BALI_PHASE_SCENE_GROUPS,
+  BALI_PHASE_SCENE_VARIANTS,
+  BALI_PHASE_POSE_STYLE,
+  BALI_PHASE_CAMERA_STYLE,
+  baliSpaces,
+baliSubLocations,
+baliPhaseSubLocationMap,
+baliPhaseMoodMap,
+baliPhaseLightingMap,
+baliSubLocationCameraMap,
+baliStoryRoutes,
+baliCinematicOverlays,
+baliWorldIdentityPhrases,
 } from './worlds/bali'
 
 import { FANVUE_PACKAGE } from './packages/fanvue'
@@ -49,14 +61,1348 @@ import { WORLD_ONLYFANS_CREATOR } from './worlds/onlyfansCreator'
 
 import { WORLD_GYM_INFLUENCER } from './worlds/gymInfluencer'
 
+import {
+  createEmptySubjectState,
+  createEmptyInteractionState,
+  resolveSubjectPromptModel,
+  buildDeterministicSubjectPrompt,
+  buildSubjectGenerationPayload,
+} from '../../subject-system'
+
 // ===============================
 // WORLD → SUB-LOCATION → SCENE UI MAP
 // (UI layer only — no generation logic)
 // ===============================
 
+function normalize(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function cleanPromptParts(parts) {
+  const seen = new Set()
+
+  return (parts || []).filter((part) => {
+    if (!part || typeof part !== 'string') return false
+
+    const cleaned = part.trim().replace(/\s+/g, ' ')
+    if (!cleaned) return false
+
+    const normalized = cleaned.toLowerCase()
+    if (seen.has(normalized)) return false
+
+    seen.add(normalized)
+    return true
+  })
+}
+
+function finalizeFeedPromptFlow(prompt) {
+  const raw = String(prompt || '').trim()
+  if (!raw) return ''
+
+  const parts = raw
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  if (!parts.length) return raw
+
+  const seen = new Set()
+
+  const identityParts = []
+  const actionParts = []
+  const locationParts = []
+  const moodParts = []
+  const stylingParts = []
+  const cameraParts = []
+  const lightingParts = []
+  const timeParts = []
+  const detailParts = []
+
+  const pushUnique = (bucket, value) => {
+    const clean = String(value || '').trim()
+    if (!clean) return
+
+    const key = normalize(clean)
+    if (!key || seen.has(key)) return
+
+    seen.add(key)
+    bucket.push(clean)
+  }
+
+  for (const part of parts) {
+    const lower = part.toLowerCase()
+
+    const isTime =
+      /^(early morning|morning|late morning|midday|afternoon|late afternoon|golden hour|evening|night|late night|sunrise|sunset)$/i.test(part)
+
+    const isCamera =
+      /camera|framing|shot|perspective|angle|depth of field|close-up|close up|wide|handheld|profile/i.test(lower)
+
+    const isLighting =
+      /light|lighting|glow|shadow|shadowed|candlelit|sunlit|sunlight|diffused|neon|backlit|ambient/i.test(lower)
+
+    const isLocation =
+      /villa|suite|bedroom|terrace|balcony|bathroom|pool|spa|restaurant|club|beach|garden|courtyard|deck|bar|lounge|rooftop|lake|water|street|hotel|room|dining|breakfast|entrance|railing|window/i.test(lower)
+
+    const isAction =
+      /walking|resting|sitting|standing|leaning|moving|turning|crossing|holding|lifting|touching|adjusting|brushing|checking|stretching|opening|stepping|lowering|settling|running fingers|tracing|pressing|sliding/i.test(lower)
+
+    const isMood =
+      /calm|composed|magnetic|soft|intimate|sensual|elegant|refined|confident|playful|restrained|poised|romantic|quiet|private|cinematic|warm|glamorous|controlled|high-status|high status|luxury|prestige|allure|tension|energy|presence/i.test(lower)
+
+    const isStyling =
+      /robe|dress|lingerie|sleepwear|loungewear|cashmere|styling|fabric|strap|sleeve|jewelry|outfit|wardrobe/i.test(lower)
+
+    if (
+      identityParts.length === 0 &&
+      (
+        /same exact woman|same person|same face|uploaded reference image|fixed recurring female identity|consistent female identity|woman|female/i.test(lower) ||
+        /\byears old\b/i.test(lower)
+      )
+    ) {
+      pushUnique(identityParts, part)
+      continue
+    }
+
+    if (isAction) {
+      pushUnique(actionParts, part)
+      continue
+    }
+
+    if (isLocation) {
+      pushUnique(locationParts, part)
+      continue
+    }
+
+    if (isMood) {
+      pushUnique(moodParts, part)
+      continue
+    }
+
+    if (isStyling) {
+      pushUnique(stylingParts, part)
+      continue
+    }
+
+    if (isCamera) {
+      pushUnique(cameraParts, part)
+      continue
+    }
+
+    if (isLighting) {
+      pushUnique(lightingParts, part)
+      continue
+    }
+
+    if (isTime) {
+      pushUnique(timeParts, part)
+      continue
+    }
+
+    pushUnique(detailParts, part)
+  }
+
+  const ordered = [
+    ...identityParts.slice(0, 2),
+    ...actionParts.slice(0, 2),
+    ...locationParts.slice(0, 2),
+    ...moodParts.slice(0, 3),
+    ...stylingParts.slice(0, 2),
+    ...detailParts.slice(0, 3),
+    ...cameraParts.slice(0, 2),
+    ...lightingParts.slice(0, 2),
+    ...timeParts.slice(0, 1),
+  ]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  const finalText = ordered
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/g, '')
+    .trim()
+
+  return finalText || raw
+}
+
+function applyFeedPromptWordingMemory(prompt, memory) {
+  const raw = String(prompt || '').trim()
+  if (!raw) return raw
+
+  const state = memory || {
+    recentStarts: [],
+    recentMoodPhrases: [],
+    recentLocationPhrases: [],
+    recentActionPhrases: [],
+  }
+
+  const parts = raw
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  if (!parts.length) return raw
+
+  const firstPart = parts[0] || ''
+  const nextParts = []
+
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i]
+    const lower = part.toLowerCase()
+
+    const isMood =
+      /calm|composed|magnetic|soft|intimate|sensual|elegant|refined|confident|playful|restrained|poised|romantic|quiet|private|cinematic|warm|glamorous|controlled|high-status|high status|luxury|prestige|allure|tension|energy|presence/i.test(lower)
+
+    const isLocation =
+      /villa|suite|bedroom|terrace|balcony|bathroom|pool|spa|restaurant|club|beach|garden|courtyard|deck|bar|lounge|rooftop|lake|water|street|hotel|room|dining|breakfast|entrance|railing|window/i.test(lower)
+
+    const isAction =
+      /walking|resting|sitting|standing|leaning|moving|turning|crossing|holding|lifting|touching|adjusting|brushing|checking|stretching|opening|stepping|lowering|settling|running fingers|tracing|pressing|sliding/i.test(lower)
+
+    const normalizedValue = normalize(part)
+
+    if (isMood && state.recentMoodPhrases.includes(normalizedValue)) continue
+    if (isLocation && state.recentLocationPhrases.includes(normalizedValue)) continue
+    if (isAction && state.recentActionPhrases.includes(normalizedValue)) continue
+
+    nextParts.push(part)
+
+    if (isMood) {
+      state.recentMoodPhrases.push(normalizedValue)
+      while (state.recentMoodPhrases.length > 6) state.recentMoodPhrases.shift()
+    }
+
+    if (isLocation) {
+      state.recentLocationPhrases.push(normalizedValue)
+      while (state.recentLocationPhrases.length > 6) state.recentLocationPhrases.shift()
+    }
+
+    if (isAction) {
+      state.recentActionPhrases.push(normalizedValue)
+      while (state.recentActionPhrases.length > 6) state.recentActionPhrases.shift()
+    }
+  }
+
+  const normalizedStart = normalize(firstPart)
+  const startAlreadyUsed = state.recentStarts.includes(normalizedStart)
+
+  let resolvedFirstPart = firstPart
+
+  if (startAlreadyUsed) {
+    resolvedFirstPart = firstPart
+      .replace(/same exact woman as the uploaded reference image/gi, 'the same woman from the uploaded reference image')
+      .replace(/same exact man as the uploaded reference image/gi, 'the same man from the uploaded reference image')
+      .replace(/fixed recurring female identity/gi, 'recurring female identity')
+      .replace(/fixed recurring man identity/gi, 'recurring man identity')
+      .replace(/preserve identical facial identity/gi, 'maintain identical facial identity')
+      .replace(/preserve the same person and the same face across every image/gi, 'keep the same person and the same face across every image')
+      .trim()
+  }
+
+  state.recentStarts.push(normalize(resolvedFirstPart))
+  while (state.recentStarts.length > 4) state.recentStarts.shift()
+
+  return [resolvedFirstPart, ...nextParts]
+    .filter(Boolean)
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/g, '')
+    .trim()
+}
+
+function applyFinalFeedCleanup(prompt, context = {}) {
+  const raw = String(prompt || '').trim()
+  if (!raw) return raw
+
+const worldId = String(context.worldId || '').trim().toLowerCase()
+const storyWorld = String(context.storyWorld || '').trim().toLowerCase()
+const identityLead = String(context.identityLead || '').trim()
+
+const isGymFlow =
+  worldId === 'gym_influencer' ||
+  worldId === 'fitness_life' ||
+  storyWorld === 'gym-influencer-life' ||
+  storyWorld === 'fitness-life'
+
+const isCreatorFlow =
+  worldId === 'private_creator' ||
+  worldId === 'fanvue_creator' ||
+  worldId === 'onlyfans_creator' ||
+  worldId === 'luxury_life' ||
+  storyWorld === 'private-creator-life' ||
+  storyWorld === 'fanvue-creator-life' ||
+  storyWorld === 'onlyfans-creator-life' ||
+  storyWorld === 'luxury-life'
+
+  let parts = raw
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+let identityLocked = false
+
+  const blockedExactStarts = [
+    'or ',
+    'and ',
+  ]
+
+const identityEchoFragments = [
+  'female',
+  'woman',
+  'elegant woman',
+  'premium brand ambassador',
+  'confident gaze',
+  'confident and visually magnetic',
+  'attractive',
+  'socially powerful presence',
+  'peak feminine aesthetic',
+  'polished',
+  'balanced',
+  'feminine',
+]
+
+  const blockedGymFragments = [
+    'tropical',
+    'jungle',
+    'coastal',
+    'poolside',
+    'spa',
+    'resort',
+    'beach',
+    'beachclub',
+    'beach club',
+    'island',
+    'villa',
+    'retreat',
+    'nightlife glow',
+    'sunlit coastal shimmer',
+    'clean tropical daylight',
+    'filtered jungle sunlight',
+    'soft spa ambient light',
+    'editorial poolside framing',
+    'luxury travel campaign perspective',
+    'dreamlike retreat perspective',
+    'public glamour medium-wide shot',
+    'sunset dining light',
+    'architectural dining perspective',
+    'intimate balcony angle',
+    'serene lifestyle framing',
+    'gentle wellness portrait angle',
+    'quiet self-care cinematic angle',
+    'lush environmental portrait angle',
+    'after-dark editorial framing',
+    'moody amber nightlife glow',
+    'dark cinematic club lighting',
+    'luxury bar shadows',
+    'late-night luxury perspective',
+    'tropical high-status destination',
+    'bali luxury escape',
+    'cinematic island prestige',
+    'exclusive resort-world energy',
+    'warm cinematic escape',
+    'tropical prestige',
+    'island sensual calm',
+    'sun-soaked luxury atmosphere',
+  ]
+
+  const blockedCreatorFragments = [
+  'filtered jungle sunlight',
+  'clean tropical daylight',
+  'sunlit coastal shimmer',
+  'reflective poolside light',
+  'architectural dining perspective',
+  'dreamlike retreat perspective',
+  'lush environmental portrait angle',
+  'gentle morning wellness light',
+  'moody nightlife portrait angle',
+  'moody amber nightlife glow',
+  'after-dark editorial framing',
+  'public glamour medium-wide shot',
+  'editorial poolside framing',
+  'luxury travel campaign perspective',
+  'sunset dining light',
+]
+
+  const keepIfGymSceneClearlyMatches = [
+    'locker room',
+    'bathroom',
+    'bedroom',
+    'street',
+    'dark bedroom',
+    'quiet room',
+    'gym entrance',
+    'gym lighting',
+    'mirror',
+    'machines',
+    'barbells',
+    'kitchen',
+    'phone glow',
+    'workspace',
+  ]
+
+  const BLOCK_EDITORIAL_NOISE = [
+  'hidden-observer',
+  'editorial',
+  'campaign',
+  'portrait angle',
+  'framing',
+  'composition',
+  'cinematic',
+  'aesthetic framing',
+  'dining perspective',
+]
+
+const BLOCK_WEAK_ENV = [
+  'machines',
+  'area',
+  'zone',
+  'space',
+]
+
+const BLOCK_WEAK_MOOD = [
+  'content',
+  'self-aware',
+  'nice',
+  'good',
+]
+
+const LOCATION_FAMILIES = {
+  bedroom: ['bedroom', 'bed', 'soft bedding'],
+  bathroom: ['bathroom', 'mirror area in bedroom', 'mirror area', 'shower'],
+  kitchen: ['kitchen'],
+  gym: ['gym', 'gym entrance', 'high-end gym floor with racks', 'locker room'],
+  home: ['home', 'private interior setting', 'quiet bedroom or low-lit private room'],
+}
+
+  const normalizedSceneText = parts.join(' ').toLowerCase()
+
+  const getLocationFamily = (value) => {
+  const lower = String(value || '').toLowerCase().trim()
+
+  for (const [family, tokens] of Object.entries(LOCATION_FAMILIES)) {
+    if (tokens.some((token) => lower.includes(token))) {
+      return family
+    }
+  }
+
+  return ''
+}
+
+  parts = parts.filter((part, index) => {
+    const lower = part.toLowerCase()
+    const normalizedPart = normalize(part)
+
+    // ❌ kill editorial camera/style noise
+if (BLOCK_EDITORIAL_NOISE.some(token => lower.includes(token))) {
+  return false
+}
+
+// ❌ kill weak environments
+if (BLOCK_WEAK_ENV.includes(lower)) {
+  return false
+}
+
+// ❌ kill weak meaningless mood
+if (BLOCK_WEAK_MOOD.includes(lower)) {
+  return false
+}
+
+    const isIdentityEcho = identityEchoFragments.some((token) =>
+      normalizedPart === normalize(token)
+    )
+
+    const looksLikeAgeFragment = /\byears old\b/i.test(part)
+
+    const isIdentityLeadEcho =
+      !!identityLead &&
+      (
+        normalizedPart === normalize(identityLead) ||
+        normalize(identityLead).includes(normalizedPart)
+      )
+
+    if (index > 0 && (isIdentityEcho || looksLikeAgeFragment || isIdentityLeadEcho)) {
+      return false
+    }
+
+    if (blockedExactStarts.some((start) => lower.startsWith(start))) {
+      return false
+    }
+
+    if (
+      lower === 'confident' ||
+      lower === 'controlled' ||
+      lower === 'composed' ||
+      lower === 'glowing'
+    ) {
+      return false
+    }
+
+    if (
+      lower.includes('luxury fitness atmosphere') ||
+      lower.includes('quiet luxury atmosphere') ||
+      lower.includes('bright luxury daylight') ||
+      lower.includes('high-status tropical calm') ||
+      lower.includes('luxury lifestyle candid frame')
+    ) {
+      return false
+    }
+
+    if (isGymFlow) {
+      const clearlyGymRelevant = keepIfGymSceneClearlyMatches.some((token) =>
+        lower.includes(token)
+      )
+
+      const blockedGym = blockedGymFragments.some((token) =>
+        lower.includes(token)
+      )
+
+      if (blockedGym && !clearlyGymRelevant) {
+        return false
+      }
+    }
+
+    if (isCreatorFlow) {
+      const blockedCreator = blockedCreatorFragments.some((token) =>
+        lower.includes(token)
+      )
+
+      if (blockedCreator) {
+        return false
+      }
+    }
+
+    return true
+  })
+
+  const seen = new Set()
+  let hasConfidenceDescriptor = false
+  let hasMagneticDescriptor = false
+
+  parts = parts.filter((part) => {
+    const normalizedValue = normalize(part)
+    if (!normalizedValue) return false
+    if (seen.has(normalizedValue)) return false
+
+    const lower = String(part || '').toLowerCase()
+
+    if (
+      lower === 'confident' ||
+      lower === 'controlled' ||
+      lower === 'private' ||
+      lower === 'balanced' ||
+      lower === 'feminine'
+    ) {
+      return false
+    }
+
+    if (
+      lower.includes('confident gaze') ||
+      lower.includes('quietly confident') ||
+      lower.includes('calm confidence')
+    ) {
+      if (hasConfidenceDescriptor) return false
+      hasConfidenceDescriptor = true
+    }
+
+    if (
+      lower.includes('visually magnetic') ||
+      lower.includes('magnetic') ||
+      lower.includes('slightly more provocative')
+    ) {
+      if (hasMagneticDescriptor) return false
+      hasMagneticDescriptor = true
+    }
+
+    seen.add(normalizedValue)
+    return true
+  })
+
+  if (identityLead) {
+    parts = parts.filter((part) => {
+      const normalizedPart = normalize(part)
+
+      const isIdentityEcho = identityEchoFragments.some((token) =>
+        normalizedPart === normalize(token)
+      )
+
+      const looksLikeAgeFragment = /\byears old\b/i.test(part)
+
+      if (isIdentityEcho || looksLikeAgeFragment) {
+        return false
+      }
+
+      if (normalizedPart === normalize(identityLead)) {
+        return false
+      }
+
+      return true
+    })
+
+    parts.unshift(identityLead)
+  }
+
+  const cleaned = parts
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/g, '')
+    .trim()
+
+  return cleaned || raw
+}
+
+function sanitizeIdentityLeak(parts, identityState) {
+  const cleanName = String(identityState?.name || '').trim()
+  const identityActive = !!identityState?.enabled && !!cleanName
+
+  if (!identityActive) return parts || []
+
+  return (parts || []).map((part, index) => {
+    const raw = String(part || '').trim()
+    if (!raw) return raw
+
+    if (index !== 0) return raw
+
+    return raw
+      .replace(/\bElegant AI influencer\b/gi, cleanName)
+      .replace(/\bAI influencer\b/gi, cleanName)
+      .replace(/\bElegant woman\b/gi, cleanName)
+      .replace(/\bwoman\b/gi, cleanName)
+      .replace(/\bfemale\b/gi, cleanName)
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  })
+}
+
+function buildDeterministicFeedPrompt({
+  identity = '',
+  action = '',
+  environment = '',
+  mood = '',
+  camera = '',
+  lighting = '',
+  time = '',
+  worldId = '',
+}) {
+  const clean = (value) =>
+    String(value || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const splitCommaParts = (value) =>
+    String(value || '')
+      .split(',')
+      .map((part) => clean(part))
+      .filter(Boolean)
+
+  const unique = (items) => {
+    const seen = new Set()
+    const out = []
+
+    for (const item of items) {
+      const v = clean(item)
+      if (!v) continue
+
+      const key = v.toLowerCase()
+      if (seen.has(key)) continue
+
+      seen.add(key)
+      out.push(v)
+    }
+
+    return out
+  }
+
+  const pickFirst = (items, accept, reject = null) => {
+    for (const item of items) {
+      const v = clean(item)
+      if (!v) continue
+      if (reject && reject(v)) continue
+      if (accept(v)) return v
+    }
+    return ''
+  }
+
+  const normalizedWorldId = String(worldId || '').trim().toLowerCase()
+
+  const TIME_VALUES = new Set([
+    'early morning',
+    'morning',
+    'late morning',
+    'midday',
+    'afternoon',
+    'late afternoon',
+    'golden hour',
+    'evening',
+    'night',
+    'late night',
+    'sunrise',
+    'sunset',
+  ])
+
+  const ACTION_RE =
+    /\b(resting|stepping|walking|lifting|turning|leaning|sitting|adjusting|pausing|crossing|moving|lowering|settling|standing|opening|checking|touching|brushing|stretching|sliding|tracing)\b/i
+
+  const ENVIRONMENT_RE =
+    /\b(villa|suite|bedroom|bathroom|pool|spa|restaurant|bar|lounge|rooftop|terrace|balcony|courtyard|garden|deck|beach|club|walkway|entrance|retreat|daybed|dining|sink|mirror|bath|room|hotel|window|path|hall|cafe|table|tub|corner|edge|gym|locker room|studio|apartment|interior)\b/i
+
+  const CAMERA_RE =
+    /\b(framing|shot|perspective|angle|close-up|close up|wide|over-shoulder|over shoulder|profile|handheld|depth of field|medium shot)\b/i
+
+  const LIGHTING_RE =
+    /\b(light|lighting|glow|shadow|shadowed|candlelit|sunlit|sunlight|diffused|neon|backlit|ambient)\b/i
+
+  const BAD_ACTION_RE =
+    /^(holding still for a brief moment before continuing|moving with quiet deliberate control|moving with calm composed ease|turning slightly as movement builds around her|crossing the setting with quiet control|stepping forward with composed city polish|adjusting her posture as she settles into the seat|holding a calm, composed presence within the moment|quiet composed posture)$/i
+
+  const BAD_ENVIRONMENT_RE =
+    /^(private interior setting|private luxury setting|private villa interior|high-status retreat|exclusive destination feel|bali luxury escape|tropical high-status destination|jungle retreat|private villa|beach club|luxury spa|luxury restaurant|nightlife)$/i
+
+  const BAD_MOOD_RE =
+    /^(calm, composed, self-possessed|quiet feminine presence|private|refined feminine presence|calm, self-possessed feminine presence)$/i
+
+  const BAD_CAMERA_RE =
+    /^(lush environmental portrait angle|soft hidden-observer angle|dreamlike retreat perspective|luxury travel campaign perspective|editorial poolside framing|public glamour medium-wide shot|serene lifestyle framing|gentle wellness portrait angle|quiet self-care cinematic angle|immersive natural framing|intimate balcony angle|architectural dining perspective|late-night luxury perspective|after-dark editorial framing|moody nightlife portrait angle|atmospheric cinematic wide shot|quiet luxury campaign angle)$/i
+
+  const BAD_LIGHTING_RE =
+    /^(gentle morning wellness light)$/i
+
+  const identityValue = clean(identity)
+
+  const actionCandidates = unique(splitCommaParts(action))
+  const environmentCandidates = unique(splitCommaParts(environment))
+  const moodCandidates = unique(splitCommaParts(mood))
+  const cameraCandidates = unique(splitCommaParts(camera))
+  const lightingCandidates = unique(splitCommaParts(lighting))
+  const timeCandidates = unique(splitCommaParts(time))
+
+  const finalTime =
+    pickFirst(timeCandidates, (v) => TIME_VALUES.has(v.toLowerCase())) || 'night'
+
+  let finalAction =
+    pickFirst(
+      actionCandidates,
+      (v) => ACTION_RE.test(v),
+      (v) => BAD_ACTION_RE.test(v)
+    ) || ''
+
+  if (
+    (finalTime === 'early morning' || finalTime === 'morning') &&
+    /bath|steam|water|pool|surface|reflection/.test(finalAction)
+  ) {
+    const nonWaterAction =
+      pickFirst(
+        actionCandidates,
+        (v) =>
+          ACTION_RE.test(v) &&
+          !/bath|steam|water|pool|surface|reflection/.test(v),
+        (v) => BAD_ACTION_RE.test(v)
+      ) || ''
+
+    if (nonWaterAction) {
+      finalAction = nonWaterAction
+    }
+  }
+
+  const environmentMatchesAction = (actionValue, environmentValue) => {
+    const a = String(actionValue || '').toLowerCase()
+    const e = String(environmentValue || '').toLowerCase()
+
+    if (!a || !e) return true
+
+    if (/bed|room|bedside|window|sheet/.test(a)) {
+      return /bedroom|suite|room|interior|apartment|hotel/.test(e)
+    }
+
+    if (/railing|edge|view|terrace/.test(a)) {
+      return /terrace|balcony|deck|view|courtyard|garden|path/.test(e)
+    }
+
+    if (/bath|steam|water|pool|surface|reflection/.test(a)) {
+      return /bath|spa|pool|water|sink|mirror|tub|bathroom/.test(e)
+    }
+
+    if (/glass|sip|table|seat|bar|lounge/.test(a)) {
+      return /bar|lounge|restaurant|dining|table|club|corner|seating/.test(e)
+    }
+
+    if (/gym|rack|barbell|machine|locker/.test(a)) {
+      return /gym|locker room|studio|training/.test(e)
+    }
+
+    return true
+  }
+
+  const WORLD_FALLBACKS = {
+    bali: {
+      bedroom: 'open-air villa bedroom with flowing curtains',
+      terrace: 'sunlit stone terrace',
+      water: 'jungle-view infinity pool',
+      bath: 'soft-lit marble bathroom',
+      social: 'architectural bar seating',
+      generic: 'bamboo-framed outdoor suite',
+    },
+    amalfi_coast: {
+      bedroom: 'coastal suite bedroom with soft daylight',
+      terrace: 'sunlit coastal terrace',
+      water: 'pool terrace above the coastline',
+      bath: 'bright stone bathroom',
+      social: 'elegant dining terrace',
+      generic: 'private coastal suite',
+    },
+    'lake-como-private-escape': {
+      bedroom: 'lake-view bedroom with soft morning light',
+      terrace: 'private villa terrace overlooking the lake',
+      water: 'poolside stone deck with lake reflections',
+      bath: 'marble bathroom with refined natural light',
+      social: 'private dinner terrace above the water',
+      generic: 'quiet villa interior overlooking the lake',
+    },
+    venice: {
+      bedroom: 'canal-side suite bedroom with soft daylight',
+      terrace: 'private balcony above the canal',
+      water: 'waterfront terrace near the canal edge',
+      bath: 'marble hotel bathroom',
+      social: 'candlelit Venetian dining setting',
+      generic: 'refined Venetian interior',
+    },
+    paris: {
+      bedroom: 'Paris hotel suite bedroom with pale daylight',
+      terrace: 'private balcony above Paris rooftops',
+      water: 'quiet spa or bath setting',
+      bath: 'marble bathroom with soft city light',
+      social: 'elegant Paris dining room',
+      generic: 'refined Paris interior',
+    },
+    london: {
+      bedroom: 'London luxury suite bedroom with soft daylight',
+      terrace: 'private balcony above the city',
+      water: 'quiet spa or bath setting',
+      bath: 'marble bathroom with soft natural light',
+      social: 'private cocktail lounge seating',
+      generic: 'quiet London interior',
+    },
+    luxury_life: {
+      bedroom: 'quiet luxury bedroom interior',
+      terrace: 'private terrace with open city view',
+      water: 'poolside or spa setting',
+      bath: 'soft-lit marble bathroom',
+      social: 'private lounge or fine dining setting',
+      generic: 'refined private interior',
+    },
+    private_creator: {
+      bedroom: 'private bedroom with soft window light',
+      terrace: 'private balcony or terrace setting',
+      water: 'bath or reflective water setting',
+      bath: 'low-lit bathroom with mirror detail',
+      social: 'private lounge seating',
+      generic: 'private interior setting',
+    },
+    fanvue_creator: {
+      bedroom: 'private creator bedroom with soft light',
+      terrace: 'private balcony or terrace setting',
+      water: 'reflective bath or poolside setting',
+      bath: 'soft-lit bathroom with mirror detail',
+      social: 'private lounge or bar seating',
+      generic: 'private creator interior',
+    },
+    onlyfans_creator: {
+      bedroom: 'low-lit private bedroom',
+      terrace: 'private terrace at night',
+      water: 'dark reflective bath or poolside setting',
+      bath: 'dim bathroom with mirror glow',
+      social: 'after-dark private lounge seating',
+      generic: 'after-dark private interior',
+    },
+    fitness_life: {
+      bedroom: 'quiet bedroom or recovery room',
+      terrace: 'outdoor recovery terrace',
+      water: 'recovery pool or hydro area',
+      bath: 'gym bathroom or recovery shower space',
+      social: 'supplement bar or recovery lounge',
+      generic: 'high-performance lifestyle interior',
+    },
+    gym_influencer: {
+      bedroom: 'quiet bedroom or prep room',
+      terrace: 'outdoor gym terrace or arrival edge',
+      water: 'recovery shower or hydro space',
+      bath: 'locker room or recovery bathroom',
+      social: 'gym lounge or supplement bar',
+      generic: 'high-end gym interior',
+    },
+  }
+
+  const worldFallback = WORLD_FALLBACKS[normalizedWorldId] || {
+    bedroom: 'private bedroom with soft natural light',
+    terrace: 'private terrace or balcony',
+    water: 'poolside or reflective water setting',
+    bath: 'soft-lit bathroom',
+    social: 'private dining or lounge setting',
+    generic: 'private interior setting',
+  }
+
+  const fallbackEnvironmentFromAction = (actionValue) => {
+    const a = String(actionValue || '').toLowerCase()
+
+    if (/bed|room|bedside|window|sheet/.test(a)) return worldFallback.bedroom
+    if (/railing|edge|view|terrace/.test(a)) return worldFallback.terrace
+    if (/pool|surface|reflection|water/.test(a)) return worldFallback.water
+    if (/bath|steam/.test(a)) return worldFallback.bath
+    if (/glass|sip|table|seat|bar|lounge/.test(a)) return worldFallback.social
+    return worldFallback.generic
+  }
+
+  let finalEnvironment =
+    pickFirst(
+      environmentCandidates,
+      (v) => ENVIRONMENT_RE.test(v),
+      (v) => BAD_ENVIRONMENT_RE.test(v)
+    ) || ''
+
+  const compatibleEnvironment =
+    pickFirst(
+      environmentCandidates,
+      (v) => ENVIRONMENT_RE.test(v) && environmentMatchesAction(finalAction, v),
+      (v) => BAD_ENVIRONMENT_RE.test(v)
+    ) || ''
+
+  if (compatibleEnvironment) {
+    finalEnvironment = compatibleEnvironment
+  } else if (!finalEnvironment) {
+    finalEnvironment = fallbackEnvironmentFromAction(finalAction)
+  }
+
+  const MOOD_SINGLE_WORD_RE =
+    /^(soft|still|gentle|fresh|elegant|awake|calm|private|quiet|warm|controlled|composed|confident|playful|romantic|sensual|magnetic)$/i
+
+  const BAD_MOOD_PHRASE_RE =
+    /^(quietly waking|morning-soft presence|naturally composed|self-aware calm)$/i
+
+  const finalMood =
+    pickFirst(
+      moodCandidates,
+      (v) =>
+        !ACTION_RE.test(v) &&
+        !ENVIRONMENT_RE.test(v) &&
+        !CAMERA_RE.test(v) &&
+        !LIGHTING_RE.test(v) &&
+        !TIME_VALUES.has(v.toLowerCase()) &&
+        !MOOD_SINGLE_WORD_RE.test(v) &&
+        !BAD_MOOD_PHRASE_RE.test(v) &&
+        v.split(/\s+/).length >= 2,
+      (v) => BAD_MOOD_RE.test(v) || BAD_MOOD_PHRASE_RE.test(v)
+    ) || ''
+
+  const finalCamera =
+    pickFirst(
+      cameraCandidates,
+      (v) => CAMERA_RE.test(v),
+      (v) => BAD_CAMERA_RE.test(v)
+    ) || 'cinematic framing'
+
+  let finalLighting =
+    pickFirst(
+      lightingCandidates,
+      (v) => LIGHTING_RE.test(v),
+      (v) => BAD_LIGHTING_RE.test(v)
+    ) || 'soft natural light'
+
+  if (
+    (finalTime === 'early morning' || finalTime === 'morning' || finalTime === 'late morning') &&
+    /golden hour/i.test(finalLighting)
+  ) {
+    finalLighting = 'soft natural light'
+  }
+
+  const fallbackActionFromEnvironment = (environmentValue) => {
+    const e = String(environmentValue || '').toLowerCase()
+
+    if (/balcony|terrace|deck|view|railing/.test(e)) {
+      return 'resting her hands on the railing while looking out over the view'
+    }
+
+    if (/bathroom|bath|spa|sink|mirror/.test(e)) {
+      return 'resting back as steam rises around her'
+    }
+
+    if (/bedroom|suite|room|interior|apartment|hotel/.test(e)) {
+      return 'walking barefoot across the room toward the light'
+    }
+
+    if (/pool|water|infinity/.test(e)) {
+      return 'leaning forward slightly as her reflection shifts'
+    }
+
+    if (/bar|lounge|restaurant|dining|table|club/.test(e)) {
+      return 'lifting a glass slowly before taking a controlled sip'
+    }
+
+    if (/gym|locker room|studio|training/.test(e)) {
+      return 'moving through the space with focused control'
+    }
+
+    if (/path|walkway|garden|courtyard/.test(e)) {
+      return 'pausing at the edge while taking in the surroundings'
+    }
+
+    return 'walking forward with calm, controlled movement'
+  }
+
+  const fallbackMoodFromTime = (timeValue) => {
+    const t = String(timeValue || '').toLowerCase()
+
+    if (t === 'early morning') return 'barely-awake calm'
+    if (t === 'morning') return 'quietly magnetic'
+    if (t === 'late morning') return 'playful confidence with social magnetism'
+    if (t === 'midday') return 'social elegance'
+    if (t === 'afternoon') return 'peaceful sensual calm'
+    if (t === 'late afternoon') return 'self-possessed stillness'
+    if (t === 'golden hour') return 'quiet feminine allure'
+    if (t === 'evening') return 'quiet seduction with control'
+    return 'late-night mystery'
+  }
+
+  const safeAction =
+    finalAction || fallbackActionFromEnvironment(finalEnvironment)
+
+  const safeEnvironment =
+    finalEnvironment || fallbackEnvironmentFromAction(safeAction)
+
+  const safeMood =
+    finalMood || fallbackMoodFromTime(finalTime)
+
+  return [
+    identityValue,
+    safeAction,
+    safeEnvironment,
+    safeMood,
+    finalCamera,
+    finalLighting,
+    finalTime,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/g, '')
+    .trim()
+}
+
+function sanitizeFeedBuilderCandidates(value, type = '') {
+  const parts = String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  const blockedByType = {
+    action: [
+      'turning slightly as the city movement builds around her',
+      'crossing the setting with quiet control',
+      'moving with calm composed ease',
+      'stepping forward with composed city polish',
+      'holding still for a brief moment before continuing',
+      'poised natural movement',
+      'opening the terrace doors to the lake air',
+    ],
+    mood: [
+      'gentle confidence',
+      'soft curiosity with quiet intention',
+      'dreamlike stillness',
+      'deep calm with magnetic softness',
+      'relaxed luxury and feminine calm',
+      'quiet feminine presence',
+      'calm, composed, self-possessed',
+      'private',
+    ],
+    environment: [
+      'lake-view bedroom with soft morning light',
+      'private suite with pale daylight across the bed',
+      'quiet bedroom overlooking the water at dawn',
+      'private villa terrace overlooking Lake Como',
+      'sunlit balcony with open views across the lake',
+      'morning terrace washed in fresh lake air',
+      'sunlit breakfast balcony above the water',
+      'private breakfast terrace with lake reflections',
+      'bright upper terrace with soft table setting and open water',
+      'poolside stone deck with bright lake reflections',
+      'sunlit lakeside terrace under open sky',
+      'warm midday pool terrace above the water',
+      'quiet lakeside terrace with warm open air',
+      'shaded villa balcony with still water below',
+      'afternoon terrace overlooking the bright lake',
+      'marble balcony washed in soft afternoon glow',
+      'warm terrace edge above shimmering water',
+      'sun-softened stone terrace facing the lake',
+      'golden terrace edge above shimmering water',
+      'sunset balcony with warm reflections across the lake',
+      'glowing terrace with the lake lit gold below',
+      'candlelit outdoor terrace with lake view',
+      'evening balcony with soft lights above the water',
+      'private dinner terrace glowing over the lake',
+      'dim villa balcony overlooking dark water and distant lights',
+      'night terrace with soft reflections across the lake',
+      'after-dark balcony with low lights and open water beyond',
+      'cinematic interior',
+      'real cinematic setting',
+      'candlelit courtyard',
+      'arched indoor-outdoor lounge',
+    ],
+  }
+
+  const blocked = (blockedByType[type] || []).map((x) => x.toLowerCase())
+
+  return parts
+    .filter((part) => !blocked.includes(part.toLowerCase()))
+    .join(', ')
+}
+
+function dedupeCommaParts(value) {
+  const seen = new Set()
+
+  return String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const key = part.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join(', ')
+}
+
+function cleanFeedIdentity(value) {
+  return dedupeCommaParts(
+    String(value || '')
+      .split(',')
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+      .filter((part) => !/^Elegant woman$/i.test(part))
+      .join(', ')
+  )
+}
+
 function pickRandom(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return ''
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function createEmptyIdentityState() {
+  return {
+    enabled: false,
+    name: '',
+    imageDataUrl: '',
+    sourceFileName: '',
+    lastUpdated: 0,
+    extractionStatus: 'idle',
+    extractionMode: 'server',
+    useExtractedTraits: false,
+extractedTraits: {
+  subjectA: {
+    identity: '',
+    age: '',
+    ethnicity: '',
+    body_shape: '',
+    eye_color: '',
+    hair: '',
+  },
+  subjectB: {
+    identity: '',
+    age: '',
+    ethnicity: '',
+    body_shape: '',
+    eye_color: '',
+    hair: '',
+  }
+}
+  }
+}
+
+function buildReferenceIdentityLead({
+  identityState,
+  fallbackIdentity,
+  subjectGender = 'female',
+}) {
+  const cleanName = String(identityState?.name || '').trim()
+  const hasImage = !!String(identityState?.imageDataUrl || '').trim()
+  const useIdentity = !!identityState?.enabled
+
+  const inferredGenderText = [
+    String(subjectGender || '').trim(),
+    String(identityState?.subjectGender || '').trim(),
+    String(fallbackIdentity || '').trim(),
+  ]
+    .filter(Boolean)
+    .join(', ')
+
+  const normalizedSubjectGender =
+    /(male|man|masculine|very muscular broad build|muscular broad build|broad masculine build|facial hair|beard|mustache)/i.test(
+      inferredGenderText
+    )
+      ? 'male'
+      : 'female'
+    .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
+    .replace(/\bAI influencer\b/gi, 'woman')
+    .replace(/\bAI\b/gi, '')
+    .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
+    .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+const cleanedFallbackIdentity = String(fallbackIdentity || '')
+  .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
+  .replace(/\bAI influencer\b/gi, 'woman')
+  .replace(/\bAI\b/gi, '')
+  .replace(/\s{2,}/g, ' ')
+  .trim()
+
+  if (!useIdentity) {
+    return cleanedFallbackIdentity || ''
+  }
+
+  if (cleanName && hasImage) {
+    return normalizedSubjectGender === 'male'
+      ? `${cleanName}, same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
+      : `${cleanName}, same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
+  }
+
+  if (hasImage) {
+    return normalizedSubjectGender === 'male'
+      ? `same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
+      : `same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
+  }
+
+  if (cleanName) {
+    return normalizedSubjectGender === 'male'
+      ? `${cleanName}, fixed recurring man identity, preserve the same person and the same face across every image`
+      : `${cleanName}, fixed recurring female identity, preserve the same person and the same face across every image`
+  }
+
+  return normalizedSubjectGender === 'male'
+    ? 'consistent male identity, preserve the same person and the same face across every image'
+    : 'consistent female identity, preserve the same person and the same face across every image'
+}
+
+function buildIdentityAnchor({
+  identityState,
+  fallbackIdentity,
+  age,
+  ethnicity,
+  bodyShape,
+  eyeColor,
+  hair,
+  subjectGender = 'female',
+}) {
+  const useIdentity = !!identityState?.enabled
+  const cleanName = String(identityState?.name || '').trim()
+  const hasImage = !!String(identityState?.imageDataUrl || '').trim()
+
+  const normalizedSubjectGender =
+    /^(male|man)$/i.test(String(subjectGender || '').trim()) ? 'male' : 'female'
+
+  const cleanedFallbackIdentity = String(fallbackIdentity || '')
+    .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
+    .replace(/\bAI influencer\b/gi, 'woman')
+    .replace(/\bAI\b/gi, '')
+    .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
+    .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  const identityLead = buildReferenceIdentityLead({
+    identityState,
+    fallbackIdentity: cleanedFallbackIdentity,
+    subjectGender: normalizedSubjectGender,
+  })
+
+  let fallbackIdentityText = cleanedFallbackIdentity
+    .replace(/\bElegant woman\b/gi, '')
+    .replace(/\bwoman\b/gi, '')
+    .replace(/\bfemale\b/gi, '')
+    .replace(/\bman\b/gi, '')
+    .replace(/\bmale\b/gi, '')
+    .replace(/\bhigh-value feminine presence\b/gi, '')
+    .replace(/\bfeminine presence\b/gi, '')
+    .replace(/\bmasculine presence\b/gi, '')
+    .replace(/\bfeminine\b/gi, normalizedSubjectGender === 'male' ? '' : 'feminine')
+    .replace(/\bmasculine\b/gi, normalizedSubjectGender === 'female' ? '' : 'masculine')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  const shouldSuppressFallbackIdentityText =
+    useIdentity &&
+    (
+      !!cleanName ||
+      hasImage
+    )
+
+  return cleanPromptParts([
+    identityLead,
+    shouldSuppressFallbackIdentityText ? '' : fallbackIdentityText,
+    age,
+    ethnicity,
+    bodyShape,
+    eyeColor,
+    hair,
+  ]).join(', ')
+}
+
+function buildIdentityGenerationPayload({ identityState }) {
+  const cleanName = String(identityState?.name || '').trim()
+  const imageDataUrl = String(identityState?.imageDataUrl || '').trim()
+  const sourceFileName = String(identityState?.sourceFileName || '').trim()
+  const extractedTraits = identityState?.extractedTraits || {}
+
+  const enabled = !!identityState?.enabled
+  const hasReferenceImage = !!imageDataUrl
+  const hasIdentityName = !!cleanName
+  const useExtractedTraits = !!identityState?.useExtractedTraits
+
+  const isReadyForGeneration = enabled && hasReferenceImage
+
+  return {
+    enabled,
+    isReadyForGeneration,
+    sourceType: hasReferenceImage ? 'uploaded_reference_image' : 'none',
+    identityName: cleanName,
+    sourceFileName,
+    referenceImageDataUrl: imageDataUrl,
+    useExtractedTraits,
+extractedTraits: {
+  subjectA: {
+    identity: String(extractedTraits?.subjectA?.identity || '').trim(),
+    age: String(extractedTraits?.subjectA?.age || '').trim(),
+    ethnicity: String(extractedTraits?.subjectA?.ethnicity || '').trim(),
+    body_shape: String(extractedTraits?.subjectA?.body_shape || '').trim(),
+    eye_color: String(extractedTraits?.subjectA?.eye_color || '').trim(),
+    hair: String(extractedTraits?.subjectA?.hair || '').trim(),
+  },
+  subjectB: {
+    identity: String(extractedTraits?.subjectB?.identity || '').trim(),
+    age: String(extractedTraits?.subjectB?.age || '').trim(),
+    ethnicity: String(extractedTraits?.subjectB?.ethnicity || '').trim(),
+    body_shape: String(extractedTraits?.subjectB?.body_shape || '').trim(),
+    eye_color: String(extractedTraits?.subjectB?.eye_color || '').trim(),
+    hair: String(extractedTraits?.subjectB?.hair || '').trim(),
+  },
+},
+    anchorStrength:
+      enabled && hasReferenceImage
+        ? 'reference_image'
+        : enabled && hasIdentityName
+          ? 'name_only'
+          : 'off',
+  }
 }
 
 function LibraryDropdown({ items, onPick, disabled, onLocked }) {
@@ -98,9 +1444,7 @@ function LibraryDropdown({ items, onPick, disabled, onLocked }) {
     </select>
   )
 }
-function getFanvueLevelsForPhase(phase) {
-  return FANVUE_PACKAGE.structure?.[phase]?.allowedLevels || ['tease']
-}
+
 function getProgressionLevel(index, total) {
   const ratio = index / total
 
@@ -164,21 +1508,6 @@ const pickWithRecentAvoidance = (pool, recentList, fallbackValue = '') => {
   const filteredPool = pool.filter(item => !recentList.includes(item))
   const sourcePool = filteredPool.length ? filteredPool : pool
   return sourcePool[Math.floor(Math.random() * sourcePool.length)] || fallbackValue
-}
-
-const WORLD_PHASE_LABELS = {
-  wake: 'Phase: Wake Up',
-  morning_refresh: 'Phase: Morning Refresh',
-  getting_dressed: 'Phase: Getting Dressed',
-  breakfast: 'Phase: Breakfast',
-  late_morning: 'Phase: Late Morning',
-  lunch: 'Phase: Lunch',
-  afternoon: 'Phase: Afternoon Leisure',
-  reset: 'Phase: Reset',
-  golden_hour: 'Phase: Golden Hour',
-  dinner: 'Phase: Dinner',
-  evening: 'Phase: Evening',
-  night: 'Phase: Night'
 }
 
 const DEFAULT_WORLD_PHASE_ORDER = [
@@ -291,34 +1620,36 @@ function normalizeStoryWorldId(id) {
 function getAutoWorldFromStoryWorld(storyWorldId) {
   const normalized = normalizeStoryWorldId(storyWorldId)
 
-  const storyToWorldMap = {
-    bali: 'bali',
-    venice: 'venice',
-    'lake-como-life': 'lake-como-private-escape',
-    amalfi_coast: 'amalfi_coast',
-    'amalfi-coast': 'amalfi_coast',
-    private_creator: 'private_creator',
-    'private-creator-life': 'private_creator',
-    fitness_life: 'fitness_life',
-    'fitness-life': 'fitness_life',
-    luxury_life: 'luxury_life',
-    'luxury-life': 'luxury_life',
-    fanvue_creator: 'fanvue_creator',
-    'fanvue-creator-life': 'fanvue_creator',
-    onlyfans_creator: 'onlyfans_creator',
-    'onlyfans-creator-life': 'onlyfans_creator',
-    gym_influencer: 'gym_influencer',
-    'gym-influencer-life': 'gym_influencer',
-    paris: 'paris',
-    london: 'london',
-  }
+  const mappedWorldId = resolveStoryWorldToWorldId(normalized)
 
-  const mappedWorldId = storyToWorldMap[normalized] || normalized
   return getWorldById(mappedWorldId) || null
 }
 
-function getWorldPhaseLabel(phase) {
-  return WORLD_PHASE_LABELS[phase] || `Phase: ${String(phase || '').replaceAll('_', ' ')}`
+const STORY_WORLD_ID_ALIASES = {
+  bali: 'bali',
+  venice: 'venice',
+  'lake-como-life': 'lake-como-private-escape',
+  amalfi_coast: 'amalfi_coast',
+  'amalfi-coast': 'amalfi_coast',
+  private_creator: 'private_creator',
+  'private-creator-life': 'private_creator',
+  fitness_life: 'fitness_life',
+  'fitness-life': 'fitness_life',
+  luxury_life: 'luxury_life',
+  'luxury-life': 'luxury_life',
+  fanvue_creator: 'fanvue_creator',
+  'fanvue-creator-life': 'fanvue_creator',
+  onlyfans_creator: 'onlyfans_creator',
+  'onlyfans-creator-life': 'onlyfans_creator',
+  gym_influencer: 'gym_influencer',
+  'gym-influencer-life': 'gym_influencer',
+  paris: 'paris',
+  london: 'london',
+}
+
+function resolveStoryWorldToWorldId(storyWorldId) {
+  const normalized = normalizeStoryWorldId(storyWorldId)
+  return STORY_WORLD_ID_ALIASES[normalized] || normalized
 }
 
 function getWorldPhaseKeyByProgression(progressionLevel) {
@@ -571,44 +1902,6 @@ function getFeedLakeComoLightingPool(baliPhase) {
     'candlelit evening ambience',
     'dim villa night lighting',
   ]
-}
-
-function getFeedFinalPose({
-  worldId,
-  world,
-  isStructuredWorld,
-  isBaliWorldActive,
-  isLakeComoWorldActive,
-  generatedBaliPose,
-  generatedWorldBodyLanguage,
-  generatedWorldMovementEnergy,
-  generatedWorldTransition,
-  generatedWorldActivity,
-  generatedWorldScene,
-  mergedPose,
-  baliClothing,
-}) {
-  if (isBaliWorldActive) {
-    return generatedBaliPose
-  }
-
-  const normalizedMergedPose = String(mergedPose || '').trim().toLowerCase()
-  const safeMergedPose =
-    normalizedMergedPose === 'post-swim shower reset' ? '' : mergedPose
-
-  if (isStructuredWorld) {
-    return (
-      generatedWorldActivity ||
-      generatedWorldTransition ||
-      generatedWorldBodyLanguage ||
-      generatedWorldMovementEnergy ||
-      generatedWorldScene ||
-      safeMergedPose ||
-      ''
-    )
-  }
-
-  return mergedPose
 }
 
 function getFeedFinalMood({
@@ -962,36 +2255,9 @@ function getBatchFieldOverride({
   progressionLightingPool,
   intensity,
 }) {
-
-  function shouldApplyWorldEnhancement({ key, currentValue }) {
-
-function getHumanStateByTime(time) {
-  if (!time) return 'neutral'
-
-  if (/early morning|morning/i.test(time)) return 'fresh'
-  if (/late morning|midday/i.test(time)) return 'active'
-  if (/afternoon/i.test(time)) return 'relaxed'
-  if (/golden hour/i.test(time)) return 'radiant'
-  if (/evening/i.test(time)) return 'composed'
-  if (/night/i.test(time)) return 'intimate'
-
-  return 'neutral'
-}
-
-  const raw = String(currentValue || '').trim()
-
-  if (!raw) return true
-
-  if (key === 'camera_angle' || key === 'lighting' || key === 'mood') {
-    return true
-  }
-
-  return false
-}
-
   let nextValue = value
 
-  if (key === 'camera_angle') {
+  if (key === 'camera' || key === 'camera_angle') {
     nextValue = pickRandom(progressionCameraPool) || nextValue
   }
 
@@ -1010,7 +2276,6 @@ function getHumanStateByTime(time) {
 
   return nextValue
 }
-
 function shouldUseForcedWorldLocations(worldId) {
   return getWorldRouteLockState(worldId).useForcedLocations
 }
@@ -1212,18 +2477,6 @@ function getFeedStructuredPhaseDetails({
     generatedWorldMovementEnergy,
     generatedWorldNarrativeIntent,
     generatedWorldPacing,
-  }
-}
-
-function getBatchAutoRouteContext(worldId) {
-  const routeState = getWorldRouteLockState(worldId)
-
-  return {
-    routeState,
-    autoSubHoldLength: routeState.autoSubHoldLength,
-    forcedLocationsEnabled: routeState.useForcedLocations,
-    sceneGroupLocked: routeState.sceneGroupLocked,
-    sceneLocked: routeState.sceneLocked,
   }
 }
 
@@ -1431,8 +2684,6 @@ function getBaliGeneratedStyleContext({
     generatedSubMood,
     generatedSubLighting,
     generatedSubCamera,
-    phaseMoodPool,
-    phaseLightingPool,
   }
 }
 
@@ -1606,25 +2857,128 @@ const baliLocationLine = [
   }
 }
 
+const copyText = async (text, label = 'Copied') => {
+  try {
+    if (!text) return
+
+    await navigator.clipboard.writeText(text)
+
+    console.log(`${label} copied`)
+  } catch (err) {
+    console.error('Copy failed', err)
+  }
+}
+
+const downloadImage = (imageUrl, fileName = 'image.png') => {
+  try {
+    if (!imageUrl) return
+
+    const a = document.createElement('a')
+    a.href = imageUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } catch (err) {
+    console.error('Download failed', err)
+  }
+}
+
+const INTERACTION_TYPE_OPTIONS = [
+  { value: '', label: 'Select interaction type' },
+  { value: 'none', label: 'None' },
+  { value: 'flirty', label: 'Flirty' },
+  { value: 'romantic', label: 'Romantic' },
+  { value: 'playful', label: 'Playful' },
+  { value: 'subtle_tension', label: 'Subtle Tension' },
+  { value: 'intimate_soft', label: 'Intimate (Soft)' },
+  { value: 'dominant', label: 'Dominant' },
+  { value: 'power_dynamic', label: 'Power Dynamic' },
+]
+
+const INTERACTION_DYNAMIC_OPTIONS = {
+  '': [
+    { value: '', label: 'Select interaction dynamic' },
+  ],
+
+  none: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'no_direct_interaction', label: 'No Direct Interaction' },
+    { value: 'shared_presence_only', label: 'Shared Presence Only' },
+    { value: 'parallel_energy', label: 'Parallel Energy' },
+  ],
+
+  flirty: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'eye_contact', label: 'Eye Contact' },
+    { value: 'teasing_distance', label: 'Teasing Distance' },
+    { value: 'half_smile_exchange', label: 'Half-Smile Exchange' },
+    { value: 'playful_close_proximity', label: 'Playful Close Proximity' },
+  ],
+
+  romantic: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'soft_eye_contact', label: 'Soft Eye Contact' },
+    { value: 'gentle_touch', label: 'Gentle Touch' },
+    { value: 'forehead_nearness', label: 'Forehead Nearness' },
+    { value: 'quiet_shared_moment', label: 'Quiet Shared Moment' },
+  ],
+
+  playful: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'laughing_together', label: 'Laughing Together' },
+    { value: 'light_chasing_energy', label: 'Light Chasing Energy' },
+    { value: 'mock_pull_in', label: 'Mock Pull-In' },
+    { value: 'playful_body_tease', label: 'Playful Body Tease' },
+  ],
+
+  subtle_tension: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'close_proximity_tension', label: 'Close Proximity Tension' },
+    { value: 'held_eye_contact', label: 'Held Eye Contact' },
+    { value: 'almost_touching', label: 'Almost Touching' },
+    { value: 'slow_approach', label: 'Slow Approach' },
+  ],
+
+  intimate_soft: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'light_touch', label: 'Light Touch' },
+    { value: 'hand_on_waist', label: 'Hand on Waist' },
+    { value: 'quiet_whisper', label: 'Quiet Whisper' },
+    { value: 'soft_guiding_touch', label: 'Soft Guiding Touch' },
+  ],
+
+  dominant: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'leading_presence', label: 'Leading Presence' },
+    { value: 'controlled_pull_in', label: 'Controlled Pull-In' },
+    { value: 'direct_eye_lock', label: 'Direct Eye Lock' },
+    { value: 'guided_positioning', label: 'Guided Positioning' },
+  ],
+
+  power_dynamic: [
+    { value: '', label: 'Select interaction dynamic' },
+    { value: 'leader_follower_energy', label: 'Leader / Follower Energy' },
+    { value: 'protective_control', label: 'Protective Control' },
+    { value: 'visual_dominance_shift', label: 'Visual Dominance Shift' },
+    { value: 'commanding_stillness', label: 'Commanding Stillness' },
+  ],
+}
+
 export default function PromptV2() {
-  const searchParams = useSearchParams()
-
-  const urlTier = (searchParams?.get('tier') || '').trim()
-  const locked = searchParams?.get('locked') === '1' || searchParams?.get('locked') === 'true'
-
-  const normalizedTier =
-    urlTier === 'Soft' || urlTier === 'Fanvue' || urlTier === 'Unrestricted' ? urlTier : ''
-
-  const [plan, setPlan] = useState(normalizedTier || 'Fanvue')
+  const plan = 'Unrestricted'
   const [adminMode, setAdminMode] = useState(false)
+  const [subjectState, setSubjectState] = useState(() => createEmptySubjectState())
+  const [interactionState, setInteractionState] = useState(() => createEmptyInteractionState())
   const [activePackTab, setActivePackTab] = useState('Packs')
+  const [activeStep, setActiveStep] = useState(1)
   const [activeSignaturePack, setActiveSignaturePack] = useState('')
   const [activeScene, setActiveScene] = useState('')
   const [selectedAgeRange, setSelectedAgeRange] = useState('auto')
   const [intensity, setIntensity] = useState('Fanvue')
   const [clicks, setClicks] = useState(0)
   const [last, setLast] = useState('—')
-  const [copied, setCopied] = useState('')
+  const [copied] = useState('')
   const [activeStoryWorld, setActiveStoryWorld] = useState('')
 const [activeChapter, setActiveChapter] = useState('')
 
@@ -1700,9 +3054,21 @@ const activeSubLocation = useMemo(() => {
 }, [subLocationOptions, activeSubLocationId])
 
 const sceneGroupOptions = useMemo(() => {
-  return Array.isArray(activeSubLocation?.sceneGroups)
-    ? activeSubLocation.sceneGroups
-    : []
+  const raw = activeSubLocation?.sceneGroups
+
+  if (Array.isArray(raw)) return raw
+
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw).map(([groupId, scenes]) => ({
+      id: groupId,
+      name: String(groupId || '')
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+      scenes: Array.isArray(scenes) ? scenes : [],
+    }))
+  }
+
+  return []
 }, [activeSubLocation])
 
 const activeSceneGroup = useMemo(() => {
@@ -1730,7 +3096,22 @@ useEffect(() => {
 
 // 🔥 END WORLD SYSTEM
 
-  const [feedPrompts, setFeedPrompts] = useState([])
+const [feedPrompts, setFeedPrompts] = useState([])
+const [generatedImage, setGeneratedImage] = useState('')
+const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+const [generatedImages, setGeneratedImages] = useState([])
+const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
+const [storyGenerationStatus, setStoryGenerationStatus] = useState('')
+
+const [storyIndex, setStoryIndex] = useState(0)
+const stopStoryGenerationRef = useRef(false)
+const storyAbortControllerRef = useRef(null)
+const [previewImage, setPreviewImage] = useState('')
+const [stopStoryGeneration, setStopStoryGeneration] = useState(false)
+function clearFeedPrompts() {
+  setFeedPrompts([])
+  setLast('Feed cleared')
+}
 
   const [blocks, setBlocks] = useState(() => ({ ...EMPTY_BLOCKS }))
   const [locks, setLocks] = useState(() =>
@@ -1755,6 +3136,9 @@ useEffect(() => {
 const [autoSubLocationLabel, setAutoSubLocationLabel] = useState('')
 const [autoSceneLabel, setAutoSceneLabel] = useState('')
 
+  // IDENTITY SYSTEM
+  const [identityState, setIdentityState] = useState(() => createEmptyIdentityState())
+
   useEffect(() => {
   if (worldControlMode !== 'auto') return
 
@@ -1764,30 +3148,11 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
 }, [worldControlMode, activeWorldId, activeSubLocationId, activeSceneGroupId])
 
   useEffect(() => {
-    if (!locked) return
-    if (normalizedTier && plan !== normalizedTier) setPlan(normalizedTier)
-    if (adminMode) setAdminMode(false)
-  }, [locked, normalizedTier, plan, adminMode])
-
-  useEffect(() => {
-    const allowedIntensities =
-      plan === 'Soft'
-        ? ['Soft']
-        : plan === 'Fanvue'
-          ? ['Soft', 'Fanvue']
-          : ['Soft', 'Fanvue', 'Unrestricted']
-
-    const safeDefault = plan === 'Soft' ? 'Soft' : plan === 'Fanvue' ? 'Fanvue' : 'Unrestricted'
-
-    if (!allowedIntensities.includes(intensity)) setIntensity(safeDefault)
-  }, [plan, intensity])
-
-  useEffect(() => {
-    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+    const allowedCats = ['All', ...Object.keys(LIBRARIES.locationByCategory || {}).filter((k) => k !== 'All')]
     if (!allowedCats.includes(locationCategory)) {
       setLocationCategory('All')
     }
-  }, [plan, locationCategory])
+  }, [locationCategory])
 
   useEffect(() => {
     try {
@@ -1800,17 +3165,166 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('promptCEO_identity_state')
+      if (!raw) return
+
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object') return
+
+      setIdentityState({
+        enabled: !!parsed.enabled,
+        name: String(parsed.name || ''),
+        imageDataUrl: '',
+        sourceFileName: String(parsed.sourceFileName || ''),
+        lastUpdated: Number(parsed.lastUpdated || 0),
+        extractionStatus: String(parsed.extractionStatus || 'idle'),
+        extractionMode: String(parsed.extractionMode || 'server'),
+        useExtractedTraits: !!parsed.useExtractedTraits,
+        extractedTraits: {
+          identity: String(parsed?.extractedTraits?.identity || ''),
+          age: String(parsed?.extractedTraits?.age || ''),
+          ethnicity: String(parsed?.extractedTraits?.ethnicity || ''),
+          body_shape: String(parsed?.extractedTraits?.body_shape || ''),
+          eye_color: String(parsed?.extractedTraits?.eye_color || ''),
+          hair: String(parsed?.extractedTraits?.hair || ''),
+        },
+      })
+    } catch (err) {
+      console.error('Failed to load identity state', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const persistedIdentityState = {
+        enabled: !!identityState.enabled,
+        name: String(identityState.name || ''),
+        imageDataUrl: '',
+        sourceFileName: String(identityState.sourceFileName || ''),
+        lastUpdated: Number(identityState.lastUpdated || 0),
+        extractionStatus: String(identityState.extractionStatus || 'idle'),
+        extractionMode: String(identityState.extractionMode || 'stub'),
+        useExtractedTraits: !!identityState.useExtractedTraits,
+       extractedTraits: {
+  subjectA: {
+    identity: String(identityState?.extractedTraits?.subjectA?.identity || ''),
+    age: String(identityState?.extractedTraits?.subjectA?.age || ''),
+    ethnicity: String(identityState?.extractedTraits?.subjectA?.ethnicity || ''),
+    body_shape: String(identityState?.extractedTraits?.subjectA?.body_shape || ''),
+    eye_color: String(identityState?.extractedTraits?.subjectA?.eye_color || ''),
+    hair: String(identityState?.extractedTraits?.subjectA?.hair || ''),
+    facial_hair: String(identityState?.extractedTraits?.subjectA?.facial_hair || ''),
+    build: String(identityState?.extractedTraits?.subjectA?.build || ''),
+  },
+  subjectB: {
+    identity: String(identityState?.extractedTraits?.subjectB?.identity || ''),
+    age: String(identityState?.extractedTraits?.subjectB?.age || ''),
+    ethnicity: String(identityState?.extractedTraits?.subjectB?.ethnicity || ''),
+    body_shape: String(identityState?.extractedTraits?.subjectB?.body_shape || ''),
+    eye_color: String(identityState?.extractedTraits?.subjectB?.eye_color || ''),
+    hair: String(identityState?.extractedTraits?.subjectB?.hair || ''),
+    facial_hair: String(identityState?.extractedTraits?.subjectB?.facial_hair || ''),
+    build: String(identityState?.extractedTraits?.subjectB?.build || ''),
+  },
+},
+      }
+
+      localStorage.setItem(
+        'promptCEO_identity_state',
+        JSON.stringify(persistedIdentityState)
+      )
+    } catch (err) {
+      console.error('Failed to save identity state', err)
+    }
+  }, [identityState])
+
+useEffect(() => {
+  setSubjectState((prev) => {
+    const mode = String(prev?.characterMode || 'female').trim()
+    const resolvedSubjectAGender =
+      mode === 'male'
+        ? 'male'
+        : String(prev?.subjectA?.gender || 'female').trim() || 'female'
+
+    return {
+      ...prev,
+      subjectA: {
+        ...prev.subjectA,
+        enabled: !!identityState?.enabled,
+        gender: resolvedSubjectAGender,
+        identityName:
+          mode === 'male'
+            ? prev.subjectA?.identityName || ''
+            : String(identityState?.name || '').trim(),
+        imageDataUrl: String(identityState?.imageDataUrl || '').trim(),
+        sourceFileName: String(identityState?.sourceFileName || '').trim(),
+        extractionStatus: String(identityState?.extractionStatus || 'idle'),
+        extractionMode: String(identityState?.extractionMode || 'server'),
+        useExtractedTraits: !!identityState?.useExtractedTraits,
+        extractedTraits: {
+          identity: String(identityState?.extractedTraits?.subjectA?.identity || '').trim(),
+          age: String(identityState?.extractedTraits?.subjectA?.age || '').trim(),
+          ethnicity: String(identityState?.extractedTraits?.subjectA?.ethnicity || '').trim(),
+          body_shape: String(identityState?.extractedTraits?.subjectA?.body_shape || '').trim(),
+          eye_color: String(identityState?.extractedTraits?.subjectA?.eye_color || '').trim(),
+          hair: String(identityState?.extractedTraits?.subjectA?.hair || '').trim(),
+          facial_hair: String(identityState?.extractedTraits?.subjectA?.facial_hair || '').trim(),
+          build: String(identityState?.extractedTraits?.subjectA?.build || '').trim(),
+        },
+        lastUpdated: Date.now(),
+      },
+    }
+  })
+}, [identityState])
+
  const contentMode = useMemo(() => {
   if (plan === 'Soft') return 'soft'
   if (plan === 'Fanvue') return 'fanvue'
   return 'unrestricted'
 }, [plan])
 
+  const characterMode = String(subjectState?.characterMode || 'female').trim()
+
+  const showSubjectAControls = true
+  const showSubjectBControls = characterMode === 'couple'
+  const showInteractionControls = characterMode === 'couple'
+    const interactionTypeOptions = INTERACTION_TYPE_OPTIONS
+
+  const interactionDynamicOptions =
+    INTERACTION_DYNAMIC_OPTIONS[
+      String(interactionState?.type || '').trim()
+    ] || INTERACTION_DYNAMIC_OPTIONS['']
+
+  const subjectAModeGender = characterMode === 'male' ? 'male' : 'female'
+
+  const identityHasName = !!String(identityState.name || '').trim()
+  const identityHasSessionImage = !!String(identityState.imageDataUrl || '').trim()
+  const identityHasPersistedFileRef = !!String(identityState.sourceFileName || '').trim()
+
+  const identityIsReady = identityHasName || identityHasSessionImage
+  const identityIsActive = !!identityState.enabled && identityIsReady
+  const identityHasFullSessionAnchor =
+    !!identityState.enabled && identityHasName && identityHasSessionImage
+
+  const identityStatusLabel = identityHasFullSessionAnchor
+    ? `Identity Fully Active${identityState.name ? ` → ${identityState.name}` : ''}`
+    : identityIsActive
+      ? `Identity Active${identityState.name ? ` → ${identityState.name}` : ''}`
+      : identityState.enabled
+        ? 'Identity Enabled (no active session anchor yet)'
+        : 'Identity Off'
+
+  const identityGenerationPayload = useMemo(() => {
+    return buildIdentityGenerationPayload({
+      identityState,
+    })
+  }, [identityState])    
+
   const planPresets = useMemo(() => {
-    if (plan === 'Soft') return SOFT_PRESETS
-    if (plan === 'Fanvue') return FANVUE_PRESETS
     return UNRESTRICTED_PRESETS
-  }, [plan])
+  }, [])
 
   const locationCategories = useMemo(() => {
     const by = LIBRARIES.locationByCategory || {}
@@ -1819,17 +3333,15 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
       .filter((k) => k !== 'All')
       .filter((k) => Array.isArray(by[k]) && by[k].length > 0)
 
-    const base = ['All', ...nonEmpty]
-    const allowed = PLAN_RULES[plan]?.allowLocationCats || base
-    return base.filter((c) => allowed.includes(c))
-  }, [plan])
+    return ['All', ...nonEmpty]
+  }, [])
 
   const categoryCounts = useMemo(() => {
     const by = LIBRARIES.locationByCategory || {}
     const out = {}
-    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+    const allCats = ['All', ...Object.keys(by).filter((k) => k !== 'All')]
 
-    for (const cat of allowedCats) {
+    for (const cat of allCats) {
       if (cat === 'All') continue
       out[cat] = Array.isArray(by[cat]) ? by[cat].length : 0
     }
@@ -1838,7 +3350,7 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
     const curatedAll = Array.isArray(by.All) ? by.All : []
     mergedAll.push(...curatedAll)
 
-    for (const cat of allowedCats) {
+    for (const cat of allCats) {
       if (cat === 'All') continue
       const arr = Array.isArray(by[cat]) ? by[cat] : []
       mergedAll.push(...arr)
@@ -1846,7 +3358,7 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
 
     out.All = [...new Set(mergedAll)].length
     return out
-  }, [plan])
+  }, [])
 
   const catsSummary = useMemo(() => {
     const cats = (locationCategories || []).filter((c) => c !== 'All')
@@ -1860,14 +3372,14 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
   const locationOptions = useMemo(() => {
     const by = LIBRARIES.locationByCategory || {}
     const cat = locationCategory || 'All'
-    const allowedCats = PLAN_RULES[plan]?.allowLocationCats || []
+    const allCats = ['All', ...Object.keys(by).filter((k) => k !== 'All')]
 
     if (cat === 'All') {
       const merged = []
       const curated = Array.isArray(by.All) ? by.All : []
       merged.push(...curated)
 
-      for (const allowedCat of allowedCats) {
+      for (const allowedCat of allCats) {
         if (allowedCat === 'All') continue
         const arr = by[allowedCat]
         if (Array.isArray(arr)) merged.push(...arr)
@@ -1879,7 +3391,7 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
     const inCat = by?.[cat]
     if (Array.isArray(inCat) && inCat.length) return inCat
     return []
-  }, [locationCategory, plan])
+  }, [locationCategory])
 
   const locationOptionalValue = useMemo(() => {
     const current = String(blocks.location || '').trim()
@@ -1899,84 +3411,629 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
     localStorage.setItem('promptCEO_dna_profiles', JSON.stringify(profiles))
   }
 
-  const copyText = async (text, label) => {
-    const t = String(text || '').trim()
-    if (!t) return
-    try {
-      await navigator.clipboard.writeText(t)
-      setCopied(label)
-      setTimeout(() => setCopied(''), 1200)
-    } catch {
-      alert('Copy failed (browser blocked clipboard).')
-    }
+    const updateIdentityState = (patch) => {
+    setIdentityState((prev) => ({
+      ...prev,
+      ...patch,
+      lastUpdated: Date.now(),
+    }))
   }
 
-  const saveCurrentAsDna = () => {
-    const name = String(dnaName || '').trim()
-    if (!name) {
-      alert('Please enter a DNA name first.')
+  const clearIdentityState = () => {
+    setIdentityState(createEmptyIdentityState())
+    setClicks((c) => c + 1)
+    setLast('Identity cleared')
+  }
+
+  const handleIdentityImageUpload = (file) => {
+    if (!file) return
+
+    if (!file.type || !file.type.startsWith('image/')) {
+      alert('Please upload an image file.')
       return
     }
 
-    const profile = {
-      id: activeDnaId || `dna_${Date.now()}`,
-      name,
-      plan,
-      values: {
-        identity: blocks.identity,
-        ethnicity: blocks.ethnicity,
-        body_shape: blocks.body_shape,
-        eye_color: blocks.eye_color,
-        hair: blocks.hair,
-        breast_size: blocks.breast_size,
-        glute_size: blocks.glute_size,
-        mood: blocks.mood,
-        camera: blocks.camera,
-        lighting: blocks.lighting,
-        style: blocks.style,
-        quality: blocks.quality,
-      },
-      lockedFields: ['identity', 'ethnicity', 'body_shape', 'eye_color', 'hair'],
-      updatedAt: Date.now(),
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const result = String(reader.result || '')
+
+          updateIdentityState({
+        imageDataUrl: result,
+        sourceFileName: file.name || '',
+        extractionStatus: 'idle',
+        extractedTraits: {
+          identity: '',
+          age: '',
+          ethnicity: '',
+          body_shape: '',
+          eye_color: '',
+          hair: '',
+        },
+      })
+
+      setClicks((c) => c + 1)
+      setLast(`Identity image loaded → ${file.name || 'image'}`)
     }
 
-    const exists = dnaProfiles.some((p) => p.id === profile.id)
-    const next = exists
-      ? dnaProfiles.map((p) => (p.id === profile.id ? profile : p))
-      : [profile, ...dnaProfiles]
+    reader.onerror = () => {
+      alert('Failed to read image file.')
+    }
 
-    saveDnaProfiles(next)
-    setActiveDnaId(profile.id)
-    setLast(`DNA saved → ${profile.name}`)
-    setClicks((c) => c + 1)
+    reader.readAsDataURL(file)
   }
 
-  const loadDnaProfile = (id) => {
-    const found = dnaProfiles.find((p) => p.id === id)
-    if (!found) return
+  const getIdentityAnchor = ({
+    fallbackIdentity = '',
+    age = '',
+    ethnicity = '',
+    bodyShape = '',
+    eyeColor = '',
+    hair = '',
+  }) => {
+    const resolvedTraits = getResolvedIdentityTraits({
+      fallbackIdentity,
+      age,
+      ethnicity,
+      bodyShape,
+      eyeColor,
+      hair,
+    })
 
-    setActiveDnaId(found.id)
-    setDnaName(found.name || '')
-    setPlan(found.plan || 'Fanvue')
+    return buildIdentityAnchor({
+      identityState,
+      fallbackIdentity: resolvedTraits.identity,
+      age: resolvedTraits.age,
+      ethnicity: resolvedTraits.ethnicity,
+      bodyShape: resolvedTraits.body_shape,
+      eyeColor: resolvedTraits.eye_color,
+      hair: resolvedTraits.hair,
+      subjectGender: String(subjectState?.subjectA?.gender || 'female').trim().toLowerCase() === 'male' ? 'male' : 'female',
+    })
+  }
 
-    setBlocks((prev) => ({
-      ...prev,
-      ...found.values,
-    }))
+  const getResolvedIdentityTraits = ({
+    fallbackIdentity = '',
+    age = '',
+    ethnicity = '',
+    bodyShape = '',
+    eyeColor = '',
+    hair = '',
+  }) => {
+    const extracted = identityState?.extractedTraits || {}
+    const useExtracted = !!identityState?.useExtractedTraits
 
-    if (Array.isArray(found.lockedFields)) {
-      setLocks((prev) => {
-        const next = { ...prev }
-        found.lockedFields.forEach((key) => {
-          next[key] = true
-        })
-        return next
+    return {
+      identity: String(
+        (useExtracted ? extracted.identity : '') || fallbackIdentity || ''
+      ).trim(),
+      age: String(
+        (useExtracted ? extracted.age : '') || age || ''
+      ).trim(),
+      ethnicity: String(
+        (useExtracted ? extracted.ethnicity : '') || ethnicity || ''
+      ).trim(),
+      body_shape: String(
+        (useExtracted ? extracted.body_shape : '') || bodyShape || ''
+      ).trim(),
+      eye_color: String(
+        (useExtracted ? extracted.eye_color : '') || eyeColor || ''
+      ).trim(),
+      hair: String(
+        (useExtracted ? extracted.hair : '') || hair || ''
+      ).trim(),
+    }
+  }
+
+  const runMockIdentityExtraction = () => {
+    const baseName = String(identityState.name || '').trim()
+
+    applyIdentityExtractionResult({
+      status: 'complete',
+      traits: {
+        identity: baseName || 'Consistent brunette creator identity',
+        age: blocks.age || '27 years old',
+        ethnicity: blocks.ethnicity || 'European features',
+        body_shape: blocks.body_shape || 'slim athletic feminine build',
+        eye_color: blocks.eye_color || 'brown eyes',
+        hair: blocks.hair || 'long dark brown wavy hair',
+      },
+    })
+
+    setClicks((c) => c + 1)
+    setLast('Mock extraction complete')
+  }
+
+  const clearExtractedTraits = () => {
+    updateIdentityState({
+      extractionStatus: 'idle',
+      extractedTraits: {
+        identity: '',
+        age: '',
+        ethnicity: '',
+        body_shape: '',
+        eye_color: '',
+        hair: '',
+      },
+    })
+
+    setClicks((c) => c + 1)
+    setLast('Extracted traits cleared')
+  }
+
+const applyIdentityExtractionResult = (result) => {
+  const normalized = normalizeIdentityExtractionResult(result)
+  console.log('NORMALIZED_EXTRACTION_RESULT', normalized)
+  const traits = normalized?.traits || {}
+
+  const hasNonEmptyTraits = (obj = {}) =>
+    Object.values(obj).some((value) => String(value || '').trim())
+
+  const hasSubjectA = hasNonEmptyTraits(traits?.subjectA || {})
+  const hasSubjectB = hasNonEmptyTraits(traits?.subjectB || {})
+
+  setSubjectState((prev) => ({
+    ...prev,
+    subjectA: {
+      ...prev.subjectA,
+      extractedTraits: traits?.subjectA || {},
+      enabled: hasSubjectA,
+    },
+    subjectB: {
+      ...prev.subjectB,
+      extractedTraits: traits?.subjectB || {},
+      enabled: hasSubjectB,
+    },
+    characterMode: hasSubjectA && hasSubjectB
+      ? 'couple'
+      : hasSubjectA
+        ? 'female'
+        : prev.characterMode || 'female',
+  }))
+
+console.log('APPLY_TRAITS_SUBJECT_A', traits?.subjectA)
+console.log('APPLY_TRAITS_SUBJECT_B', traits?.subjectB)
+console.log('APPLY_HAS_SUBJECT_A', hasSubjectA)
+console.log('APPLY_HAS_SUBJECT_B', hasSubjectB)
+
+  updateIdentityState({
+    extractionStatus: normalized.status || 'complete',
+    extractedTraits: {
+      subjectA: traits?.subjectA || {},
+      subjectB: traits?.subjectB || {},
+    },
+    enabled: true,
+    useExtractedTraits: true,
+  })
+}
+
+  const normalizeIdentityExtractionResult = (result) => {
+    const rawTraits = result?.traits || {}
+
+    const normalizeSingle = (traits = {}) => ({
+      identity: String(traits?.identity || '').trim(),
+      age: String(traits?.age || '').trim(),
+      ethnicity: String(traits?.ethnicity || '').trim(),
+      body_shape: String(traits?.body_shape || '').trim(),
+      eye_color: String(traits?.eye_color || '').trim(),
+      hair: String(traits?.hair || '').trim(),
+      facial_hair: String(traits?.facial_hair || '').trim(),
+      build: String(traits?.build || '').trim(),
+    })
+
+    const hasStructuredCouple =
+      rawTraits?.subjectA || rawTraits?.subjectB
+
+    if (hasStructuredCouple) {
+      return {
+        status: String(result?.status || 'complete'),
+        traits: {
+          subjectA: normalizeSingle(rawTraits?.subjectA || {}),
+          subjectB: normalizeSingle(rawTraits?.subjectB || {}),
+        },
+      }
+    }
+
+    return {
+      status: String(result?.status || 'complete'),
+      traits: {
+        subjectA: normalizeSingle(rawTraits),
+        subjectB: normalizeSingle({}),
+      },
+    }
+  }
+
+  const hasAnyIdentityExtractedTraits = (traits = {}) => {
+  const hasValues = (obj = {}) =>
+    Object.values(obj || {}).some((value) => String(value || '').trim())
+
+  return (
+    hasValues(traits?.subjectA || {}) ||
+    hasValues(traits?.subjectB || {})
+  )
+}
+
+  const extractIdentityTraitsWithStub = async ({
+    identityStateSnapshot,
+    blocksSnapshot,
+  }) => {
+    const hasImage = !!String(identityStateSnapshot?.imageDataUrl || '').trim()
+    const hasName = !!String(identityStateSnapshot?.name || '').trim()
+
+    if (!hasImage && !hasName) {
+      throw new Error('No identity source available')
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 450))
+
+    const baseName = String(identityStateSnapshot?.name || '').trim()
+
+    return normalizeIdentityExtractionResult({
+      status: 'complete',
+      traits: {
+        subjectA: {
+          identity: baseName || 'Consistent creator identity',
+          age: blocksSnapshot?.age || '27 years old',
+          ethnicity: blocksSnapshot?.ethnicity || 'European features',
+          body_shape: blocksSnapshot?.body_shape || 'slim athletic build',
+          eye_color: blocksSnapshot?.eye_color || 'brown eyes',
+          hair: blocksSnapshot?.hair || 'dark brown hair',
+          facial_hair: '',
+          build: '',
+        },
+        subjectB: {
+          identity: '',
+          age: '',
+          ethnicity: '',
+          body_shape: '',
+          eye_color: '',
+          hair: '',
+          facial_hair: '',
+          build: '',
+        },
+      },
+    })
+  }
+
+const extractIdentityTraitsWithServer = async ({
+  identityStateSnapshot,
+}) => {
+  const imageDataUrl = identityStateSnapshot?.imageDataUrl || ''
+
+  if (!imageDataUrl) {
+    throw new Error('No image available for extraction')
+  }
+
+  const res = await fetch('/api/identity/extract', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      imageDataUrl,
+    }),
+  })
+
+  let data = null
+
+  try {
+    data = await res.json()
+  } catch (err) {
+    data = null
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      data?.message ||
+      data?.error ||
+      `Server extraction failed (${res.status})`
+    )
+  }
+
+  return data
+}
+
+  const runIdentityExtractionPipeline = async () => {
+    const identityStateSnapshot = {
+      ...identityState,
+    }
+
+    const blocksSnapshot = {
+      ...blocks,
+    }
+
+    const extractionMode = String(identityStateSnapshot?.extractionMode || 'server')
+
+    if (extractionMode === 'stub') {
+      return extractIdentityTraitsWithStub({
+        identityStateSnapshot,
+        blocksSnapshot,
       })
     }
 
-    setClicks((c) => c + 1)
-    setLast(`DNA loaded → ${found.name}`)
+    if (extractionMode === 'server') {
+      return extractIdentityTraitsWithServer({
+        identityStateSnapshot,
+        blocksSnapshot,
+      })
+    }
+
+    throw new Error(`Unsupported identity extraction mode: ${extractionMode}`)
   }
+
+    const runIdentityImageAnalysis = async () => {
+    const hasImage = !!String(identityState.imageDataUrl || '').trim()
+    const hasName = !!String(identityState.name || '').trim()
+
+    if (!hasImage && !hasName) {
+      alert('Upload an identity image or set an identity name first.')
+      return
+    }
+
+    try {
+      updateIdentityState({
+        extractionStatus: 'processing',
+      })
+
+      setClicks((c) => c + 1)
+      setLast('Identity analysis started')
+
+const result = await runIdentityExtractionPipeline()
+console.log('RAW_EXTRACTION_RESULT', result)
+
+if (result?.status === 'complete') {
+  applyIdentityExtractionResult(result)
+}
+
+if (result?.status === 'idle') {
+  updateIdentityState({
+    extractionStatus: 'idle',
+  })
+
+  setLast(result?.message || 'Extraction not available')
+  return
+}
+
+setClicks((c) => c + 1)
+setLast('Identity analysis complete')
+
+    } catch (err) {
+      updateIdentityState({
+        extractionStatus: 'error',
+      })
+
+      setClicks((c) => c + 1)
+      setLast('Identity analysis failed')
+      console.error('Identity analysis failed', err)
+    }
+  }
+
+const saveCurrentAsDna = () => {
+  const name = String(dnaName || '').trim()
+  if (!name) {
+    alert('Please enter a DNA name first.')
+    return
+  }
+
+  const resolvedIdentityName = String(
+    identityState?.name ||
+    blocks.identity ||
+    ''
+  ).trim()
+
+   const resolvedEthnicity = String(
+    identityState?.useExtractedTraits
+      ? identityState?.extractedTraits?.ethnicity || blocks.ethnicity || ''
+      : blocks.ethnicity || identityState?.extractedTraits?.ethnicity || ''
+  ).trim()
+
+  const resolvedBodyShape = String(
+    identityState?.useExtractedTraits
+      ? identityState?.extractedTraits?.body_shape || blocks.body_shape || ''
+      : blocks.body_shape || identityState?.extractedTraits?.body_shape || ''
+  ).trim()
+
+  const resolvedEyeColor = String(
+    identityState?.useExtractedTraits
+      ? identityState?.extractedTraits?.eye_color || blocks.eye_color || ''
+      : blocks.eye_color || identityState?.extractedTraits?.eye_color || ''
+  ).trim()
+
+  const resolvedHair = String(
+    identityState?.useExtractedTraits
+      ? identityState?.extractedTraits?.hair || blocks.hair || ''
+      : blocks.hair || identityState?.extractedTraits?.hair || ''
+  ).trim() 
+
+  const profile = {
+    id: activeDnaId || `dna_${Date.now()}`,
+    name,
+    values: {
+      identity: resolvedIdentityName,
+      ethnicity: resolvedEthnicity,
+      body_shape: resolvedBodyShape,
+      eye_color: resolvedEyeColor,
+      hair: resolvedHair,
+      breast_size: blocks.breast_size,
+      glute_size: blocks.glute_size,
+      mood: blocks.mood,
+      camera: blocks.camera,
+      lighting: blocks.lighting,
+      style: blocks.style,
+      quality: blocks.quality,
+    },
+    characterMode: String(subjectState?.characterMode || 'female'),
+    subjectState: JSON.parse(JSON.stringify(subjectState || createEmptySubjectState())),
+    interactionState: JSON.parse(JSON.stringify(interactionState || createEmptyInteractionState())),
+identityState: {
+  enabled: !!identityState?.enabled,
+  name: String(identityState?.name || '').trim(),
+  imageDataUrl: String(identityState?.imageDataUrl || '').trim(),
+  sourceFileName: String(identityState?.sourceFileName || '').trim(),
+  extractionStatus: String(identityState?.extractionStatus || 'idle'),
+  extractionMode: String(identityState?.extractionMode || 'server'),
+  useExtractedTraits: !!identityState?.useExtractedTraits,
+  extractedTraits: {
+    subjectA: {
+      identity: String(identityState?.extractedTraits?.subjectA?.identity || '').trim(),
+      age: String(identityState?.extractedTraits?.subjectA?.age || '').trim(),
+      ethnicity: String(identityState?.extractedTraits?.subjectA?.ethnicity || '').trim(),
+      body_shape: String(identityState?.extractedTraits?.subjectA?.body_shape || '').trim(),
+      eye_color: String(identityState?.extractedTraits?.subjectA?.eye_color || '').trim(),
+      hair: String(identityState?.extractedTraits?.subjectA?.hair || '').trim(),
+      facial_hair: String(identityState?.extractedTraits?.subjectA?.facial_hair || '').trim(),
+      build: String(identityState?.extractedTraits?.subjectA?.build || '').trim(),
+    },
+    subjectB: {
+      identity: String(identityState?.extractedTraits?.subjectB?.identity || '').trim(),
+      age: String(identityState?.extractedTraits?.subjectB?.age || '').trim(),
+      ethnicity: String(identityState?.extractedTraits?.subjectB?.ethnicity || '').trim(),
+      body_shape: String(identityState?.extractedTraits?.subjectB?.body_shape || '').trim(),
+      eye_color: String(identityState?.extractedTraits?.subjectB?.eye_color || '').trim(),
+      hair: String(identityState?.extractedTraits?.subjectB?.hair || '').trim(),
+      facial_hair: String(identityState?.extractedTraits?.subjectB?.facial_hair || '').trim(),
+      build: String(identityState?.extractedTraits?.subjectB?.build || '').trim(),
+    },
+  },
+},
+    lockedFields: ['identity', 'ethnicity', 'body_shape', 'eye_color', 'hair'],
+    updatedAt: Date.now(),
+  }
+
+  const exists = dnaProfiles.some((p) => p.id === profile.id)
+  const next = exists
+    ? dnaProfiles.map((p) => (p.id === profile.id ? profile : p))
+    : [profile, ...dnaProfiles]
+
+  saveDnaProfiles(next)
+  setActiveDnaId(profile.id)
+  setLast(`DNA saved → ${profile.name}`)
+  setClicks((c) => c + 1)
+}
+
+const loadDnaProfile = (id) => {
+  const found = dnaProfiles.find((p) => p.id === id)
+  if (!found) return
+
+  setActiveDnaId(found.id)
+  setDnaName(found.name || '')
+
+  setBlocks((prev) => ({
+    ...prev,
+    ...(found.values || {}),
+  }))
+
+  const loadedIdentityName = String(
+    found?.identityState?.name ||
+    found?.values?.identity ||
+    ''
+  ).trim()
+
+  setIdentityState((prev) => ({
+    ...prev,
+    enabled: !!found?.identityState?.enabled,
+    name: loadedIdentityName,
+    imageDataUrl: String(found?.identityState?.imageDataUrl || ''),
+    sourceFileName: String(found?.identityState?.sourceFileName || ''),
+    extractionStatus: String(found?.identityState?.extractionStatus || 'idle'),
+    extractionMode: String(found?.identityState?.extractionMode || 'server'),
+    useExtractedTraits: !!found?.identityState?.useExtractedTraits,
+    extractedTraits: {
+      identity: String(found?.identityState?.extractedTraits?.subjectA?.identity || ''),
+      age: String(found?.identityState?.extractedTraits?.subjectA?.age || ''),
+      ethnicity: String(found?.identityState?.extractedTraits?.subjectA?.ethnicity || ''),
+      body_shape: String(found?.identityState?.extractedTraits?.subjectA?.body_shape || ''),
+      eye_color: String(found?.identityState?.extractedTraits?.subjectA?.eye_color || ''),
+      hair: String(found?.identityState?.extractedTraits?.subjectA?.hair || ''),
+    },
+    lastUpdated: Date.now(),
+  }))
+
+  setSubjectState(() => {
+    if (found?.subjectState) {
+      return {
+        ...found.subjectState,
+        characterMode: String(found?.characterMode || found?.subjectState?.characterMode || 'female'),
+      }
+    }
+
+    return {
+      ...createEmptySubjectState(),
+      characterMode: 'female',
+      subjectA: {
+        ...createEmptySubjectState().subjectA,
+        enabled: !!found?.identityState?.enabled,
+        gender: 'female',
+        identityName: loadedIdentityName,
+        imageDataUrl: String(found?.identityState?.imageDataUrl || ''),
+        sourceFileName: String(found?.identityState?.sourceFileName || ''),
+        extractionStatus: String(found?.identityState?.extractionStatus || 'idle'),
+        extractionMode: String(found?.identityState?.extractionMode || 'server'),
+        useExtractedTraits: !!found?.identityState?.useExtractedTraits,
+        extractedTraits: {
+  identity: String(
+    found?.identityState?.extractedTraits?.subjectA?.identity ||
+    found?.identityState?.extractedTraits?.identity ||
+    ''
+  ),
+  age: String(
+    found?.identityState?.extractedTraits?.subjectA?.age ||
+    found?.identityState?.extractedTraits?.age ||
+    ''
+  ),
+  ethnicity: String(
+    found?.identityState?.extractedTraits?.subjectA?.ethnicity ||
+    found?.identityState?.extractedTraits?.ethnicity ||
+    ''
+  ),
+  body_shape: String(
+    found?.identityState?.extractedTraits?.subjectA?.body_shape ||
+    found?.identityState?.extractedTraits?.body_shape ||
+    ''
+  ),
+  eye_color: String(
+    found?.identityState?.extractedTraits?.subjectA?.eye_color ||
+    found?.identityState?.extractedTraits?.eye_color ||
+    ''
+  ),
+  hair: String(
+    found?.identityState?.extractedTraits?.subjectA?.hair ||
+    found?.identityState?.extractedTraits?.hair ||
+    ''
+  ),
+  facial_hair: String(
+    found?.identityState?.extractedTraits?.subjectA?.facial_hair || ''
+  ),
+  build: String(
+    found?.identityState?.extractedTraits?.subjectA?.build || ''
+  ),
+},
+        lastUpdated: Date.now(),
+      },
+    }
+  })
+
+  setInteractionState(() => {
+    if (found?.interactionState) {
+      return found.interactionState
+    }
+
+    return createEmptyInteractionState()
+  })
+
+  if (Array.isArray(found.lockedFields)) {
+    setLocks((prev) => {
+      const next = { ...prev }
+      found.lockedFields.forEach((key) => {
+        next[key] = true
+      })
+      return next
+    })
+  }
+
+  setClicks((c) => c + 1)
+  setLast(`DNA loaded → ${found.name}`)
+}
 
   const deleteDnaProfile = () => {
     if (!activeDnaId) return
@@ -1991,6 +4048,7 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
     setClicks((c) => c + 1)
     setLast(found ? `DNA deleted → ${found.name}` : 'DNA deleted')
   }
+
 const randomizeField = (key) => {
   if (locks[key]) return
 
@@ -2023,19 +4081,6 @@ const randomizeField = (key) => {
 
   let allowed = filterWorldList(itemsRaw, resolvedWorldId)
 
-  if (plan === 'Soft' && key === 'lingerie') {
-    allowed = []
-  } else {
-    const split = LIB_SPLITS[key]
-    if (split) {
-      if (plan === 'Soft') {
-        allowed = allowed.slice(0, split.softEnd)
-      } else if (plan === 'Fanvue') {
-        allowed = allowed.slice(0, split.fanvueEnd)
-      }
-    }
-  }
-
   const v = pickRandom(allowed)
   if (!v) return
 
@@ -2054,7 +4099,7 @@ const normalizeStoryWorldId = (value) => {
   if (['fanvue-creator-life', 'fanvue_creator', 'fanvue-creator'].includes(id)) return 'fanvue-creator-life'
   if (['onlyfans-creator-life', 'onlyfans_creator', 'onlyfans-creator'].includes(id)) return 'onlyfans-creator-life'
   if (['gym-influencer-life', 'gym_influencer', 'gym-influencer'].includes(id)) return 'gym-influencer-life'
-    if (['paris-life', 'paris_life', 'paris'].includes(id)) return 'paris'
+  if (['paris-life', 'paris_life', 'paris'].includes(id)) return 'paris'
 
   return id
 }
@@ -2069,224 +4114,9 @@ const getChapterFlow = (worldId) => {
 
 /* ================================
    BALI CINEMATIC FLOW — STEP 1
-   Phase blueprint only
+   Phase blueprint only 
+   BLOCK 13
 ================================ */
-
-const BALI_CINEMATIC_PHASES = [
-  {
-    key: 'arrival_exploration',
-    label: 'Phase 1: Arrival / Exploration',
-    range: [0, 7], // posts 1–8
-    energy: 'soft',
-    tone: 'natural discovery travel elegance',
-    moodPool: [
-      'soft',
-      'natural',
-      'fresh',
-      'curious',
-      'discovering',
-      'light',
-      'effortless',
-      'sun-warmed'
-    ],
-    clothingPool: [
-      'travel set',
-      'light resort wear',
-      'linen look',
-      'soft daywear',
-      'bikini with cover-up',
-      'minimal beachwear'
-    ]
-  },
-  {
-    key: 'social_beach_club',
-    label: 'Phase 2: Social / Beach Club',
-    range: [8, 15], // posts 9–16
-    energy: 'confident',
-    tone: 'luxury social lifestyle elevated status',
-    moodPool: [
-      'confident',
-      'playful',
-      'social',
-      'luxury',
-      'magnetic',
-      'sunset energy',
-      'lifestyle-driven',
-      'high-status'
-    ],
-    clothingPool: [
-      'stylish swimwear',
-      'luxury beach club look',
-      'fitted resort outfit',
-      'designer-inspired day look',
-      'elevated bikini styling',
-      'statement sunset look'
-    ]
-  },
-  {
-    key: 'private_villa',
-    label: 'Phase 3: Private / Villa',
-    range: [16, 23], // posts 17–24
-    energy: 'controlled',
-    tone: 'private intimate refined premium',
-    moodPool: [
-      'private',
-      'controlled',
-      'calm',
-      'intimate',
-      'refined',
-      'expensive',
-      'slow',
-      'composed'
-    ],
-    clothingPool: [
-      'silk robe',
-      'luxury loungewear',
-      'minimal fitted dress',
-      'private villa swimwear',
-      'soft evening set',
-      'elevated indoor look'
-    ]
-  },
-  {
-    key: 'night_fanvue',
-    label: 'Phase 4: Night / Fanvue escalation',
-    range: [24, 29], // posts 25–30
-    energy: 'seductive',
-    tone: 'cinematic night tension payoff escalation',
-    moodPool: [
-      'seductive',
-      'cinematic',
-      'tension',
-      'alluring',
-      'late-night',
-      'intense',
-      'payoff',
-      'after-dark'
-    ],
-    clothingPool: [
-      'nightwear',
-      'lingerie-inspired styling',
-      'sheer layers',
-      'after-dark dress',
-      'private evening look',
-      'cinematic reveal styling'
-    ]
-  }
-];
-
-function getBaliCinematicPhaseByIndex(index) {
-  return (
-    BALI_CINEMATIC_PHASES.find(
-      (phase) => index >= phase.range[0] && index <= phase.range[1]
-    ) || BALI_CINEMATIC_PHASES[0]
-  )
-}
-
-const BALI_PHASE_SUBLOCATIONS = {
-  arrival_exploration: [
-    'Canggu beachfront',
-    'Ubud jungle walkway',
-    'Seminyak street corner',
-    'Bali rice terrace path',
-    'Sanur sunrise shoreline',
-    'Uluwatu cliff viewpoint',
-  ],
-  social_beach_club: [
-    'Canggu beach club',
-    'Seminyak sunset lounge',
-    'Uluwatu ocean deck',
-    'Bali pool club terrace',
-    'Jimbaran beachfront dining strip',
-    'stylish resort entrance in Bali',
-  ],
-  private_villa: [
-    'poolside reflection in Bali',
-    'open-air villa living room',
-    'luxury Bali bedroom suite',
-    'stone bathtub villa corner',
-    'private garden courtyard in Bali',
-    'minimalist indoor-outdoor villa space',
-  ],
-  night_fanvue: [
-    'candlelit Bali villa terrace',
-    'private infinity pool at night',
-    'low-lit bedroom suite in Bali',
-    'moody balcony overlooking palms',
-    'after-dark resort hallway',
-    'cinematic villa window light setup',
-  ],
-};
-
-const BALI_PHASE_SCENE_GROUPS = {
-  arrival_exploration: [
-    'arrival',
-    'exploration',
-    'walking lifestyle',
-    'travel discovery',
-    'soft beach',
-    'daytime resort',
-  ],
-  social_beach_club: [
-    'beach club',
-    'luxury lifestyle',
-    'social energy',
-    'poolside confidence',
-    'sunset lounge',
-    'resort glamour',
-  ],
-  private_villa: [
-    'private villa',
-    'indoor elegance',
-    'controlled intimacy',
-    'lounge scene',
-    'soft indoor luxury',
-    'refined private moment',
-  ],
-  night_fanvue: [
-    'night villa',
-    'after-dark cinematic',
-    'seductive private scene',
-    'late-night luxury',
-    'fanvue escalation',
-    'payoff scene',
-  ],
-};
-
-const BALI_PHASE_SCENE_VARIANTS = {
-  arrival_exploration: [
-    'walking into frame',
-    'looking back naturally',
-    'sunlit candid pause',
-    'soft over-shoulder travel shot',
-    'discovering the space',
-    'slow lifestyle movement',
-  ],
-  social_beach_club: [
-    'entering with confidence',
-    'poolside pose with social energy',
-    'sunglasses adjustment moment',
-    'sunset drink lifestyle frame',
-    'confident seated angle',
-    'high-status candid glance',
-  ],
-  private_villa: [
-    'controlled seated pose',
-    'lounging with quiet confidence',
-    'window light silhouette',
-    'robe adjustment moment',
-    'slow intimate turn',
-    'composed private luxury frame',
-  ],
-  night_fanvue: [
-    'after-dark doorway reveal',
-    'cinematic low-light turn',
-    'late-night balcony pause',
-    'moody bed-edge framing',
-    'tease before payoff',
-    'final seductive stillness',
-  ],
-};
 
 const ROTATION_POOLS = {
   luxuryTone: [
@@ -2590,89 +4420,6 @@ function getResolvedRotationPools(worldId) {
    ITALY / LAKE COMO CINEMATIC SYSTEM
 ========================================= */
 
-const ITALY_CINEMATIC_PHASES = [
-  {
-    key: 'arrival',
-    label: 'Phase 1: Arrival / Elegance',
-    range: [0, 7],
-    moodPool: [
-      'quiet luxury presence',
-      'effortless elegance',
-      'soft arrival energy',
-      'refined feminine calm',
-      'high-status composure'
-    ],
-    lightingPool: [
-      'soft Italian morning light',
-      'warm natural daylight',
-      'sunlight reflecting off water',
-      'gentle villa window light'
-    ]
-  },
-  {
-    key: 'daylife',
-    label: 'Phase 2: Daylife / Social',
-    range: [8, 15],
-    moodPool: [
-      'social elegance',
-      'magnetic presence',
-      'luxury lifestyle energy',
-      'effortless high-status visibility',
-      'refined confidence'
-    ],
-    lightingPool: [
-      'bright Mediterranean sunlight',
-      'lake reflection shimmer',
-      'warm afternoon glow',
-      'sunlit terrace lighting'
-    ]
-  },
-  {
-    key: 'private',
-    label: 'Phase 3: Private / Intimate Luxury',
-    range: [16, 23],
-    moodPool: [
-      'private composure',
-      'intimate luxury calm',
-      'controlled sensuality',
-      'soft interior elegance',
-      'quiet feminine magnetism'
-    ],
-    lightingPool: [
-      'window-lit interior shadows',
-      'soft evening villa glow',
-      'candlelit marble reflections',
-      'dim architectural lighting'
-    ]
-  },
-  {
-    key: 'night',
-    label: 'Phase 4: Night / High Status',
-    range: [24, 29],
-    moodPool: [
-      'after-dark elegance',
-      'cinematic night presence',
-      'luxury nightlife composure',
-      'dark refined seduction',
-      'high-status evening control'
-    ],
-    lightingPool: [
-      'candlelit fine dining glow',
-      'warm golden evening lighting',
-      'low-key cinematic shadows',
-      'luxury nightlife ambiance'
-    ]
-  }
-]
-
-function getBaliCinematicPhaseByIndex(index) {
-  return (
-    BALI_CINEMATIC_PHASES.find(
-      (phase) => index >= phase.range[0] && index <= phase.range[1]
-    ) || BALI_CINEMATIC_PHASES[0]
-  );
-}
-
 function getFeedBaliPhase({ worldId, world, isVillaScene, index }) {
   if (worldId === 'bali') {
     return isVillaScene
@@ -2706,76 +4453,6 @@ function isBaliWorld(value) {
    BALI CINEMATIC FLOW — STEP 3
    Phase escalation styling
 ========================================= */
-
-const BALI_PHASE_POSE_STYLE = {
-  arrival_exploration: [
-    'natural candid pose',
-    'walking pose',
-    'soft over-shoulder pose',
-    'relaxed travel stance',
-    'effortless daytime posture',
-    'gentle discovery body language',
-  ],
-  social_beach_club: [
-    'confident beach club pose',
-    'social luxury stance',
-    'playful poolside pose',
-    'elevated lifestyle posture',
-    'magnetic sunset pose',
-    'high-status body language',
-  ],
-  private_villa: [
-    'controlled intimate pose',
-    'slow elegant lounging pose',
-    'refined seated pose',
-    'quiet luxury posture',
-    'private villa body line',
-    'composed sensual stance',
-  ],
-  night_fanvue: [
-    'seductive cinematic pose',
-    'after-dark teasing pose',
-    'late-night body line',
-    'controlled reveal posture',
-    'moody payoff pose',
-    'final intimate stillness',
-  ],
-}
-
-const BALI_PHASE_CAMERA_STYLE = {
-  arrival_exploration: [
-    'natural daylight photography',
-    'soft candid framing',
-    'travel editorial angle',
-    'clean realistic composition',
-    'sunlit lifestyle shot',
-    'wide environmental framing',
-  ],
-  social_beach_club: [
-    'luxury lifestyle photography',
-    'editorial beach club framing',
-    'confident medium shot',
-    'sunset glamour angle',
-    'premium social content framing',
-    'resort editorial composition',
-  ],
-  private_villa: [
-    'soft window-light photography',
-    'intimate interior framing',
-    'controlled mid-shot composition',
-    'quiet luxury editorial angle',
-    'refined indoor cinematic framing',
-    'private suite composition',
-  ],
-  night_fanvue: [
-    'cinematic low-light photography',
-    'moody close framing',
-    'after-dark editorial shot',
-    'tease-focused composition',
-    'seductive cinematic angle',
-    'payoff close-up framing',
-  ],
-}
 
 function buildBaliLocationLine({
   baseScene,
@@ -2828,6 +4505,61 @@ for (const part of cleanParts) {
 return uniqueParts.join(', ')
 }
 
+const STORY_WORLD_REGISTRY = {
+  private_creator: WORLD_PRIVATE_CREATOR,
+  fitness_life: WORLD_FITNESS_LIFE,
+  luxury_life: WORLD_LUXURY_LIFE,
+  fanvue_creator: WORLD_FANVUE_CREATOR,
+  onlyfans_creator: WORLD_ONLYFANS_CREATOR,
+  gym_influencer: WORLD_GYM_INFLUENCER,
+}
+
+const STORY_WORLD_PHASE_LABELS = {
+  private_creator: {
+    morning: 'Phase 1: Morning',
+    day: 'Phase 2: Day',
+    private: 'Phase 3: Private / Control',
+    night: 'Phase 4: Night',
+  },
+  fitness_life: {
+    morning: 'Early morning routine',
+    day: 'High-performance gym session',
+    private: 'Post-training recovery state',
+    night: 'Evening wind-down energy',
+  },
+  luxury_life: {
+    morning: 'Luxury morning',
+    day: 'Luxury day lifestyle',
+    private: 'Private luxury reset',
+    night: 'Luxury evening and night',
+  },
+  fanvue_creator: {
+    morning: 'Fanvue morning',
+    day: 'Fanvue daytime creator flow',
+    private: 'Fanvue private set',
+    night: 'Fanvue night release',
+  },
+  onlyfans_creator: {
+    morning: 'OnlyFans morning',
+    day: 'OnlyFans daytime creator flow',
+    private: 'OnlyFans private escalation',
+    night: 'OnlyFans night release',
+  },
+  gym_influencer: {
+    morning: 'Gym influencer morning',
+    day: 'Gym training and content flow',
+    private: 'Post-workout reset',
+    night: 'Gym influencer night wind-down',
+  },
+}
+
+function getFourPhaseKeyByIndex(index) {
+  if (index >= 0 && index <= 5) return 'morning'
+  if (index >= 6 && index <= 14) return 'day'
+  if (index >= 15 && index <= 22) return 'private'
+  return 'night'
+}
+
 function getWorldPhaseScenes(worldObject, phaseKey) {
   const phaseValue = worldObject?.phases?.[phaseKey]
 
@@ -2837,23 +4569,19 @@ function getWorldPhaseScenes(worldObject, phaseKey) {
   return []
 }
 
-function getPrivateCreatorPhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
-}
+function getStoryWorldSceneByIndex(worldId, index) {
+  const worldObject = STORY_WORLD_REGISTRY[worldId] || null
 
-function getPrivateCreatorPhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'Phase 1: Morning'
-  if (phaseKey === 'day') return 'Phase 2: Day'
-  if (phaseKey === 'private') return 'Phase 3: Private / Control'
-  return 'Phase 4: Night'
-}
+  if (!worldObject) {
+    return {
+      phaseKey: '',
+      phaseLabel: '',
+      scene: null,
+    }
+  }
 
-function getPrivateCreatorScene(index) {
-  const phaseKey = getPrivateCreatorPhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_PRIVATE_CREATOR, phaseKey)
+  const phaseKey = getFourPhaseKeyByIndex(index)
+  const phaseScenes = getWorldPhaseScenes(worldObject, phaseKey)
 
   let sceneIndex = index
   if (phaseKey === 'day') sceneIndex = index - 6
@@ -2862,189 +4590,358 @@ function getPrivateCreatorScene(index) {
 
   return {
     phaseKey,
-    phaseLabel: getPrivateCreatorPhaseLabel(phaseKey),
+    phaseLabel: STORY_WORLD_PHASE_LABELS?.[worldId]?.[phaseKey] || phaseKey,
     scene: phaseScenes[sceneIndex] || null,
   }
 }
 
-function isPrivateCreatorWorld(world) {
-  return world?.id === 'private_creator' || world === 'private_creator'
-}
+function getCustomStoryFeedScene({
+  activeStoryWorld,
+  index,
+}) {
+  const worldId = resolveStoryWorldToWorldId(activeStoryWorld)
 
-function getFitnessLifePhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
-}
+  const storyWorldToRegistryId = {
+    private_creator: 'private_creator',
+    fitness_life: 'fitness_life',
+    luxury_life: 'luxury_life',
+    fanvue_creator: 'fanvue_creator',
+    onlyfans_creator: 'onlyfans_creator',
+    gym_influencer: 'gym_influencer',
+  }
 
-function getFitnessLifePhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'Early morning routine'
-  if (phaseKey === 'day') return 'High-performance gym session'
-  if (phaseKey === 'private') return 'Post-training recovery state'
-  return 'Evening wind-down energy'
-}
+  const registryWorldId = storyWorldToRegistryId[worldId] || ''
 
-function getFitnessLifeScene(index) {
-  const phaseKey = getFitnessLifePhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_FITNESS_LIFE, phaseKey)
+  if (!registryWorldId) {
+    return {
+      resolvedStoryWorldId: '',
+      isCustomStoryWorldFeed: false,
+      customStoryPhaseKey: '',
+      customStoryPhaseLabel: '',
+      customStoryAction: '',
+      customStoryEnvironment: '',
+      customStoryMood: '',
+      customStoryCamera: '',
+      customStoryLighting: '',
+    }
+  }
 
-  let sceneIndex = index
-  if (phaseKey === 'day') sceneIndex = index - 6
-  if (phaseKey === 'private') sceneIndex = index - 15
-  if (phaseKey === 'night') sceneIndex = index - 23
+  const customSceneData = getStoryWorldSceneByIndex(registryWorldId, index)
 
   return {
-    phaseKey,
-    phaseLabel: getFitnessLifePhaseLabel(phaseKey),
-    scene: phaseScenes[sceneIndex] || null,
+    resolvedStoryWorldId: registryWorldId,
+    isCustomStoryWorldFeed: true,
+    customStoryPhaseKey: customSceneData.phaseKey || '',
+    customStoryPhaseLabel: customSceneData.phaseLabel || '',
+    customStoryAction: customSceneData.scene?.action || '',
+    customStoryEnvironment: customSceneData.scene?.environment || '',
+    customStoryMood: customSceneData.scene?.mood || '',
+    customStoryCamera: customSceneData.scene?.camera || '',
+    customStoryLighting: customSceneData.scene?.lighting || '',
   }
 }
 
+function getFeedGeneratedTime({
+  isCustomStoryWorldFeed,
+  customStoryPhaseKey,
+  isStructuredWorld,
+  generatedPhase,
+  phaseKey,
+}) {
+  const phaseTimeMap = {
+    arrival: 'morning',
+    social: 'sunset',
+    private: 'evening',
+    night: 'night',
+  }
 
-function isFitnessLifeWorld(world) {
-  return world?.id === 'fitness_life' || world === 'fitness_life'
+  const structuredPhaseTimeMap = {
+    wake: 'early morning',
+    morning_refresh: 'morning',
+    getting_dressed: 'morning',
+    breakfast: 'morning',
+    late_morning: 'late morning',
+    lunch: 'midday',
+    afternoon: 'afternoon',
+    reset: 'late afternoon',
+    golden_hour: 'golden hour',
+    dinner: 'evening',
+    evening: 'evening',
+    night: 'night',
+  }
+
+  if (isCustomStoryWorldFeed) {
+    if (customStoryPhaseKey === 'morning') return 'early morning'
+    if (customStoryPhaseKey === 'day') return 'late morning'
+    if (customStoryPhaseKey === 'private') return 'evening'
+    return 'night'
+  }
+
+  if (isStructuredWorld) {
+    return structuredPhaseTimeMap[generatedPhase] || 'afternoon'
+  }
+
+  return phaseTimeMap[phaseKey] || 'night'
 }
 
-function getLuxuryLifePhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
-}
+function getFeedWorldContext({
+  worldControlMode,
+  activeStoryWorld,
+  activeWorldId,
+  activeWorld,
+}) {
+  const feedAutoWorld =
+    worldControlMode === 'auto'
+      ? getAutoWorldFromStoryWorld(activeStoryWorld)
+      : null
 
-function getLuxuryLifePhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'Luxury morning'
-  if (phaseKey === 'day') return 'Luxury day lifestyle'
-  if (phaseKey === 'private') return 'Private luxury reset'
-  return 'Luxury evening and night'
-}
+  const feedManualWorld =
+    worldControlMode === 'manual'
+      ? activeWorld || getWorldById(activeWorldId)
+      : null
 
-function getLuxuryLifeScene(index) {
-  const phaseKey = getLuxuryLifePhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_LUXURY_LIFE, phaseKey)
-
-  let sceneIndex = index
-  if (phaseKey === 'day') sceneIndex = index - 6
-  if (phaseKey === 'private') sceneIndex = index - 15
-  if (phaseKey === 'night') sceneIndex = index - 23
+  const feedWorld = feedAutoWorld || feedManualWorld || null
+  const feedWorldConfig = getResolvedWorldConfig(feedWorld?.id || '', feedWorld)
 
   return {
-    phaseKey,
-    phaseLabel: getLuxuryLifePhaseLabel(phaseKey),
-    scene: phaseScenes[sceneIndex] || null,
+    feedAutoWorld,
+    feedManualWorld,
+    feedWorld,
+    feedWorldConfig,
+    feedPhaseOrder: feedWorldConfig.phaseOrder,
+    feedScenePools: feedWorldConfig.scenePools || {},
+    feedMoodProgression: feedWorldConfig.moodProgression || {},
+    feedPhaseWindows: feedWorldConfig.phaseWindows || {},
+    feedSubLocationPools: feedWorldConfig.subLocationPools || {},
+    feedOutfitProgression: feedWorldConfig.outfitProgression || {},
+    feedHumanTransitions: feedWorldConfig.humanTransitions || {},
+    feedActivityPools: feedWorldConfig.activityPools || {},
+    feedSensoryPools: feedWorldConfig.sensoryPools || {},
+    feedSocialEnergyPools: feedWorldConfig.socialEnergyPools || {},
+    feedCameraPools: feedWorldConfig.cameraPools || {},
+    feedLightingPools: feedWorldConfig.lightingPools || {},
+    feedAtmospherePools: feedWorldConfig.atmospherePools || {},
+    feedStylingDetailPools: feedWorldConfig.stylingDetailPools || {},
+    feedChangeMomentPools: feedWorldConfig.changeMomentPools || {},
+    feedPropPools: feedWorldConfig.propPools || {},
+    feedBodyLanguagePools: feedWorldConfig.bodyLanguagePools || {},
+    feedFacialExpressionPools: feedWorldConfig.facialExpressionPools || {},
+    feedHandDetailPools: feedWorldConfig.handDetailPools || {},
+    feedMovementEnergyPools: feedWorldConfig.movementEnergyPools || {},
+    feedNarrativeIntentPools: feedWorldConfig.narrativeIntentPools || {},
+    feedPacingProfile: feedWorldConfig.pacingProfile || {},
+    feedLocations: feedWorldConfig.locations || [],
   }
 }
 
-function isLuxuryLifeWorld(world) {
-  return world?.id === 'luxury_life' || world === 'luxury_life'
-}
+function getBaliFeedSetup() {
+  const baliWorldStrength = 'balanced'
 
-function getFanvueCreatorPhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
-}
+  const baliWorldStrengthRules = {
+    subtle: {
+      overlayChance: 0.35,
+      worldIdentityChance: 0.2,
+    },
+    balanced: {
+      overlayChance: 0.65,
+      worldIdentityChance: 0.4,
+    },
+    immersive: {
+      overlayChance: 0.9,
+      worldIdentityChance: 0.75,
+    },
+  }
 
-function getFanvueCreatorPhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'Fanvue morning'
-  if (phaseKey === 'day') return 'Fanvue daytime creator flow'
-  if (phaseKey === 'private') return 'Fanvue private set'
-  return 'Fanvue night release'
-}
+  const shuffledSpaces = shuffleArray(baliSpaces)
+  const shuffledMoods = shuffleArray(baliMoods)
+  const shuffledCameras = shuffleArray(cameraAngles)
+  const shuffledLightings = shuffleArray(lightingSetups)
 
-function getFanvueCreatorScene(index) {
-  const phaseKey = getFanvueCreatorPhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_FANVUE_CREATOR, phaseKey)
+  const baliSubLocationOrder = shuffleArray([
+    'villa',
+    'beachClub',
+    'jungleRetreat',
+    'restaurant',
+    'spa',
+    'nightlife'
+  ])
 
-  let sceneIndex = index
-  if (phaseKey === 'day') sceneIndex = index - 6
-  if (phaseKey === 'private') sceneIndex = index - 15
-  if (phaseKey === 'night') sceneIndex = index - 23
+  const shuffledPhaseSubLocations = {
+    arrival: shuffleArray([...(baliPhaseSubLocationMap.arrival || [])]),
+    social: shuffleArray([...(baliPhaseSubLocationMap.social || [])]),
+    private: shuffleArray([...(baliPhaseSubLocationMap.private || [])]),
+    night: shuffleArray([...(baliPhaseSubLocationMap.night || [])]),
+  }
+
+  const shuffledPhaseMoods = {
+    arrival: shuffleArray([...(baliPhaseMoodMap.arrival || [])]),
+    social: shuffleArray([...(baliPhaseMoodMap.social || [])]),
+    private: shuffleArray([...(baliPhaseMoodMap.private || [])]),
+    night: shuffleArray([...(baliPhaseMoodMap.night || [])]),
+  }
+
+  const shuffledPhaseLightings = {
+    arrival: shuffleArray([...(baliPhaseLightingMap.arrival || [])]),
+    social: shuffleArray([...(baliPhaseLightingMap.social || [])]),
+    private: shuffleArray([...(baliPhaseLightingMap.private || [])]),
+    night: shuffleArray([...(baliPhaseLightingMap.night || [])]),
+  }
+
+  const shuffledSubLocationCameras = {
+    villa: shuffleArray([...(baliSubLocationCameraMap.villa || [])]),
+    beachClub: shuffleArray([...(baliSubLocationCameraMap.beachClub || [])]),
+    jungleRetreat: shuffleArray([...(baliSubLocationCameraMap.jungleRetreat || [])]),
+    restaurant: shuffleArray([...(baliSubLocationCameraMap.restaurant || [])]),
+    spa: shuffleArray([...(baliSubLocationCameraMap.spa || [])]),
+    nightlife: shuffleArray([...(baliSubLocationCameraMap.nightlife || [])]),
+  }
+
+  const activeBaliStoryRoute =
+    baliStoryRoutes[Math.floor(Math.random() * baliStoryRoutes.length)] || {
+      arrival: 'villa',
+      social: 'beachClub',
+      private: 'spa',
+      night: 'nightlife'
+    }
+
+  const routeStopVariantSeeds = {
+    arrival: Math.floor(Math.random() * 1000),
+    social: Math.floor(Math.random() * 1000),
+    private: Math.floor(Math.random() * 1000),
+    night: Math.floor(Math.random() * 1000),
+  }
+
+  const recentBaliMemory = {
+    spaces: [],
+    moods: [],
+    lightings: [],
+    cameras: [],
+  }
+
+  const shuffledCinematicOverlays = {
+    arrival: shuffleArray([...(baliCinematicOverlays.arrival || [])]),
+    social: shuffleArray([...(baliCinematicOverlays.social || [])]),
+    private: shuffleArray([...(baliCinematicOverlays.private || [])]),
+    night: shuffleArray([...(baliCinematicOverlays.night || [])]),
+  }
+
+  const shuffledBaliWorldIdentity = shuffleArray([...(baliWorldIdentityPhrases || [])])
+
+  const activeBaliWorldStrength =
+    baliWorldStrengthRules[baliWorldStrength] || baliWorldStrengthRules.balanced
 
   return {
-    phaseKey,
-    phaseLabel: getFanvueCreatorPhaseLabel(phaseKey),
-    scene: phaseScenes[sceneIndex] || null,
+    baliWorldStrength,
+    baliWorldStrengthRules,
+    shuffledSpaces,
+    shuffledMoods,
+    shuffledCameras,
+    shuffledLightings,
+    baliSubLocationOrder,
+    shuffledPhaseSubLocations,
+    shuffledPhaseMoods,
+    shuffledPhaseLightings,
+    shuffledSubLocationCameras,
+    activeBaliStoryRoute,
+    routeStopVariantSeeds,
+    recentBaliMemory,
+    shuffledCinematicOverlays,
+    shuffledBaliWorldIdentity,
+    activeBaliWorldStrength,
   }
 }
 
-function isFanvueCreatorWorld(world) {
-  return world?.id === 'fanvue_creator' || world === 'fanvue_creator'
+function getFeedMemorySetup() {
+  return {
+    recentAmalfiLocations: [],
+    recentAmalfiScenes: [],
+    recentAmalfiMoods: [],
+    recentAmalfiCameras: [],
+    recentAmalfiLightings: [],
+
+    recentStructuredSubLocations: [],
+    recentStructuredScenes: [],
+
+    recentSubLocationQueue: [],
+    recentSceneGroupQueue: [],
+    recentExactSceneQueue: [],
+
+    subLocationUsageCount: new Map(),
+    sceneGroupUsageCount: new Map(),
+    exactSceneUsageCount: new Map(),
+
+    lastGeneratedTime: '',
+    lastGeneratedLocation: '',
+    lastGeneratedMood: '',
+  }
 }
 
-function getOnlyfansCreatorPhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
+function getBatchRouteMemorySetup() {
+  return {
+    recentSubQueue: [],
+    subUsageMap: new Map(),
+
+    phaseSceneGroupMemory: {
+      tease: { queue: [], usage: new Map() },
+      tension: { queue: [], usage: new Map() },
+      payoff: { queue: [], usage: new Map() },
+    },
+
+    phaseSceneMemory: {
+      tease: { queue: [], usage: new Map() },
+      tension: { queue: [], usage: new Map() },
+      payoff: { queue: [], usage: new Map() },
+    },
+
+    lastAutoWorld: '',
+    lastAutoSub: '',
+    lastAutoScene: '',
+  }
 }
 
-function getOnlyfansCreatorPhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'OnlyFans morning'
-  if (phaseKey === 'day') return 'OnlyFans daytime creator flow'
-  if (phaseKey === 'private') return 'OnlyFans private escalation'
-  return 'OnlyFans night release'
-}
+function getBatchAutoWorldSetup({
+  worldControlMode,
+  activeStoryWorld,
+}) {
+  const autoBatchWorld =
+    worldControlMode === 'auto'
+      ? getAutoWorldFromStoryWorld(activeStoryWorld) || pickRandom(WORLD_LOCATIONS)
+      : null
 
-function getOnlyfansCreatorScene(index) {
-  const phaseKey = getOnlyfansCreatorPhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_ONLYFANS_CREATOR, phaseKey)
+  const autoBatchSubRoute =
+    worldControlMode === 'auto' && autoBatchWorld?.subLocations?.length
+      ? (
+          autoBatchWorld.id === 'lake-como-private-escape'
+            ? autoBatchWorld.subLocations
+            : shuffleArray(autoBatchWorld.subLocations)
+        )
+      : []
 
-  let sceneIndex = index
-  if (phaseKey === 'day') sceneIndex = index - 6
-  if (phaseKey === 'private') sceneIndex = index - 15
-  if (phaseKey === 'night') sceneIndex = index - 23
+  const autoRouteState = getWorldRouteLockState(autoBatchWorld?.id || '')
+  const autoRouteContext = {
+    routeState: autoRouteState,
+    autoSubHoldLength: autoRouteState.autoSubHoldLength,
+    forcedLocationsEnabled: autoRouteState.useForcedLocations,
+    sceneGroupLocked: autoRouteState.sceneGroupLocked,
+    sceneLocked: autoRouteState.sceneLocked,
+  }
+  const autoSubHoldLength = autoRouteContext.autoSubHoldLength
 
   return {
-    phaseKey,
-    phaseLabel: getOnlyfansCreatorPhaseLabel(phaseKey),
-    scene: phaseScenes[sceneIndex] || null,
+    autoBatchWorld,
+    autoBatchSubRoute,
+    autoRouteContext,
+    autoRouteState,
+    autoSubHoldLength,
   }
-}
-
-function isOnlyfansCreatorWorld(world) {
-  return world?.id === 'onlyfans_creator' || world === 'onlyfans_creator'
-}
-
-function getGymInfluencerPhaseByIndex(index) {
-  if (index >= 0 && index <= 5) return 'morning'
-  if (index >= 6 && index <= 14) return 'day'
-  if (index >= 15 && index <= 22) return 'private'
-  return 'night'
-}
-
-function getGymInfluencerPhaseLabel(phaseKey) {
-  if (phaseKey === 'morning') return 'Gym influencer morning'
-  if (phaseKey === 'day') return 'Gym training and content flow'
-  if (phaseKey === 'private') return 'Post-workout reset'
-  return 'Gym influencer night wind-down'
-}
-
-function getGymInfluencerScene(index) {
-  const phaseKey = getGymInfluencerPhaseByIndex(index)
-  const phaseScenes = getWorldPhaseScenes(WORLD_GYM_INFLUENCER, phaseKey)
-
-  let sceneIndex = index
-  if (phaseKey === 'day') sceneIndex = index - 6
-  if (phaseKey === 'private') sceneIndex = index - 15
-  if (phaseKey === 'night') sceneIndex = index - 23
-
-  return {
-    phaseKey,
-    phaseLabel: getGymInfluencerPhaseLabel(phaseKey),
-    scene: phaseScenes[sceneIndex] || null,
-  }
-}
-
-function isGymInfluencerWorld(world) {
-  return world?.id === 'gym_influencer' || world === 'gym_influencer'
 }
 
 const generateInfluencerFeed = () => {
 const count = 30
 const prompts = []
+
+const recentFinalPromptKeys = []
+const recentMoodKeys = []
 
 const usedSubLocations = new Set()
 const usedScenes = new Set()
@@ -3052,766 +4949,137 @@ const lastCameraRef = { current: null }
 const lastLightingRef = { current: null }
 
 const world = activeStoryWorld || 'bali'
+
+const activePackData = activeSignaturePack
+  ? SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack) || null
+  : null
+
 const flow = getChapterFlow(world)
 
-const privateCreatorWorldActive =
-  world === 'private_creator' ||
-  world === 'private-creator-life' ||
-  activeStoryWorld === 'private_creator' ||
-  activeStoryWorld === 'private-creator-life'
-
-  const fitnessLifeWorldActive =
-  world === 'fitness_life' ||
-  world === 'fitness-life' ||
-  activeStoryWorld === 'fitness_life' ||
-  activeStoryWorld === 'fitness-life'
-
-  const luxuryLifeWorldActive =
-  world === 'luxury_life' ||
-  world === 'luxury-life' ||
-  activeStoryWorld === 'luxury_life' ||
-  activeStoryWorld === 'luxury-life'
-
-const normalizedWorld = normalizeStoryWorldId(world)
-const normalizedActiveStoryWorld = normalizeStoryWorldId(activeStoryWorld)
-
-const fanvueCreatorWorldActive =
-  normalizedWorld === 'fanvue-creator-life' ||
-  normalizedActiveStoryWorld === 'fanvue-creator-life'
-
-const onlyfansCreatorWorldActive =
-  normalizedWorld === 'onlyfans-creator-life' ||
-  normalizedActiveStoryWorld === 'onlyfans-creator-life'
-
-const gymInfluencerWorldActive =
-  normalizedWorld === 'gym-influencer-life' ||
-  normalizedActiveStoryWorld === 'gym-influencer-life'
-
-const feedAutoWorld =
-  worldControlMode === 'auto'
-    ? getAutoWorldFromStoryWorld(world)
-    : null
-
-const feedManualWorld =
-  worldControlMode === 'manual'
-    ? activeWorld || getWorldById(activeWorldId)
-    : null
-
-const feedWorld = feedAutoWorld || feedManualWorld || null
-
-const feedWorldConfig = getResolvedWorldConfig(feedWorld?.id || '', feedWorld)
-
-const feedPhaseOrder = feedWorldConfig.phaseOrder
-
-const feedScenePools = feedWorldConfig.scenePools || {}
-const feedMoodProgression = feedWorldConfig.moodProgression || {}
-const feedPhaseWindows = feedWorldConfig.phaseWindows || {}
-const feedSubLocationPools = feedWorldConfig.subLocationPools || {}
-const feedOutfitProgression = feedWorldConfig.outfitProgression || {}
-const feedHumanTransitions = feedWorldConfig.humanTransitions || {}
-const feedActivityPools = feedWorldConfig.activityPools || {}
-const feedSensoryPools = feedWorldConfig.sensoryPools || {}
-const feedSocialEnergyPools = feedWorldConfig.socialEnergyPools || {}
-const feedCameraPools = feedWorldConfig.cameraPools || {}
-const feedLightingPools = feedWorldConfig.lightingPools || {}
-const feedAtmospherePools = feedWorldConfig.atmospherePools || {}
-const feedStylingDetailPools = feedWorldConfig.stylingDetailPools || {}
-const feedChangeMomentPools = feedWorldConfig.changeMomentPools || {}
-const feedPropPools = feedWorldConfig.propPools || {}
-const feedBodyLanguagePools = feedWorldConfig.bodyLanguagePools || {}
-const feedFacialExpressionPools = feedWorldConfig.facialExpressionPools || {}
-const feedHandDetailPools = feedWorldConfig.handDetailPools || {}
-const feedMovementEnergyPools = feedWorldConfig.movementEnergyPools || {}
-const feedNarrativeIntentPools = feedWorldConfig.narrativeIntentPools || {}
-const feedPacingProfile = feedWorldConfig.pacingProfile || {}
-const feedLocations = feedWorldConfig.locations || []
-
-const recentAmalfiLocations = []
-const recentAmalfiScenes = []
-const recentAmalfiMoods = []
-const recentAmalfiCameras = []
-const recentAmalfiLightings = []
-
-const recentStructuredSubLocations = []
-const recentStructuredScenes = []
-
-const recentSubLocationQueue = []
-const recentSceneGroupQueue = []
-const recentExactSceneQueue = []
-
-const subLocationUsageCount = new Map()
-const sceneGroupUsageCount = new Map()
-const exactSceneUsageCount = new Map()
-
- const firstPack = flow.length
-  ? SIGNATURE_PACKS.find((p) => p.id === flow[0]?.packId)
+const activeChapterData = activeChapter
+  ? STORY_CHAPTERS.find((ch) => ch.id === activeChapter) || null
   : null
+
+const {
+  feedAutoWorld,
+  feedManualWorld,
+  feedWorld,
+  feedWorldConfig,
+  feedPhaseOrder,
+  feedScenePools,
+  feedMoodProgression,
+  feedPhaseWindows,
+  feedSubLocationPools,
+  feedOutfitProgression,
+  feedHumanTransitions,
+  feedActivityPools,
+  feedSensoryPools,
+  feedSocialEnergyPools,
+  feedCameraPools,
+  feedLightingPools,
+  feedAtmospherePools,
+  feedStylingDetailPools,
+  feedChangeMomentPools,
+  feedPropPools,
+  feedBodyLanguagePools,
+  feedFacialExpressionPools,
+  feedHandDetailPools,
+  feedMovementEnergyPools,
+  feedNarrativeIntentPools,
+  feedPacingProfile,
+  feedLocations,
+} = getFeedWorldContext({
+  worldControlMode,
+  activeStoryWorld: world,
+  activeWorldId,
+  activeWorld,
+})
+
+const firstPack =
+  activePackData ||
+  (flow.length
+    ? SIGNATURE_PACKS.find((p) => p.id === flow[0]?.packId)
+    : null)
 
 const feedAge = resolveAgeFromRange(
   selectedAgeRange,
   firstPack?.defaultAgeRange || '25-29'
 ) 
 
-    const baliSpaces = [
-    'infinity pool edge with still water reflection',
-    'open-air villa bedroom with flowing curtains',
-    'candlelit stone terrace with warm glow',
-    'marble bathroom with sculpted stone tub',
-    'private garden courtyard with tropical depth',
-    'soft-lit bedroom suite with ambient shadows',
-    'glass-door balcony overlooking dark palms'
-  ]
+const {
+  baliWorldStrength,
+  baliWorldStrengthRules,
+  shuffledSpaces,
+  shuffledMoods,
+  shuffledCameras,
+  shuffledLightings,
+  baliSubLocationOrder,
+  shuffledPhaseSubLocations,
+  shuffledPhaseMoods,
+  shuffledPhaseLightings,
+  shuffledSubLocationCameras,
+  activeBaliStoryRoute,
+  routeStopVariantSeeds,
+  recentBaliMemory,
+  shuffledCinematicOverlays,
+  shuffledBaliWorldIdentity,
+  activeBaliWorldStrength,
+} = getBaliFeedSetup()
 
-  const baliSubLocations = {
-  villa: {
-    label: 'Private Villa',
-    vibe: [
-      'private luxury',
-      'quiet exclusivity',
-      'high-status retreat',
-      'soft sensual privacy',
-      'cinematic villa living'
-    ],
-    spaces: [
-      'open-air villa bedroom',
-      'sunlit stone terrace',
-      'private infinity pool edge',
-      'candlelit courtyard',
-      'floating breakfast setting',
-      'arched indoor-outdoor lounge',
-      'glass-door balcony overlooking palms',
-      'soft-lit marble bathroom',
-      'poolside daybed corner',
-      'tropical entrance walkway'
-    ],
-    moods: [
-      'soft curiosity with quiet intention',
-      'relaxed luxury and feminine calm',
-      'private, effortless confidence',
-      'slow sensual ease',
-      'composed high-value presence'
-    ],
-    lighting: [
-      'golden hour warm glow',
-      'soft diffused morning light',
-      'clean tropical daylight',
-      'candlelit amber shadows',
-      'low evening architectural glow'
-    ]
-  },
+const {
+  recentAmalfiLocations,
+  recentAmalfiScenes,
+  recentAmalfiMoods,
+  recentAmalfiCameras,
+  recentAmalfiLightings,
+  recentStructuredSubLocations,
+  recentStructuredScenes,
+  recentSubLocationQueue,
+  recentSceneGroupQueue,
+  recentExactSceneQueue,
+  subLocationUsageCount,
+  sceneGroupUsageCount,
+  exactSceneUsageCount,
+} = getFeedMemorySetup()
 
-  beachClub: {
-    label: 'Beach Club',
-    vibe: [
-      'social status',
-      'luxury travel energy',
-      'elite summer atmosphere',
-      'seen-and-admired presence',
-      'glamorous coastal freedom'
-    ],
-    spaces: [
-      'oceanfront VIP lounge',
-      'designer sunbed terrace',
-      'private cabana by the sea',
-      'white-stone pool club deck',
-      'champagne table near the shoreline',
-      'sunlit beach entrance walkway',
-      'coastal infinity pool scene',
-      'palm-lined luxury day club',
-      'exclusive beachfront seating area',
-      'sunset cocktail corner'
-    ],
-    moods: [
-      'playful confidence with social magnetism',
-      'effortless glamour',
-      'luxury vacation energy',
-      'high-status flirtation',
-      'radiant public confidence'
-    ],
-    lighting: [
-      'bright luxury daylight',
-      'sunlit coastal shimmer',
-      'warm sunset glow',
-      'reflective poolside light',
-      'golden late afternoon light'
-    ]
-  },
+let {
+  lastGeneratedTime,
+  lastGeneratedLocation,
+  lastGeneratedMood,
+} = getFeedMemorySetup()
 
-  jungleRetreat: {
-    label: 'Jungle Retreat',
-    vibe: [
-      'mystical luxury',
-      'hidden paradise energy',
-      'cinematic serenity',
-      'elevated wellness escape',
-      'sensual nature immersion'
-    ],
-    spaces: [
-      'jungle-view infinity pool',
-      'misty tropical walkway',
-      'open jungle bathtub setting',
-      'lush retreat balcony',
-      'stone path through tropical greenery',
-      'secluded meditation deck',
-      'rain-kissed garden lounge',
-      'bamboo-framed outdoor suite',
-      'elevated jungle breakfast terrace',
-      'private forest-facing seating nook'
-    ],
-    moods: [
-      'deep calm with magnetic softness',
-      'dreamlike stillness',
-      'quiet feminine presence',
-      'mysterious sensual composure',
-      'spiritual luxury and inner confidence'
-    ],
-    lighting: [
-      'mist-soft morning light',
-      'filtered jungle sunlight',
-      'humid glowing daylight',
-      'rainy cinematic overcast light',
-      'soft green ambient reflections'
-    ]
-  },
+let i = 0
+let safety = 0
 
-  restaurant: {
-    label: 'Luxury Restaurant',
-    vibe: [
-      'evening elegance',
-      'refined social status',
-      'high-end destination dining',
-      'editorial sophistication',
-      'desirable public presence'
-    ],
-    spaces: [
-      'candlelit fine dining table',
-      'open-air rooftop restaurant',
-      'luxury resort dinner terrace',
-      'architectural bar seating',
-      'elegant poolside dinner setting',
-      'modern tropical restaurant interior',
-      'sunset dining balcony',
-      'wine-and-light dinner corner',
-      'exclusive chef-table setting',
-      'designer entrance to a luxury restaurant'
-    ],
-    moods: [
-      'refined confidence',
-      'quiet seduction with control',
-      'social elegance',
-      'composed allure',
-      'sophisticated feminine presence'
-    ],
-    lighting: [
-      'candlelit golden shadows',
-      'soft restaurant ambient glow',
-      'sunset dining light',
-      'architectural evening light',
-      'warm low-key luxury lighting'
-    ]
-  },
+while (prompts.length < count && safety < 200) {
+  safety++
+  const phase = Math.floor((i / count) * 4)
 
-  spa: {
-    label: 'Luxury Spa',
-    vibe: [
-      'wellness luxury',
-      'healing femininity',
-      'ritualistic calm',
-      'premium self-care',
-      'soft intimate serenity'
-    ],
-    spaces: [
-      'flower bath spa setting',
-      'stone spa corridor',
-      'private massage suite',
-      'soft-lit wellness lounge',
-      'open-air spa bath terrace',
-      'minimalist luxury treatment room',
-      'tea ritual corner',
-      'spa robe relaxation area',
-      'quiet marble sink and mirror setting',
-      'tranquil water garden path'
-    ],
-    moods: [
-      'restored softness',
-      'peaceful sensual calm',
-      'self-possessed stillness',
-      'gentle confidence',
-      'elegant vulnerability with control'
-    ],
-    lighting: [
-      'soft spa ambient light',
-      'warm diffused interior glow',
-      'gentle morning wellness light',
-      'calming neutral daylight',
-      'low candlelit relaxation glow'
-    ]
-  },
-
-  nightlife: {
-    label: 'Nightlife',
-    vibe: [
-      'after-dark glamour',
-      'exclusive nightlife energy',
-      'luxury social heat',
-      'cinematic tension',
-      'high-status evening seduction'
-    ],
-    spaces: [
-      'rooftop cocktail lounge',
-      'moody private bar corner',
-      'neon-lit entrance walkway',
-      'exclusive velvet booth seating',
-      'poolside night party setting',
-      'city-light balcony scene',
-      'late-night hotel bar',
-      'dark tropical club terrace',
-      'designer marble bar scene',
-      'after-hours candlelit lounge'
-    ],
-    moods: [
-      'confident nightlife magnetism',
-      'controlled seduction',
-      'social dominance with softness',
-      'late-night mystery',
-      'playful but untouchable glamour'
-    ],
-    lighting: [
-      'moody amber nightlife glow',
-      'luxury bar shadows',
-      'neon-accented night light',
-      'low warm evening contrast',
-      'dark cinematic club lighting'
-    ]
-  }
-}
-
-const baliPhaseSubLocationMap = {
-  arrival: ['villa', 'jungleRetreat', 'spa'],
-  social: ['beachClub', 'restaurant'],
-  private: ['villa', 'jungleRetreat', 'spa'],
-  night: ['nightlife', 'restaurant', 'villa']
-}
-
-const baliPhaseMoodMap = {
-  arrival: [
-    'soft curiosity with quiet intention',
-    'relaxed luxury and feminine calm',
-    'dreamlike stillness',
-    'deep calm with magnetic softness',
-    'gentle confidence'
-  ],
-  social: [
-    'playful confidence with social magnetism',
-    'effortless glamour',
-    'luxury vacation energy',
-    'radiant public confidence',
-    'social elegance'
-  ],
-  private: [
-    'private, effortless confidence',
-    'slow sensual ease',
-    'peaceful sensual calm',
-    'self-possessed stillness',
-    'quiet feminine presence'
-  ],
-  night: [
-    'confident nightlife magnetism',
-    'controlled seduction',
-    'late-night mystery',
-    'playful but untouchable glamour',
-    'quiet seduction with control'
-  ]
-}
-
-const baliPhaseLightingMap = {
-  arrival: [
-    'soft diffused morning light',
-    'mist-soft morning light',
-    'golden hour warm glow',
-    'clean tropical daylight',
-    'gentle morning wellness light'
-  ],
-  social: [
-    'bright luxury daylight',
-    'sunlit coastal shimmer',
-    'golden late afternoon light',
-    'reflective poolside light',
-    'sunset dining light'
-  ],
-  private: [
-    'warm diffused interior glow',
-    'soft spa ambient light',
-    'filtered jungle sunlight',
-    'candlelit amber shadows',
-    'low evening architectural glow'
-  ],
-  night: [
-    'moody amber nightlife glow',
-    'luxury bar shadows',
-    'dark cinematic club lighting',
-    'neon-accented night light',
-    'warm low-key luxury lighting'
-  ]
-}
-
-const baliSubLocationCameraMap = {
-  villa: [
-    'soft over-shoulder perspective',
-    'cinematic medium shot',
-    'editorial full-body composition',
-    'intimate balcony angle',
-    'luxury lifestyle candid frame'
-  ],
-  beachClub: [
-    'wide establishing shot with subject centered',
-    'sunlit candid social angle',
-    'editorial poolside framing',
-    'luxury travel campaign perspective',
-    'public glamour medium-wide shot'
-  ],
-  jungleRetreat: [
-    'atmospheric cinematic wide shot',
-    'immersive natural framing',
-    'soft hidden-observer angle',
-    'lush environmental portrait angle',
-    'dreamlike retreat perspective'
-  ],
-  restaurant: [
-    'refined seated editorial shot',
-    'composed dinner-table framing',
-    'elegant medium portrait angle',
-    'architectural dining perspective',
-    'quiet luxury campaign angle'
-  ],
-  spa: [
-    'soft intimate close perspective',
-    'gentle wellness portrait angle',
-    'serene lifestyle framing',
-    'calm detail-focused composition',
-    'quiet self-care cinematic angle'
-  ],
-  nightlife: [
-    'moody nightlife portrait angle',
-    'after-dark editorial framing',
-    'late-night luxury perspective',
-    'cinematic bar-side angle',
-    'high-status evening composition'
-  ]
-}
-
-const baliStoryRoutes = [
-  {
-    arrival: 'villa',
-    social: 'beachClub',
-    private: 'spa',
-    night: 'nightlife'
-  },
-  {
-    arrival: 'jungleRetreat',
-    social: 'restaurant',
-    private: 'villa',
-    night: 'nightlife'
-  },
-  {
-    arrival: 'spa',
-    social: 'beachClub',
-    private: 'jungleRetreat',
-    night: 'restaurant'
-  },
-  {
-    arrival: 'villa',
-    social: 'restaurant',
-    private: 'jungleRetreat',
-    night: 'nightlife'
-  },
-  {
-    arrival: 'jungleRetreat',
-    social: 'beachClub',
-    private: 'spa',
-    night: 'villa'
-  }
-]
-
-const baliCinematicOverlays = {
-  arrival: [
-    'quiet luxury atmosphere',
-    'exclusive destination feel',
-    'soft editorial travel energy',
-    'refined arrival mood',
-    'high-status tropical calm'
-  ],
-  social: [
-    'seen-and-admired presence',
-    'editorial social energy',
-    'luxury lifestyle campaign feel',
-    'public glamour atmosphere',
-    'elevated resort status'
-  ],
-  private: [
-    'private escape mood',
-    'soft sensual exclusivity',
-    'intimate luxury atmosphere',
-    'quiet feminine magnetism',
-    'hidden retreat energy'
-  ],
-  night: [
-    'after-dark status energy',
-    'cinematic evening exclusivity',
-    'late-night luxury tension',
-    'editorial nightlife glamour',
-    'high-status nocturnal mood'
-  ]
-}
-
-const baliWorldIdentityPhrases = [
-  'Bali luxury escape',
-  'tropical high-status destination',
-  'cinematic island prestige',
-  'exclusive resort-world energy',
-  'elevated Bali travel atmosphere'
-]
-
-const baliWorldStrength = 'balanced'
-
-const baliWorldStrengthRules = {
-  subtle: {
-    overlayChance: 0.35,
-    worldIdentityChance: 0.2,
-  },
-  balanced: {
-    overlayChance: 0.65,
-    worldIdentityChance: 0.4,
-  },
-  immersive: {
-    overlayChance: 0.9,
-    worldIdentityChance: 0.75,
-  }
-}
-
-const shuffledSpaces = shuffleArray(baliSpaces)
-const shuffledMoods = shuffleArray(baliMoods)
-const shuffledCameras = shuffleArray(cameraAngles)
-const shuffledLightings = shuffleArray(lightingSetups)
-
-const baliSubLocationOrder = shuffleArray([
-  'villa',
-  'beachClub',
-  'jungleRetreat',
-  'restaurant',
-  'spa',
-  'nightlife'
-])
-
-const shuffledPhaseSubLocations = {
-  arrival: shuffleArray([...(baliPhaseSubLocationMap.arrival || [])]),
-  social: shuffleArray([...(baliPhaseSubLocationMap.social || [])]),
-  private: shuffleArray([...(baliPhaseSubLocationMap.private || [])]),
-  night: shuffleArray([...(baliPhaseSubLocationMap.night || [])]),
-}
-
-const shuffledPhaseMoods = {
-  arrival: shuffleArray([...(baliPhaseMoodMap.arrival || [])]),
-  social: shuffleArray([...(baliPhaseMoodMap.social || [])]),
-  private: shuffleArray([...(baliPhaseMoodMap.private || [])]),
-  night: shuffleArray([...(baliPhaseMoodMap.night || [])]),
-}
-
-const shuffledPhaseLightings = {
-  arrival: shuffleArray([...(baliPhaseLightingMap.arrival || [])]),
-  social: shuffleArray([...(baliPhaseLightingMap.social || [])]),
-  private: shuffleArray([...(baliPhaseLightingMap.private || [])]),
-  night: shuffleArray([...(baliPhaseLightingMap.night || [])]),
-}
-
-const shuffledSubLocationCameras = {
-  villa: shuffleArray([...(baliSubLocationCameraMap.villa || [])]),
-  beachClub: shuffleArray([...(baliSubLocationCameraMap.beachClub || [])]),
-  jungleRetreat: shuffleArray([...(baliSubLocationCameraMap.jungleRetreat || [])]),
-  restaurant: shuffleArray([...(baliSubLocationCameraMap.restaurant || [])]),
-  spa: shuffleArray([...(baliSubLocationCameraMap.spa || [])]),
-  nightlife: shuffleArray([...(baliSubLocationCameraMap.nightlife || [])]),
-}
-
-const activeBaliStoryRoute = baliStoryRoutes[Math.floor(Math.random() * baliStoryRoutes.length)] || {
-  arrival: 'villa',
-  social: 'beachClub',
-  private: 'spa',
-  night: 'nightlife'
-}
-
-const routeStopVariantSeeds = {
-  arrival: Math.floor(Math.random() * 1000),
-  social: Math.floor(Math.random() * 1000),
-  private: Math.floor(Math.random() * 1000),
-  night: Math.floor(Math.random() * 1000),
-}
-
-const recentBaliMemory = {
-  spaces: [],
-  moods: [],
-  lightings: [],
-  cameras: [],
-}
-
-let lastGeneratedTime = ''
-let lastGeneratedLocation = ''
-let lastGeneratedMood = ''
-
-const cleanPromptParts = (parts) => {
-  const seen = new Set()
-
-  return parts.filter(part => {
-    if (!part || typeof part !== 'string') return false
-
-    const cleaned = part.trim().replace(/\s+/g, ' ')
-    if (!cleaned) return false
-
-    const normalized = cleaned.toLowerCase()
-    if (seen.has(normalized)) return false
-
-    seen.add(normalized)
-    return true
-  })
-}
-
-const normalize = (str) =>
-  String(str || '')
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-const shuffledCinematicOverlays = {
-  arrival: shuffleArray([...(baliCinematicOverlays.arrival || [])]),
-  social: shuffleArray([...(baliCinematicOverlays.social || [])]),
-  private: shuffleArray([...(baliCinematicOverlays.private || [])]),
-  night: shuffleArray([...(baliCinematicOverlays.night || [])]),
-}
-
-const shuffledBaliWorldIdentity = shuffleArray([...(baliWorldIdentityPhrases || [])])
-
-const activeBaliWorldStrength =
-  baliWorldStrengthRules[baliWorldStrength] || baliWorldStrengthRules.balanced
-
-  for (let i = 0; i < count; i++) {
-    const phase = Math.floor((i / count) * 4)
+  const earlySceneFamilyOverride =
+  i === 0 ? 'bedroom' :
+  i === 1 ? 'terrace' :
+  i === 2 ? 'pool' :
+  i === 3 ? 'path' :
+  i === 4 ? 'bedroom' :
+  i === 5 ? 'terrace' :
+  ''
 
     const progressionLevel = getProgressionLevel(i, count)
 
-    let privateCreatorPhaseKey = ''
-    let privateCreatorPhaseLabel = ''
-    let privateCreatorAction = ''
-    let privateCreatorEnvironment = ''
-    let privateCreatorMood = ''
-    let privateCreatorCamera = ''
-    let privateCreatorLighting = ''
-
-    if (privateCreatorWorldActive) {
-      const privateSceneData = getPrivateCreatorScene(i)
-      privateCreatorPhaseKey = privateSceneData.phaseKey || ''
-      privateCreatorPhaseLabel = privateSceneData.phaseLabel || ''
-      privateCreatorAction = privateSceneData.scene?.action || ''
-      privateCreatorEnvironment = privateSceneData.scene?.environment || ''
-      privateCreatorMood = privateSceneData.scene?.mood || ''
-      privateCreatorCamera = privateSceneData.scene?.camera || ''
-      privateCreatorLighting = privateSceneData.scene?.lighting || ''
-    }
-
-    let fitnessLifePhaseKey = ''
-    let fitnessLifePhaseLabel = ''
-    let fitnessLifeAction = ''
-    let fitnessLifeEnvironment = ''
-    let fitnessLifeMood = ''
-    let fitnessLifeCamera = ''
-    let fitnessLifeLighting = ''
-
-    if (fitnessLifeWorldActive) {
-      const fitnessSceneData = getFitnessLifeScene(i)
-      fitnessLifePhaseKey = fitnessSceneData.phaseKey || ''
-      fitnessLifePhaseLabel = fitnessSceneData.phaseLabel || ''
-      fitnessLifeAction = fitnessSceneData.scene?.action || ''
-      fitnessLifeEnvironment = fitnessSceneData.scene?.environment || ''
-      fitnessLifeMood = fitnessSceneData.scene?.mood || ''
-      fitnessLifeCamera = fitnessSceneData.scene?.camera || ''
-      fitnessLifeLighting = fitnessSceneData.scene?.lighting || ''
-    }
-
-        let luxuryLifePhaseKey = ''
-    let luxuryLifePhaseLabel = ''
-    let luxuryLifeAction = ''
-    let luxuryLifeEnvironment = ''
-    let luxuryLifeMood = ''
-    let luxuryLifeCamera = ''
-    let luxuryLifeLighting = ''
-
-    if (luxuryLifeWorldActive) {
-      const luxurySceneData = getLuxuryLifeScene(i)
-      luxuryLifePhaseKey = luxurySceneData.phaseKey || ''
-      luxuryLifePhaseLabel = luxurySceneData.phaseLabel || ''
-      luxuryLifeAction = luxurySceneData.scene?.action || ''
-      luxuryLifeEnvironment = luxurySceneData.scene?.environment || ''
-      luxuryLifeMood = luxurySceneData.scene?.mood || ''
-      luxuryLifeCamera = luxurySceneData.scene?.camera || ''
-      luxuryLifeLighting = luxurySceneData.scene?.lighting || ''
-    }
-
-        let fanvueCreatorPhaseKey = ''
-    let fanvueCreatorPhaseLabel = ''
-    let fanvueCreatorAction = ''
-    let fanvueCreatorEnvironment = ''
-    let fanvueCreatorMood = ''
-    let fanvueCreatorCamera = ''
-    let fanvueCreatorLighting = ''
-
-    if (fanvueCreatorWorldActive) {
-      const fanvueSceneData = getFanvueCreatorScene(i)
-      fanvueCreatorPhaseKey = fanvueSceneData.phaseKey || ''
-      fanvueCreatorPhaseLabel = fanvueSceneData.phaseLabel || ''
-      fanvueCreatorAction = fanvueSceneData.scene?.action || ''
-      fanvueCreatorEnvironment = fanvueSceneData.scene?.environment || ''
-      fanvueCreatorMood = fanvueSceneData.scene?.mood || ''
-      fanvueCreatorCamera = fanvueSceneData.scene?.camera || ''
-      fanvueCreatorLighting = fanvueSceneData.scene?.lighting || ''
-    }
-
-    let onlyfansCreatorPhaseKey = ''
-    let onlyfansCreatorPhaseLabel = ''
-    let onlyfansCreatorAction = ''
-    let onlyfansCreatorEnvironment = ''
-    let onlyfansCreatorMood = ''
-    let onlyfansCreatorCamera = ''
-    let onlyfansCreatorLighting = ''
-
-    if (onlyfansCreatorWorldActive) {
-      const onlyfansSceneData = getOnlyfansCreatorScene(i)
-      onlyfansCreatorPhaseKey = onlyfansSceneData.phaseKey || ''
-      onlyfansCreatorPhaseLabel = onlyfansSceneData.phaseLabel || ''
-      onlyfansCreatorAction = onlyfansSceneData.scene?.action || ''
-      onlyfansCreatorEnvironment = onlyfansSceneData.scene?.environment || ''
-      onlyfansCreatorMood = onlyfansSceneData.scene?.mood || ''
-      onlyfansCreatorCamera = onlyfansSceneData.scene?.camera || ''
-      onlyfansCreatorLighting = onlyfansSceneData.scene?.lighting || ''
-    }
-
-        let gymInfluencerPhaseKey = ''
-    let gymInfluencerPhaseLabel = ''
-    let gymInfluencerAction = ''
-    let gymInfluencerEnvironment = ''
-    let gymInfluencerMood = ''
-    let gymInfluencerCamera = ''
-    let gymInfluencerLighting = ''
-
-    if (gymInfluencerWorldActive) {
-      const gymSceneData = getGymInfluencerScene(i)
-      gymInfluencerPhaseKey = gymSceneData.phaseKey || ''
-      gymInfluencerPhaseLabel = gymSceneData.phaseLabel || ''
-      gymInfluencerAction = gymSceneData.scene?.action || ''
-      gymInfluencerEnvironment = gymSceneData.scene?.environment || ''
-      gymInfluencerMood = gymSceneData.scene?.mood || ''
-      gymInfluencerCamera = gymSceneData.scene?.camera || ''
-      gymInfluencerLighting = gymSceneData.scene?.lighting || ''
-    }
+const {
+  resolvedStoryWorldId,
+  isCustomStoryWorldFeed,
+  customStoryPhaseKey,
+  customStoryPhaseLabel,
+  customStoryAction,
+  customStoryEnvironment,
+  customStoryMood,
+  customStoryCamera,
+  customStoryLighting,
+} = getCustomStoryFeedScene({
+  activeStoryWorld: world,
+  index: i,
+})
 
 const feedResolver = getWorldResolver({
   worldControlMode,
@@ -3863,8 +5131,6 @@ const {
   generatedSubMood,
   generatedSubLighting,
   generatedSubCamera,
-  phaseMoodPool,
-  phaseLightingPool,
 } = getBaliGeneratedStyleContext({
   subLocationData,
   phaseKey,
@@ -4047,15 +5313,6 @@ const baliMood = baliPhase
   ? pickFromPool(baliPhase.moodPool, i)
   : ''
 
-const baliClothing =
-  isBaliWorldActive
-    ? (
-        baliPhase
-          ? pickFromPool(baliPhase.clothingPool, i, 1)
-          : ''
-      )
-    : ''
-
 const baliFeedPhasePools = {
   subLocations: [],
   sceneGroups: [],
@@ -4102,15 +5359,13 @@ const generatedBaliPose = baliPhase
 
 let subLocation = effectiveBaliSubLocation || ''
 
-if (usedSubLocations.has(subLocation)) {
-  subLocation = ''
-}
-
 usedSubLocations.add(subLocation)
 
 let chapter = null
 
-if (flow.length) {
+if (activeChapterData) {
+  chapter = activeChapterData
+} else if (flow.length) {
   const chapterIndex = Math.min(
     Math.floor((i / count) * flow.length),
     flow.length - 1
@@ -4119,9 +5374,11 @@ if (flow.length) {
   chapter = flow[chapterIndex] || null
 }
 
-    const pack = chapter
-      ? SIGNATURE_PACKS.find((p) => p.id === chapter.packId)
-      : null
+const pack =
+  activePackData ||
+  (chapter?.packId
+    ? SIGNATURE_PACKS.find((p) => p.id === chapter.packId) || null
+    : null)
 
   const sceneVariant =
     chapter?.sceneVariants?.length
@@ -4133,6 +5390,14 @@ const merged = {
   ...(pack?.base || pack?.fields || {}),
   ...(chapter?.fields || {}),
   age: feedAge,
+}
+
+if (identityState?.enabled && identityState?.useExtractedTraits) {
+  merged.age = identityState?.extractedTraits?.age || merged.age
+  merged.ethnicity = identityState?.extractedTraits?.ethnicity || merged.ethnicity
+  merged.body_shape = identityState?.extractedTraits?.body_shape || merged.body_shape
+  merged.eye_color = identityState?.extractedTraits?.eye_color || merged.eye_color
+  merged.hair = identityState?.extractedTraits?.hair || merged.hair
 }
 
 const lakeComoVariantPoseRaw = String(sceneVariant?.fields?.pose || '').trim()
@@ -4196,92 +5461,13 @@ const generatedPhase =
 
 const feedPoolPhaseKey = generatedPhase
 
-const phaseTimeMap = {
-  arrival: 'morning',
-  social: 'sunset',
-  private: 'evening',
-  night: 'night'
-}
-
-const structuredPhaseTimeMap = {
-  wake: 'early morning',
-  morning_refresh: 'morning',
-  getting_dressed: 'morning',
-  breakfast: 'morning',
-  late_morning: 'late morning',
-  lunch: 'midday',
-  afternoon: 'afternoon',
-  reset: 'late afternoon',
-  golden_hour: 'golden hour',
-  dinner: 'evening',
-  evening: 'evening',
-  night: 'night',
-}
-
-const generatedTime =
-  privateCreatorWorldActive
-    ? (
-        privateCreatorPhaseKey === 'morning'
-          ? 'early morning'
-          : privateCreatorPhaseKey === 'day'
-            ? 'late morning'
-            : privateCreatorPhaseKey === 'private'
-              ? 'evening'
-              : 'night'
-      )
-    : fitnessLifeWorldActive
-      ? (
-          fitnessLifePhaseKey === 'morning'
-            ? 'early morning'
-            : fitnessLifePhaseKey === 'day'
-              ? 'late morning'
-              : fitnessLifePhaseKey === 'private'
-                ? 'evening'
-                : 'night'
-        )
-      : luxuryLifeWorldActive
-        ? (
-            luxuryLifePhaseKey === 'morning'
-              ? 'early morning'
-              : luxuryLifePhaseKey === 'day'
-                ? 'late morning'
-                : luxuryLifePhaseKey === 'private'
-                  ? 'evening'
-                  : 'night'
-          )
-        : fanvueCreatorWorldActive
-          ? (
-              fanvueCreatorPhaseKey === 'morning'
-                ? 'early morning'
-                : fanvueCreatorPhaseKey === 'day'
-                  ? 'late morning'
-                  : fanvueCreatorPhaseKey === 'private'
-                    ? 'evening'
-                    : 'night'
-            )
-          : onlyfansCreatorWorldActive
-            ? (
-                onlyfansCreatorPhaseKey === 'morning'
-                  ? 'early morning'
-                  : onlyfansCreatorPhaseKey === 'day'
-                    ? 'late morning'
-                    : onlyfansCreatorPhaseKey === 'private'
-                      ? 'evening'
-                      : 'night'
-              )
-            : gymInfluencerWorldActive
-              ? (
-                  gymInfluencerPhaseKey === 'morning'
-                    ? 'early morning'
-                    : gymInfluencerPhaseKey === 'day'
-                      ? 'late morning'
-                      : gymInfluencerPhaseKey === 'private'
-                        ? 'evening'
-                        : 'night'
-                )
-              : isStructuredWorld
-                ? structuredPhaseTimeMap[generatedPhase] || 'afternoon'
-                : phaseTimeMap[phaseKey] || 'night'
+const generatedTime = getFeedGeneratedTime({
+  isCustomStoryWorldFeed,
+  customStoryPhaseKey,
+  isStructuredWorld,
+  generatedPhase,
+  phaseKey,
+})
 
 // ===============================
 // STRUCTURED WORLD ROUTE PICK (NEW ENGINE)
@@ -4302,17 +5488,136 @@ const structuredPickedLocation =
 const structuredPickedScene =
   structuredRoutePick?.resolvedScene || ''
 
-const generatedWorldSceneRaw = applyWorldFieldFilter({
-  key: 'pose',
-  value: isStructuredWorld
-    ? structuredPickedScene
-    : pickWithMemory(
-        filterWorldList(feedScenePools?.[feedPoolPhaseKey] || [], resolvedWorldId),
-        recentAmalfiScenes,
-        3
+const selectedSubLocation = structuredRoutePick?.subLocationData || null
+
+let generatedWorldSceneRaw = ''
+let generatedWorldLocation = ''
+
+const phaseSceneGroups = Object.entries(feedWorld?.sceneGroups || {}).filter(
+  ([, groups]) =>
+    Array.isArray(groups) &&
+    groups.some((group) => Array.isArray(group?.phases) && group.phases.includes(feedPoolPhaseKey))
+)
+
+if (isStructuredWorld && structuredPickedScene) {
+  generatedWorldSceneRaw = applyWorldFieldFilter({
+    key: 'pose',
+    value: structuredPickedScene,
+    worldId: resolvedWorldId,
+  })
+}
+
+if (isStructuredWorld && structuredPickedLocation) {
+  generatedWorldLocation = applyWorldFieldFilter({
+    key: 'location',
+    value: structuredPickedLocation,
+    worldId: resolvedWorldId,
+  })
+}
+
+if (!generatedWorldSceneRaw && phaseSceneGroups.length) {
+  const [sceneSubLocationId, groups] =
+    phaseSceneGroups[Math.floor(Math.random() * phaseSceneGroups.length)]
+
+  const validGroups = groups.filter(
+    (group) => Array.isArray(group?.phases) && group.phases.includes(feedPoolPhaseKey)
+  )
+
+  if (validGroups.length) {
+    const selectedGroup =
+      validGroups[Math.floor(Math.random() * validGroups.length)]
+
+    const selectedScenes = Array.isArray(selectedGroup?.scenes)
+      ? selectedGroup.scenes
+      : []
+
+    if (selectedScenes.length) {
+      generatedWorldSceneRaw = applyWorldFieldFilter({
+        key: 'pose',
+        value: selectedScenes[Math.floor(Math.random() * selectedScenes.length)],
+        worldId: resolvedWorldId,
+      })
+    }
+
+    if (Array.isArray(selectedSubLocation?.locations) && selectedSubLocation.locations.length) {
+      const timeSafeLocations = selectedSubLocation.locations.filter((loc) => {
+        const lower = String(loc || '').toLowerCase()
+        const time = String(generatedTime || '').toLowerCase()
+
+        if (/morning|early morning|late morning/.test(time)) {
+          return !/at night|night|after-dark|evening lights|late night/i.test(lower)
+        }
+
+        if (/golden hour|evening/.test(time)) {
+          return !/early morning|morning light|daylight/i.test(lower)
+        }
+
+        if (/night|late night/.test(time)) {
+          return !/morning light|daylight|bright daytime|late morning/i.test(lower)
+        }
+
+        return true
+      })
+
+      const locationPool = timeSafeLocations.length
+        ? timeSafeLocations
+        : selectedSubLocation.locations
+
+      generatedWorldLocation = applyWorldFieldFilter({
+        key: 'location',
+        value: locationPool[Math.floor(Math.random() * locationPool.length)],
+        worldId: resolvedWorldId,
+      })
+    }
+  }
+}
+
+if (!generatedWorldSceneRaw) {
+  const fallbackActionPool = filterWorldList(
+    feedWorld?.actionPools?.[feedPoolPhaseKey] || feedScenePools?.[feedPoolPhaseKey] || [],
+    resolvedWorldId
+  )
+
+  if (fallbackActionPool.length) {
+    generatedWorldSceneRaw = applyWorldFieldFilter({
+      key: 'pose',
+      value: pickWithMemory(fallbackActionPool, recentAmalfiScenes, 3),
+      worldId: resolvedWorldId,
+    })
+  }
+}
+
+if (!generatedWorldLocation) {
+  const fallbackEnvironmentPool = filterWorldList(
+    feedWorld?.environmentPools?.[feedPoolPhaseKey] || [],
+    resolvedWorldId
+  )
+
+  if (fallbackEnvironmentPool.length) {
+    generatedWorldLocation = applyWorldFieldFilter({
+      key: 'location',
+      value: pickWithMemory(fallbackEnvironmentPool, recentAmalfiLocations, 3),
+      worldId: resolvedWorldId,
+    })
+  }
+}
+
+if (!generatedWorldLocation) {
+  generatedWorldLocation = applyWorldFieldFilter({
+    key: 'location',
+    value: pickWithMemory(
+      filterWorldList(
+        feedSubLocationPools?.[feedPoolPhaseKey]?.length
+          ? feedSubLocationPools[feedPoolPhaseKey]
+          : feedLocations,
+        resolvedWorldId
       ),
-  worldId: resolvedWorldId,
-})
+      recentAmalfiLocations,
+      3
+    ),
+    worldId: resolvedWorldId,
+  })
+}
 
 const rawStructuredLocation = structuredPickedLocation || ''
 
@@ -4323,22 +5628,13 @@ const cleanedStructuredLocation =
     ? ''
     : rawStructuredLocation
 
-const generatedWorldLocation = applyWorldFieldFilter({
-  key: 'location',
-  value: isStructuredWorld
-    ? cleanedStructuredLocation
-    : pickWithMemory(
-        filterWorldList(
-          feedSubLocationPools?.[feedPoolPhaseKey]?.length
-            ? feedSubLocationPools[feedPoolPhaseKey]
-            : feedLocations,
-          resolvedWorldId
-        ),
-        recentAmalfiLocations,
-        3
-      ),
-  worldId: resolvedWorldId,
-})
+if (isStructuredWorld && cleanedStructuredLocation) {
+  generatedWorldLocation = applyWorldFieldFilter({
+    key: 'location',
+    value: cleanedStructuredLocation,
+    worldId: resolvedWorldId,
+  })
+}
 
 const generatedWorldScene =
   isStructuredWorld
@@ -4426,33 +5722,63 @@ if (!resolvedGeneratedWorldActivity && isStructuredWorld) {
   const sceneContext = String(generatedWorldScene || '').toLowerCase()
   const combinedContext = `${locationContext} ${sceneContext}`
 
-  const fallbackByContext = /bar|club|dining|restaurant|lounge|terrace|rooftop|members club|annabel|aqua shard|sketch|sexy fish|scott/i.test(combinedContext)
-    ? [
-        'arriving with calm social composure',
-        'holding a poised pause before sitting',
-        'turning slightly as the room settles around her',
-        'moving through the space with polished evening control',
-      ]
-    : /street|bridge|gardens|walkway|entrance|arrival|car|chauffeur|taxi|cab|mount street|sloane|kensington|piccadilly|embankment|cathedral|steps/i.test(combinedContext)
-      ? [
-          'stepping forward with composed city polish',
-          'crossing the setting with quiet control',
-          'turning slightly as the city movement builds around her',
-          'moving with calm composed ease',
-        ]
-      : /suite|bedroom|window|mirror|dressing|private|shard suite|savoy suite|claridge|connaught|ritz suite|living room|sitting room/i.test(combinedContext)
-        ? [
-            'resting by the glass with soft private composure',
-            'turning toward the window as the room brightens',
-            'crossing the room with measured elegance',
-            'holding a quiet pause before continuing',
-          ]
-        : [
-            'moving with calm composed ease',
-            'holding a brief still pause before continuing',
-            'crossing the setting with quiet control',
-            'settling naturally into the environment',
-          ]
+  let fallbackByContext = [
+    'walking forward with calm, controlled movement',
+    'pausing briefly before continuing forward',
+    'turning slightly as the environment shifts around her',
+    'holding still for a moment before continuing',
+  ]
+
+  if (/pool|water|infinity/i.test(combinedContext)) {
+    fallbackByContext = [
+      'resting one hand along the pool edge while watching the water ripple',
+      'slowly stepping into the water with controlled, deliberate movement',
+      'standing at the edge of the pool with one foot grazing the surface',
+      'leaning slightly forward as her reflection shifts in the water',
+    ]
+  } else if (/balcony|terrace|view/i.test(combinedContext)) {
+    fallbackByContext = [
+      'resting her hands lightly on the railing while looking out over the view',
+      'leaning into the balcony edge as the air moves around her',
+      'turning slightly as she steps toward the open view',
+      'pausing at the edge while taking in the surroundings',
+    ]
+  } else if (/bedroom|suite|bed/i.test(combinedContext)) {
+    fallbackByContext = [
+      'sitting at the edge of the bed as she gathers herself into the moment',
+      'slowly standing from the bed with controlled posture',
+      'walking barefoot across the room toward the light',
+      'adjusting the sheets before stepping away from the bed',
+    ]
+  } else if (/spa|bath|wellness/i.test(combinedContext)) {
+    fallbackByContext = [
+      'lowering herself slowly into the bath with controlled movement',
+      'resting back as steam rises softly around her',
+      'lifting one hand through the water, watching it fall',
+      'stepping out of the bath with slow, deliberate control',
+    ]
+  } else if (/restaurant|dining|bar/i.test(combinedContext)) {
+    fallbackByContext = [
+      'lifting a glass slowly before taking a controlled sip',
+      'resting one arm along the table while observing the room',
+      'turning slightly as she acknowledges movement around her',
+      'adjusting her posture as she settles into the seat',
+    ]
+  } else if (/street|bridge|gardens|walkway|entrance|arrival|car|chauffeur|taxi|cab|mount street|sloane|kensington|piccadilly|embankment|cathedral|steps/i.test(combinedContext)) {
+    fallbackByContext = [
+      'stepping forward with composed city polish',
+      'crossing the setting with quiet control',
+      'turning slightly as the city movement builds around her',
+      'moving with calm composed ease',
+    ]
+  } else if (/suite|bedroom|window|mirror|dressing|private|shard suite|savoy suite|claridge|connaught|ritz suite|living room|sitting room/i.test(combinedContext)) {
+    fallbackByContext = [
+      'resting by the glass with soft private composure',
+      'turning toward the window as the room brightens',
+      'crossing the room with measured elegance',
+      'holding a quiet pause before continuing',
+    ]
+  }
 
   resolvedGeneratedWorldActivity =
     fallbackByContext[Math.floor(Math.random() * fallbackByContext.length)] || ''
@@ -4476,7 +5802,7 @@ const generatedHumanFlowLine =
         : generatedHumanFlowLineRaw
 
 const {
-  generatedBaliSubLocation,
+  generatedBaliSubLocation: baliSubLocationFromEngine,
   generatedBaliSceneGroup,
   generatedBaliSceneVariant,
   baliLocationLine: rawBaliLocationLine,
@@ -4546,10 +5872,10 @@ const structuredWorldLocationLine =
 const finalPose = applyWorldFieldFilter({
   key: 'pose',
   value:
-    isBaliWorldActive
-      ? generatedBaliPose
-      : isStructuredWorld
-        ? (generatedWorldScene || pickRandom(filterWorldList(feedScenePools?.[feedPoolPhaseKey] || [], resolvedWorldId)))
+    isStructuredWorld
+      ? generatedWorldScene   // 🔥 ONLY THIS
+      : isBaliWorldActive
+        ? generatedBaliPose
         : merged.pose,
   worldId: resolvedWorldId,
 })
@@ -4569,31 +5895,129 @@ const veniceLocationLine =
       })
     : ''
 
-const finalLocationLine = applyWorldFieldFilter({
-  key: 'location',
-  value: getFeedFinalLocationLine({
-    worldId: resolvedWorldId,
-    world,
-    isStructuredWorld,
-    isBaliWorldActive,
-    isVeniceWorldActive,
-    isLakeComoWorldActive,
-    baliLocationLine,
-    veniceLocationLine,
-    amalfiLocationLine,
-    structuredWorldLocationLine,
-    italyLocationLine,
-    mergedLocation: merged.location,
-  }),
-  worldId: resolvedWorldId,
-})
+const isPackMode = !!activePackData
+
+const REAL_ENVIRONMENT_RE =
+  /\b(bedroom|suite|bathroom|pool|spa|restaurant|bar|lounge|rooftop|terrace|balcony|courtyard|garden|deck|beach|club|walkway|entrance|dining|sink|mirror|bath|kitchen|living room|dressing room|locker room|gym floor|studio|apartment)\b/i
+
+const BLOCKED_ENVIRONMENT_RE =
+  /^(villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details|private interior setting|private luxury setting|refined private interior|after-dark private interior|window-side reading chair|mirror wall with open floor space|vanity table with mirror lights|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner)$/i
+
+const environmentSourceChain = [
+  chapter?.fields?.location || '',
+  customStoryEnvironment || '',
+  generatedWorldLocation || '',
+  structuredWorldLocationLine || '',
+  merged.location || '',
+]
+
+const rawEnvironmentParts = environmentSourceChain
+  .flatMap((value) =>
+    String(value || '')
+      .split(',')
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+  )
+  .filter(
+    (part) =>
+      !/bedroom or bathroom|apartment hallway or outdoor entrance/i.test(part)
+  )
+
+const actionContextSource = [
+  customStoryAction || '',
+  generatedWorldScene || '',
+  resolvedGeneratedWorldActivity || '',
+  finalPose || '',
+].join(' ').toLowerCase()
+
+const isBathroomActionContext =
+  /bathroom|shower|mirror|washing face|refresh|vanity|sink/.test(actionContextSource)
+
+const isKitchenActionContext =
+  /breakfast|coffee|kitchen|food|meal|eating|table/.test(actionContextSource)
+
+const isTransitActionContext =
+  /walking out|walking|door|leaving|headphones|entrance|hallway/.test(actionContextSource)
+
+const isGymActionContext =
+  /gym|set|sets|training|workout|weights|barbell|machine|tripod|camera|footage/.test(actionContextSource)
+
+const isBedroomActionContext =
+  /bed|bedroom|wake|waking|resting|get up|first light|window/.test(actionContextSource)
+
+const isEnvironmentCompatibleWithAction = (part) => {
+  const env = String(part || '').toLowerCase()
+
+  if (!env) return false
+
+  if (/bedroom or bathroom|apartment hallway or outdoor entrance/.test(env)) {
+    return false
+  }
+
+  if (isBathroomActionContext) {
+    return /bathroom|shower|mirror|vanity|sink|spa/.test(env)
+  }
+
+  if (isKitchenActionContext) {
+    return /kitchen|breakfast|coffee|table|dining|terrace/.test(env)
+  }
+
+  if (isTransitActionContext) {
+    return /hallway|entrance|outdoor|street|door/.test(env)
+  }
+
+  if (isGymActionContext) {
+    return /gym|weights|barbell|machine|free weights|gym floor|studio/.test(env)
+  }
+
+  if (isBedroomActionContext) {
+    return /bedroom|suite|bed|window|hotel bed/.test(env)
+  }
+
+  return true
+}
+
+let finalLocationLine =
+  rawEnvironmentParts.find(
+    (part) =>
+      REAL_ENVIRONMENT_RE.test(part) &&
+      !BLOCKED_ENVIRONMENT_RE.test(part) &&
+      isEnvironmentCompatibleWithAction(part)
+  ) ||
+  rawEnvironmentParts.find(
+    (part) =>
+      REAL_ENVIRONMENT_RE.test(part) &&
+      !BLOCKED_ENVIRONMENT_RE.test(part) &&
+      !/bedroom or bathroom|apartment hallway or outdoor entrance/i.test(part)
+  ) ||
+  ''
+
+const ACTION_VERB_RE =
+  /\b(walking|sitting|standing|leaning|resting|lifting|turning|adjusting|stepping|pausing|moving|crossing|lowering|settling|opening|checking|touching|brushing|stretching|sliding|tracing)\b/i
+
+const BLOCKED_ACTION_RE =
+  /^(holding still for a brief moment before continuing|moving with calm composed ease|turning slightly as movement builds around her|crossing the setting with quiet control|stepping forward with composed city polish|holding a calm, composed presence within the moment|quiet composed posture)$/i
+
+const actionSourceChain = [
+  customStoryAction || '',
+  generatedWorldScene || '',
+  resolvedGeneratedWorldActivity || '',
+  finalPose || '',
+]
 
 const rawGeneratedHumanAction =
-  resolvedGeneratedWorldActivity ||
-  generatedHumanFlowLine ||
-  generatedWorldBodyLanguage ||
-  generatedWorldMovementEnergy ||
-  ''
+  actionSourceChain
+    .flatMap((value) =>
+      String(value || '')
+        .split(',')
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+    )
+    .find(
+      (part) =>
+        ACTION_VERB_RE.test(part) &&
+        !BLOCKED_ACTION_RE.test(part)
+    ) || ''
 
 const safeLocationForMoodCompare = finalLocationLine || ''
 
@@ -4616,10 +6040,16 @@ const finalMoodRaw = applyWorldFieldFilter({
   }),
   worldId: resolvedWorldId,
 })
-const finalMood = finalMoodRaw || ''
+
+const finalMood = stripWeakMoodFragments(
+  isPackMode
+    ? chapter?.fields?.mood || finalMoodRaw || ''
+    : finalMoodRaw || ''
+)
 
 const safeMoodForParts =
   normalize(finalMood) === normalize(finalLocationLine) ? '' : finalMood
+finalLocationLine = stripWeakEnvironmentFallbacks(finalLocationLine)
 
 const safeHandDetailForCamera =
   normalize(generatedWorldHandDetail || '').includes(normalize(generatedWorldCamera || '')) ||
@@ -4627,27 +6057,26 @@ const safeHandDetailForCamera =
     ? ''
     : generatedWorldHandDetail
 
+const safeEnvironmentForCamera =
+  /bedroom or bathroom|apartment hallway or outdoor entrance/i.test(
+    String(finalLocationLine || generatedWorldLocation || customStoryEnvironment || '')
+  )
+    ? ''
+    : finalLocationLine || generatedWorldLocation || customStoryEnvironment || ''
+
 const finalCamera = applyWorldFieldFilter({
   key: 'camera',
-  value:
-    isBaliWorldActive
-      ? generatedCamera
-      : isLakeComoWorldActive || world === 'lake-como-life'
-        ? [
-            generatedWorldCamera,
-            safeHandDetailForCamera,
-            pickFromPool(getFeedLakeComoCameraPool(), i),
-          ]
-            .filter(Boolean)
-            .join(', ')
-        : isStructuredWorld
-          ? [
-              generatedWorldCamera,
-              safeHandDetailForCamera,
-            ]
-              .filter(Boolean)
-              .join(', ')
-          : generatedCamera,
+  value: resolveCameraForSceneFamily({
+    environment: safeEnvironmentForCamera,
+    customStoryCamera,
+    generatedWorldCamera,
+    generatedCamera,
+    safeHandDetailForCamera,
+    fallbackCamera:
+      isLakeComoWorldActive || world === 'lake-como-life'
+        ? pickFromPool(getFeedLakeComoCameraPool(), i)
+        : 'cinematic framing',
+  }),
   worldId: resolvedWorldId,
 })
 
@@ -4660,36 +6089,56 @@ const safeWindowForLighting =
 const finalLighting = applyWorldFieldFilter({
   key: 'lighting',
   value:
-    isBaliWorldActive
-      ? generatedLighting
-      : isLakeComoWorldActive || world === 'lake-como-life'
-        ? [
-            generatedWorldLighting,
-            safeWindowForLighting,
-            pickFromPool(getFeedLakeComoLightingPool(baliPhase), i),
-          ]
-            .filter(Boolean)
-            .join(', ')
-        : isStructuredWorld
-          ? [
-              generatedWorldLighting,
-              safeWindowForLighting,
-              generatedWorldWindow,
-            ]
-              .filter(Boolean)
-              .join(', ')
-          : generatedLighting,
+    customStoryLighting ||
+    generatedWorldLighting ||
+    generatedLighting ||
+    (
+      isLakeComoWorldActive || world === 'lake-como-life'
+        ? pickFromPool(getFeedLakeComoLightingPool(baliPhase), i)
+        : ''
+    ) ||
+    safeWindowForLighting ||
+    generatedWorldWindow ||
+    '',
   worldId: resolvedWorldId,
 })
 
-const cleanIdentity = String(merged.identity || 'Elegant woman')
-  .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
-  .replace(/\bAI influencer\b/gi, 'woman')
-  .replace(/\bAI\b/gi, '')
-  .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
-  .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+const cleanIdentityBase = Array.from(
+  new Map(
+    String(merged.identity || 'Elegant woman')
+      .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
+      .replace(/\bAI influencer\b/gi, 'woman')
+      .replace(/\bAI\b/gi, '')
+      .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
+      .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+      .split(',')
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+      .map((part) => [normalize(part), part])
+  ).values()
+)
+  .join(', ')
   .replace(/\s{2,}/g, ' ')
   .trim()
+
+const cleanIdentity = getIdentityAnchor({
+  fallbackIdentity: cleanIdentityBase,
+  age: merged.age,
+  ethnicity: merged.ethnicity,
+  bodyShape: merged.body_shape,
+  eyeColor: merged.eye_color,
+  hair: merged.hair,
+})
+
+const feedIdentityAnchor = getIdentityAnchor({
+  fallbackIdentity: cleanIdentityBase,
+  age: merged.age,
+  ethnicity: merged.ethnicity,
+  bodyShape: merged.body_shape,
+  eyeColor: merged.eye_color,
+  hair: merged.hair,
+})
+
 const isLakeComoFeed = isLakeComoWorldActive || world === 'lake-como-life'
 
 const lakeComoFallbackPosePool =
@@ -4867,30 +6316,38 @@ const lakeComoFallbackMood =
   lakeComoFallbackMoodPool[i % lakeComoFallbackMoodPool.length] || ''
 
 const lakeComoFinalPose =
-  safeLakeComoVariantPose ||
-  safeLakeComoChapterPose ||
-  generatedWorldActivity ||
-  generatedWorldTransition ||
-  generatedWorldBodyLanguage ||
-  generatedWorldMovementEnergy ||
-  generatedWorldScene
+  isLakeComoFeed
+    ? (
+        safeLakeComoVariantPose ||
+        safeLakeComoChapterPose ||
+        generatedWorldScene
+      )
+    : ''
 
 const lakeComoFinalLocation =
-  safeLakeComoVariantLocation ||
-  safeLakeComoChapterLocation ||
-  generatedWorldLocation ||
-  generatedWorldProp ||
-  generatedWorldWindow ||
-  finalLocationLine
+  isLakeComoFeed
+    ? (
+        safeLakeComoVariantLocation ||
+        safeLakeComoChapterLocation ||
+        generatedWorldLocation ||
+        generatedWorldProp ||
+        generatedWorldWindow ||
+        finalLocationLine
+      )
+    : ''
 
 const lakeComoFinalMoodRaw =
-  safeLakeComoVariantMood ||
-  safeLakeComoChapterMood ||
-  generatedWorldMood ||
-  generatedWorldFacialExpression ||
-  generatedWorldSocialEnergy ||
-  generatedWorldAtmosphere ||
-  generatedWorldPacing
+  isLakeComoFeed
+    ? (
+        safeLakeComoVariantMood ||
+        safeLakeComoChapterMood ||
+        generatedWorldMood ||
+        generatedWorldFacialExpression ||
+        generatedWorldSocialEnergy ||
+        generatedWorldAtmosphere ||
+        generatedWorldPacing
+      )
+    : ''
 
 const lakeComoFinalMood =
   normalize(lakeComoFinalMoodRaw).includes(normalize(lakeComoFinalLocation || '')) ||
@@ -4898,535 +6355,1439 @@ const lakeComoFinalMood =
     ? ''
     : lakeComoFinalMoodRaw
 
-const parts = cleanPromptParts(
-  privateCreatorWorldActive
-    ? [
-        cleanIdentity,
-        merged.age,
-        merged.ethnicity,
-        merged.body_shape,
-        merged.eye_color,
-        merged.hair,
-        privateCreatorAction,
-        privateCreatorEnvironment,
-        privateCreatorMood,
-        privateCreatorCamera,
-        privateCreatorLighting,
-        generatedTime,
-      ]
-    : fitnessLifeWorldActive
-      ? [
-          cleanIdentity,
-          merged.age,
-          merged.ethnicity,
-          merged.body_shape,
-          merged.eye_color,
-          merged.hair,
-          fitnessLifeAction,
-          fitnessLifeEnvironment,
-          fitnessLifeMood,
-          fitnessLifeCamera,
-          fitnessLifeLighting,
-          generatedTime,
-        ]
-: luxuryLifeWorldActive
-  ? [
-      cleanIdentity,
-      merged.age,
-      merged.ethnicity,
-      merged.body_shape,
-      merged.eye_color,
-      merged.hair,
-      luxuryLifeAction,
-      luxuryLifeEnvironment,
-      luxuryLifeMood,
-      luxuryLifeCamera,
-      luxuryLifeLighting,
-      generatedTime,
-    ]
-        : fanvueCreatorWorldActive
-          ? [
-              cleanIdentity,
-              merged.age,
-              merged.ethnicity,
-              merged.body_shape,
-              merged.eye_color,
-              merged.hair,
-              fanvueCreatorAction,
-              fanvueCreatorEnvironment,
-              fanvueCreatorMood,
-              fanvueCreatorCamera,
-              fanvueCreatorLighting,
-              generatedTime,
-            ]
-          : onlyfansCreatorWorldActive
-            ? [
-                cleanIdentity,
-                merged.age,
-                merged.ethnicity,
-                merged.body_shape,
-                merged.eye_color,
-                merged.hair,
-                onlyfansCreatorAction,
-                onlyfansCreatorEnvironment,
-                onlyfansCreatorMood,
-                onlyfansCreatorCamera,
-                onlyfansCreatorLighting,
-                generatedTime,
-              ]
-            : gymInfluencerWorldActive
-              ? [
-                  cleanIdentity,
-                  merged.age,
-                  merged.ethnicity,
-                  merged.body_shape,
-                  merged.eye_color,
-                  merged.hair,
-                  gymInfluencerAction,
-                  gymInfluencerEnvironment,
-                  gymInfluencerMood,
-                  gymInfluencerCamera,
-                  gymInfluencerLighting,
-                  generatedTime,
-                ]
-              : isLakeComoWorldActive || world === 'lake-como-life'
-                ? [
-                    cleanIdentity,
-                    merged.age,
-                    merged.ethnicity,
-                    merged.body_shape,
-                    merged.eye_color,
-                    merged.hair,
-                    lakeComoFinalPose || lakeComoFallbackPose,
-                    lakeComoFinalLocation || lakeComoFallbackLocation,
-normalize(lakeComoFinalMood || lakeComoFallbackMood) === normalize(lakeComoFinalLocation || lakeComoFallbackLocation)
-  ? ''
-  : (lakeComoFinalMood || lakeComoFallbackMood),
-                    generatedWorldOutfit,
-                    generatedWorldStylingDetail,
-                    generatedWorldSensory,
-                    finalCamera,
-                    finalLighting,
-                    generatedTime,
-                  ]
-                : [
-                    cleanIdentity,
-                    merged.age,
-                    merged.ethnicity,
-                    merged.body_shape,
-                    merged.eye_color,
-                    merged.hair,
-                    finalPose,
-                    isStructuredWorld
-                      ? (
-                          isAmalfiWorldActive
-                            ? amalfiLocationLine
-                            : finalLocationLine
-                        )
-                      : finalLocationLine,
+const safeLakeComoFinalPose = isLakeComoFeed ? lakeComoFinalPose : ''
+const safeLakeComoFallbackPose = isLakeComoFeed ? lakeComoFallbackPose : ''
+const safeLakeComoFinalLocation = isLakeComoFeed ? lakeComoFinalLocation : ''
+const safeLakeComoFallbackLocation = isLakeComoFeed ? lakeComoFallbackLocation : ''
+const safeLakeComoFinalMood = isLakeComoFeed ? lakeComoFinalMood : ''
+const safeLakeComoFallbackMood = isLakeComoFeed ? lakeComoFallbackMood : ''    
 
-                    '',
-                    safeMoodForParts,
-                    isStructuredWorld ? generatedWorldOutfit : '',
-isStructuredWorld
-  ? (
-      normalize(generatedWorldStylingDetail || '').includes(normalize(generatedWorldOutfit || '')) ||
-      normalize(generatedWorldOutfit || '').includes(normalize(generatedWorldStylingDetail || ''))
-        ? ''
-        : generatedWorldStylingDetail
-    )
-  : '',
-                    isStructuredWorld
-  ? (
-      normalize(generatedWorldSensory || '').includes(normalize(finalMood || '')) ||
-      normalize(finalMood || '').includes(normalize(generatedWorldSensory || ''))
-        ? ''
-        : generatedWorldSensory
-    )
-  : '',
-                    isStructuredWorld
-  ? (
-      normalize(generatedWorldNarrativeIntent || '').includes(normalize(finalMood || '')) ||
-      normalize(finalMood || '').includes(normalize(generatedWorldNarrativeIntent || ''))
-        ? ''
-        : generatedWorldNarrativeIntent
-    )
-  : '',
-                    isStructuredWorld
-  ? (
-      normalize(generatedWorldProp || '').includes(normalize(finalLocationLine || '')) ||
-      normalize(finalLocationLine || '').includes(normalize(generatedWorldProp || ''))
-        ? ''
-        : generatedWorldProp
-    )
-  : '',
-                    generatedOverlay,
-generatedWorldIdentity,
+const hasStrongSceneAction = !!String(
+  finalPose ||
+  rawGeneratedHumanAction ||
+  generatedWorldActivity ||
+  customStoryAction ||
+  ''
+).trim()
 
-// 🔥 MOVE ROTATION EARLY (IMPORTANT)
-rotatedLuxuryTone,
+const hasStrongSceneLocation = !!String(
+  finalLocationLine ||
+  generatedWorldLocation ||
+  customStoryEnvironment ||
+  ''
+).trim()
 
-// core human + scene
-rawGeneratedHumanAction,
-generatedHumanFlowLine,
-generatedWorldBodyLanguage,
-generatedWorldMovementEnergy,
+const hasStrongSceneFoundation =
+  hasStrongSceneAction &&
+  hasStrongSceneLocation &&
+  String(finalLocationLine || '').length > 20 &&
+  String(finalPose || '').length > 15
 
-generatedWorldSensory,
-Math.random() > 0.88 ? generatedWorldMicroDetail : '',
-generatedWorldAtmosphere,
+const sceneSafeRotatedLuxuryTone =
+  hasStrongSceneFoundation ? '' : rotatedLuxuryTone
 
-finalCamera,
-finalLighting,
-generatedTime
-]
+const sceneSafeGeneratedOverlay =
+  hasStrongSceneFoundation ? '' : generatedOverlay
+
+const sceneSafeGeneratedWorldIdentity =
+  hasStrongSceneFoundation ? '' : generatedWorldIdentity
+
+const sceneSafeGeneratedWorldSensory = generatedWorldSensory
+
+const sceneSafeGeneratedWorldAtmosphere = generatedWorldAtmosphere
+
+const sceneSafeGeneratedWorldNarrativeIntent = generatedWorldNarrativeIntent
+
+const groundedActionFallbacks = {
+  early_morning: 'waking slowly and settling into the first moment of the day',
+  morning: 'moving through the morning with quiet purpose',
+  late_morning: 'moving through the session with focused intent',
+  midday: 'holding a steady, active presence in the middle of the day',
+  afternoon: 'slowing slightly while staying composed and present',
+  late_afternoon: 'transitioning calmly as the day begins to soften',
+  golden_hour: 'holding a composed pause as the light changes',
+  evening: 'unwinding with calm, deliberate movement',
+  night: 'settling into a quieter, more private end-of-day rhythm',
+}
+
+const groundedEnvironmentFallbacks = {
+  early_morning: 'private bedroom or morning interior',
+  morning: 'home interior with soft natural light',
+  late_morning: 'gym floor or training environment',
+  midday: 'active daytime environment',
+  afternoon: 'quiet interior or recovery setting',
+  late_afternoon: 'calm transition space',
+  golden_hour: 'softly lit private setting',
+  evening: 'private interior or recovery space',
+  night: 'quiet bedroom or low-lit private room',
+}
+
+const groundedMoodFallbacks = {
+  early_morning: 'calm, waking, self-possessed',
+  morning: 'focused, feminine, quietly composed',
+  late_morning: 'driven, controlled, attentive',
+  midday: 'present, steady, naturally confident',
+  afternoon: 'calm, reflective, relaxed',
+  late_afternoon: 'softly reset, composed, unhurried',
+  golden_hour: 'warm, poised, quietly magnetic',
+  evening: 'calm, grounded, gently unwinding',
+  night: 'quiet, private, end-of-day calm',
+}
+
+const resolvedTimeKey =
+  generatedTime === 'early morning' ? 'early_morning' :
+  generatedTime === 'morning' ? 'morning' :
+  generatedTime === 'late morning' ? 'late_morning' :
+  generatedTime === 'midday' ? 'midday' :
+  generatedTime === 'afternoon' ? 'afternoon' :
+  generatedTime === 'late afternoon' ? 'late_afternoon' :
+  generatedTime === 'golden hour' ? 'golden_hour' :
+  generatedTime === 'evening' ? 'evening' :
+  'night'    
+
+  let normalizedAction = String(rawGeneratedHumanAction || finalPose || '').trim()
+let normalizedEnvironment = String(finalLocationLine || generatedWorldLocation || '').trim()
+
+const isBaliContext = /bali|jungle|villa|spa|pool|beach|retreat|daybed|terrace|bath|club|tropical/i.test(
+  `${normalizedEnvironment} ${resolvedWorldId} ${world}`
 )
 
-
-// ADVANCED DEDUPE + ANTI-REPETITION
-const ENDING_BLOCKLIST = [
-  'waking energy',
-  'natural morning presence',
-  'controlled posture',
-  'refined calm',
-  'engaged movement',
-  'purposeful presence'
-]
-
-const seen = new Set()
-
-const semanticBuckets = {
-  luxury: 0,
-  mood: 0,
-  environment: 0,
-}
-
-const timePartsSeen = new Set()
-
-let humanActionSeen = false
-
-const uniqueParts = parts
-  .map(p => p?.trim())
-  .filter(Boolean)
-  .filter(part => {
-    const raw = String(part || '').trim()
-    const lower = raw.toLowerCase()
-
-    if (ENDING_BLOCKLIST.some(block => lower.includes(block))) {
-      return false
-    }
-
-const TIME_EQUIVALENTS = {
-  'early morning': 'time_defined',
-  'morning': 'time_defined',
-  'late morning': 'time_defined',
-  'midday': 'time_defined',
-  'afternoon': 'time_defined',
-  'late afternoon': 'time_defined',
-  'golden hour': 'time_defined',
-  'early evening': 'time_defined',
-  'evening': 'time_defined',
-  'late night': 'time_defined',
-  'night': 'time_defined',
-  'sunrise': 'time_defined',
-  'sunset': 'time_defined',
-  'first light': 'time_defined',
-  'end of day': 'time_defined',
-  'candlelit evening': 'time_defined',
-  'sunlit breakfast hour': 'time_defined',
-  'warm summer night': 'time_defined',
-  'cool indoor reset': 'time_defined',
-  'soft morning light': 'time_defined',
-  'day': 'time_defined',
-}
-
-const normalizedTimeBucket = TIME_EQUIVALENTS[lower] || null
-
-if (normalizedTimeBucket) {
-  if (timePartsSeen.has(normalizedTimeBucket)) return false
-  timePartsSeen.add(normalizedTimeBucket)
-}
-
-  const key = normalize(raw)
-
-  const isHumanActionPart = [
-  'brushing hair',
-  'adjusting the robe',
-  'touching the balcony',
-  'pressing fingertips',
-  'lifting a cup',
-  'pulling sleeves',
-  'touching the edge',
-  'adjusting sunglasses',
-  'reaching for a glass',
-  'sliding a hand',
-  'lifting a drink',
-  'checking her reflection',
-  'tilting sunglasses',
-  'adjusting the strap',
-  'resting fingers',
-  'lifting a glass',
-  'straightening the cuff',
-  'smoothing the outfit',
-  'adjusting jewelry',
-  'adjusting clothing',
-  'tracing fingertips',
-  'placing one hand',
-  'brushing hair back',
-  'letting fingers rest',
-  'holding a drink',
-  'touching the railing',
-  'resting one hand',
-  'running fingers through',
-  'resting into a quiet seated position',
-  'touching the collarbone',
-  'walking barefoot',
-  'stretching softly',
-  'leaning slightly into conversation',
-  'holding still for a brief moment',
-  'slow controlled movement',
-  'touching the robe edge',
-  'smoothing the fabric',
-  'wrapping one arm',
-  'bringing a drink closer',
-  'turning the glass gently',
-  'sliding a hand along the railing',
-  'letting fingers trail',
-  'touching the chair',
-  'brushing wet hair',
-  'opening the curtains',
-  'sitting upright slowly',
-  'resting one hand on the sheet',
-  'turning toward the window',
-  'stepping out with composed city polish',
-  'moving through the entrance',
-  'crossing toward the car',
-  'turning slightly as the city movement builds',
-  'holding a quiet pause',
-  'resting into the atmosphere',
-  'holding still as the golden light catches her profile',
-  'letting the evening light shape the moment',
-  'crossing the room with measured elegance',
-  'pausing at the doorway',
-  'standing beside the table',
-  'turning toward the room',
-  'lowering into a quiet seated position',
-  'standing near the window',
-  'resting by the bed',
-  'holding a quiet after-hours pause',
-  'moving with calm composed ease',
-  'holding a brief still pause',
-  'crossing the setting with quiet control',
-  'settling naturally into the environment',
-].some((token) => key.includes(token))
-
-if (isHumanActionPart) {
-  if (humanActionSeen) return false
-  humanActionSeen = true
-}
-
-const isLuxury =
-  /luxury|prestige|high-status|exclusive|elite|resort|vip/i.test(raw)
-
-const isMood =
-  /calm|confidence|magnetism|presence|energy|sensual|intimate|soft|slow|unhurried|measured|steady|flowing|elevated|lingering|controlled|easy|fluid|polished|social|editorial|intentional|composed|restrained|glamorous|cinematic/i.test(raw)
-
-const isEnvironment =
-  /tropical|island|bali|spa|villa|club|beach/i.test(raw)
-
-// LIMITERS
-if (isLuxury) {
-  if (semanticBuckets.luxury >= 4) return false
-  semanticBuckets.luxury++
-}
-
-if (isMood) {
-  if (semanticBuckets.mood >= 3) return false
-  semanticBuckets.mood++
-}
-
-if (isEnvironment) {
-  if (semanticBuckets.environment >= 4) return false
-  semanticBuckets.environment++
-}
-
-if (seen.has(key) && Math.random() > 0.75) return false
-
-    const words = key.split(' ')
-if (words.length > 10) {
-  for (const existing of seen) {
-    if (existing === key) {
-      return false
-    }
+// kill city-action leakage in Bali/tropical prompts
+if (isBaliContext) {
+  if (
+    /city polish|city movement builds around her/i.test(normalizedAction)
+  ) {
+    normalizedAction = ''
   }
 }
 
-    seen.add(key)
-    return true
+// kill fake location fillers
+if (/^(high-status retreat|bali luxury escape|exclusive destination feel|tropical high-status destination)$/i.test(normalizedEnvironment)) {
+  normalizedEnvironment = ''
+}
+
+if (/^(private villa|beach club|jungle retreat|luxury spa|luxury restaurant|nightlife)$/i.test(normalizedEnvironment)) {
+  normalizedEnvironment = ''
+}
+
+// recover action if stripped
+if (!normalizedAction) {
+  if (/pool|water|infinity/i.test(normalizedEnvironment)) {
+    normalizedAction = pickFromPool([
+      'resting one hand along the pool edge while watching the water ripple',
+      'stepping slowly into the water with controlled movement',
+      'leaning forward slightly as her reflection shifts',
+      'standing at the edge with one foot grazing the surface',
+    ], i)
+  } else if (/bedroom|suite|villa|lounge/i.test(normalizedEnvironment)) {
+    normalizedAction = pickFromPool([
+      'walking barefoot across the room toward the light',
+      'sitting at the edge of the bed as she gathers herself',
+      'adjusting the sheets before stepping away',
+      'turning slowly toward the window as light fills the space',
+    ], i)
+  } else if (/spa|bath|wellness|sink|mirror/i.test(normalizedEnvironment)) {
+    normalizedAction = pickFromPool([
+      'stepping out of the bath with slow deliberate control',
+      'lowering herself slowly into the bath with controlled movement',
+      'lifting her hand through the water and watching it fall',
+      'resting back as steam rises softly around her',
+    ], i)
+  } else if (/balcony|terrace|view|breakfast/i.test(normalizedEnvironment)) {
+    normalizedAction = pickFromPool([
+      'resting her hands on the railing while looking out over the view',
+      'leaning into the open air as it moves around her',
+      'stepping toward the edge as the space opens up',
+      'pausing at the edge while taking in the surroundings',
+    ], i)
+  }
+}
+
+// recover environment if stripped
+if (!normalizedEnvironment) {
+  normalizedEnvironment =
+    structuredWorldLocationLine ||
+    generatedWorldLocation ||
+    baliLocationLine ||
+    merged.location ||
+    ''
+}
+
+const normalizedEnvironmentParts = String(normalizedEnvironment || '')
+  .split(',')
+  .map((part) => String(part || '').trim())
+  .filter(Boolean)
+
+const normalizedEnvironmentSceneParts = normalizedEnvironmentParts.filter((part) =>
+  /villa bedroom|lake-view bedroom|marble bathroom|private balcony|breakfast terrace|stone terrace|poolside deck|bedroom|suite|bathroom|pool|spa|restaurant|bar|lounge|terrace|balcony|courtyard|garden|walkway|path|dining room|kitchen/i.test(part)
+)
+
+const blockedEnvironmentParts = normalizedEnvironmentSceneParts.filter(
+  (part) =>
+    !/^(villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)$/i.test(part)
+)
+
+if (blockedEnvironmentParts.length > 1) {
+  normalizedEnvironment = blockedEnvironmentParts[0]
+} else if (blockedEnvironmentParts.length === 1) {
+  normalizedEnvironment = blockedEnvironmentParts[0]
+} else {
+  normalizedEnvironment = ''
+}
+
+const promptModel = {
+  identity: feedIdentityAnchor || cleanIdentity || '',
+
+action: (() => {
+  const resolvedEnvironment = resolveStrictSceneEnvironment({
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation: safeLakeComoFinalLocation,
+    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
   })
 
-// CONTINUITY ENHANCEMENT
-if (
-  generatedTime === lastGeneratedTime &&
-  Math.random() > 0.92
-) {
-  uniqueParts.push('')
-}
+  const envText = String(resolvedEnvironment || '').toLowerCase()
+  const currentAction =
+    normalizedAction ||
+    rawGeneratedHumanAction ||
+    resolvedGeneratedWorldActivity ||
+    finalPose ||
+    customStoryAction ||
+    ''
 
-if (
-  finalLocationLine &&
-  lastGeneratedLocation &&
-  normalize(finalLocationLine) === normalize(lastGeneratedLocation) &&
-  Math.random() > 0.95
-) {
-  uniqueParts.push('')
-}
+  if (/bathroom|bath|spa|mirror detail|marble bathroom/.test(envText)) {
+    return /bath|steam|water|mirror|sink/.test(String(currentAction).toLowerCase())
+      ? currentAction
+      : 'stepping out of the bath with slow deliberate control'
+  }
 
-if (
-  finalMood &&
-  lastGeneratedMood &&
-  normalize(finalMood) === normalize(lastGeneratedMood) &&
-  Math.random() > 0.96
-) {
-  uniqueParts.push('')
-}
+  if (/bedroom|suite|bed|villa bedroom|lake-view bedroom/.test(envText)) {
+    return /bed|sheet|room|window|bedside/.test(String(currentAction).toLowerCase())
+      ? currentAction
+      : 'walking barefoot across the room toward the light'
+  }
 
-// update memory
-lastGeneratedTime = generatedTime
-lastGeneratedLocation = finalLocationLine
-lastGeneratedMood = finalMood
+  if (/balcony|terrace|breakfast terrace|stone terrace|private balcony/.test(envText)) {
+    return /balcony|terrace|rail|open air|edge|view/.test(String(currentAction).toLowerCase())
+      ? currentAction
+      : 'resting her hands on the railing while looking out over the view'
+  }
 
-// 🔥 HUMAN + STORY FLOW INJECTION
+  if (/pool|water|poolside deck/.test(envText)) {
+    return /pool|water|reflection|surface|edge/.test(String(currentAction).toLowerCase())
+      ? currentAction
+      : 'resting one hand along the pool edge while watching the water ripple'
+  }
 
-// humanFlow already handled in core human + scene
+  return currentAction
+})(),
 
-const shouldUseEndingRotation =
-  generatedTime === 'late night' ||
-  generatedPhase === 'night' ||
-  /returning to the suite|washing off the day|ending the day|settling into end-of-day stillness|lying down to sleep/i.test(
-    String(finalPose || '')
-  )
-
-if (shouldUseEndingRotation && Math.random() > 0.7) {
-  uniqueParts.push(rotatedEnding)
-}
-
-if (uniqueParts.length < 12) {
-  uniqueParts.push(
-    finalPose,
+  environment: resolveStrictSceneEnvironment({
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
     finalLocationLine,
-    safeMoodForParts,
-    rawGeneratedHumanAction,
-    generatedHumanFlowLine,
-    generatedWorldActivity,
-    generatedWorldBodyLanguage,
-    generatedWorldMovementEnergy,
-    generatedWorldSensory,
-    generatedWorldAtmosphere,
-    Math.random() > 0.93 ? generatedWorldMicroDetail : '',
-    finalCamera,
-    finalLighting,
-    generatedTime
-  )
+    lakeComoFinalLocation: safeLakeComoFinalLocation,
+    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
+  }),
+
+  mood:
+    safeMoodForParts ||
+    finalMood ||
+    customStoryMood ||
+    '',
+  camera:
+    finalCamera ||
+    customStoryCamera ||
+    '',
+  lighting:
+    finalLighting ||
+    customStoryLighting ||
+    '',
+  time:
+    generatedTime || '',
 }
 
-let recoveredParts = [...new Set(uniqueParts.map((part) => normalize(part)).filter(Boolean))]
-  .map((normalizedPart) => uniqueParts.find((part) => normalize(part) === normalizedPart))
-  .filter(Boolean)
+const resolvedPromptModel = {
+  identity: promptModel.identity || '',
 
-const formatted = recoveredParts
-  .filter(Boolean)
-  .filter((part) => String(part || '').trim().length > 1)
-  .join(', ')
+action:
+  promptModel.action ||
+  rawGeneratedHumanAction ||
+  resolvedGeneratedWorldActivity ||
+  generatedWorldActivity ||
+  customStoryAction ||
+  (
+    /slight fabric movement in the wind|hair shifting with natural motion|subtle breath expansion in chest|gentle posture correction mid-movement|fingers lightly adjusting clothing/i.test(String(lakeComoFinalPose || ''))
+      ? ''
+      : safeLakeComoFinalPose
+  ) ||
+  safeLakeComoFallbackPose ||
+  groundedActionFallbacks[resolvedTimeKey] ||
+  'holding a calm, composed presence within the moment',
+
+environment: (() => {
+  const primaryEnv = resolvePrimarySceneEnvironment({
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation: safeLakeComoFinalLocation,
+    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
+  })
+
+  const cleaned = stripWeakEnvironmentFallbacks(primaryEnv)
+
+  return cleaned || generatedWorldLocation || 'private interior setting'
+})(),
+
+  mood:
+    promptModel.mood ||
+    safeMoodForParts ||
+    finalMood ||
+    customStoryMood ||
+    safeLakeComoFinalMood ||
+    safeLakeComoFallbackMood ||
+    generatedWorldMood ||
+    generatedWorldAtmosphere ||
+    generatedWorldSensory ||
+    groundedMoodFallbacks[resolvedTimeKey] ||
+    'calm, self-possessed, naturally feminine',
+
+  camera:
+    promptModel.camera ||
+    finalCamera ||
+    customStoryCamera ||
+    generatedWorldCamera ||
+    '',
+
+  lighting:
+    promptModel.lighting ||
+    finalLighting ||
+    customStoryLighting ||
+    generatedWorldLighting ||
+    '',
+
+  time:
+    promptModel.time ||
+    generatedTime ||
+    'night',
+}
+
+// ===============================
+// SUBJECT SYSTEM — NEUTRAL SCENE OUTPUT
+// ===============================
+
+const ACTION_REJECT_RE =
+  /^(letting |using |turning the |making the |bringing the |keeping the |framing the |holding the scene from|ending the visible|closing the visible|allowing the |completing the transition|moving the day toward|pulling the tone inward|deepening the sense|building the transition|setting up the day|introducing the world|expanding the mood|turning the city|bridging daytime|raising the social|returning from visible)/i
+
+const ACTION_FALLBACK_POOL = [
+  customStoryAction,
+  generatedWorldScene,
+  resolvedGeneratedWorldActivity,
+  finalPose,
+  generatedWorldActivity,
+].filter(Boolean)
+
+const firstValidWorldAction =
+  ACTION_FALLBACK_POOL.find((item) => {
+    const clean = String(item || '').trim()
+    if (!clean) return false
+    if (ACTION_REJECT_RE.test(clean)) return false
+    return true
+  }) || ''
+
+const realWorldAction = String(firstValidWorldAction || '').trim()
+
+const WORLD_LOCK_RULES = {
+  bali: {
+    blocked: ['paris', 'monaco', 'lake como', 'venice', 'london', 'european'],
+    preferred: [
+      'bali',
+      'canggu',
+      'seminyak',
+      'jimbaran',
+      'uluwatu',
+      'rice field',
+      'jungle',
+      'villa',
+      'beach',
+      'beach club',
+      'shoreline',
+      'coast',
+      'ocean',
+      'palms',
+      'tropical',
+    ],
+    lightingByTime: {
+      'early morning': 'soft tropical sunrise',
+      morning: 'soft tropical morning light',
+      'late morning': 'bright tropical daylight',
+      midday: 'clean tropical midday light',
+      afternoon: 'bright coastal daylight',
+      'late afternoon': 'warm coastal afternoon light',
+      'golden hour': 'warm Bali golden-hour glow',
+      evening: 'warm lantern and candle glow',
+      night: 'low-key tropical night lighting',
+    },
+    moodByTime: {
+      'early morning': 'quiet tropical morning calm',
+      morning: 'soft private villa calm',
+      'late morning': 'light destination ease',
+      midday: 'sunlit social confidence',
+      afternoon: 'open coastal relaxation',
+      'late afternoon': 'warm relaxed couple energy',
+      'golden hour': 'romantic sunset anticipation',
+      evening: 'warm after-dark intimacy',
+      night: 'quiet private nighttime closeness',
+    },
+  },
+
+  'lake-como-private-escape': {
+    blocked: ['bali', 'canggu', 'seminyak', 'jimbaran', 'uluwatu', 'jungle', 'rice field', 'tropical'],
+    preferred: ['lake como', 'villa', 'balcony', 'lake', 'terrace', 'italian', 'coast'],
+    lightingByTime: {
+      'early morning': 'soft Italian morning light',
+      morning: 'refined natural villa daylight',
+      'late morning': 'bright lake-view daylight',
+      midday: 'clean Italian midday light',
+      afternoon: 'warm lakeside afternoon light',
+      'late afternoon': 'soft lake-reflected light',
+      'golden hour': 'warm Lake Como sunset glow',
+      evening: 'candlelit terrace glow',
+      night: 'low-key villa night lighting',
+    },
+    moodByTime: {
+      'early morning': 'quiet villa stillness',
+      morning: 'refined private composure',
+      'late morning': 'calm high-status ease',
+      midday: 'bright luxury calm',
+      afternoon: 'soft lakeside relaxation',
+      'late afternoon': 'self-possessed quiet warmth',
+      'golden hour': 'romantic high-status softness',
+      evening: 'elegant intimate calm',
+      night: 'quiet end-of-day privacy',
+    },
+  },
+
+  default: {
+    blocked: [],
+    preferred: [],
+    lightingByTime: {
+      'early morning': 'soft natural morning light',
+      morning: 'soft natural daylight',
+      'late morning': 'bright natural daylight',
+      midday: 'clean midday daylight',
+      afternoon: 'warm afternoon light',
+      'late afternoon': 'soft late-day light',
+      'golden hour': 'golden hour glow',
+      evening: 'warm evening ambient light',
+      night: 'low-key cinematic shadows',
+    },
+    moodByTime: {
+      'early morning': 'quiet morning calm',
+      morning: 'calm composed presence',
+      'late morning': 'light social ease',
+      midday: 'steady relaxed confidence',
+      afternoon: 'soft relaxed composure',
+      'late afternoon': 'quiet warm ease',
+      'golden hour': 'romantic visual warmth',
+      evening: 'controlled intimate calm',
+      night: 'quiet private stillness',
+    },
+  },
+}
+
+const getWorldLockRules = (worldIdValue) =>
+  WORLD_LOCK_RULES[String(worldIdValue || '').trim().toLowerCase()] || WORLD_LOCK_RULES.default
+
+const lockedWorldRules = getWorldLockRules(resolvedWorldId)
+
+const containsBlockedWorldToken = (value, blockedTokens = []) => {
+  const lower = String(value || '').toLowerCase()
+  return blockedTokens.some((token) => lower.includes(token))
+}
+
+const containsPreferredWorldToken = (value, preferredTokens = []) => {
+  const lower = String(value || '').toLowerCase()
+  return preferredTokens.some((token) => lower.includes(token))
+}
+
+const resolveLockedWorldEnvironment = ({
+  worldId,
+  candidates = [],
+}) => {
+  const rules = getWorldLockRules(worldId)
+
+  const cleaned = candidates
+    .map((v) => String(v || '').trim())
+    .filter(Boolean)
+
+  const preferredMatch = cleaned.find(
+    (value) =>
+      containsPreferredWorldToken(value, rules.preferred) &&
+      !containsBlockedWorldToken(value, rules.blocked)
+  )
+
+  if (preferredMatch) return preferredMatch
+
+  const nonBlocked = cleaned.find(
+    (value) => !containsBlockedWorldToken(value, rules.blocked)
+  )
+
+  return nonBlocked || cleaned[0] || ''
+}
+
+const resolveLockedWorldMood = ({
+  worldId,
+  moodValue = '',
+  timeValue = '',
+}) => {
+  const rules = getWorldLockRules(worldId)
+  const mood = String(moodValue || '').trim()
+
+  if (
+    !mood ||
+    containsBlockedWorldToken(mood, rules.blocked) ||
+    /\b(paris|european|monaco|lake como|bali|canggu|seminyak|jimbaran|uluwatu)\b/i.test(mood)
+  ) {
+    return rules.moodByTime[String(timeValue || '').toLowerCase()] || 'calm composed presence'
+  }
+
+  return mood
+}
+
+const realWorldEnvironment = resolveLockedWorldEnvironment({
+  worldId: resolvedWorldId,
+  candidates: [
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation,
+    lakeComoFallbackLocation,
+  ],
+})
+
+const realWorldEnvironmentLower = realWorldEnvironment.toLowerCase()
+
+const lockActionToEnvironment = (actionValue, environmentValue) => {
+  const action = String(actionValue || '').trim()
+  const env = String(environmentValue || '').toLowerCase()
+
+  if (!env) return action
+
+  if (/suite|bedroom|room/.test(env)) {
+    if (/balcony|railing|terrace|edge|view/.test(action.toLowerCase())) {
+      return 'standing near the window with calm composed posture'
+    }
+  }
+
+  if (/cafe|terrace seating|table|lunch|breakfast/.test(env)) {
+    if (/balcony|railing|terrace edge|open view/.test(action.toLowerCase())) {
+      return 'sitting with composed posture and soft social ease'
+    }
+  }
+
+  if (/spa|bathroom|marble|wellness/.test(env)) {
+    if (/balcony|railing|terrace|street|walk/.test(action.toLowerCase())) {
+      return 'touching the sink edge lightly in a quiet private moment'
+    }
+  }
+
+  if (/bridge|riverside|garden|courtyard|street|vendome|montaigne/.test(env)) {
+    if (/bed|pillows|sink|bath|robe/.test(action.toLowerCase())) {
+      return 'walking with calm visible composure through the space'
+    }
+  }
+
+  return action
+}
+
+const lockedRealWorldAction = lockActionToEnvironment(
+  realWorldAction,
+  realWorldEnvironment
+)
+
+const realWorldMood = resolveLockedWorldMood({
+  worldId: resolvedWorldId,
+  moodValue:
+    String(
+      customStoryMood ||
+      generatedWorldMood ||
+      generatedWorldFacialExpression ||
+      generatedWorldSocialEnergy ||
+      generatedWorldAtmosphere ||
+      generatedWorldPacing ||
+      ''
+    ).trim(),
+  timeValue: generatedTime,
+})
+
+const resolveLockedCameraForEnvironment = (environmentValue) => {
+  const env = String(environmentValue || '').toLowerCase()
+
+  if (/suite|bedroom|room/.test(env)) {
+    const pool = [
+      'intimate close framing',
+      'soft over-shoulder perspective',
+      'cinematic full-body framing',
+    ]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  if (/spa|bathroom|marble|wellness/.test(env)) {
+    const pool = [
+      'soft bathroom editorial angle',
+      'mirror-side close framing',
+      'elegant medium portrait composition',
+    ]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  if (/cafe|table|breakfast|lunch|terrace seating/.test(env)) {
+    const pool = [
+      'table-side medium portrait composition',
+      'soft seated breakfast framing',
+      'street-facing terrace shot',
+    ]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  if (/balcony|eiffel|rooftop|terrace/.test(env)) {
+    const pool = [
+      'balcony-wide establishing shot',
+      'soft golden-hour editorial angle',
+      'terrace-side medium composition',
+    ]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  if (/bridge|riverside|garden|courtyard|vendome|montaigne|louvre|palais|opera/.test(env)) {
+    const pool = [
+      'wide establishing shot',
+      'architectural editorial angle',
+      'walking composition through landmark space',
+    ]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  return String(
+    customStoryCamera ||
+    generatedWorldCamera ||
+    finalCamera ||
+    ''
+  ).trim()
+}
+
+const realWorldCamera = resolveLockedCameraForEnvironment(realWorldEnvironment)
+
+const resolveLockedLighting = (worldIdValue, environmentValue, timeValue) => {
+  const env = String(environmentValue || '').toLowerCase()
+  const time = String(timeValue || '').toLowerCase()
+  const rules = getWorldLockRules(worldIdValue)
+
+  if (/spa|bathroom|marble|wellness|shower|sink|mirror/.test(env)) {
+    return /bali/i.test(String(worldIdValue || ''))
+      ? 'warm spa interior brightness'
+      : rules.lightingByTime[time] || 'warm spa interior brightness'
+  }
+
+  if (/pool|beach|shoreline|coast|ocean|beach club|rice field|jungle|villa exterior|balcony|terrace/.test(env)) {
+    return rules.lightingByTime[time] || 'soft natural daylight'
+  }
+
+  if (/suite|room|bedroom|villa|interior|lounge/.test(env)) {
+    return rules.lightingByTime[time] || 'soft natural daylight'
+  }
+
+  return rules.lightingByTime[time] ||
+    String(
+      customStoryLighting ||
+      generatedWorldLighting ||
+      finalLighting ||
+      ''
+    ).trim() ||
+    'soft natural daylight'
+}
+
+const realWorldLighting = resolveLockedLighting(
+  resolvedWorldId,
+  realWorldEnvironment,
+  generatedTime
+)
+
+const neutralSceneOutput = {
+  worldId: resolvedWorldId,
+  storyWorldId: activeStoryWorld,
+  subLocationId: activeSubLocationId,
+  sceneGroupId: activeSceneGroupId,
+  sceneId: '',
+
+  actionSeed: lockedRealWorldAction,
+  environment: realWorldEnvironment,
+  mood: realWorldMood,
+  camera: realWorldCamera,
+  lighting: realWorldLighting,
+  time: String(generatedTime || '').trim(),
+
+  transition: String(generatedWorldTransition || '').trim(),
+  activity: String(resolvedGeneratedWorldActivity || '').trim(),
+  atmosphere: String(generatedWorldAtmosphere || '').trim(),
+  socialEnergy: String(generatedWorldSocialEnergy || '').trim(),
+  facialExpression: String(generatedWorldFacialExpression || '').trim(),
+  bodyLanguage: String(generatedWorldBodyLanguage || '').trim(),
+  narrativeIntent: String(generatedWorldNarrativeIntent || '').trim(),
+  stylingDetail: String(generatedWorldStylingDetail || '').trim(),
+}
+
+// ===============================
+// SUBJECT SYSTEM — PROMPT BUILD
+// ===============================
+
+const subjectPromptModel = resolveSubjectPromptModel({
+  subjectState,
+  interactionState,
+  worldSceneOutput: neutralSceneOutput,
+})
+
+console.log('SUBJECT DEBUG → characterMode:', subjectState?.characterMode)
+console.log('SUBJECT DEBUG → subjectA.gender:', subjectState?.subjectA?.gender)
+console.log('SUBJECT DEBUG → subjectA.identityName:', subjectState?.subjectA?.identityName)
+console.log('SUBJECT DEBUG → subjectA.imageDataUrl exists:', !!subjectState?.subjectA?.imageDataUrl)
+console.log('SUBJECT DEBUG → subjectPromptModel.identityLead:', subjectPromptModel?.identityLead)
+
+const subjectSystemPrompt = buildDeterministicSubjectPrompt(subjectPromptModel)
+
+const subjectGenerationPayload = buildSubjectGenerationPayload({
+  subjectState,
+  interactionState,
+  prompt: subjectSystemPrompt,
+})
+
+const isCoupleDeterministicMode =
+  String(subjectState?.characterMode || '').trim().toLowerCase() === 'couple'
+
+const coupleDeterministicIdentity =
+  isCoupleDeterministicMode
+    ? (() => {
+        const subjectA = subjectState?.subjectA || {}
+        const subjectB = subjectState?.subjectB || {}
+
+        const aName = String(subjectA?.identityName || '').trim()
+        const bName = String(subjectB?.identityName || '').trim()
+
+        const aNoun =
+          String(subjectA?.gender || '').trim().toLowerCase() === 'male'
+            ? 'man'
+            : 'woman'
+
+        const bNoun =
+          String(subjectB?.gender || '').trim().toLowerCase() === 'female'
+            ? 'woman'
+            : 'man'
+
+        const aHasImage =
+          !!String(subjectA?.imageDataUrl || '').trim() ||
+          !!String(subjectA?.sourceFileName || '').trim()
+
+        const bHasImage =
+          !!String(subjectB?.imageDataUrl || '').trim() ||
+          !!String(subjectB?.sourceFileName || '').trim()
+
+        const pairLabel = [aName, bName].filter(Boolean).join(' and ')
+
+        if (aHasImage && bHasImage) {
+          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} and ${bNoun} as the uploaded reference images, preserve identical facial identity for both subjects, preserve the same two people across every image`
+        }
+
+        if (aHasImage && !bHasImage) {
+          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} as the uploaded reference image paired with fixed recurring ${bNoun} identity, preserve the same two people across every image`
+        }
+
+        if (!aHasImage && bHasImage) {
+          return `${pairLabel ? `${pairLabel}, ` : ''}fixed recurring ${aNoun} identity paired with same exact ${bNoun} as the uploaded reference image, preserve the same two people across every image`
+        }
+
+        if (aName && bName) {
+          return `${aName} and ${bName}, fixed recurring couple identity, preserve the same two people across every image`
+        }
+
+        return `consistent recurring couple identity, preserve the same two people across every image`
+      })()
+    : ''
+
+const deterministicPrompt = isCoupleDeterministicMode
+  ? [
+      coupleDeterministicIdentity,
+      String(subjectPromptModel?.action || '').trim(),
+      String(
+        resolveStrictSceneEnvironment({
+          customStoryEnvironment,
+          generatedWorldLocation,
+          structuredWorldLocationLine,
+          finalLocationLine,
+          lakeComoFinalLocation: safeLakeComoFinalLocation,
+          lakeComoFallbackLocation: safeLakeComoFallbackLocation,
+        }) || ''
+      ).trim(),
+      stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
+      String(subjectPromptModel?.camera || '').trim(),
+      String(subjectPromptModel?.lighting || '').trim(),
+      String(subjectPromptModel?.time || generatedTime || '').trim(),
+    ]
+      .filter(Boolean)
+      .join(', ')
+      .replace(/\s+,/g, ',')
+      .replace(/,\s*,+/g, ', ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  : buildDeterministicFeedPrompt({
+      worldId: resolvedWorldId,
+
+      identity: dedupeCommaParts(
+        sanitizeIdentityLeak(
+          [
+            resolvedPromptModel.identity ||
+            cleanIdentity ||
+            'Elegant woman',
+          ],
+          identityState
+        )[0] ||
+        resolvedPromptModel.identity ||
+        cleanIdentity ||
+        'Elegant woman'
+      ),
+
+      action: String(
+        resolvedPromptModel.action ||
+        ''
+      ).trim(),
+
+      environment: String(
+        resolvedPromptModel.environment ||
+        ''
+      ).trim(),
+
+      mood: stripWeakMoodFragments(
+        String(
+          resolvedPromptModel.mood ||
+          ''
+        ).trim()
+      ),
+
+      camera: String(
+        resolvedPromptModel.camera ||
+        ''
+      ).trim(),
+
+      lighting: String(
+        resolvedPromptModel.lighting ||
+        ''
+      ).trim(),
+
+      time: String(
+        resolvedPromptModel.time ||
+        ''
+      ).trim(),
+    })
+
+const isCoupleMode =
+  String(subjectState?.characterMode || '').trim().toLowerCase() === 'couple'
+
+const rawCoupleFinalPrompt =
+  isCoupleMode
+    ? [
+        coupleDeterministicIdentity,
+        String(subjectPromptModel?.action || '').trim(),
+        String(
+          resolveStrictSceneEnvironment({
+            customStoryEnvironment,
+            generatedWorldLocation,
+            structuredWorldLocationLine,
+            finalLocationLine,
+            lakeComoFinalLocation: safeLakeComoFinalLocation,
+            lakeComoFallbackLocation: safeLakeComoFallbackLocation,
+          }) || ''
+        ).trim(),
+        stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
+        String(subjectPromptModel?.camera || '').trim(),
+        String(subjectPromptModel?.lighting || '').trim(),
+        String(subjectPromptModel?.time || generatedTime || '').trim(),
+      ]
+        .filter(Boolean)
+        .join(', ')
+        .replace(/\s+,/g, ',')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : ''
+
+const cleanCoupleFinalPrompt =
+  isCoupleMode
+    ? (() => {
+        const womanAnchorIndex = rawCoupleFinalPrompt.search(
+          /same exact woman as the uploaded reference image paired with fixed recurring man identity/i
+        )
+
+        const dualAnchorIndex = rawCoupleFinalPrompt.search(
+          /same exact woman and man as the uploaded reference images/i
+        )
+
+        const recurringCoupleIndex = rawCoupleFinalPrompt.search(
+          /consistent recurring couple identity/i
+        )
+
+        const startIndex =
+          womanAnchorIndex >= 0
+            ? womanAnchorIndex
+            : dualAnchorIndex >= 0
+              ? dualAnchorIndex
+              : recurringCoupleIndex >= 0
+                ? recurringCoupleIndex
+                : 0
+
+        return rawCoupleFinalPrompt.slice(startIndex).trim()
+      })()
+    : ''
+
+let finalDeterministicPrompt =
+  isCoupleMode
+    ? cleanCoupleFinalPrompt
+    : (subjectSystemPrompt || deterministicPrompt)
+
+finalDeterministicPrompt = String(finalDeterministicPrompt || '')
+  .replace(/\bsubtle bedroom details\b/gi, '')
+  .replace(/\bthe atmosphere of waking inside a calm cinematic world\b/gi, '')
+  .replace(/\ba luxury bedroom atmosphere shaped by softness\b/gi, '')
+  .replace(/\bthe sensation of waking into calm beauty instead of urgency\b/gi, '')
+  .replace(/\ba morning tone built on stillness\b/gi, '')
+  .replace(/\bstill fully private and self-contained\b/gi, '')
+  .replace(/\bquiet preparation and controlled visual elegance\b/gi, '')
+  .replace(/\bprivate beauty without any rush or friction\b/gi, '')
+  .replace(/\bsocial presence implied by elegance rather than interaction\b/gi, '')
+  .replace(/\blightly placed in the world\b/gi, '')
+  .replace(/\bsoftly magnetic daylight presence\b/gi, '')
+  .replace(/\ban atmosphere of scenic elegance and freedom from urgency\b/gi, '')
+  .replace(/\bvilla space\b/gi, '')
+  .replace(/\barchitecture elements\b/gi, '')
+  .replace(/\bdaybed cushions\b/gi, '')
+  .replace(/\bprivate terrace furniture\b/gi, '')
+  .replace(/\bbalcony stonework\b/gi, '')
+  .replace(/,\s*,/g, ', ')
   .replace(/\s+,/g, ',')
-  .replace(/,\s*,+/g, ', ')
-  .replace(/\s+/g, ' ')
-  .replace(/,\s*$/g, '')
-  .replace(/(\d+ years old)\./, '$1 -')
+  .replace(/,\s*,$/g, '')
+  .replace(/\s{2,}/g, ' ')
   .trim()
 
-const emergencyFormatted =
-  formatted && formatted.length > 10
-    ? formatted
-    : [
-        cleanIdentity,
-        merged.age,
-        finalPose || lakeComoFallbackPose || resolvedGeneratedWorldActivity || 'quiet composed posture',
-        finalLocationLine || lakeComoFallbackLocation || generatedWorldLocation || 'private luxury setting',
-        safeMoodForParts || lakeComoFallbackMood || finalMood || 'refined feminine presence',
-        finalCamera || generatedWorldCamera || 'cinematic framing',
-        finalLighting || generatedWorldLighting || 'soft natural light',
-        generatedTime || 'night',
-      ]
-        .filter(Boolean)
-        .join(', ')
-        .replace(/\s+,/g, ',')
-        .replace(/,\s*,+/g, ', ')
-        .replace(/\s+/g, ' ')
-        .replace(/,\s*$/g, '')
-        .trim()
+if (isCoupleMode) {
+  const coupleAnchorIndex = finalDeterministicPrompt.search(
+    /same exact woman as the uploaded reference image paired with fixed recurring man identity/i
+  )
 
-const guaranteedPrompt =
-  emergencyFormatted && emergencyFormatted.length > 10
-    ? emergencyFormatted
-    : [
-        cleanIdentity || 'Elegant woman',
-        'refined, composed, high-value feminine presence',
-        finalLocationLine,
-        finalCamera,
-        finalLighting,
-        generatedTime || 'night',
-      ]
-        .filter(Boolean)
-        .join(', ')
-        .replace(/\s+,/g, ',')
-        .replace(/,\s*,+/g, ', ')
-        .replace(/\s+/g, ' ')
-        .replace(/,\s*$/g, '')
-        .trim()
-
-const finalSafePrompt =
-  guaranteedPrompt && guaranteedPrompt.trim().length > 10
-    ? guaranteedPrompt
-    : [
-        cleanIdentity || 'Elegant woman',
-        merged.age,
-        finalPose || lakeComoFallbackPose || generatedWorldActivity || 'quiet composed posture',
-        finalLocationLine || lakeComoFallbackLocation || generatedWorldLocation || 'private luxury setting',
-        safeMoodForParts || lakeComoFallbackMood || finalMood || 'refined feminine presence',
-        finalCamera || generatedWorldCamera || 'cinematic framing',
-        finalLighting || generatedWorldLighting || 'soft natural light',
-        generatedTime || 'night',
-      ]
-        .filter(Boolean)
-        .join(', ')
-        .replace(/\s+,/g, ',')
-        .replace(/,\s*,+/g, ', ')
-        .replace(/\s+/g, ' ')
-        .replace(/,\s*$/g, '')
-        .trim()
-
-const finalPromptToPush =
-  finalSafePrompt && String(finalSafePrompt).trim().length > 10
-    ? finalSafePrompt.trim()
-    : (
-        guaranteedPrompt && String(guaranteedPrompt).trim().length > 10
-          ? guaranteedPrompt.trim()
-          : (
-              emergencyFormatted && String(emergencyFormatted).trim().length > 10
-                ? emergencyFormatted.trim()
-                : (
-                    prompts[prompts.length - 1] ||
-                    'Elegant woman, refined, composed, private luxury setting, cinematic framing, soft natural light, night'
-                  )
-            )
-      )
-
-prompts.push(finalPromptToPush)
+  if (coupleAnchorIndex >= 0) {
+    finalDeterministicPrompt = finalDeterministicPrompt
+      .slice(coupleAnchorIndex)
+      .trim()
+  }
 }
 
-  setFeedPrompts(prompts)
-  setLast(`Generated ${count} influencer prompts`)
+finalDeterministicPrompt = finalizeFeedPromptFlow(finalDeterministicPrompt)
+
+finalDeterministicPrompt = applyFinalFeedCleanup(finalDeterministicPrompt, {
+  worldId: resolvedWorldId,
+  storyWorld: activeStoryWorld,
+  identityLead: isCoupleMode ? '' : (resolvedPromptModel.identity || ''),
+})  
+
+const extractPromptAction = (promptText) => {
+  const parts = String(promptText || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  return parts[1] || ''
+}
+
+const getPromptActionType = (actionValue) => {
+  const a = String(actionValue || '').toLowerCase()
+
+  if (/bed|sheet|bedside/.test(a)) return 'bed'
+  if (/bath|steam|water|pool|reflection/.test(a)) return 'water'
+  if (/railing|edge|view|terrace/.test(a)) return 'edge'
+  if (/walking|moving|crossing/.test(a)) return 'movement'
+  if (/glass|table|bar|seat/.test(a)) return 'social'
+
+  return 'generic'
+}
+
+const getPromptSceneFamily = (promptText) => {
+  const text = String(promptText || '').toLowerCase()
+
+  if (/bedroom|suite|room|villa bedroom/.test(text)) return 'bedroom'
+  if (/bathroom|bath|spa|sink|mirror/.test(text)) return 'spa'
+  if (/pool|infinity pool|water/.test(text)) return 'pool'
+  if (/terrace|balcony|railing|stone terrace|breakfast terrace/.test(text)) return 'terrace'
+  if (/path|walkway|garden|courtyard/.test(text)) return 'path'
+  if (/bar|lounge|restaurant|dining|table|club/.test(text)) return 'social'
+
+  return 'generic'
+}
+
+const extractPromptMood = (promptText) => {
+  const parts = String(promptText || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  return parts[3] || ''
+}
+
+const removePreviousSceneFamilyCandidates = (value, blockedFamily) => {
+  const parts = String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+
+  const familyMatchers = {
+    bedroom: /bedroom|suite|room|villa bedroom|outdoor suite|villa living/i,
+    spa: /bathroom|bath|spa|sink|mirror/i,
+    pool: /pool|infinity pool|water/i,
+    terrace: /terrace|balcony|railing|stone terrace|breakfast terrace/i,
+    path: /path|walkway|garden|courtyard/i,
+    social: /bar|lounge|restaurant|dining|table|club/i,
+  }
+
+  const matcher = familyMatchers[blockedFamily]
+
+  if (!matcher) return parts.join(', ')
+
+  return parts.filter((part) => !matcher.test(part)).join(', ')
+}
+
+function stripWeakMoodFragments(value) {
+  const weakMoodFragmentRe =
+    /^(the quiet weight of bed|cool marble|stone countertop|skyline distance|polished chrome|bare floor|soft fabric tension|soft sheets|espresso sound|fresh skin|domestic luxury with skyline calm|private styling atmosphere|settled private power|the atmosphere of waking inside a calm cinematic world|the sensation of waking into calm beauty instead of urgency|a morning tone built on stillness|still fully private and self-contained|quiet preparation and controlled visual elegance|private beauty without any rush or friction|social presence implied by elegance rather than interaction|lightly placed in the world|softly magnetic daylight presence|an atmosphere of scenic elegance and freedom from urgency|the sensation of luxury becoming fully embodied in midday heat|luxury comfort without effort|a face shaped by warmth|water reflections shaping a slower atmosphere|restful quiet satisfaction)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) =>
+      String(part || '')
+        .trim()
+        .replace(/^(and|or)\s+/i, '')
+        .trim()
+    )
+    .filter(Boolean)
+    .filter((part) => !weakMoodFragmentRe.test(part))
+    .join(', ')
+}
+
+function stripWeakEnvironmentFallbacks(value) {
+  const weakGenericEnvironmentRe =
+    /^(private interior setting|private luxury setting|refined private interior|after-dark private interior|window-side reading chair|apartment corridor in warm night quiet|vanity table with mirror lights|private balcony or terrace setting|bath or reflective water setting|city-view apartment window|hallway mirror corridor|mirror wall with open floor space|low-lit bedroom mirror corner|balcony doorway with city glow)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part) => !weakGenericEnvironmentRe.test(part))
+    .join(', ')
+}
+
+function resolvePrimarySceneEnvironment({
+  customStoryEnvironment = '',
+  generatedWorldLocation = '',
+  structuredWorldLocationLine = '',
+  finalLocationLine = '',
+  lakeComoFinalLocation = '',
+  lakeComoFallbackLocation = '',
+}) {
+  const ordered = [
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation,
+    lakeComoFallbackLocation,
+  ]
+
+  const blockedEnvironmentRe =
+    /^(private interior setting|mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner)$/i
+
+  for (const source of ordered) {
+    const strongParts = extractStrongEnvironmentCandidates(source).filter(
+      (part) => !blockedEnvironmentRe.test(String(part || '').trim())
+    )
+
+    if (strongParts.length) {
+      return strongParts[0]
+    }
+  }
+
+  return ''
+}
+
+function resolveStrictSceneEnvironment({
+  customStoryEnvironment = '',
+  generatedWorldLocation = '',
+  structuredWorldLocationLine = '',
+  finalLocationLine = '',
+  lakeComoFinalLocation = '',
+  lakeComoFallbackLocation = '',
+}) {
+  const primary =
+    resolvePrimarySceneEnvironment({
+      customStoryEnvironment,
+      generatedWorldLocation,
+      structuredWorldLocationLine,
+      finalLocationLine,
+      lakeComoFinalLocation,
+      lakeComoFallbackLocation,
+    }) || ''
+
+  const cleaned = stripWeakEnvironmentFallbacks(primary).trim()
+
+  if (cleaned) return cleaned
+
+  const fallbackPool = [
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation,
+    lakeComoFallbackLocation,
+  ]
+    .map((v) => stripWeakEnvironmentFallbacks(String(v || '').trim()))
+    .filter(Boolean)
+    .filter(
+      (v) =>
+        !/^(window-side reading chair|private elevator mirror|private interior setting|entry hallway with mirror and console table|low-lit bedroom mirror corner|balcony doorway with city glow)$/i.test(v)
+    )
+
+  return fallbackPool[0] || ''
+}
+
+function extractStrongEnvironmentCandidates(value) {
+  const STRONG_ENV_RE =
+    /\b(bedroom|suite|bathroom|spa|pool|terrace|balcony|garden|courtyard|walkway|path|lounge|living room|restaurant|bar|club|dining room|kitchen|villa bedroom|stone terrace|poolside deck|breakfast terrace|marble bathroom|lake-view bedroom|private balcony)\b/i
+
+  const WEAK_PART_RE =
+    /\b(chair|sofa|table|console table|mirror wall|mirror lights|elevator mirror|reading chair|floor space|phone glow|styling light|window light|city glow|bed weight|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)\b/i
+
+  const BLOCKED_FULL_RE =
+    /^(mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part) => STRONG_ENV_RE.test(part))
+    .filter((part) => !WEAK_PART_RE.test(part))
+    .filter((part) => !BLOCKED_FULL_RE.test(part))
+}
+
+function getEnvironmentSceneFamily(value) {
+  const text = String(value || '').toLowerCase()
+
+  if (/bedroom|suite|bed|window light|mirror corner/.test(text)) return 'bedroom'
+  if (/bathroom|bath|spa|vanity|mirror detail/.test(text)) return 'bathroom'
+  if (/balcony|terrace|skyline|breakfast setting|open air/.test(text)) return 'terrace'
+  if (/kitchen|counter|apartment kitchen/.test(text)) return 'kitchen'
+  if (/lounge|living room|sofa/.test(text)) return 'lounge'
+  return 'generic'
+}
+
+function resolveCameraForSceneFamily({
+  environment = '',
+  customStoryCamera = '',
+  generatedWorldCamera = '',
+  generatedCamera = '',
+  safeHandDetailForCamera = '',
+  fallbackCamera = '',
+}) {
+  const family = getEnvironmentSceneFamily(environment)
+
+  const candidates = [
+    customStoryCamera,
+    generatedWorldCamera,
+    generatedCamera,
+    safeHandDetailForCamera,
+    fallbackCamera,
+  ]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean)
+    .filter((v) => !/^cinematic framing$/i.test(v))
+
+  const familyMatchers = {
+    bedroom: /bedside|bed-edge|bedroom|close bedside|soft bedroom|intimate|pillow height|bedside morning/i,
+    bathroom: /bathroom|vanity|sink|mirror|reflection|mirror-side|private mirror-side|bath/i,
+    terrace: /balcony|terrace|wide|open air|outdoor|skyline|rail|railing|view/i,
+    kitchen: /kitchen|counter|kitchen-to-window|apartment/i,
+    lounge: /lounge|living room|seated|lifestyle|table/i,
+  }
+
+  const familyBlockedMatchers = {
+    bedroom: /bathroom|vanity|sink|mirror-side|kitchen|counter|balcony|terrace|skyline|dinner-table|phone in hand/i,
+    bathroom: /bedside|bed-edge|bedroom|kitchen|counter|balcony|terrace|skyline|dinner-table|phone in hand|seated posture/i,
+    terrace: /bathroom|vanity|sink|bedside|bed-edge|bedroom|kitchen|counter|dinner-table|phone in hand|mirror and rack|seated posture/i,
+    kitchen: /bathroom|vanity|sink|bedside|bed-edge|bedroom|balcony|terrace|skyline/i,
+    lounge: /bathroom|vanity|sink|bedside|bed-edge|balcony|terrace|kitchen|counter/i,
+  }
+
+  const matcher = familyMatchers[family]
+  const blocked = familyBlockedMatchers[family]
+
+  if (matcher) {
+    const matched = candidates.find((v) => matcher.test(v) && !(blocked && blocked.test(v)))
+    if (matched) return matched
+  }
+
+  if (family === 'bedroom') return 'soft bedroom profile shot'
+  if (family === 'bathroom') return 'mirror-side bathroom framing'
+  if (family === 'terrace') return 'balcony lifestyle angle'
+  if (family === 'kitchen') return 'kitchen counter profile shot'
+  if (family === 'lounge') return 'soft seated lifestyle framing'
+
+  return fallbackCamera && !/^cinematic framing$/i.test(fallbackCamera)
+    ? fallbackCamera
+    : ''
+}
+
+const promptKey = String(finalDeterministicPrompt || '')
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .trim()
+
+const currentSceneFamily = getPromptSceneFamily(finalDeterministicPrompt)
+const currentActionType = getPromptActionType(extractPromptAction(finalDeterministicPrompt))
+const currentMoodKey = extractPromptMood(finalDeterministicPrompt).toLowerCase()
+
+const previousPrompt = prompts[prompts.length - 1] || ''
+const previousSceneFamily = getPromptSceneFamily(previousPrompt)
+const previousActionType = getPromptActionType(extractPromptAction(previousPrompt))
+const previousMoodKey = extractPromptMood(previousPrompt).toLowerCase()
+
+const isDuplicatePrompt = recentFinalPromptKeys.includes(promptKey)
+
+if (!isDuplicatePrompt) {
+  recentFinalPromptKeys.push(promptKey)
+  while (recentFinalPromptKeys.length > 6) {
+    recentFinalPromptKeys.shift()
+  }
+
+  recentMoodKeys.push(currentMoodKey)
+  while (recentMoodKeys.length > 4) {
+    recentMoodKeys.shift()
+  }
+
+  prompts.push(finalDeterministicPrompt)
+}
+
+i++
+}
+
+setFeedPrompts(prompts)
+setLast(`Generated ${prompts.length} influencer prompts`)
+}
+
+const generateImage = async () => {
+  if (isGeneratingImage) return
+
+  setIsGeneratingImage(true)
+
+  try {
+    console.log('🚀 GENERATING IMAGE...')
+        const promptToSend = String(
+      feedPrompts?.[0] ||
+      finalPrompt ||
+      ''
+    ).trim()
+
+    if (!promptToSend) {
+      alert('No prompt is ready yet. Generate story prompts first or fill the Final Prompt fields.')
+      setIsGeneratingImage(false)
+      return
+    }
+    console.log('PROMPT:', finalPrompt)
+    console.log('HAS IMAGE:', !!identityState.imageDataUrl)
+
+    const res = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+body: JSON.stringify({
+  prompt: promptToSend,
+
+  identity: {
+    image: identityState.imageDataUrl,
+    strength: 1.0,
+    priority: 'max',
+  },
+
+  extractedTraits: identityState.extractedTraits,
+}),
+    })
+
+    const data = await res.json()
+
+    console.log('✅ FULL RESPONSE:', data)
+
+    if (!res.ok) {
+      console.error('❌ BACKEND ERROR:', data)
+      alert(data?.message || 'Image generation failed')
+      return
+    }
+
+    const image = data?.imageUrl || ''
+
+    if (!image) {
+      console.error('❌ NO IMAGE RETURNED:', data)
+      alert('No image returned from API')
+      return
+    }
+
+    console.log('🎯 IMAGE RECEIVED')
+    setGeneratedImage(image)
+    setLast('Image generated')
+    setClicks((c) => c + 1)
+  } catch (err) {
+    console.error('❌ FETCH ERROR:', err)
+    alert(err?.message || 'Image request failed')
+  } finally {
+    setIsGeneratingImage(false)
+  }
+}
+
+const generateStoryImages = async () => {
+  if (!feedPrompts.length) {
+    alert('Generate prompts first')
+    return
+  }
+
+  if (!identityState.imageDataUrl) {
+    alert('Upload identity image first')
+    return
+  }
+
+  if (isGeneratingBatch) return
+
+  setIsGeneratingBatch(true)
+  setStopStoryGeneration(false)
+  stopStoryGenerationRef.current = false
+
+  if (storyIndex === 0) setGeneratedImages([])
+  setStoryGenerationStatus('')
+
+  try {
+    const results = []
+
+    for (let i = storyIndex; i < feedPrompts.length; i++) {
+      if (stopStoryGenerationRef.current) {
+        setStoryGenerationStatus('Story generation stopped')
+        break
+      }
+
+      const prompt = feedPrompts[i]
+
+      setStoryGenerationStatus(
+        `Generating scene ${i + 1} of ${feedPrompts.length}`
+      )
+
+      const controller = new AbortController()
+      storyAbortControllerRef.current = controller
+
+      let res = null
+      let data = null
+
+      try {
+        res = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            identity: {
+              image: identityState.imageDataUrl,
+              strength: 1.0,
+              priority: 'max',
+            },
+            extractedTraits: identityState.extractedTraits,
+          }),
+          signal: controller.signal,
+        })
+
+        try {
+          data = await res.json()
+        } catch (err) {
+          data = null
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') {
+          setStoryGenerationStatus('Story generation stopped')
+          break
+        }
+
+        console.log(`Scene ${i + 1} request failed:`, err)
+        setStoryGenerationStatus(
+          `Scene ${i + 1} failed, waiting and continuing...`
+        )
+        await new Promise((r) => setTimeout(r, 12000))
+        continue
+      } finally {
+        storyAbortControllerRef.current = null
+      }
+
+      if (!res?.ok) {
+        console.log(`Scene ${i + 1} failed:`, data)
+
+        setStoryGenerationStatus(
+          `Scene ${i + 1} failed, waiting and continuing...`
+        )
+
+        await new Promise((r) => setTimeout(r, 12000))
+        continue
+      }
+
+      const image = data?.imageUrl || ''
+
+      if (!image) {
+        console.log(`Scene ${i + 1} returned no image:`, data)
+
+        setStoryGenerationStatus(
+          `Scene ${i + 1} returned no image, waiting and continuing...`
+        )
+
+        await new Promise((r) => setTimeout(r, 12000))
+        continue
+      }
+
+      results.push(image)
+      setGeneratedImages((prev) => [...prev, image])
+      setStoryIndex(i + 1)
+
+      await new Promise((r) => setTimeout(r, 7000))
+    }
+
+    setGeneratedImages((prev) => {
+      if (storyIndex === 0) return results
+      return prev.length ? prev : results
+    })
+
+    setStoryIndex(feedPrompts.length)
+    setLast(`Generated ${results.length} story images`)
+    setClicks((c) => c + 1)
+
+    if (!stopStoryGenerationRef.current) {
+      setStoryGenerationStatus('Story generation complete')
+    }
+  } catch (err) {
+    console.warn('STORY ERROR:', err)
+  } finally {
+    storyAbortControllerRef.current = null
+    stopStoryGenerationRef.current = false
+    setIsGeneratingBatch(false)
+  }
 }
 
   const clearField = (key) => {
@@ -5493,14 +7854,40 @@ const finalPrompt = useMemo(() => {
     return acc
   }, {})
 
+  const hasAnyPromptInput = Object.values(blocks || {}).some((value) =>
+    String(value || '').trim()
+  )
+
+  const rawIdentityFallback = orderedBlocks.Identity || blocks.identity || ''
+
+  const identityAnchor = rawIdentityFallback
+    ? getIdentityAnchor({
+        fallbackIdentity: rawIdentityFallback,
+        age: blocks.age,
+        ethnicity: blocks.ethnicity,
+        bodyShape: blocks.body_shape,
+        eyeColor: blocks.eye_color,
+        hair: blocks.hair,
+      })
+    : ''
+
+  const finalBlocks = {
+    ...orderedBlocks,
+    ...(identityAnchor ? { Identity: identityAnchor } : {}),
+  }
+
+  if (!hasAnyPromptInput && !identityAnchor) {
+    return ''
+  }
+
   return buildFinalPrompt({
-    blocks: orderedBlocks,
+    blocks: finalBlocks,
     plan,
     intensity,
     locationCategory,
     contentMode,
   })
-}, [blocks, plan, intensity, locationCategory, contentMode])
+}, [blocks, intensity, locationCategory, contentMode, identityState])
 
 const pickRouteItemWithMemory = ({
   pool = [],
@@ -5559,6 +7946,17 @@ const rememberRouteItem = ({
     const out = []
     const by = LIBRARIES.locationByCategory || {}
 
+    const {
+  autoBatchWorld,
+  autoBatchSubRoute,
+  autoRouteContext,
+  autoRouteState,
+  autoSubHoldLength,
+} = getBatchAutoWorldSetup({
+  worldControlMode,
+  activeStoryWorld,
+})
+
     const pickValidCategory = () => {
       const cats = locationCategories.filter((c) => c !== 'All')
       const usable = cats.filter((c) => Array.isArray(by?.[c]) && by[c].length > 0)
@@ -5570,46 +7968,22 @@ const rememberRouteItem = ({
 // AUTO MODE — BATCH ROUTE CONTINUITY
 // ===============================
 
-const autoBatchWorld =
-  worldControlMode === 'auto'
-    ? getAutoWorldFromStoryWorld(activeStoryWorld) || pickRandom(WORLD_LOCATIONS)
-    : null
+const {
+  recentSubQueue,
+  subUsageMap,
+  phaseSceneGroupMemory,
+  phaseSceneMemory,
+} = getBatchRouteMemorySetup()
 
-const autoBatchSubRoute =
-  worldControlMode === 'auto' && autoBatchWorld?.subLocations?.length
-    ? (
-        autoBatchWorld.id === 'lake-como-private-escape'
-          ? autoBatchWorld.subLocations
-          : shuffleArray(autoBatchWorld.subLocations)
-      )
-    : []
-
-const autoRouteContext = getBatchAutoRouteContext(autoBatchWorld?.id || '')
-const autoRouteState = autoRouteContext.routeState
-const autoSubHoldLength = autoRouteContext.autoSubHoldLength
+let {
+  lastAutoWorld,
+  lastAutoSub,
+  lastAutoScene,
+} = getBatchRouteMemorySetup()
 
     // ===============================
 // ROUTE MEMORY (ANTI-REPETITION)
 // ===============================
-
-const recentSubQueue = []
-const subUsageMap = new Map()
-
-const phaseSceneGroupMemory = {
-  tease: { queue: [], usage: new Map() },
-  tension: { queue: [], usage: new Map() },
-  payoff: { queue: [], usage: new Map() },
-}
-
-const phaseSceneMemory = {
-  tease: { queue: [], usage: new Map() },
-  tension: { queue: [], usage: new Map() },
-  payoff: { queue: [], usage: new Map() },
-}
-
-    let lastAutoWorld = ''
-let lastAutoSub = ''
-let lastAutoScene = ''
 
     for (let i = 0; i < batchCount; i++) {
         const next = { ...blocks }    
@@ -5620,6 +7994,7 @@ let lastAutoScene = ''
 // ===============================
 
       const progressionLevel = getProgressionLevel(i, batchCount)
+      const phaseLabel = progressionLevel
 
       const activeSceneGroupMemory =
         phaseSceneGroupMemory[progressionLevel] || phaseSceneGroupMemory.tease
@@ -5759,8 +8134,6 @@ if (sceneGroup) {
   }
 }
 
-const phaseLabel = progressionLevel
-
 const batchResolver = getWorldResolver({
   worldControlMode,
   activeWorldId,
@@ -5843,6 +8216,23 @@ if (key === 'location') {
     continue
   }
 
+function getBatchLocationOptions({ catForThis, by, locationOptions }) {
+  const baseOptions = Array.isArray(locationOptions)
+    ? locationOptions.filter(Boolean)
+    : []
+
+  if (!catForThis || catForThis === 'All') {
+    return baseOptions
+  }
+
+  const categoryOptions =
+    by && Array.isArray(by[catForThis])
+      ? by[catForThis].filter(Boolean)
+      : []
+
+  return categoryOptions.length ? categoryOptions : baseOptions
+}
+
   // DEFAULT
   const opts = getBatchLocationOptions({
     catForThis,
@@ -5863,19 +8253,6 @@ if (key === 'location') {
         if (!itemsRaw.length) continue
 
 let allowed = filterWorldList(itemsRaw, resolvedWorldId)
-
-if (plan === 'Soft' && key === 'lingerie') {
-  allowed = []
-} else {
-  const split = LIB_SPLITS[key]
-  if (split) {
-    if (plan === 'Soft') {
-      allowed = allowed.slice(0, split.softEnd)
-    } else if (plan === 'Fanvue') {
-      allowed = allowed.slice(0, split.fanvueEnd)
-    }
-  }
-}
 
         let v = pickRandom(allowed)
         if (!v) continue
@@ -5936,11 +8313,25 @@ if (plan === 'Soft' && key === 'lingerie') {
         next[key] = v
       }
 
+      const batchIdentityAnchor = getIdentityAnchor({
+        fallbackIdentity: next.identity || 'Elegant woman',
+        age: next.age,
+        ethnicity: next.ethnicity,
+        bodyShape: next.body_shape,
+        eyeColor: next.eye_color,
+        hair: next.hair,
+      })
+
       const one = FIELD_ORDER.map(([k, label]) => {
+        const rawValue =
+          k === 'identity'
+            ? batchIdentityAnchor
+            : next[k] || ''
+
         const v = String(
           applyWorldFieldFilter({
             key: k,
-            value: next[k] || '',
+            value: rawValue,
             worldId: resolvedWorldId,
           }) || ''
         ).trim()
@@ -5964,6 +8355,33 @@ if (plan === 'Soft' && key === 'lingerie') {
     setClicks((c) => c + 1)
     setLast(`Batch generated → ${batchCount}`)
   }
+
+  function shouldApplyWorldEnhancement({ key, currentValue }) {
+  if (!key) return false
+
+  const value = String(currentValue || '').trim()
+
+  if (!value) return true
+
+  return [
+    'location',
+    'environment_detail',
+    'time',
+    'pose',
+    'mood',
+    'camera',
+    'lighting',
+    'style',
+    'quality',
+    'outfit_archetype',
+    'undress_state',
+    'clothing_instability',
+    'intimate_framing',
+    'voyeur_energy',
+    'micro_action',
+    'lingerie',
+  ].includes(key)
+}
 
   const getActivePack = () => {
   return SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack)
@@ -6013,7 +8431,6 @@ const applySignaturePack = (packId) => {
   pose: prev.pose,
 }))
 
-  if (pack.plan) setPlan(pack.plan)
   if (pack.mode) setIntensity(pack.mode)
   if (pack.category) setLocationCategory(pack.category)
 
@@ -6054,14 +8471,39 @@ const getActiveStoryWorld = () => {
 }
 
 const chapterOptions = useMemo(() => {
-  if (!activeStoryWorld) return []
+  const normalizedStoryWorldId = normalizeStoryWorldId(activeStoryWorld)
+  const normalizedActiveWorldId = normalizeStoryWorldId(activeWorldId)
 
-  const normalizedWorldId = normalizeStoryWorldId(activeStoryWorld)
+  const primaryWorldId = normalizedActiveWorldId || normalizedStoryWorldId
 
-  return STORY_CHAPTERS.filter(
-    (ch) => normalizeStoryWorldId(ch.worldId) === normalizedWorldId
-  )
-}, [activeStoryWorld])
+  if (primaryWorldId) {
+    const worldMatchedChapters = STORY_CHAPTERS.filter(
+      (ch) => normalizeStoryWorldId(ch.worldId) === primaryWorldId
+    )
+
+    if (worldMatchedChapters.length) {
+      return worldMatchedChapters
+    }
+  }
+
+  if (normalizedStoryWorldId) {
+    return STORY_CHAPTERS.filter(
+      (ch) => normalizeStoryWorldId(ch.worldId) === normalizedStoryWorldId
+    )
+  }
+
+  return []
+}, [activeStoryWorld, activeWorldId])
+
+useEffect(() => {
+  if (!activeChapter) return
+
+  const stillExists = chapterOptions.some((ch) => ch.id === activeChapter)
+
+  if (!stillExists) {
+    setActiveChapter('')
+  }
+}, [chapterOptions, activeChapter])
 
 const applyStoryWorld = (worldId) => {
   const world = STORY_WORLDS.find((w) => w.id === worldId)
@@ -6093,7 +8535,6 @@ if (worldId === 'lake-como-life') {
         age: resolvedAge,
       }))
 
-      if (pack.plan) setPlan(pack.plan)
       if (pack.mode) setIntensity(pack.mode)
       if (pack.category) setLocationCategory(pack.category)
       setActiveSignaturePack(pack.id)
@@ -6162,7 +8603,6 @@ const applyChapter = (chapterId) => {
     age: resolvedAge,
   }))
 
-  if (pack?.plan) setPlan(pack.plan)
   if (pack?.mode) setIntensity(pack.mode)
   if (pack?.category) setLocationCategory(pack.category)
 
@@ -6247,18 +8687,29 @@ if (chapter.worldId === 'lake-como-life') {
         </div>
 
         <div style={styles.pills}>
-          {pill(`Plan: ${plan}`)}
-          {pill(`Mode: ${contentMode}`)}
+          {pill(`Access: Full Access`)}
           {pill(catsSummary)}
           {pill(`Admin: ${adminMode ? 'ON' : 'OFF'}`)}
           {pill(`Clicks: ${clicks}`)}
           {pill(`Last: ${last}`)}
           {activeDnaId ? pill(`DNA Active`) : null}
+          {identityState.enabled ? pill(`Identity: ON`) : null}
+          {identityIsActive ? pill(`Identity Controls Output`) : null}
+          {identityHasFullSessionAnchor ? pill(`Identity Session Locked`) : null}
+          {identityHasSessionImage ? pill(`Identity Image Loaded`) : null}
+          {!identityHasSessionImage && identityHasPersistedFileRef ? pill(`Identity Image Missing This Session`) : null}
+          {identityHasName ? pill(`Identity Name Set`) : null}
           {copied ? pill(`Copied: ${copied}`) : null}
         </div>
       </div>
 
-      <div style={styles.ownerCard}>
+      <div
+  style={{
+    ...styles.ownerCard,
+    boxShadow: '0 0 0 1px rgba(255,255,255,0.03), 0 20px 60px rgba(0,0,0,0.6)',
+    borderRadius: 16,
+  }}
+>
         <div style={styles.ownerRow}>
           <div style={styles.ownerTitle}>Owner Controls</div>
 
@@ -6277,294 +8728,590 @@ if (chapter.worldId === 'lake-como-life') {
         </div>
 
         <div style={styles.ownerGrid}>
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>PLAN</div>
-            <select
-              value={plan}
-              onChange={(e) => {
-                if (locked) return
-                const nextPlan = e.target.value
-                setPlan(nextPlan)
+          {/* ROW 1 — IDENTITY + GLOBAL */}
+          <div style={{ ...styles.ownerRowGrid, ...styles.ownerRowTop }}>
+            <div style={{ ...styles.ctrlBox, ...styles.heroCard }}>
+              <div style={styles.heroCardHeader}>
+                <div>
+                  <div style={styles.heroTitle}>Identity System</div>
+                  <div style={styles.heroSub}>
+                    Upload and lock the visual identity used across image generation.
+                  </div>
+                </div>
+              </div>
 
-                if (nextPlan === 'Soft') {
-                  setBlocks((prev) => ({
-                    ...prev,
-                    lingerie: '',
-                    breast_size: '',
-                    glute_size: '',
-                    outfit_archetype: '',
-                    undress_state: '',
-                    clothing_instability: '',
-                    intimate_framing: '',
-                    voyeur_energy: '',
-                    micro_action: '',
-                  }))
-                }
+              <div style={styles.identityHeroLayout}>
+                <div style={styles.identityHeroPreview}>
+                  {identityHasSessionImage ? (
+                    <img
+                      src={identityState.imageDataUrl}
+                      alt={identityState.name || 'Identity preview'}
+                      style={styles.identityHeroImage}
+                    />
+                  ) : identityHasPersistedFileRef ? (
+                    <div style={styles.identityHeroEmpty}>
+                      <div style={styles.identityHeroEmptyTitle}>Session image missing</div>
+                      <div style={styles.identityHeroEmptyText}>
+                        Re-upload to restore full identity lock.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={styles.identityHeroEmpty}>
+                      <div style={styles.identityHeroEmptyTitle}>No image</div>
+                      <div style={styles.identityHeroEmptyText}>
+                        Upload a reference to anchor the same woman across outputs.
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                setClicks((c) => c + 1)
-                setLast(`Plan → ${nextPlan}`)
-              }}
-              style={styles.ctrlSelect}
-            >
-              {PLAN_TIERS.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div style={styles.identityHeroControls}>
+                  <label style={styles.checkWrap}>
+                    <input
+                      type="checkbox"
+                      checked={!!identityState.enabled}
+                      onChange={() => {
+                        updateIdentityState({
+                          enabled: !identityState.enabled,
+                        })
+                        setClicks((c) => c + 1)
+                        setLast(`Use My Identity → ${!identityState.enabled ? 'ON' : 'OFF'}`)
+                      }}
+                    />
+                    <span style={{ marginLeft: 10 }}>Use My Identity</span>
+                  </label>
 
-<div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>STORY WORLD</div>
+                  <input
+                    type="text"
+                    value={identityState.name || ''}
+                    onChange={(e) => {
+                      updateIdentityState({ name: e.target.value })
+                    }}
+                    placeholder="Identity name (e.g. Sofia)"
+                    style={styles.ctrlInput}
+                  />
 
-            <select
-              value={activeStoryWorld}
-              onChange={(e) => setActiveStoryWorld(e.target.value)}
-              style={styles.ctrlSelect}
-            >
-              <option value="">Select Story World</option>
-              {STORY_WORLDS.map((world) => (
-                <option key={world.id} value={world.id}>
-                  {world.name}
-                </option>
-              ))}
-            </select>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleIdentityImageUpload(file)
+                      e.target.value = ''
+                    }}
+                    style={styles.ctrlInput}
+                  />
 
-            <div style={styles.row}>
-              <button
-                type="button"
-                onClick={() => applyStoryWorld(activeStoryWorld)}
-                style={styles.btnPrimary}
-                disabled={!activeStoryWorld}
-              >
-                Apply World
-              </button>
+                  <label style={styles.checkWrap}>
+                    <input
+                      type="checkbox"
+                      checked={!!identityState.useExtractedTraits}
+                      onChange={() => {
+                        updateIdentityState({
+                          useExtractedTraits: !identityState.useExtractedTraits,
+                        })
+                        setClicks((c) => c + 1)
+                        setLast(
+                          `Use Extracted Traits → ${!identityState.useExtractedTraits ? 'ON' : 'OFF'}`
+                        )
+                      }}
+                    />
+                    <span style={{ marginLeft: 10 }}>Use Extracted Traits</span>
+                  </label>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveStoryWorld('')
-                  setActiveChapter('')
-                }}
-                style={styles.btnGhost}
-                disabled={!activeStoryWorld}
-              >
-                Clear
-              </button>
+                  <select
+                    value={identityState.extractionMode || 'stub'}
+                    onChange={(e) => {
+                      updateIdentityState({
+                        extractionMode: e.target.value,
+                      })
+                      setClicks((c) => c + 1)
+                      setLast(`Extraction Mode → ${e.target.value}`)
+                    }}
+                    style={styles.ctrlSelect}
+                  >
+                    <option value="stub">Extraction Mode: Stub</option>
+                    <option value="server">Extraction Mode: Server</option>
+                  </select>
+
+<div style={styles.actionRowTight}>
+  <button
+    type="button"
+    onClick={() => {
+      if (!identityHasName && !identityHasSessionImage) {
+        alert('Add an identity name or upload an identity image first.')
+        return
+      }
+
+      updateIdentityState({ enabled: true })
+      setClicks((c) => c + 1)
+      setLast('Identity enabled')
+    }}
+    style={styles.btnPrimary}
+    disabled={!identityHasName && !identityHasSessionImage}
+  >
+    Enable
+  </button>
+
+  <button
+    type="button"
+    onClick={runIdentityImageAnalysis}
+    style={styles.btnGhost}
+    disabled={!identityHasName && !identityHasSessionImage || identityState.extractionStatus === 'processing'}
+  >
+    {identityState.extractionStatus === 'processing' ? 'Analyzing…' : 'Analyze Identity Image'}
+  </button>
+
+  <button
+    type="button"
+    onClick={runMockIdentityExtraction}
+    style={styles.btnGhost}
+    disabled={!identityHasName && !identityHasSessionImage}
+  >
+    Mock Extract
+  </button>
+
+  <button
+    type="button"
+    onClick={clearExtractedTraits}
+    style={styles.btnGhost}
+  >
+    Clear Extracted
+  </button>
+</div>
+
+<div style={styles.identityDangerRow}>
+  <button
+    type="button"
+    onClick={generateImage}
+    style={styles.btnPrimary}
+    disabled={isGeneratingImage}
+  >
+    {isGeneratingImage ? 'Generating...' : 'Generate Image (with Identity)'}
+  </button>
+
+  <button
+    type="button"
+    onClick={clearIdentityState}
+    style={styles.btnDanger}
+    disabled={
+      !identityState.imageDataUrl &&
+      !identityState.name &&
+      !identityState.enabled
+    }
+  >
+    Clear Identity
+  </button>
+</div>
+                </div>
+              </div>
+
+              <div style={styles.identityStatusBox}>
+                <div style={styles.identityStatusTitle}>Identity Status</div>
+                <div style={styles.identityStatusText}>{identityStatusLabel}</div>
+
+                <div style={styles.identityStatusMini}>
+                  Final Prompt: {identityIsActive ? 'Controlled by Identity' : 'Standard'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Feed: {identityIsActive ? 'Controlled by Identity' : 'Standard'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Batch: {identityIsActive ? 'Controlled by Identity' : 'Standard'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Session Image: {identityHasSessionImage ? 'Loaded' : 'Not loaded'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Session Lock: {identityHasFullSessionAnchor ? 'Strong' : identityIsActive ? 'Partial' : 'Off'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Generation Payload: {identityGenerationPayload.isReadyForGeneration ? 'Reference image ready' : identityGenerationPayload.enabled ? 'Identity on, no reference image payload yet' : 'Off'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Extraction Layer: {
+                    identityState.extractionStatus === 'processing'
+                      ? 'processing'
+                      : identityState.extractionStatus === 'complete'
+                        ? 'complete'
+                        : identityState.extractionMode === 'server'
+                          ? 'server (inactive)'
+                          : 'idle'
+                  }
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Extraction Backend: {identityState.extractionMode || 'stub'}
+                </div>
+                <div style={styles.identityStatusMini}>
+                  Extracted Traits Mode: {identityState.useExtractedTraits ? 'ON' : 'OFF'}
+                </div>
+
+{(
+  subjectState?.subjectA?.extractedTraits?.identity ||
+  subjectState?.subjectB?.extractedTraits?.identity
+) ? (
+  <div style={styles.identityExtractPreview}>
+    <div style={styles.identityExtractPreviewTitle}>Extracted Traits Preview</div>
+
+    {subjectState?.subjectA?.extractedTraits?.identity ? (
+      <>
+        <div style={styles.identityExtractPreviewText}><strong>Subject A</strong></div>
+        <div style={styles.identityExtractPreviewText}>
+          Identity: {subjectState.subjectA.extractedTraits.identity || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Age: {subjectState.subjectA.extractedTraits.age || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Ethnicity: {subjectState.subjectA.extractedTraits.ethnicity || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Body: {subjectState.subjectA.extractedTraits.body_shape || subjectState.subjectA.extractedTraits.build || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Eyes: {subjectState.subjectA.extractedTraits.eye_color || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Hair: {subjectState.subjectA.extractedTraits.hair || '—'}
+        </div>
+      </>
+    ) : null}
+
+    {subjectState?.subjectB?.extractedTraits?.identity ? (
+      <>
+        <div style={{ ...styles.identityExtractPreviewText, marginTop: 8 }}>
+          <strong>Subject B</strong>
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Identity: {subjectState.subjectB.extractedTraits.identity || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Age: {subjectState.subjectB.extractedTraits.age || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Ethnicity: {subjectState.subjectB.extractedTraits.ethnicity || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Body: {subjectState.subjectB.extractedTraits.body_shape || subjectState.subjectB.extractedTraits.build || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Eyes: {subjectState.subjectB.extractedTraits.eye_color || '—'}
+        </div>
+        <div style={styles.identityExtractPreviewText}>
+          Hair: {subjectState.subjectB.extractedTraits.hair || '—'}
+        </div>
+      </>
+    ) : null}
+  </div>
+) : null}
+              </div>
             </div>
-          </div>
 
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>CHAPTER</div>
+            <div style={{ ...styles.ctrlBox, ...styles.heroCard }}>
+              <div style={styles.heroCardHeader}>
+  <div>
+    <div style={styles.heroTitle}>Global Actions</div>
+    <div style={styles.heroSub}>
+      Generate prompts, single renders, and full story images from one place.
+    </div>
+  </div>
+</div>
+
+<div style={styles.dnaSectionHeader}>
+  <div style={styles.stepBadgePurple}>DNA</div>
+  <div style={styles.characterSectionTitle}>Character DNA</div>
+  <div style={styles.characterSectionSub}>
+    Save and reuse a consistent character profile across prompts, feeds, and image generation.
+  </div>
+</div>
+
+<div style={styles.infoCard}>
+  <div style={styles.infoTitle}>Character DNA</div>
+  <div style={styles.infoText}>
+    Character DNA lets you save a reusable character profile for this app.
+  </div>
+
+  <div style={styles.infoListText}>
+    • Save a name and locked profile state
+    <br />
+    • Reload the same character structure later
+    <br />
+    • Keep prompts and image generations more consistent
+    <br />
+    • Works as your recurring character system across sessions
+  </div>
+
+  <input
+    type="text"
+    value={dnaName}
+    onChange={(e) => setDnaName(e.target.value)}
+    placeholder="Character name (e.g. Sofia)"
+    style={styles.ctrlInput}
+  />
 
 <select
-  value={activeChapter}
-  onChange={(e) => setActiveChapter(e.target.value)}
-  style={styles.select}
-  disabled={!activeStoryWorld}
+  value={activeDnaId}
+  onChange={(e) => {
+    const id = e.target.value
+    setActiveDnaId(id)
+  }}
+  style={styles.ctrlSelect}
 >
-  <option value="">Select Chapter</option>
-
-  {chapterOptions.map((chapter) => (
-    <option key={chapter.id} value={chapter.id}>
-      {chapter.name}
+  <option value="">Select DNA profile</option>
+  {dnaProfiles.map((p) => (
+    <option key={p.id} value={p.id}>
+      {p.name}
     </option>
   ))}
 </select>
 
-            <div style={styles.row}>
-<button
-  type="button"
-  onClick={() => applyChapter(activeChapter)}
-  style={styles.btnPrimary}
-  disabled={!activeChapter}
->
-  Apply Chapter
-</button>
+<div style={styles.row}>
+  <button type="button" onClick={saveCurrentAsDna} style={styles.btnPrimary}>
+    Save DNA
+  </button>
 
-<button
-  type="button"
-  onClick={() => setActiveChapter('')}
-  style={styles.btnGhost}
-  disabled={!activeChapter}
->
-  Clear
-</button>
-            </div>
-          </div>
-
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>CONTENT MODE</div>
-            <div style={styles.ctrlReadOnly}>{contentMode}</div>
-          </div>
-
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>LOCATION CATEGORY</div>
-            <select
-              value={locationCategory}
-              disabled={lockLocationCategory}
-              onChange={(e) => {
-                setLocationCategory(e.target.value)
-                setClicks((c) => c + 1)
-                setLast(`Category → ${e.target.value}`)
-              }}
-              style={styles.ctrlSelect}
-            >
-              {locationCategories.map((c) => {
-                const count = categoryCounts[c] ?? 0
-                const label = c === 'All' ? `All (all categories) • ${count}` : `${c} • ${count}`
-
-                return (
-                  <option key={c} value={c}>
-                    {label}
-                  </option>
-                )
-              })}
-            </select>
-
-            <div style={styles.inlineRow}>
-              <button
-                type="button"
-                onClick={() => {
-                  setLockLocationCategory((v) => !v)
-                  setClicks((c) => c + 1)
-                  setLast(!lockLocationCategory ? 'Location category locked' : 'Location category unlocked')
-                }}
-                style={lockLocationCategory ? styles.lockOn : styles.lockOff}
-              >
-                {lockLocationCategory ? 'CATEGORY LOCKED' : 'LOCK CATEGORY'}
-              </button>
-            </div>
-          </div>
-
-          <div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>ACTIVE PATH</div>
-
-  <div
-    style={{
-      ...styles.ctrlSelect,
-      display: 'flex',
-      alignItems: 'center',
-      minHeight: 44,
-      opacity: 0.9
+  <button
+    type="button"
+    onClick={() => {
+      if (!activeDnaId) return
+      loadDnaProfile(activeDnaId)
     }}
+    style={styles.btnGhost}
+    disabled={!activeDnaId}
   >
-    {worldControlMode === 'auto'
-  ? [
-    'Auto',
-    autoWorldLabel,
-    autoSubLocationLabel,
-    autoSceneLabel || 'Cinematic routing active'
-  ]
-    .filter(Boolean)
-    .join(' → ')
-  : [activeWorld?.name, activeSubLocation?.name, activeSceneGroup?.name]
-      .filter(Boolean)
-      .join(' → ') || 'Manual → No selection yet'}
+    Load DNA
+  </button>
+
+  <button
+    type="button"
+    onClick={deleteDnaProfile}
+    style={styles.btnDanger}
+    disabled={!activeDnaId}
+  >
+    Delete
+  </button>
+</div>
+</div>
+
+<div style={styles.generationSectionHeader}>
+  <div style={styles.stepBadgeBlue}>GENERATION</div>
+  <div style={styles.characterSectionTitle}>Generation Actions</div>
+  <div style={styles.characterSectionSub}>
+    Generate single prompts, image renders, and full story image sets from one place.
   </div>
 </div>
-          
-<div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>MODE</div>
 
-  <select
-    value={worldControlMode}
-    onChange={(e) => {
-      const mode = e.target.value
-      setWorldControlMode(mode)
-      setClicks((c) => c + 1)
-      setLast(`Mode → ${mode}`)
+<div style={styles.globalActionStack}>
+<div style={styles.actionRowTight}>
+  <button
+    type="button"
+    onClick={generateInfluencerFeed}
+    style={{ ...styles.btnPrimary, ...styles.btnHeroHalf }}
+  >
+    Generate 30 Story Prompts
+  </button>
+
+  <button
+    type="button"
+    onClick={generateStoryImages}
+    style={{ ...styles.btnPrimary, ...styles.btnHeroHalf }}
+    disabled={isGeneratingBatch}
+  >
+    {isGeneratingBatch ? 'Generating Story Images...' : 'Generate 30 Story Images'}
+  </button>
+</div>
+
+<div style={styles.actionRowTight}>
+  <button
+    type="button"
+    onClick={() => {
+      setStopStoryGeneration(true)
+      stopStoryGenerationRef.current = true
+      storyAbortControllerRef.current?.abort()
+      setStoryGenerationStatus('Stopping story generation...')
+      setLast('Stopping story generation...')
     }}
-    style={styles.ctrlSelect}
+    style={{ ...styles.btnDanger, ...styles.btnHeroHalf }}
+    disabled={!isGeneratingBatch}
   >
-    <option value="auto">Auto (Cinematic)</option>
-    <option value="manual">Manual</option>
-  </select>
-  <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8, lineHeight: 1.4 }}>
-  {worldControlMode === 'auto'
-    ? 'Auto mode uses cinematic world routing and automatic scene flow.'
-    : 'Manual mode uses your selected World, Sub-location, and Scene.'}
+    Stop Generating
+  </button>
+
+  <button
+    type="button"
+    onClick={clearAll}
+    style={{ ...styles.btnDanger, ...styles.btnHeroHalf }}
+  >
+    Clear All
+  </button>
+
+  <button
+    type="button"
+    onClick={() => copyText(finalPrompt, 'Final Prompt')}
+    style={{ ...styles.btnGhost, ...styles.btnHeroHalf }}
+  >
+    Copy Final Prompt
+  </button>
 </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.controlSectionStory}>
+            <div style={styles.controlSectionHeader}>
+              <div>
+                <div style={styles.controlSectionEyebrowStory}>STORY LAYER</div>
+                <div style={styles.controlSectionTitle}>Narrative Direction</div>
+                <div style={styles.controlSectionSub}>
+                  Choose the story world, chapter direction, signature pack, age logic, and recurring character identity.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ ...styles.ownerRowGrid, ...styles.ownerRowMid }}>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>CHARACTER MODE</div>
+
+  <div style={styles.row}>
+    <button
+      type="button"
+      onClick={() => {
+        const mode = 'female'
+
+        setSubjectState((prev) => ({
+          ...prev,
+          characterMode: mode,
+          subjectA: {
+            ...prev.subjectA,
+            gender: 'female',
+            role: 'primary',
+            enabled: true,
+          },
+          subjectB: {
+            ...prev.subjectB,
+            enabled: false,
+            gender: prev.subjectB?.gender || 'male',
+            role: 'partner',
+          },
+        }))
+
+        setInteractionState((prev) => ({
+          ...prev,
+          enabled: false,
+          lastUpdated: Date.now(),
+        }))
+
+        setClicks((c) => c + 1)
+        setLast('Character Mode → female')
+      }}
+      style={
+        subjectState?.characterMode === 'female'
+          ? styles.btnPrimary
+          : styles.btnGhost
+      }
+    >
+      Female
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        const mode = 'male'
+
+        setSubjectState((prev) => ({
+          ...prev,
+          characterMode: mode,
+          subjectA: {
+            ...prev.subjectA,
+            gender: 'male',
+            role: 'primary',
+            enabled: true,
+          },
+          subjectB: {
+            ...prev.subjectB,
+            enabled: false,
+            gender: prev.subjectB?.gender || 'male',
+            role: 'partner',
+          },
+        }))
+
+        setInteractionState((prev) => ({
+          ...prev,
+          enabled: false,
+          lastUpdated: Date.now(),
+        }))
+
+        setClicks((c) => c + 1)
+        setLast('Character Mode → male')
+      }}
+      style={
+        subjectState?.characterMode === 'male'
+          ? styles.btnPrimary
+          : styles.btnGhost
+      }
+    >
+      Male
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        const mode = 'couple'
+
+        setSubjectState((prev) => ({
+          ...prev,
+          characterMode: mode,
+          subjectA: {
+            ...prev.subjectA,
+            gender: 'female',
+            role: 'primary',
+            enabled: true,
+          },
+          subjectB: {
+            ...prev.subjectB,
+            enabled: true,
+            gender: 'male',
+            role: 'partner',
+          },
+        }))
+
+        setInteractionState((prev) => ({
+          ...prev,
+          enabled: true,
+          lastUpdated: Date.now(),
+        }))
+
+        setClicks((c) => c + 1)
+        setLast('Character Mode → couple')
+      }}
+      style={
+        subjectState?.characterMode === 'couple'
+          ? styles.btnPrimary
+          : styles.btnGhost
+      }
+    >
+      Couple
+    </button>
+  </div>
+
+  <div style={styles.note}>
+    Switch between female, male, and couple generation modes.
+  </div>
 </div>
 
-          <div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>WORLD</div>
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>STORY WORLD</div>
 
   <select
-    value={activeWorldId}
-onChange={(e) => {
-  const nextWorldId = e.target.value
-
-  if (nextWorldId) {
-    setWorldControlMode('manual')
-  }
-
-  setActiveWorldId(nextWorldId)
-  setActiveSubLocationId('')
-  setActiveSceneGroupId('')
-  setClicks((c) => c + 1)
-  setLast(`World → ${nextWorldId}`)
-}}
+    value={activeStoryWorld}
+    onChange={(e) => setActiveStoryWorld(e.target.value)}
     style={styles.ctrlSelect}
   >
-    <option value="">
-  {worldControlMode === 'auto'
-    ? 'Auto world (cinematic routing)'
-    : 'Select World'}
-</option>
-
-    {WORLD_LOCATIONS.map((w) => (
-      <option key={w.id} value={w.id}>
-        {w.name}
-      </option>
-    ))}
-  </select>
-</div>
-
-<div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>SUB-LOCATION</div>
-
-  <select
-    value={activeSubLocationId}
-    onChange={(e) => {
-      const nextSub = e.target.value
-      setActiveSubLocationId(nextSub)
-      setActiveSceneGroupId('')
-      setClicks((c) => c + 1)
-      setLast(`Sub-location → ${nextSub}`)
-    }}
-    style={styles.ctrlSelect}
-    disabled={worldControlMode !== 'manual' || !activeWorld}
-  >
-    <option value="">Select Sub-location</option>
-
-    {subLocationOptions.map((loc) => (
-      <option key={loc.id} value={loc.id}>
-        {loc.name}
-      </option>
-    ))}
-  </select>
-</div>
-
-<div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>SCENE</div>
-
-  <select
-    value={activeSceneGroupId}
-    onChange={(e) => {
-      const nextScene = e.target.value
-      setActiveSceneGroupId(nextScene)
-      setClicks((c) => c + 1)
-      setLast(`Scene → ${nextScene}`)
-    }}
-    style={styles.ctrlSelect}
-    disabled={worldControlMode !== 'manual' || !activeSubLocation}
-  >
-    <option value="">Select Scene</option>
-
-    {sceneGroupOptions.map((group) => (
-      <option key={group.id} value={group.id}>
-        {group.name}
+    <option value="">Select Story World</option>
+    {STORY_WORLDS.map((world) => (
+      <option key={world.id} value={world.id}>
+        {world.name}
       </option>
     ))}
   </select>
@@ -6572,189 +9319,858 @@ onChange={(e) => {
   <div style={styles.row}>
     <button
       type="button"
-      onClick={applyWorldScene}
+      onClick={() => applyStoryWorld(activeStoryWorld)}
       style={styles.btnPrimary}
-      disabled={worldControlMode !== 'manual' || !activeSceneGroup}
+      disabled={!activeStoryWorld}
     >
-      Apply Scene
+      Apply World
     </button>
 
     <button
       type="button"
-      onClick={() => setActiveSceneGroupId('')}
+      onClick={() => {
+        setActiveStoryWorld('')
+        setActiveChapter('')
+      }}
       style={styles.btnGhost}
-      disabled={worldControlMode !== 'manual' || !activeSceneGroup}
+      disabled={!activeStoryWorld}
     >
       Clear
     </button>
   </div>
 </div>
 
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>SIGNATURE PACK</div>
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>CHAPTER</div>
 
-            <select
-              value={activeSignaturePack}
-              onChange={(e) => setActiveSignaturePack(e.target.value)}
-              style={styles.ctrlSelect}
-            >
-              <option value="">Select Signature Pack</option>
-              {SIGNATURE_PACKS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+  <select
+    value={activeChapter}
+    onChange={(e) => setActiveChapter(e.target.value)}
+    style={styles.select}
+    disabled={!activeStoryWorld}
+  >
+                  <option value="">Select Chapter</option>
 
-            <div style={styles.row}>
-              <button
-                type="button"
-                onClick={() => applySignaturePack(activeSignaturePack)}
-                style={styles.btnPrimary}
-                disabled={!activeSignaturePack}
-              >
-                Apply Pack
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSignaturePack('')}
-                style={styles.btnGhost}
-                disabled={!activeSignaturePack}
-              >
-                Clear
-              </button>
-            </div>
-
-            {activeSignaturePack && (
-              <div style={{ marginTop: 10 }}>
-                <select
-                  value={activeScene}
-                  onChange={(e) => applyScene(e.target.value)}
-                  style={styles.ctrlSelect}
-                >
-                  <option value="">Select Scene</option>
-                  {SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack)?.scenes?.map((s) => (
-                    <option key={s.name} value={s.name}>
-                      {s.name}
+                  {chapterOptions.map((chapter) => (
+                    <option key={chapter.id} value={chapter.id}>
+                      {chapter.name}
                     </option>
                   ))}
                 </select>
+
+                <div style={styles.row}>
+                  <button
+                    type="button"
+                    onClick={() => applyChapter(activeChapter)}
+                    style={styles.btnPrimary}
+                    disabled={!activeChapter}
+                  >
+                    Apply Chapter
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveChapter('')}
+                    style={styles.btnGhost}
+                    disabled={!activeChapter}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
 
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>AGE RANGE</div>
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>SIGNATURE PACK</div>
 
-            <select
-              value={selectedAgeRange}
-              onChange={(e) => applyAgeRange(e.target.value)}
-              style={styles.ctrlSelect}
-            >
-              {AGE_RANGE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+  <select
+    value={activeSignaturePack}
+    onChange={(e) => setActiveSignaturePack(e.target.value)}
+    style={styles.ctrlSelect}
+  >
+                  <option value="">Select Signature Pack</option>
+                  {SIGNATURE_PACKS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
 
-            <div style={styles.note}>
-              Auto by pack uses the most believable age range for the selected creator world.
+                <div style={styles.row}>
+                  <button
+                    type="button"
+                    onClick={() => applySignaturePack(activeSignaturePack)}
+                    style={styles.btnPrimary}
+                    disabled={!activeSignaturePack}
+                  >
+                    Apply Pack
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSignaturePack('')}
+                    style={styles.btnGhost}
+                    disabled={!activeSignaturePack}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {activeSignaturePack && (
+                  <div style={{ marginTop: 10 }}>
+                    <select
+                      value={activeScene}
+                      onChange={(e) => applyScene(e.target.value)}
+                      style={styles.ctrlSelect}
+                    >
+                      <option value="">Select Scene</option>
+                      {SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack)?.scenes?.map((s) => (
+                        <option key={s.name} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>AGE RANGE</div>
+
+  <select
+    value={selectedAgeRange}
+    onChange={(e) => applyAgeRange(e.target.value)}
+    style={styles.ctrlSelect}
+  >
+                  {AGE_RANGE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={styles.note}>
+                  Auto by pack uses the most believable age range for the selected creator world.
+                </div>
+              </div>
             </div>
           </div>
 
           <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>LOCATION (OPTIONAL)</div>
-            <select
-              value={locationOptionalValue}
-              onChange={(e) => {
-                const v = e.target.value
+            <div style={styles.ctrlLabel}>CHARACTER MODE CONTROLS</div>
 
-                if (v === '') {
-                  setBlock('location', '')
-                  setClicks((c) => c + 1)
-                  setLast('Location optional → Random from category')
-                  return
-                }
+            {showSubjectAControls ? (
+              <div style={styles.ctrlBox}>
+                <div style={styles.ctrlLabel}>
+                  Subject A {subjectAModeGender === 'male' ? '(Male)' : '(Female)'}
+                </div>
 
-                setBlock('location', v)
-                setClicks((c) => c + 1)
-                setLast('Location optional → Picked')
-              }}
-              style={styles.ctrlSelect}
-            >
-              <option value="">(Random from category)</option>
-              {locationOptions.map((loc, idx) => (
-                <option key={idx} value={loc}>
-                  {loc.length > 90 ? loc.slice(0, 90) + '…' : loc}
-                </option>
-              ))}
-            </select>
+                <input
+                  type="text"
+                  value={
+                    subjectState?.characterMode === 'male'
+                      ? subjectState?.subjectA?.maleIdentityName || ''
+                      : subjectState?.subjectA?.identityName || ''
+                  }
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        identityName:
+                          prev.characterMode === 'male'
+                            ? prev.subjectA?.identityName || ''
+                            : e.target.value,
+                        maleIdentityName:
+                          prev.characterMode === 'male'
+                            ? e.target.value
+                            : prev.subjectA?.maleIdentityName || '',
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A name"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.role || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        role: e.target.value,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A role"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.age || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          age: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A age"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.ethnicity || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          ethnicity: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A ethnicity"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.body_shape || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          body_shape: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A body shape"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.build || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          build: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A build"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.eye_color || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          eye_color: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A eye color"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.hair || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          hair: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A hair"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectA?.extractedTraits?.facial_hair || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectA: {
+                        ...prev.subjectA,
+                        gender: subjectAModeGender,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectA?.extractedTraits,
+                          facial_hair: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject A facial hair"
+                  style={styles.ctrlInput}
+                />
+
+                <div style={styles.note}>
+                  Active mode: {subjectAModeGender === 'male' ? 'Male Subject A' : 'Female Subject A'}
+                </div>
+              </div>
+            ) : null}
+
+            {showSubjectBControls ? (
+              <div style={styles.ctrlBox}>
+                <div style={styles.ctrlLabel}>
+                  Subject B ({String(subjectState?.subjectB?.gender || 'male').trim().toLowerCase() === 'male' ? 'Male' : 'Female'})
+                </div>
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.identityName || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        identityName: e.target.value,
+                        enabled: true,
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B name"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.role || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        role: e.target.value,
+                        enabled: true,
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B role"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.age || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          age: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B age"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.ethnicity || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          ethnicity: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B ethnicity"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.body_shape || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          body_shape: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B body shape"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.build || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          build: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B build"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.eye_color || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          eye_color: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B eye color"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.hair || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          hair: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B hair"
+                  style={styles.ctrlInput}
+                />
+
+                <input
+                  type="text"
+                  value={subjectState?.subjectB?.extractedTraits?.facial_hair || ''}
+                  onChange={(e) =>
+                    setSubjectState((prev) => ({
+                      ...prev,
+                      subjectB: {
+                        ...prev.subjectB,
+                        enabled: true,
+                        extractedTraits: {
+                          ...prev.subjectB?.extractedTraits,
+                          facial_hair: e.target.value,
+                        },
+                        lastUpdated: Date.now(),
+                      },
+                    }))
+                  }
+                  placeholder="Subject B facial hair"
+                  style={styles.ctrlInput}
+                />
+              </div>
+            ) : null}
+
+{showInteractionControls ? (
+  <div style={styles.ctrlBox}>
+    <div style={styles.ctrlLabel}>Interaction</div>
+
+    <select
+      value={interactionState?.type || ''}
+      onChange={(e) => {
+        const nextType = e.target.value
+
+        setInteractionState((prev) => ({
+          ...prev,
+          enabled: nextType !== 'none' && !!nextType,
+          type: nextType,
+          dynamic: '',
+          lastUpdated: Date.now(),
+        }))
+
+        setClicks((c) => c + 1)
+        setLast(`Interaction Type → ${nextType || 'cleared'}`)
+      }}
+      style={styles.ctrlSelect}
+    >
+      {interactionTypeOptions.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+
+    <select
+      value={interactionState?.dynamic || ''}
+      onChange={(e) => {
+        const nextDynamic = e.target.value
+
+        setInteractionState((prev) => ({
+          ...prev,
+          enabled:
+            String(prev?.type || '').trim() !== 'none' &&
+            !!String(prev?.type || '').trim(),
+          dynamic: nextDynamic,
+          lastUpdated: Date.now(),
+        }))
+
+        setClicks((c) => c + 1)
+        setLast(`Interaction Dynamic → ${nextDynamic || 'cleared'}`)
+      }}
+      style={styles.ctrlSelect}
+      disabled={!String(interactionState?.type || '').trim()}
+    >
+      {interactionDynamicOptions.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+
+    <div style={styles.note}>
+      Choose the relationship energy first, then the exact interaction behavior.
+    </div>
+  </div>
+) : null}
           </div>
 
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>CHARACTER DNA</div>
-
-            <input
-              type="text"
-              value={dnaName}
-              onChange={(e) => setDnaName(e.target.value)}
-              placeholder="Character name (e.g. Sofia)"
-              style={styles.ctrlInput}
-            />
-
-            <select
-              value={activeDnaId}
-              onChange={(e) => {
-                const id = e.target.value
-                setActiveDnaId(id)
-                if (id) loadDnaProfile(id)
-              }}
-              style={styles.ctrlSelect}
-            >
-              <option value="">Select DNA profile</option>
-              {dnaProfiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-
-            <div style={styles.row}>
-              <button type="button" onClick={saveCurrentAsDna} style={styles.btnPrimary}>
-                Save DNA
-              </button>
-
-              <button
-                type="button"
-                onClick={deleteDnaProfile}
-                style={styles.btnDanger}
-                disabled={!activeDnaId}
-              >
-                Delete
-              </button>
+          <div style={styles.controlSectionWorld}>
+            <div style={styles.controlSectionHeader}>
+              <div>
+                <div style={styles.controlSectionEyebrowWorld}>WORLD LAYER</div>
+                <div style={styles.controlSectionTitle}>Cinematic Routing</div>
+                <div style={styles.controlSectionSub}>
+                  Control routing mode, world selection, sub-location flow, scene path, and live active route.
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div style={styles.ctrlBox}>
-            <div style={styles.ctrlLabel}>GLOBAL</div>
-            <button
-              type="button"
-              onClick={generateInfluencerFeed}
-              style={styles.btnPrimary}
-            >
-              Generate 30 Post Feed
-            </button>
+<div style={{ ...styles.ownerRowGrid, ...styles.ownerRowBottom }}>
+  <div style={{ ...styles.ctrlBox, ...styles.worldCtrlBox }}>
+   <div style={styles.ctrlLabel}>STEP 1 · MODE</div>
 
-            <div style={styles.row}>
-              <button type="button" onClick={clearAll} style={styles.btnDanger}>
-                Clear All
-              </button>
-              <button type="button" onClick={() => copyText(finalPrompt, 'Final Prompt')} style={styles.btnGhost}>
-                Copy Final
-              </button>
-            </div>
+    <select
+      value={worldControlMode}
+      onChange={(e) => {
+        const mode = e.target.value
+        setWorldControlMode(mode)
+        setClicks((c) => c + 1)
+        setLast(`Mode → ${mode}`)
+      }}
+      style={styles.ctrlSelect}
+    >
+      <option value="auto">Auto (Cinematic)</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8, lineHeight: 1.4 }}>
+      {worldControlMode === 'auto'
+        ? 'Auto mode uses cinematic world routing and automatic scene flow.'
+        : 'Manual mode uses your selected World, Sub-location, and Scene.'}
+    </div>
+  </div>
+
+  <div style={{ ...styles.ctrlBox, ...styles.worldCtrlBox }}>
+   <div style={styles.ctrlLabel}>STEP 2 · WORLD</div>
+
+    <select
+      value={activeWorldId}
+      onChange={(e) => {
+        const nextWorldId = e.target.value
+
+        if (nextWorldId) {
+          setWorldControlMode('manual')
+        }
+
+        setActiveWorldId(nextWorldId)
+        setActiveSubLocationId('')
+        setActiveSceneGroupId('')
+        setClicks((c) => c + 1)
+        setLast(`World → ${nextWorldId}`)
+      }}
+      style={styles.ctrlSelect}
+    >
+      <option value="">
+        {worldControlMode === 'auto'
+          ? 'Auto world (cinematic routing)'
+          : 'Select World'}
+      </option>
+
+      {WORLD_LOCATIONS.map((w) => (
+        <option key={w.id} value={w.id}>
+          {w.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  <div style={{ ...styles.ctrlBox, ...styles.worldCtrlBox }}>
+   <div style={styles.ctrlLabel}>STEP 3 · SUB-LOCATION</div>
+
+    <select
+      value={activeSubLocationId}
+      onChange={(e) => {
+        const nextSub = e.target.value
+        setActiveSubLocationId(nextSub)
+        setActiveSceneGroupId('')
+        setClicks((c) => c + 1)
+        setLast(`Sub-location → ${nextSub}`)
+      }}
+      style={styles.ctrlSelect}
+      disabled={worldControlMode !== 'manual' || !activeWorld}
+    >
+      <option value="">Select Sub-location</option>
+
+      {subLocationOptions.map((loc) => (
+        <option key={loc.id} value={loc.id}>
+          {loc.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  <div style={{ ...styles.ctrlBox, ...styles.worldCtrlBox, ...styles.worldPathCard }}>
+  <div style={styles.ctrlLabel}>STEP 4 · SCENE / PATH</div>
+
+    <select
+      value={activeSceneGroupId}
+      onChange={(e) => {
+        const nextScene = e.target.value
+        setActiveSceneGroupId(nextScene)
+        setClicks((c) => c + 1)
+        setLast(`Scene → ${nextScene}`)
+      }}
+      style={styles.ctrlSelect}
+      disabled={worldControlMode !== 'manual' || !activeSubLocation}
+    >
+      <option value="">Select Scene</option>
+
+      {sceneGroupOptions.map((group) => (
+        <option key={group.id} value={group.id}>
+          {group.name}
+        </option>
+      ))}
+    </select>
+
+    <div style={styles.row}>
+      <button
+        type="button"
+        onClick={applyWorldScene}
+        style={styles.btnPrimary}
+        disabled={worldControlMode !== 'manual' || !activeSceneGroup}
+      >
+        Apply Scene
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setActiveSceneGroupId('')}
+        style={styles.btnGhost}
+        disabled={worldControlMode !== 'manual' || !activeSceneGroup}
+      >
+        Clear
+      </button>
+    </div>
+
+    <select
+      value={locationOptionalValue}
+      onChange={(e) => {
+        const v = e.target.value
+
+        if (v === '') {
+          setBlock('location', '')
+          setClicks((c) => c + 1)
+          setLast('Location optional → Random from category')
+          return
+        }
+
+        setBlock('location', v)
+        setClicks((c) => c + 1)
+        setLast('Location optional → Picked')
+      }}
+      style={styles.ctrlSelect}
+    >
+      <option value="">(Random from category)</option>
+      {locationOptions.map((loc, idx) => (
+        <option key={idx} value={loc}>
+          {loc.length > 90 ? loc.slice(0, 90) + '…' : loc}
+        </option>
+      ))}
+    </select>
+
+    <div
+      style={{
+        ...styles.ctrlSelect,
+        display: 'flex',
+        alignItems: 'center',
+        minHeight: 44,
+        opacity: 0.9
+      }}
+    >
+      {worldControlMode === 'auto'
+        ? [
+            'Auto',
+            autoWorldLabel,
+            autoSubLocationLabel,
+            autoSceneLabel || 'Cinematic routing active'
+          ]
+            .filter(Boolean)
+            .join(' → ')
+        : [activeWorld?.name, activeSubLocation?.name, activeSceneGroup?.name]
+            .filter(Boolean)
+            .join(' → ') || 'Manual → No selection yet'}
+    </div>
+  </div>
+
+  <div style={{ ...styles.ctrlBox, ...styles.worldCtrlBox }}>
+    <div style={styles.ctrlLabel}>LOCATION CATEGORY</div>
+    <select
+      value={locationCategory}
+      disabled={lockLocationCategory}
+      onChange={(e) => {
+        setLocationCategory(e.target.value)
+        setClicks((c) => c + 1)
+        setLast(`Category → ${e.target.value}`)
+      }}
+      style={styles.ctrlSelect}
+    >
+      {locationCategories.map((c) => {
+        const count = categoryCounts[c] ?? 0
+        const label = c === 'All' ? `All (all categories) • ${count}` : `${c} • ${count}`
+
+        return (
+          <option key={c} value={c}>
+            {label}
+          </option>
+        )
+      })}
+    </select>
+
+    <div style={styles.inlineRow}>
+      <button
+        type="button"
+        onClick={() => {
+          setLockLocationCategory((v) => !v)
+          setClicks((c) => c + 1)
+          setLast(!lockLocationCategory ? 'Location category locked' : 'Location category unlocked')
+        }}
+        style={lockLocationCategory ? styles.lockOn : styles.lockOff}
+      >
+        {lockLocationCategory ? 'CATEGORY LOCKED' : 'LOCK CATEGORY'}
+      </button>
+    </div>
+  </div>
+</div>
+
+  <div style={{ marginTop: 10 }}>
+  <button
+    type="button"
+    onClick={generateInfluencerFeed}
+    style={{ ...styles.btnPrimary, width: '100%' }}
+  >
+    {worldControlMode === 'auto'
+  ? 'Generate 30 Cinematic Prompts'
+  : 'Generate 30 Story Prompts'}
+  </button>
+
+  <div style={{ ...styles.note, marginTop: 8 }}>
+    Select World → Sub-location → Scene, then generate prompts.
+  </div>
+</div>
+
           </div>
         </div>
       </div>
@@ -6764,7 +10180,7 @@ onChange={(e) => {
           <div style={styles.panelTitle}>Packs</div>
 
           <div style={styles.tabsRow}>
-            {['Packs', 'Intensity', 'Locations'].map((tab) => (
+              {['Packs', 'Locations'].map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -6778,73 +10194,13 @@ onChange={(e) => {
 
           {activePackTab === 'Packs' && (
             <div style={{ marginTop: 12 }}>
-              <div style={styles.smallLabel}>Presets for plan: {plan}</div>
+              <div style={styles.smallLabel}>Presets</div>
               <div style={styles.chipRow}>
                 {planPresets.map((p, idx) => (
                   <button key={`pp-${idx}`} type="button" onClick={() => applyPresetValues(p)} style={styles.chipBtn}>
                     {p.name}
                   </button>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {activePackTab === 'Intensity' && (
-            <div style={{ marginTop: 12 }}>
-              <div style={styles.smallLabel}>Intensity (Plan-aware)</div>
-
-              <div style={styles.chipRow}>
-                <button
-                  type="button"
-                  style={intensity === 'Soft' ? styles.chipBtnActive : styles.chipBtn}
-                  onClick={() => {
-                    setIntensity('Soft')
-                    setClicks((c) => c + 1)
-                    setLast('Intensity → Soft')
-                  }}
-                >
-                  Soft plan → safest wording
-                </button>
-
-                <button
-                  type="button"
-                  disabled={plan === 'Soft'}
-                  style={
-                    plan === 'Soft'
-                      ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
-                      : intensity === 'Fanvue'
-                        ? styles.chipBtnActive
-                        : styles.chipBtn
-                  }
-                  onClick={() => {
-                    if (plan === 'Soft') return
-                    setIntensity('Fanvue')
-                    setClicks((c) => c + 1)
-                    setLast('Intensity → Fanvue')
-                  }}
-                >
-                  Fanvue plan → tease allowed
-                </button>
-
-                <button
-                  type="button"
-                  disabled={plan !== 'Unrestricted'}
-                  style={
-                    plan !== 'Unrestricted'
-                      ? { ...styles.chipBtn, opacity: 0.45, cursor: 'not-allowed' }
-                      : intensity === 'Unrestricted'
-                        ? styles.chipBtnActive
-                        : styles.chipBtn
-                  }
-                  onClick={() => {
-                    if (plan !== 'Unrestricted') return
-                    setIntensity('Unrestricted')
-                    setClicks((c) => c + 1)
-                    setLast('Intensity → Unrestricted')
-                  }}
-                >
-                  Unrestricted
-                </button>
               </div>
             </div>
           )}
@@ -6880,49 +10236,34 @@ onChange={(e) => {
           <div style={styles.panelTitle}>Fields</div>
 
           {FIELD_ORDER
-            .filter(([k]) => (PLAN_RULES[plan]?.allowFields || []).includes(k))
             .map(([key, label]) => {
+              const isCharacterStart = key === 'identity'
+              const isSceneStart = key === 'location'
+              const isStyleStart = key === 'mood'
+              let currentStep = 1
+              if (isSceneStart) currentStep = 2
+              if (isStyleStart) currentStep = 3
               const lockedField = !!locks[key]
-              const itemsRaw =
+const itemsRaw =
   key === 'location'
     ? locationOptions
     : key === 'age'
       ? AGE_FLAT_LIBRARY
-      : LIBRARIES[key] || []
+      : key === 'environment_detail'
+        ? (console.log('ENV DETAIL LIB', LIBRARIES.environment_detail), LIBRARIES.environment_detail || [])
+        : (
+            LIBRARIES[key] ||
+            LIBRARIES[key?.replace(/_/g, '')] ||
+            LIBRARIES[key?.replace(/_/g, '')?.toLowerCase()] ||
+            []
+          )
 
               const items =
                 key === 'location'
                   ? itemsRaw
                   : itemsRaw.map((s, idx) => {
-                      if (plan === 'Soft' && key === 'lingerie') {
-                        return { value: s, disabled: true, requiredTier: 'Fanvue' }
-                      }
-
-                      const split = LIB_SPLITS[key]
-                      if (!split) return { value: s, disabled: false }
-
-                      const requiresFanvue = idx >= split.softEnd
-                      const requiresUnrestricted = idx >= split.fanvueEnd
-
-                      if (plan === 'Soft') {
-                        if (!requiresFanvue) return { value: s, disabled: false }
-                        return {
-                          value: s,
-                          disabled: true,
-                          requiredTier: requiresUnrestricted ? 'Unrestricted' : 'Fanvue',
-                        }
-                      }
-
-                      if (plan === 'Fanvue') {
-                        if (!requiresUnrestricted) return { value: s, disabled: false }
-                        return { value: s, disabled: true, requiredTier: 'Unrestricted' }
-                      }
-
-                      return { value: s, disabled: false }
+              return { value: s, disabled: false }
                     })
-
-              const hasLockedItems =
-                Array.isArray(items) && items.some((it) => it && typeof it === 'object' && it.disabled)
 
               const isProvocationKey = [
                 'outfit_archetype',
@@ -6933,112 +10274,133 @@ onChange={(e) => {
                 'micro_action',
               ].includes(key)
 
-              return (
-                <div key={key}>
-                  {key === 'outfit_archetype' && plan !== 'Soft' ? (
-                    <div style={styles.sectionHeader}>
-                      <div style={styles.sectionTitle}>Provocation Engine</div>
-                      <div style={styles.sectionSub}>Near-edge tension, non-nude • strongest conversion layer</div>
-                    </div>
-                  ) : null}
+return (
+  <div key={key}>
+    {isCharacterStart && (
+      <div
+        style={styles.characterSectionHeader}
+        onClick={() => setActiveStep(1)}
+      >
+        <div style={styles.stepBadge}>STEP 1</div>
+        <div style={styles.characterSectionTitle}>Character Creation</div>
+        <div style={styles.characterSectionSub}>
+          Define the woman first — identity, features, and physical presence.
+        </div>
+      </div>
+    )}
 
-                  <div style={styles.fieldRow}>
-                    <div style={styles.fieldTop}>
-                      <div style={styles.fieldName}>
-                        {label}
-                        {isProvocationKey && plan !== 'Soft' ? <span style={styles.fieldBadge}>NEW</span> : null}
-                      </div>
+    {isSceneStart && (
+      <div
+        style={styles.sceneSectionHeader}
+        onClick={() => setActiveStep(2)}
+      >
+        <div style={styles.stepBadgeBlue}>STEP 2</div>
+        <div style={styles.characterSectionTitle}>Scene Setup</div>
+        <div style={styles.characterSectionSub}>
+          Choose where she is, what she’s doing, and the environment.
+        </div>
+      </div>
+    )}
 
-                      <div style={styles.fieldActions}>
-                        <button
-                          type="button"
-                          onClick={() => randomizeField(key)}
-                          style={styles.btnGhost}
-                          disabled={lockedField}
-                        >
-                          Random
-                        </button>
+    {isStyleStart && (
+      <div
+        style={styles.styleSectionHeader}
+        onClick={() => setActiveStep(3)}
+      >
+        <div style={styles.stepBadgeGold}>STEP 3</div>
+        <div style={styles.characterSectionTitle}>Visual Style</div>
+        <div style={styles.characterSectionSub}>
+          Define the final cinematic look, lighting, and quality.
+        </div>
+      </div>
+    )}
 
-                        <button
-                          type="button"
-                          onClick={() => clearField(key)}
-                          style={styles.btnGhost}
-                          disabled={lockedField}
-                        >
-                          Clear
-                        </button>
+    {activeStep === currentStep ? (
+      <>
+        {key === 'outfit_archetype' ? (
+          <div style={styles.sectionHeader}>
+            <div style={styles.sectionTitle}>Provocation Engine</div>
+            <div style={styles.sectionSub}>Near-edge tension, non-nude • strongest conversion layer</div>
+          </div>
+        ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() => copyText(blocks[key] ? `${label}:\n${blocks[key]}` : '', label)}
-                          style={styles.btnGhost}
-                        >
-                          Copy
-                        </button>
+        <div style={styles.fieldRow}>
+          <div style={styles.fieldTop}>
+            <div style={styles.fieldName}>
+              {label}
+              {isProvocationKey ? <span style={styles.fieldBadge}>NEW</span> : null}
+            </div>
 
-                        <label style={styles.lockInline}>
-                          <input type="checkbox" checked={lockedField} onChange={() => toggleLock(key)} />
-                          <span style={{ marginLeft: 8 }}>{lockedField ? 'Locked' : 'Lock'}</span>
-                        </label>
-                      </div>
-                    </div>
+            <div style={styles.fieldActions}>
+              <button
+                type="button"
+                onClick={() => randomizeField(key)}
+                style={styles.btnGhost}
+                disabled={lockedField}
+              >
+                Random
+              </button>
 
-                    <div style={{ position: 'relative', opacity: lockedField ? 0.6 : 1 }}>
-                      <LibraryDropdown
-                        items={items}
-                        disabled={lockedField}
-                        onPick={(val) => setBlock(key, val)}
-                        onLocked={(tier) => {
-                          setClicks((c) => c + 1)
-                          setLast(tier ? `Upgrade to ${tier} to unlock` : 'Upgrade to unlock')
-                        }}
-                      />
+              <button
+                type="button"
+                onClick={() => clearField(key)}
+                style={styles.btnGhost}
+                disabled={lockedField}
+              >
+                Clear
+              </button>
 
-                      {hasLockedItems && !lockedField && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 6,
-                            right: 12,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            color: 'rgba(255,255,255,0.45)',
-                            pointerEvents: 'none',
-                          }}
-                        >
-                          🔒
-                        </div>
-                      )}
-                    </div>
+              <button
+                type="button"
+                onClick={() => copyText(blocks[key] ? `${label}:\n${blocks[key]}` : '', label)}
+                style={styles.btnGhost}
+              >
+                Copy
+              </button>
 
-                    {hasLockedItems && !lockedField && (
-                      <div
-                        style={{
-                          marginTop: 6,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          color: 'rgba(229,231,235,0.55)',
-                        }}
-                      >
-                        Some options are locked — upgrade to unlock more.
-                      </div>
-                    )}
+              <label style={styles.lockInline}>
+                <input type="checkbox" checked={lockedField} onChange={() => toggleLock(key)} />
+                <span style={{ marginLeft: 8 }}>{lockedField ? 'Locked' : 'Lock'}</span>
+              </label>
+            </div>
+          </div>
 
-                    <textarea
-                      value={blocks[key]}
-                      onChange={(e) => setBlock(key, e.target.value)}
-                      placeholder={`Write or pick ${label.toLowerCase()}…`}
-                      style={styles.textarea}
-                      disabled={lockedField}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+          <div style={{ position: 'relative', opacity: lockedField ? 0.6 : 1 }}>
+            <LibraryDropdown
+              items={items}
+              disabled={lockedField}
+              onPick={(val) => setBlock(key, val)}
+            />
+          </div>
+
+          <textarea
+            value={blocks[key]}
+            onChange={(e) => setBlock(key, e.target.value)}
+            placeholder={`Write or pick ${label.toLowerCase()}…`}
+            style={styles.textarea}
+            disabled={lockedField}
+          />
+        </div>
+      </>
+    ) : null}
+  </div>
+)
+})}
 
             {feedPrompts.length > 0 && (
           <div style={styles.feedBox}>
-            <div style={styles.feedTitle}>Influencer Feed</div>
+          <div style={styles.feedHeader}>
+  <div style={styles.feedTitle}>Influencer Feed</div>
+
+  <button
+    type="button"
+    onClick={clearFeedPrompts}
+    style={styles.btnGhostSmall}
+    disabled={!feedPrompts.length}
+  >
+    Clear
+  </button>
+</div>
 
             {feedPrompts.map((p, i) => (
               <div key={i} style={styles.feedItem}>
@@ -7052,14 +10414,32 @@ onChange={(e) => {
       </div>
 
       <div style={styles.fullWidthCard}>
-        <div style={styles.cardHeaderRow}>
-          <div style={styles.cardTitle}>Final Prompt</div>
-          <div style={styles.row}>
-            <button type="button" onClick={() => copyText(finalPrompt, 'Final Prompt')} style={styles.btnPrimary}>
-              Copy
-            </button>
-          </div>
-        </div>
+<div style={styles.cardHeaderRow}>
+  <div style={styles.cardTitle}>Final Prompt</div>
+  <div style={styles.row}>
+    <button
+      type="button"
+      onClick={() => copyText(finalPrompt, 'Final Prompt')}
+      style={styles.btnPrimary}
+    >
+      Copy
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setBlocks((prev) =>
+          Object.fromEntries(Object.keys(prev).map((key) => [key, '']))
+        )
+        setLast('Final prompt cleared')
+      }}
+      style={styles.btnDanger}
+      disabled={!finalPrompt.trim()}
+    >
+      Clear
+    </button>
+  </div>
+</div>
         <textarea value={finalPrompt} readOnly style={styles.output} />
       </div>
 
@@ -7124,6 +10504,188 @@ onChange={(e) => {
           <div style={styles.note}>Generate a pack to see prompts here.</div>
         )}
       </div>
+ 
+ {generatedImage && (
+  <div style={styles.fullWidthCard}>
+    <div style={styles.cardHeaderRow}>
+      <div style={styles.cardTitle}>Generated Image</div>
+
+      <div style={styles.row}>
+<button
+  type="button"
+  onClick={() => setPreviewImage(generatedImage)}
+  style={styles.btnGhost}
+>
+  View Full Size
+</button>
+
+        <button
+          type="button"
+          onClick={() => downloadImage(generatedImage, `prompt-ceo-single-${Date.now()}.png`)}
+          style={styles.btnPrimary}
+        >
+          Download Image
+        </button>
+      </div>
+    </div>
+
+    <div style={{ paddingTop: 6 }}>
+      <img
+        src={generatedImage}
+        alt="Generated"
+        onClick={() => setPreviewImage(generatedImage)}
+        style={{
+          width: '100%',
+          maxWidth: 500,
+          borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.12)',
+          display: 'block',
+          cursor: 'pointer',
+        }}
+      />
+    </div>
+  </div>
+)}
+
+{storyGenerationStatus && (
+  <div style={styles.fullWidthCard}>
+    <div style={styles.cardTitle}>{storyGenerationStatus}</div>
+  </div>
+)}
+
+{generatedImages.length > 0 && (
+  <div style={styles.fullWidthCard}>
+  {previewImage && (
+  <div
+    onClick={() => setPreviewImage('')}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.82)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+      zIndex: 9999,
+      cursor: 'pointer',
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        maxWidth: '95vw',
+        maxHeight: '95vh',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div style={{ ...styles.row, justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          onClick={() =>
+            downloadImage(previewImage, `prompt-ceo-preview-${Date.now()}.png`)
+          }
+          style={styles.btnPrimary}
+        >
+          Download
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPreviewImage('')}
+          style={styles.btnDanger}
+        >
+          Close
+        </button>
+      </div>
+
+      <img
+        src={previewImage}
+        alt="Preview"
+        style={{
+          maxWidth: '95vw',
+          maxHeight: '85vh',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.12)',
+          display: 'block',
+          background: '#000',
+        }}
+      />
+    </div>
+  </div>
+)}
+    <div style={styles.cardHeaderRow}>
+      <div style={styles.cardTitle}>Story Images</div>
+
+      <div style={styles.row}>
+        <button
+          type="button"
+          onClick={() => {
+            generatedImages.forEach((img, i) => {
+              setTimeout(() => {
+                downloadImage(img, `prompt-ceo-story-${i + 1}.png`)
+              }, i * 250)
+            })
+          }}
+          style={styles.btnPrimary}
+        >
+          Download All
+        </button>
+      </div>
+    </div>
+
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+      gap: 12,
+      marginTop: 10
+    }}>
+      {generatedImages.map((img, i) => (
+        <div
+          key={i}
+          style={{
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 12,
+            padding: 10,
+            background: 'rgba(0,0,0,0.22)',
+          }}
+        >
+          <img
+            src={img}
+            alt={`scene-${i + 1}`}
+            onClick={() => setPreviewImage(img)}
+            style={{
+              width: '100%',
+              borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.1)',
+              cursor: 'pointer',
+              display: 'block',
+            }}
+          />
+
+          <div style={{ ...styles.row, marginTop: 10 }}>
+<button
+  type="button"
+  onClick={() => setPreviewImage(img)}
+  style={styles.btnGhost}
+>
+  View
+</button>
+
+            <button
+              type="button"
+              onClick={() => downloadImage(img, `prompt-ceo-story-${i + 1}.png`)}
+              style={styles.btnPrimary}
+            >
+              Download
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
     </main>
   )
 }
@@ -7164,11 +10726,15 @@ const styles = {
   },
   ownerCard: {
     maxWidth: 1500,
-    margin: '0 auto 14px auto',
-    padding: 16,
-    borderRadius: 18,
+    margin: '0 auto 18px auto',
+    padding: 20,
+    borderRadius: 24,
     border: '1px solid rgba(255,255,255,0.08)',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))',
+    boxShadow:
+      '0 28px 80px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)',
+    backdropFilter: 'blur(10px)',
   },
   ownerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   ownerTitle: { fontWeight: 900, fontSize: 14, color: 'rgba(255,255,255,0.9)' },
@@ -7185,55 +10751,77 @@ const styles = {
     background: 'rgba(0,0,0,0.30)',
   },
   inlineRow: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 },
-    ownerGrid: {
-    marginTop: 12,
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-    gap: 12,
-    alignItems: 'start',
-  },
-  ctrlBox: {
-    borderRadius: 14,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.35)',
-    padding: 12,
+  ownerGrid: {
+    marginTop: 16,
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
-    minHeight: 92,
-    width: '100%',
-    minWidth: 0,
+    gap: 18,
   },
-  ctrlLabel: { fontSize: 11, fontWeight: 900, color: 'rgba(229,231,235,0.70)', letterSpacing: 0.6 },
+  ownerRowGrid: {
+    display: 'grid',
+    gap: 16,
+    alignItems: 'start',
+  },
+  ownerRowTop: {
+    gridTemplateColumns: '1.38fr 1fr',
+  },
+ownerRowMid: {
+  gridTemplateColumns: '1.00fr repeat(4, minmax(0, 1fr))',
+  alignItems: 'stretch',
+},
+ownerRowBottom: {
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) 1.35fr',
+  alignItems: 'stretch',
+},
+ctrlBox: {
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background:
+    'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01))',
+  padding: 16,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 12,
+  minHeight: 0,
+  width: '100%',
+  minWidth: 0,
+  boxShadow:
+    '0 14px 34px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.03)',
+},
   ctrlInput: {
     width: '100%',
-    background: 'rgba(0,0,0,0.45)',
+    background: 'rgba(5,8,14,0.78)',
     color: '#fff',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    padding: '10px 12px',
+    border: '1px solid rgba(255,255,255,0.10)',
+    borderRadius: 14,
+    padding: '12px 14px',
     outline: 'none',
     fontSize: 13,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   },
   ctrlSelect: {
     width: '100%',
-    background: 'rgba(0,0,0,0.45)',
+    background: 'rgba(5,8,14,0.78)',
     color: '#fff',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    padding: '10px 12px',
+    border: '1px solid rgba(255,255,255,0.10)',
+    borderRadius: 14,
+    padding: '12px 14px',
     outline: 'none',
     fontSize: 13,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   },
   ctrlReadOnly: {
     width: '100%',
-    borderRadius: 12,
-    padding: '10px 12px',
-    border: '1px solid rgba(255,255,255,0.10)',
-    background: 'rgba(0,0,0,0.25)',
-    color: 'rgba(229,231,235,0.92)',
+    borderRadius: 14,
+    padding: '13px 14px',
+    border: '1px solid rgba(255,255,255,0.08)',
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))',
+    color: 'rgba(245,247,250,0.95)',
     fontWeight: 800,
     fontSize: 13,
+    lineHeight: 1.4,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   },
   builderWrap: {
     maxWidth: 1500,
@@ -7244,10 +10832,13 @@ const styles = {
     alignItems: 'start',
   },
   panel: {
-    borderRadius: 18,
+    borderRadius: 22,
     border: '1px solid rgba(255,255,255,0.08)',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.35))',
-    padding: 16,
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(0,0,0,0.36))',
+    padding: 18,
+    boxShadow:
+      '0 18px 44px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)',
   },
   panelTitle: { fontWeight: 900, marginBottom: 10, color: 'rgba(255,255,255,0.92)' },
   tabsRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
@@ -7273,25 +10864,28 @@ const styles = {
   },
   smallLabel: { marginTop: 6, fontSize: 12, color: 'rgba(229,231,235,0.72)', fontWeight: 800 },
   chipRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 },
-  chipBtn: {
-    background: 'rgba(0,0,0,0.35)',
-    border: '1px solid rgba(255,255,255,0.10)',
-    padding: '10px 12px',
-    borderRadius: 999,
-    fontWeight: 900,
-    cursor: 'pointer',
-    fontSize: 12,
-    color: 'rgba(229,231,235,0.92)',
-  },
-  chipBtnActive: {
-    padding: '8px 14px',
-    borderRadius: 999,
-    background: 'rgba(255,255,255,0.08)',
-    color: '#fff',
-    border: '1px solid rgba(120,200,255,0.9)',
-    boxShadow: '0 0 0 1px rgba(120,200,255,0.35), 0 0 12px rgba(120,200,255,0.35)',
-    cursor: 'pointer',
-  },
+chipBtn: {
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.025) 100%)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  padding: '10px 13px',
+  borderRadius: 999,
+  fontWeight: 900,
+  cursor: 'pointer',
+  fontSize: 12,
+  color: 'rgba(235,239,244,0.94)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 6px 14px rgba(0,0,0,0.22)',
+},
+chipBtnActive: {
+  padding: '8px 12px',
+  borderRadius: 999,
+  background: 'linear-gradient(180deg, rgba(88,199,255,0.94) 0%, rgba(34,166,240,0.94) 100%)',
+  color: '#03131d',
+  border: '1px solid rgba(140,220,255,0.42)',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(24,119,242,0.20)',
+  cursor: 'pointer',
+  fontWeight: 900,
+},
   previewBox: {
     marginTop: 10,
     borderRadius: 14,
@@ -7353,11 +10947,14 @@ const styles = {
   },
   fullWidthCard: {
     maxWidth: 1500,
-    margin: '14px auto 0 auto',
-    borderRadius: 18,
+    margin: '18px auto 0 auto',
+    borderRadius: 22,
     border: '1px solid rgba(255,255,255,0.08)',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.35))',
-    padding: 16,
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(0,0,0,0.36))',
+    padding: 18,
+    boxShadow:
+      '0 18px 44px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)',
   },
   cardHeaderRow: {
     display: 'flex',
@@ -7408,7 +11005,7 @@ const styles = {
     color: 'rgba(229,231,235,0.92)',
   },
   varyHint: { marginLeft: 10, color: 'rgba(34,197,94,0.95)', fontWeight: 900 },
-  row: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
+  row: { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' },
   smallSelect: {
     background: 'rgba(0,0,0,0.45)',
     color: '#fff',
@@ -7419,36 +11016,54 @@ const styles = {
     fontSize: 13,
     minWidth: 110,
   },
-  btnPrimary: {
-    background: 'rgba(56,189,248,0.95)',
-    border: 'none',
-    padding: '10px 14px',
-    borderRadius: 12,
-    fontWeight: 900,
-    cursor: 'pointer',
-    fontSize: 12,
-    color: '#001018',
-  },
-  btnGhost: {
-    background: 'rgba(0,0,0,0.35)',
-    border: '1px solid rgba(255,255,255,0.10)',
-    padding: '10px 14px',
-    borderRadius: 12,
-    fontWeight: 900,
-    cursor: 'pointer',
-    fontSize: 12,
-    color: 'rgba(229,231,235,0.92)',
-  },
-  btnDanger: {
-    background: 'rgba(239,68,68,0.18)',
-    border: '1px solid rgba(239,68,68,0.45)',
-    padding: '10px 14px',
-    borderRadius: 12,
-    fontWeight: 900,
-    cursor: 'pointer',
-    fontSize: 12,
-    color: 'rgba(254,202,202,0.95)',
-  },
+btnPrimary: {
+  background: 'linear-gradient(180deg, rgba(114,208,255,1) 0%, rgba(54,175,238,1) 52%, rgba(33,144,212,1) 100%)',
+  border: '1px solid rgba(180,232,255,0.34)',
+  padding: '8px 12px',
+  borderRadius: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+  fontSize: 11.5,
+  color: '#04131c',
+  letterSpacing: 0.2,
+  transition: 'transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(0,0,0,0.10), 0 10px 22px rgba(19,120,181,0.22), 0 2px 8px rgba(0,0,0,0.24)',
+ whiteSpace: 'nowrap',  
+ minWidth: 0,
+},
+btnGhost: {
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.085) 0%, rgba(255,255,255,0.03) 100%)',
+  border: '1px solid rgba(255,255,255,0.11)',
+  padding: '8px 12px',
+  borderRadius: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+  fontSize: 11.5,
+  color: 'rgba(245,247,250,0.94)',
+  letterSpacing: 0.2,
+  transition: 'transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.18), 0 8px 18px rgba(0,0,0,0.24)',
+  whiteSpace: 'nowrap',  
+  minWidth: 0,
+},
+btnDanger: {
+  background: 'linear-gradient(180deg, rgba(255,117,117,1) 0%, rgba(235,77,77,1) 52%, rgba(204,48,48,1) 100%)',
+  border: '1px solid rgba(255,170,170,0.24)',
+  padding: '8px 12px',
+  borderRadius: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+  fontSize: 11.5,
+  color: '#fff8f8',
+  letterSpacing: 0.2,
+  transition: 'transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.14), 0 10px 22px rgba(150,33,33,0.20), 0 2px 8px rgba(0,0,0,0.24)',
+  whiteSpace: 'nowrap',
+  minWidth: 0,
+},
   lockOn: {
     background: 'rgba(34,197,94,0.12)',
     border: '1px solid rgba(34,197,94,0.55)',
@@ -7475,6 +11090,57 @@ const styles = {
     color: 'rgba(229,231,235,0.70)',
     lineHeight: 1.45,
   },
+  identityStatusBox: {
+    marginTop: 6,
+    padding: 14,
+    borderRadius: 16,
+    border: '1px solid rgba(255,255,255,0.08)',
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  },
+  identityStatusTitle: {
+    fontSize: 10,
+    fontWeight: 900,
+    color: 'rgba(229,231,235,0.56)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  identityStatusText: {
+    fontSize: 15,
+    fontWeight: 900,
+    color: 'rgba(255,255,255,0.96)',
+    lineHeight: 1.3,
+  },
+  identityStatusMini: {
+    fontSize: 12,
+    color: 'rgba(229,231,235,0.72)',
+    lineHeight: 1.45,
+  },
+    identityExtractPreview: {
+    marginTop: 6,
+    padding: 10,
+    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,0.10)',
+    background: 'rgba(255,255,255,0.03)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  identityExtractPreviewTitle: {
+    fontSize: 11,
+    fontWeight: 900,
+    color: 'rgba(229,231,235,0.72)',
+    letterSpacing: 0.5,
+  },
+  identityExtractPreviewText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.90)',
+    lineHeight: 1.35,
+  },
   sectionHeader: {
     marginTop: 18,
     padding: 14,
@@ -7494,6 +11160,86 @@ const styles = {
     fontWeight: 800,
     color: 'rgba(229,231,235,0.70)',
   },
+  stepBadge: {
+  display: 'inline-block',
+  marginBottom: 8,
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+  background: 'rgba(168,85,247,0.2)',
+  border: '1px solid rgba(168,85,247,0.5)',
+  color: 'rgba(168,85,247,1)',
+},
+
+stepBadgeBlue: {
+  display: 'inline-block',
+  marginBottom: 8,
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+  background: 'rgba(56,189,248,0.2)',
+  border: '1px solid rgba(56,189,248,0.5)',
+  color: 'rgba(56,189,248,1)',
+},
+
+stepBadgeGold: {
+  display: 'inline-block',
+  marginBottom: 8,
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+  background: 'rgba(212,175,55,0.2)',
+  border: '1px solid rgba(212,175,55,0.5)',
+  color: 'rgba(212,175,55,1)',
+},
+
+sceneSectionHeader: {
+  marginTop: 24,
+  marginBottom: 16,
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid rgba(56,189,248,0.35)',
+  background:
+    'radial-gradient(600px 180px at 0% 0%, rgba(56,189,248,0.18), rgba(56,189,248,0.04) 40%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28))',
+},
+
+styleSectionHeader: {
+  marginTop: 24,
+  marginBottom: 16,
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid rgba(212,175,55,0.35)',
+  background:
+    'radial-gradient(600px 180px at 0% 0%, rgba(212,175,55,0.18), rgba(212,175,55,0.04) 40%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28))',
+},
+  characterSectionHeader: {
+  marginTop: 6,
+  marginBottom: 16,
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid rgba(168,85,247,0.35)',
+  background:
+    'radial-gradient(600px 180px at 0% 0%, rgba(168,85,247,0.18), rgba(168,85,247,0.04) 40%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28))',
+  boxShadow:
+    '0 18px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
+},
+
+characterSectionTitle: {
+  fontSize: 20,
+  fontWeight: 900,
+  color: '#fff',
+  letterSpacing: 0.3,
+},
+
+characterSectionSub: {
+  marginTop: 6,
+  fontSize: 13,
+  color: 'rgba(229,231,235,0.65)',
+  lineHeight: 1.5,
+},
   fieldBadge: {
     marginLeft: 10,
     fontSize: 10,
@@ -7527,42 +11273,266 @@ feedItem: {
   borderTop: '1px solid rgba(255,255,255,0.05)',
 },
 
-signaturePackGrid: {
-  display: 'grid',
-  gridTemplateColumns: '1fr',
+  heroCard: {
+    padding: 20,
+    gap: 16,
+    minHeight: 100,
+    background:
+      'radial-gradient(900px 260px at 0% 0%, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 35%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.34))',
+    border: '1px solid rgba(255,255,255,0.10)',
+    boxShadow:
+      '0 24px 56px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04)',
+    borderRadius: 22,
+  },
+  heroCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingBottom: 14,
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: 900,
+    color: '#fff',
+    letterSpacing: 0.2,
+    lineHeight: 1.05,
+  },
+  heroSub: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'rgba(229,231,235,0.64)',
+    maxWidth: 760,
+  },
+  identityHeroLayout: {
+    display: 'grid',
+    gridTemplateColumns: '190px 1fr',
+    gap: 18,
+    alignItems: 'start',
+  },
+  identityHeroPreview: {
+    minHeight: 220,
+  },
+  identityHeroImage: {
+    width: '100%',
+    height: 250,
+    objectFit: 'cover',
+    borderRadius: 20,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.03)',
+    boxShadow: '0 18px 36px rgba(0,0,0,0.34)',
+    display: 'block',
+  },
+  identityHeroEmpty: {
+    height: 250,
+    borderRadius: 20,
+    border: '1px solid rgba(255,255,255,0.10)',
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.26))',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
+    padding: 18,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  },
+  identityHeroEmptyTitle: {
+    fontSize: 22,
+    fontWeight: 900,
+    color: 'rgba(255,255,255,0.94)',
+    lineHeight: 1.1,
+  },
+  identityHeroEmptyText: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'rgba(229,231,235,0.64)',
+    maxWidth: 170,
+  },
+  identityHeroControls: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  globalActionStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+  },
+actionRowTight: {
+  display: 'flex',
   gap: 10,
-  marginTop: 12,
+  flexWrap: 'nowrap',
+  alignItems: 'center',
+},
+btnHero: {
+  minHeight: 44,
+  fontSize: 12.5,
+  borderRadius: 14,
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.24), inset 0 -1px 0 rgba(0,0,0,0.10), 0 12px 26px rgba(0,0,0,0.22)',
+},
+btnHeroHalf: {
+  minHeight: 42,
+  borderRadius: 13,
+  fontSize: 11.5,
+  padding: '8px 12px',
+  whiteSpace: 'nowrap',
+  boxShadow: '0 8px 18px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.14)',
+},
+    controlSectionStory: {
+    padding: 18,
+    borderRadius: 22,
+    border: '1px solid rgba(255,255,255,0.07)',
+    background:
+      'radial-gradient(900px 240px at 0% 0%, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0.015) 34%, rgba(0,0,0,0) 68%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.008))',
+    boxShadow:
+      '0 18px 42px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.03)',
+  },
+  controlSectionWorld: {
+    padding: 18,
+    borderRadius: 22,
+    border: '1px solid rgba(255,255,255,0.07)',
+    background:
+      'radial-gradient(900px 240px at 100% 0%, rgba(88,199,255,0.08) 0%, rgba(88,199,255,0.015) 34%, rgba(0,0,0,0) 68%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.008))',
+    boxShadow:
+      '0 18px 42px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.03)',
+  },
+  controlSectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
+  },
+  controlSectionEyebrowStory: {
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: 'rgba(212,175,55,0.82)',
+  },
+  controlSectionEyebrowWorld: {
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: 'rgba(88,199,255,0.88)',
+  },
+  controlSectionTitle: {
+    marginTop: 6,
+    fontSize: 24,
+    fontWeight: 900,
+    color: 'rgba(255,255,255,0.96)',
+    lineHeight: 1.08,
+  },
+  controlSectionSub: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: 'rgba(229,231,235,0.64)',
+    maxWidth: 780,
+  },
+  storyCtrlBox: {
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.008))',
+    border: '1px solid rgba(255,255,255,0.07)',
+  },
+  worldCtrlBox: {
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.006))',
+    border: '1px solid rgba(255,255,255,0.07)',
+  },
+  infoCard: {
+  marginTop: 14,
+  padding: '12px 14px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.06)',
 },
 
-signaturePackCard: {
-  textAlign: 'left',
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(0,0,0,0.30)',
-  cursor: 'pointer',
-},
-
-signaturePackCardActive: {
-  textAlign: 'left',
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid rgba(56,189,248,0.55)',
-  background: 'rgba(56,189,248,0.08)',
-  boxShadow: '0 0 0 1px rgba(56,189,248,0.18)',
-  cursor: 'pointer',
-},
-
-signaturePackName: {
+infoTitle: {
   fontSize: 13,
-  fontWeight: 900,
-  color: 'rgba(255,255,255,0.96)',
+  fontWeight: 600,
+  marginBottom: 6,
+  color: '#ffffff',
 },
 
-signaturePackDesc: {
-  marginTop: 6,
+infoText: {
   fontSize: 12,
-  lineHeight: 1.45,
-  color: 'rgba(229,231,235,0.72)',
+  color: 'rgba(255,255,255,0.65)',
+  marginBottom: 8,
+  lineHeight: 1.4,
+},
+
+infoListText: {
+  fontSize: 12,
+  color: 'rgba(229,231,235,0.65)',
+  lineHeight: 1.55,
+  marginTop: 6,
+},
+dnaSectionHeader: {
+  marginTop: 6,
+  marginBottom: 12,
+  padding: 16,
+  borderRadius: 16,
+  border: '1px solid rgba(168,85,247,0.35)',
+  background:
+    'radial-gradient(600px 180px at 0% 0%, rgba(168,85,247,0.18), rgba(168,85,247,0.04) 40%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28))',
+},
+
+stepBadgePurple: {
+  display: 'inline-block',
+  marginBottom: 8,
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+  background: 'rgba(168,85,247,0.2)',
+  border: '1px solid rgba(168,85,247,0.5)',
+  color: 'rgba(168,85,247,1)',
+},
+generationSectionHeader: {
+  marginTop: 8,
+  marginBottom: 12,
+  padding: 16,
+  borderRadius: 16,
+  border: '1px solid rgba(56,189,248,0.35)',
+  background:
+    'radial-gradient(600px 180px at 0% 0%, rgba(56,189,248,0.18), rgba(56,189,248,0.04) 40%, rgba(0,0,0,0) 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28))',
+},
+identityActionRow: {
+  display: 'grid',
+  gridTemplateColumns: '0.95fr 1.45fr 1fr 1.1fr',
+  gap: 8,
+  width: '100%',
+},
+
+identityDangerRow: {
+  display: 'flex',
+  gap: 10,
+  alignItems: 'center',
+},
+feedHeader: {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '10px',
+},
+
+btnGhostSmall: {
+  padding: '6px 10px',
+  fontSize: '12px',
+  borderRadius: '8px',
+  border: '1px solid rgba(255,255,255,0.15)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#aaa',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
 },
 }

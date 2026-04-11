@@ -37,18 +37,18 @@ export const EMPTY_BLOCKS = {
 export const FIELD_ORDER = [
   ['identity', 'Identity'],
   ['age', 'Age'],
-  ['location', 'Location'],
-  ['environment_detail', 'Environment Detail'],
-  ['time', 'Time'],
-  ['pose', 'Pose / Staging'],
-  ['clothing', 'Clothing'],
-
   ['ethnicity', 'Ethnicity'],
   ['body_shape', 'Body Shape'],
   ['eye_color', 'Eye Color'],
   ['hair', 'Hair'],
   ['breast_size', 'Breast Size'],
   ['glute_size', 'Glute Size'],
+
+  ['location', 'Location'],
+  ['environment_detail', 'Environment Detail'],
+  ['time', 'Time'],
+  ['pose', 'Pose / Staging'],
+  ['clothing', 'Clothing'],
 
   ['outfit_archetype', 'Outfit Archetype'],
   ['undress_state', 'State of Undress'],
