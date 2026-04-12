@@ -66,7 +66,6 @@ import {
   createEmptyInteractionState,
   resolveSubjectPromptModel,
   buildDeterministicSubjectPrompt,
-  buildSubjectGenerationPayload,
 } from '../../subject-system'
 
 // ===============================
@@ -157,13 +156,11 @@ function finalizeFeedPromptFlow(prompt) {
     const isStyling =
       /robe|dress|lingerie|sleepwear|loungewear|cashmere|styling|fabric|strap|sleeve|jewelry|outfit|wardrobe/i.test(lower)
 
-    if (
-      identityParts.length === 0 &&
-      (
-        /same exact woman|same person|same face|uploaded reference image|fixed recurring female identity|consistent female identity|woman|female/i.test(lower) ||
-        /\byears old\b/i.test(lower)
-      )
-    ) {
+    const isIdentityPart =
+      /same exact woman|same exact man|same exact person|same exact female|same exact male|uploaded reference image|fixed recurring female identity|fixed recurring man identity|consistent female identity|consistent male identity|consistent recurring female identity|consistent recurring male identity|same person|same face|same bone structure|same eyes|same nose|same lips|same facial proportions|same hairline|preserve identical facial identity/i.test(lower) ||
+      /\byears old\b/i.test(lower)
+
+    if (isIdentityPart) {
       pushUnique(identityParts, part)
       continue
     }
@@ -300,8 +297,8 @@ function applyFeedPromptWordingMemory(prompt, memory) {
       .replace(/same exact man as the uploaded reference image/gi, 'the same man from the uploaded reference image')
       .replace(/fixed recurring female identity/gi, 'recurring female identity')
       .replace(/fixed recurring man identity/gi, 'recurring man identity')
-      .replace(/preserve identical facial identity/gi, 'maintain identical facial identity')
-      .replace(/preserve the same person and the same face across every image/gi, 'keep the same person and the same face across every image')
+      .replace(/preserve identical facial identity/gi, 'same facial identity')
+      .replace(/preserve the same person and the same face across every image/gi, 'same person across every image')
       .trim()
   }
 
@@ -354,18 +351,27 @@ let identityLocked = false
   ]
 
 const identityEchoFragments = [
-  'female',
-  'woman',
-  'elegant woman',
-  'premium brand ambassador',
-  'confident gaze',
-  'confident and visually magnetic',
-  'attractive',
-  'socially powerful presence',
-  'peak feminine aesthetic',
-  'polished',
-  'balanced',
-  'feminine',
+  'same exact woman as the uploaded reference image',
+  'same exact man as the uploaded reference image',
+  'same exact person as the uploaded reference image',
+  'same exact male as the uploaded reference image',
+  'same exact female as the uploaded reference image',
+  'fixed recurring female identity',
+  'fixed recurring man identity',
+  'consistent female identity',
+  'consistent male identity',
+  'consistent recurring female identity',
+  'consistent recurring male identity',
+  'preserve identical facial identity',
+  'preserve the same person and the same face across every image',
+  'same person',
+  'same face',
+  'same bone structure',
+  'same eyes',
+  'same nose',
+  'same lips',
+  'same facial proportions',
+  'same hairline',
 ]
 
   const blockedGymFragments = [
@@ -1097,6 +1103,212 @@ function buildDeterministicFeedPrompt({
     .trim()
 }
 
+function normalizeSceneField(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*$/g, '')
+    .trim()
+}
+
+function uniqueSceneParts(parts = []) {
+  const seen = new Set()
+  const out = []
+
+  for (const part of parts) {
+    const clean = normalizeSceneField(part)
+    if (!clean) continue
+
+    const key = clean.toLowerCase()
+    if (seen.has(key)) continue
+
+    seen.add(key)
+    out.push(clean)
+  }
+
+  return out
+}
+
+function firstNonEmpty(values = []) {
+  for (const value of values) {
+    const clean = normalizeSceneField(value)
+    if (clean) return clean
+  }
+  return ''
+}
+
+function buildScenePayload({
+  sourceType = '',
+  sourceId = '',
+  action = '',
+  environment = '',
+  mood = '',
+  camera = '',
+  lighting = '',
+  time = '',
+}) {
+  return {
+    sourceType,
+    sourceId,
+    action: normalizeSceneField(action),
+    environment: normalizeSceneField(environment),
+    mood: normalizeSceneField(mood),
+    camera: normalizeSceneField(camera),
+    lighting: normalizeSceneField(lighting),
+    time: normalizeSceneField(time),
+  }
+}
+
+function isCompleteScenePayload(payload) {
+  return !!(
+    normalizeSceneField(payload?.action) &&
+    normalizeSceneField(payload?.environment) &&
+    normalizeSceneField(payload?.mood) &&
+    normalizeSceneField(payload?.camera) &&
+    normalizeSceneField(payload?.lighting) &&
+    normalizeSceneField(payload?.time)
+  )
+}
+
+function stripIdentityFromAction(value) {
+  return String(value || '')
+    .replace(/\bsame exact man as the uploaded reference image,?\s*/gi, '')
+    .replace(/\bsame exact woman as the uploaded reference image,?\s*/gi, '')
+    .replace(/\bsame exact person as the uploaded reference image,?\s*/gi, '')
+    .replace(/\bsame exact male as the uploaded reference image,?\s*/gi, '')
+    .replace(/\bsame exact female as the uploaded reference image,?\s*/gi, '')
+    .replace(/\bfixed recurring man identity,?\s*/gi, '')
+    .replace(/\bfixed recurring woman identity,?\s*/gi, '')
+    .replace(/\bconsistent recurring male identity,?\s*/gi, '')
+    .replace(/\bconsistent recurring female identity,?\s*/gi, '')
+    .replace(/\bpreserve identical facial identity,?\s*/gi, '')
+    .replace(/\bsame person,?\s*/gi, '')
+    .replace(/\bsame face,?\s*/gi, '')
+    .replace(/\bsame bone structure,?\s*/gi, '')
+    .replace(/\bsame eyes,?\s*/gi, '')
+    .replace(/\bsame nose,?\s*/gi, '')
+    .replace(/\bsame lips,?\s*/gi, '')
+    .replace(/\bsame facial proportions,?\s*/gi, '')
+    .replace(/\bsame hairline,?\s*/gi, '')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/^\s*,\s*/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function resolveDeterministicScenePayload({
+  customStoryAction = '',
+  customStoryEnvironment = '',
+  customStoryMood = '',
+  customStoryCamera = '',
+  customStoryLighting = '',
+
+  generatedWorldScene = '',
+  generatedWorldLocation = '',
+  generatedWorldMood = '',
+  generatedWorldCamera = '',
+  generatedWorldLighting = '',
+
+  structuredPickedScene = '',
+  structuredPickedLocation = '',
+
+  generatedTime = '',
+
+  worldControlMode = '',
+  activeWorldId = '',
+  activeSubLocationId = '',
+  activeSceneGroupId = '',
+
+  resolvedWorldId = '',
+  customStoryPhaseKey = '',
+  feedPoolPhaseKey = '',
+}) {
+  const customStoryPayload = buildScenePayload({
+    sourceType: 'custom_story_scene',
+    sourceId: customStoryPhaseKey || '',
+    action: stripIdentityFromAction(String(customStoryAction || '').trim()),
+    environment: customStoryEnvironment,
+    mood: customStoryMood,
+    camera: customStoryCamera,
+    lighting: customStoryLighting,
+    time: generatedTime,
+  })
+
+  if (isCompleteScenePayload(customStoryPayload)) {
+    return customStoryPayload
+  }
+
+  const structuredRoutePayload = buildScenePayload({
+    sourceType: 'structured_world_scene',
+    sourceId: [
+      resolvedWorldId,
+      feedPoolPhaseKey,
+      structuredPickedLocation,
+      structuredPickedScene,
+    ]
+      .filter(Boolean)
+      .join('::'),
+    action: stripIdentityFromAction(
+  String(structuredPickedScene || generatedWorldScene || '').trim()
+),
+    environment: structuredPickedLocation || generatedWorldLocation,
+    mood: generatedWorldMood,
+    camera: generatedWorldCamera,
+    lighting: generatedWorldLighting,
+    time: generatedTime,
+  })
+
+  if (isCompleteScenePayload(structuredRoutePayload)) {
+    return structuredRoutePayload
+  }
+
+  const worldPhasePayload = buildScenePayload({
+    sourceType: 'world_phase_scene',
+    sourceId: [resolvedWorldId, feedPoolPhaseKey].filter(Boolean).join('::'),
+    action: stripIdentityFromAction(String(generatedWorldScene || '').trim()),
+    environment: generatedWorldLocation,
+    mood: generatedWorldMood,
+    camera: generatedWorldCamera,
+    lighting: generatedWorldLighting,
+    time: generatedTime,
+  })
+
+  if (isCompleteScenePayload(worldPhasePayload)) {
+    return worldPhasePayload
+  }
+
+  if (worldControlMode === 'manual') {
+    return buildScenePayload({
+      sourceType: 'manual_world_scene',
+      sourceId: [activeWorldId, activeSubLocationId, activeSceneGroupId]
+        .filter(Boolean)
+        .join('::'),
+      action: stripIdentityFromAction(String(generatedWorldScene || '').trim()),
+      environment: generatedWorldLocation,
+      mood: generatedWorldMood,
+      camera: generatedWorldCamera,
+      lighting: generatedWorldLighting,
+      time: generatedTime,
+    })
+  }
+
+  return buildScenePayload({
+    sourceType: 'partial_world_scene',
+    sourceId: [resolvedWorldId, feedPoolPhaseKey].filter(Boolean).join('::'),
+    action: stripIdentityFromAction(
+  String(
+    firstNonEmpty([customStoryAction, structuredPickedScene, generatedWorldScene]) || ''
+  ).trim()
+),
+    environment: firstNonEmpty([customStoryEnvironment, structuredPickedLocation, generatedWorldLocation]),
+    mood: firstNonEmpty([customStoryMood, generatedWorldMood]),
+    camera: firstNonEmpty([customStoryCamera, generatedWorldCamera]),
+    lighting: firstNonEmpty([customStoryLighting, generatedWorldLighting]),
+    time: generatedTime,
+  })
+}
+
 function sanitizeFeedBuilderCandidates(value, type = '') {
   const parts = String(value || '')
     .split(',')
@@ -1228,6 +1440,31 @@ extractedTraits: {
   }
 }
 
+function normalizeFallbackIdentityForSubject({
+  value = '',
+  subjectGender = 'female',
+}) {
+  const normalizedSubjectGender =
+    /^(male|man)$/i.test(String(subjectGender || '').trim()) ? 'male' : 'female'
+
+  const elegantSubjectLabel =
+    normalizedSubjectGender === 'male' ? 'Elegant man' : 'Elegant woman'
+
+  const subjectLabel =
+    normalizedSubjectGender === 'male' ? 'man' : 'woman'
+
+  return String(value || '')
+    .replace(/\bElegant AI influencer\b/gi, elegantSubjectLabel)
+    .replace(/\bAI influencer\b/gi, subjectLabel)
+    .replace(/\bAI\b/gi, '')
+    .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
+    .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+    .replace(/\bElegant elegant man\b/gi, 'Elegant man')
+    .replace(/\belegant elegant man\b/gi, 'elegant man')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 function buildReferenceIdentityLead({
   identityState,
   fallbackIdentity,
@@ -1237,34 +1474,15 @@ function buildReferenceIdentityLead({
   const hasImage = !!String(identityState?.imageDataUrl || '').trim()
   const useIdentity = !!identityState?.enabled
 
-  const inferredGenderText = [
-    String(subjectGender || '').trim(),
-    String(identityState?.subjectGender || '').trim(),
-    String(fallbackIdentity || '').trim(),
-  ]
-    .filter(Boolean)
-    .join(', ')
-
   const normalizedSubjectGender =
-    /(male|man|masculine|very muscular broad build|muscular broad build|broad masculine build|facial hair|beard|mustache)/i.test(
-      inferredGenderText
-    )
+    /^(male|man)$/i.test(String(subjectGender || '').trim())
       ? 'male'
       : 'female'
-    .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
-    .replace(/\bAI influencer\b/gi, 'woman')
-    .replace(/\bAI\b/gi, '')
-    .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
-    .replace(/\belegant elegant woman\b/gi, 'elegant woman')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
 
-const cleanedFallbackIdentity = String(fallbackIdentity || '')
-  .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
-  .replace(/\bAI influencer\b/gi, 'woman')
-  .replace(/\bAI\b/gi, '')
-  .replace(/\s{2,}/g, ' ')
-  .trim()
+const cleanedFallbackIdentity = normalizeFallbackIdentityForSubject({
+  value: fallbackIdentity,
+  subjectGender: normalizedSubjectGender,
+})
 
   if (!useIdentity) {
     return cleanedFallbackIdentity || ''
@@ -1272,14 +1490,14 @@ const cleanedFallbackIdentity = String(fallbackIdentity || '')
 
   if (cleanName && hasImage) {
     return normalizedSubjectGender === 'male'
-      ? `${cleanName}, same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
-      : `${cleanName}, same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
-  }
+  ? `${cleanName}, same exact man as the uploaded reference image, preserve identical facial identity`
+  : `${cleanName}, same exact woman as the uploaded reference image, preserve identical facial identity`
+ }
 
   if (hasImage) {
     return normalizedSubjectGender === 'male'
-      ? `same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
-      : `same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline`
+  ? 'same exact man as the uploaded reference image, preserve identical facial identity'
+  : 'same exact woman as the uploaded reference image, preserve identical facial identity'
   }
 
   if (cleanName) {
@@ -1310,14 +1528,10 @@ function buildIdentityAnchor({
   const normalizedSubjectGender =
     /^(male|man)$/i.test(String(subjectGender || '').trim()) ? 'male' : 'female'
 
-  const cleanedFallbackIdentity = String(fallbackIdentity || '')
-    .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
-    .replace(/\bAI influencer\b/gi, 'woman')
-    .replace(/\bAI\b/gi, '')
-    .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
-    .replace(/\belegant elegant woman\b/gi, 'elegant woman')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
+const cleanedFallbackIdentity = normalizeFallbackIdentityForSubject({
+  value: fallbackIdentity,
+  subjectGender: normalizedSubjectGender,
+})
 
   const identityLead = buildReferenceIdentityLead({
     identityState,
@@ -1325,7 +1539,28 @@ function buildIdentityAnchor({
     subjectGender: normalizedSubjectGender,
   })
 
-  let fallbackIdentityText = cleanedFallbackIdentity
+let fallbackIdentityText = cleanedFallbackIdentity
+    .replace(/\bsame exact man as the uploaded reference image\b/gi, '')
+    .replace(/\bsame exact woman as the uploaded reference image\b/gi, '')
+    .replace(/\bsame exact person as the uploaded reference image\b/gi, '')
+    .replace(/\bsame exact male as the uploaded reference image\b/gi, '')
+    .replace(/\bsame exact female as the uploaded reference image\b/gi, '')
+    .replace(/\bpreserve identical facial identity\b/gi, '')
+    .replace(/\bpreserve the same person and the same face across every image\b/gi, '')
+    .replace(/\bfixed recurring man identity\b/gi, '')
+    .replace(/\bfixed recurring female identity\b/gi, '')
+    .replace(/\bconsistent male identity\b/gi, '')
+    .replace(/\bconsistent female identity\b/gi, '')
+    .replace(/\bconsistent recurring male identity\b/gi, '')
+    .replace(/\bconsistent recurring female identity\b/gi, '')
+    .replace(/\bsame person\b/gi, '')
+    .replace(/\bsame face\b/gi, '')
+    .replace(/\bsame bone structure\b/gi, '')
+    .replace(/\bsame eyes\b/gi, '')
+    .replace(/\bsame nose\b/gi, '')
+    .replace(/\bsame lips\b/gi, '')
+    .replace(/\bsame facial proportions\b/gi, '')
+    .replace(/\bsame hairline\b/gi, '')
     .replace(/\bElegant woman\b/gi, '')
     .replace(/\bwoman\b/gi, '')
     .replace(/\bfemale\b/gi, '')
@@ -1334,8 +1569,22 @@ function buildIdentityAnchor({
     .replace(/\bhigh-value feminine presence\b/gi, '')
     .replace(/\bfeminine presence\b/gi, '')
     .replace(/\bmasculine presence\b/gi, '')
+    .replace(/\bpeak feminine aesthetic\b/gi, '')
+    .replace(/\bconfident and visually magnetic\b/gi, '')
+    .replace(/\bvisually magnetic\b/gi, '')
+    .replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+    .replace(/\bbalanced,\s*feminine,\s*self-aware confidence\b/gi, '')
+    .replace(/\bpolished\b/gi, '')
+    .replace(/\battractive\b/gi, '')
+    .replace(/\bsocially powerful presence\b/gi, '')
+    .replace(/\brefined\b/gi, normalizedSubjectGender === 'male' ? '' : 'refined')
+    .replace(/\bcomposed\b/gi, normalizedSubjectGender === 'male' ? '' : 'composed')
+    .replace(/\bbalanced\b/gi, normalizedSubjectGender === 'male' ? '' : 'balanced')
+    .replace(/\bself-aware confidence\b/gi, normalizedSubjectGender === 'male' ? '' : 'self-aware confidence')
     .replace(/\bfeminine\b/gi, normalizedSubjectGender === 'male' ? '' : 'feminine')
     .replace(/\bmasculine\b/gi, normalizedSubjectGender === 'female' ? '' : 'masculine')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/^\s*,\s*/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
 
@@ -1346,15 +1595,61 @@ function buildIdentityAnchor({
       hasImage
     )
 
-  return cleanPromptParts([
-    identityLead,
-    shouldSuppressFallbackIdentityText ? '' : fallbackIdentityText,
-    age,
-    ethnicity,
-    bodyShape,
-    eyeColor,
-    hair,
-  ]).join(', ')
+const normalizedAge = String(age || '').trim()
+const normalizedEthnicity = String(ethnicity || '').trim()
+const normalizedBodyShape = String(bodyShape || '').trim()
+const normalizedEyeColor = String(eyeColor || '').trim()
+const normalizedHair = String(hair || '').trim()
+
+const safeBodyShape =
+  normalizedSubjectGender === 'male'
+    ? normalizedBodyShape
+        .replace(/\bpeak feminine aesthetic\b/gi, '')
+        .replace(/\bconfident and visually magnetic\b/gi, '')
+        .replace(/\bvisually magnetic\b/gi, '')
+        .replace(/\bpeak feminine\b/gi, '')
+        .replace(/\bfeminine aesthetic\b/gi, '')
+        .replace(/\bhigh-value feminine presence\b/gi, '')
+        .replace(/\bfeminine presence\b/gi, '')
+        .replace(/\bfeminine\b/gi, '')
+        .replace(/\brefined\b/gi, '')
+        .replace(/\bcomposed\b/gi, '')
+        .replace(/\bmagnetic\b/gi, '')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/^\s*,\s*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+    : normalizedBodyShape
+
+const safeFallbackIdentityText =
+  normalizedSubjectGender === 'male'
+    ? String(fallbackIdentityText || '')
+        .replace(/\bpeak feminine aesthetic\b/gi, '')
+        .replace(/\bconfident and visually magnetic\b/gi, '')
+        .replace(/\bvisually magnetic\b/gi, '')
+        .replace(/\bpeak feminine\b/gi, '')
+        .replace(/\bfeminine aesthetic\b/gi, '')
+        .replace(/\bfeminine\b/gi, '')
+        .replace(/\bmagnetic\b/gi, '')
+        .replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+        .replace(/\bpolished\b/gi, '')
+        .replace(/\battractive\b/gi, '')
+        .replace(/\bsocially powerful presence\b/gi, '')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/^\s*,\s*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+    : String(fallbackIdentityText || '').trim()
+
+return cleanPromptParts([
+  identityLead,
+  shouldSuppressFallbackIdentityText ? '' : safeFallbackIdentityText,
+  normalizedAge,
+  normalizedEthnicity,
+  safeBodyShape,
+  normalizedEyeColor,
+  normalizedHair,
+]).join(', ')
 }
 
 function buildIdentityGenerationPayload({ identityState }) {
@@ -1402,6 +1697,57 @@ extractedTraits: {
         : enabled && hasIdentityName
           ? 'name_only'
           : 'off',
+  }
+}
+
+function sanitizeGenderedIdentityTraits({
+  subjectGender = 'female',
+  ethnicity = '',
+  bodyShape = '',
+  eyeColor = '',
+  hair = '',
+}) {
+  const isMale =
+    String(subjectGender || '').trim().toLowerCase() === 'male'
+
+  if (!isMale) {
+    return {
+      ethnicity: String(ethnicity || '').trim(),
+      bodyShape: String(bodyShape || '').trim(),
+      eyeColor: String(eyeColor || '').trim(),
+      hair: String(hair || '').trim(),
+    }
+  }
+
+  const scrub = (value) =>
+    String(value || '')
+      .replace(/\bpeak feminine aesthetic\b/gi, '')
+      .replace(/\bhigh-value feminine presence\b/gi, '')
+      .replace(/\bfeminine presence\b/gi, '')
+      .replace(/\bbalanced,\s*feminine,\s*self-aware confidence\b/gi, '')
+      .replace(/\brefined,\s*composed,\s*high-value feminine presence\b/gi, '')
+      .replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+      .replace(/\bconfident and visually magnetic\b/gi, '')
+      .replace(/\bvisually magnetic\b/gi, '')
+      .replace(/\bself-aware confidence\b/gi, '')
+      .replace(/\bpolished\b/gi, '')
+      .replace(/\battractive\b/gi, '')
+      .replace(/\bsocially powerful presence\b/gi, '')
+      .replace(/\brefined\b/gi, '')
+      .replace(/\bcomposed\b/gi, '')
+      .replace(/\bbalanced\b/gi, '')
+      .replace(/\bfeminine\b/gi, '')
+      .replace(/,\s*,+/g, ', ')
+      .replace(/^\s*,\s*/g, '')
+      .replace(/,\s*$/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+
+  return {
+    ethnicity: scrub(ethnicity),
+    bodyShape: scrub(bodyShape),
+    eyeColor: scrub(eyeColor),
+    hair: scrub(hair),
   }
 }
 
@@ -2965,6 +3311,41 @@ const INTERACTION_DYNAMIC_OPTIONS = {
   ],
 }
 
+function getDisplayIdentityLabel(traits = {}) {
+  const rawIdentity = String(traits?.identity || '').trim()
+  const age = String(traits?.age || '').trim().toLowerCase()
+  const body = String(traits?.body_shape || '').trim().toLowerCase()
+  const build = String(traits?.build || '').trim().toLowerCase()
+  const facialHair = String(traits?.facial_hair || '').trim().toLowerCase()
+  const hair = String(traits?.hair || '').trim().toLowerCase()
+
+  if (rawIdentity && rawIdentity.toLowerCase() !== 'unknown') {
+    return rawIdentity
+  }
+
+  const looksMale =
+    /\b(man|male)\b/i.test(rawIdentity) ||
+    /\b(beard|mustache)\b/i.test(facialHair) ||
+    /\b(broad|muscular)\b/i.test(body) ||
+    /\b(broad|muscular)\b/i.test(build) ||
+    /\bshort\b/i.test(hair)
+
+  const looksFemale =
+    /\b(woman|female)\b/i.test(rawIdentity) ||
+    /\bslim|curvy\b/i.test(body) ||
+    /\blong\b/i.test(hair)
+
+  const ageLabel =
+    age === 'young adult' ? 'young adult' :
+    age === 'middle-aged' ? 'middle-aged' :
+    age || 'adult'
+
+  if (looksMale && !looksFemale) return `${ageLabel} man`
+  if (looksFemale && !looksMale) return `${ageLabel} woman`
+
+  return rawIdentity || 'unknown'
+}
+
 export default function PromptV2() {
   const plan = 'Unrestricted'
   const [adminMode, setAdminMode] = useState(false)
@@ -3463,6 +3844,63 @@ useEffect(() => {
     reader.readAsDataURL(file)
   }
 
+  const getIdentitySubjectATraits = (identityStateValue) => {
+  const raw = identityStateValue?.extractedTraits || {}
+
+  const subjectA =
+    raw?.subjectA && typeof raw.subjectA === 'object'
+      ? raw.subjectA
+      : raw
+
+  return {
+    identity: String(subjectA?.identity || '').trim(),
+    age: String(subjectA?.age || '').trim(),
+    ethnicity: String(subjectA?.ethnicity || '').trim(),
+    body_shape: String(subjectA?.body_shape || '').trim(),
+    eye_color: String(subjectA?.eye_color || '').trim(),
+    hair: String(subjectA?.hair || '').trim(),
+    facial_hair: String(subjectA?.facial_hair || '').trim(),
+    build: String(subjectA?.build || '').trim(),
+  }
+}
+
+const resolveIdentityAnchorGender = ({
+  subjectState,
+  identityState,
+}) => {
+  const mode = String(subjectState?.characterMode || '').trim().toLowerCase()
+  const manualGender = String(subjectState?.subjectA?.gender || '').trim().toLowerCase()
+
+  const extracted = getIdentitySubjectATraits(identityState)
+
+  const extractedSignal = [
+    extracted.identity,
+    extracted.body_shape,
+    extracted.build,
+    extracted.hair,
+    extracted.facial_hair,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .toLowerCase()
+
+  const imageSuggestsMale =
+    /\b(man|male|masculine|beard|mustache|facial hair|broad shoulders|broad masculine build)\b/i.test(extractedSignal)
+
+  const imageSuggestsFemale =
+    /\b(woman|female|feminine|long wavy blonde hair|long blonde hair|long hair)\b/i.test(extractedSignal)
+
+  if (imageSuggestsMale && !imageSuggestsFemale) return 'male'
+  if (imageSuggestsFemale && !imageSuggestsMale) return 'female'
+
+  if (manualGender === 'male' || manualGender === 'female') {
+    return manualGender
+  }
+
+  if (mode === 'male') return 'male'
+  return 'female'
+}
+
   const getIdentityAnchor = ({
     fallbackIdentity = '',
     age = '',
@@ -3488,7 +3926,10 @@ useEffect(() => {
       bodyShape: resolvedTraits.body_shape,
       eyeColor: resolvedTraits.eye_color,
       hair: resolvedTraits.hair,
-      subjectGender: String(subjectState?.subjectA?.gender || 'female').trim().toLowerCase() === 'male' ? 'male' : 'female',
+      subjectGender: resolveIdentityAnchorGender({
+        subjectState,
+        identityState,
+      }),
     })
   }
 
@@ -3500,7 +3941,7 @@ useEffect(() => {
     eyeColor = '',
     hair = '',
   }) => {
-    const extracted = identityState?.extractedTraits || {}
+    const extracted = getIdentitySubjectATraits(identityState)
     const useExtracted = !!identityState?.useExtractedTraits
 
     return {
@@ -3572,24 +4013,55 @@ const applyIdentityExtractionResult = (result) => {
   const hasSubjectA = hasNonEmptyTraits(traits?.subjectA || {})
   const hasSubjectB = hasNonEmptyTraits(traits?.subjectB || {})
 
-  setSubjectState((prev) => ({
-    ...prev,
-    subjectA: {
-      ...prev.subjectA,
-      extractedTraits: traits?.subjectA || {},
-      enabled: hasSubjectA,
-    },
-    subjectB: {
-      ...prev.subjectB,
-      extractedTraits: traits?.subjectB || {},
-      enabled: hasSubjectB,
-    },
-    characterMode: hasSubjectA && hasSubjectB
-      ? 'couple'
-      : hasSubjectA
-        ? 'female'
-        : prev.characterMode || 'female',
-  }))
+  setSubjectState((prev) => {
+    const prevMode = String(prev?.characterMode || 'female').trim().toLowerCase()
+
+    const extractedIdentity = String(traits?.subjectA?.identity || '').trim().toLowerCase()
+    const extractedBodyShape = String(traits?.subjectA?.body_shape || '').trim().toLowerCase()
+    const extractedBuild = String(traits?.subjectA?.build || '').trim().toLowerCase()
+    const extractedFacialHair = String(traits?.subjectA?.facial_hair || '').trim().toLowerCase()
+    const extractedHair = String(traits?.subjectA?.hair || '').trim().toLowerCase()
+
+    const extractedGender =
+      extractedIdentity.includes('man') ||
+      extractedFacialHair.includes('beard') ||
+      extractedFacialHair.includes('mustache') ||
+      extractedBodyShape.includes('broad') ||
+      extractedBodyShape.includes('muscular') ||
+      extractedBuild.includes('broad') ||
+      extractedBuild.includes('muscular') ||
+      extractedHair.includes('short')
+        ? 'male'
+        : extractedIdentity.includes('woman')
+          ? 'female'
+          : null
+
+    const nextSingleMode =
+      extractedGender ||
+      (String(prev?.subjectA?.gender || '').trim().toLowerCase() === 'male'
+        ? 'male'
+        : 'female')
+
+    return {
+      ...prev,
+      subjectA: {
+        ...prev.subjectA,
+        extractedTraits: traits?.subjectA || {},
+        enabled: hasSubjectA,
+        gender: nextSingleMode === 'male' ? 'male' : 'female',
+      },
+      subjectB: {
+        ...prev.subjectB,
+        extractedTraits: traits?.subjectB || {},
+        enabled: hasSubjectB,
+      },
+      characterMode: hasSubjectA && hasSubjectB
+        ? 'couple'
+        : hasSubjectA
+          ? nextSingleMode
+          : 'female',
+    }
+  })
 
 console.log('APPLY_TRAITS_SUBJECT_A', traits?.subjectA)
 console.log('APPLY_TRAITS_SUBJECT_B', traits?.subjectB)
@@ -4936,12 +5408,53 @@ function getBatchAutoWorldSetup({
   }
 }
 
+function sanitizeMergedIdentityFieldsForSubject({
+  subjectGender = 'female',
+  merged = {},
+}) {
+  const isMale =
+    String(subjectGender || '').trim().toLowerCase() === 'male'
+
+  if (!isMale) return merged
+
+  const scrub = (value) =>
+    String(value || '')
+      .replace(/\bbalanced,\s*feminine,\s*self-aware confidence\b/gi, '')
+      .replace(/\brefined,\s*composed,\s*high-value feminine presence\b/gi, '')
+      .replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+      .replace(/\bpeak feminine aesthetic\b/gi, '')
+      .replace(/\bhigh-value feminine presence\b/gi, '')
+      .replace(/\bfeminine presence\b/gi, '')
+      .replace(/\bconfident and visually magnetic\b/gi, '')
+      .replace(/\bvisually magnetic\b/gi, '')
+      .replace(/\bself-aware confidence\b/gi, '')
+      .replace(/\bpolished\b/gi, '')
+      .replace(/\battractive\b/gi, '')
+      .replace(/\bsocially powerful presence\b/gi, '')
+      .replace(/\brefined\b/gi, '')
+      .replace(/\bcomposed\b/gi, '')
+      .replace(/\bbalanced\b/gi, '')
+      .replace(/\bfeminine\b/gi, '')
+      .replace(/,\s*,+/g, ', ')
+      .replace(/^\s*,\s*/g, '')
+      .replace(/,\s*$/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+
+  return {
+    ...merged,
+    ethnicity: scrub(merged.ethnicity),
+    body_shape: scrub(merged.body_shape),
+    eye_color: scrub(merged.eye_color),
+    hair: scrub(merged.hair),
+  }
+}
+
 const generateInfluencerFeed = () => {
 const count = 30
 const prompts = []
 
 const recentFinalPromptKeys = []
-const recentMoodKeys = []
 
 const usedSubLocations = new Set()
 const usedScenes = new Set()
@@ -5385,69 +5898,29 @@ const pack =
       ? chapter.sceneVariants[i % chapter.sceneVariants.length]
       : null
 
-const merged = {
+let merged = {
   ...blocks,
   ...(pack?.base || pack?.fields || {}),
   ...(chapter?.fields || {}),
   age: feedAge,
 }
 
+const extractedSubjectATraits = getIdentitySubjectATraits(identityState)
+
 if (identityState?.enabled && identityState?.useExtractedTraits) {
-  merged.age = identityState?.extractedTraits?.age || merged.age
-  merged.ethnicity = identityState?.extractedTraits?.ethnicity || merged.ethnicity
-  merged.body_shape = identityState?.extractedTraits?.body_shape || merged.body_shape
-  merged.eye_color = identityState?.extractedTraits?.eye_color || merged.eye_color
-  merged.hair = identityState?.extractedTraits?.hair || merged.hair
+  merged.age = extractedSubjectATraits.age || merged.age
+  merged.ethnicity = extractedSubjectATraits.ethnicity || merged.ethnicity
+  merged.body_shape = extractedSubjectATraits.body_shape || merged.body_shape
+  merged.eye_color = extractedSubjectATraits.eye_color || merged.eye_color
+  merged.hair = extractedSubjectATraits.hair || merged.hair
 }
 
-const lakeComoVariantPoseRaw = String(sceneVariant?.fields?.pose || '').trim()
-const lakeComoVariantLocationRaw = String(sceneVariant?.fields?.location || '').trim()
-const lakeComoVariantMoodRaw = String(sceneVariant?.fields?.mood || '').trim()
-
-const lakeComoChapterPoseRaw = String(chapter?.fields?.pose || '').trim()
-const lakeComoChapterLocationRaw = String(chapter?.fields?.location || '').trim()
-const lakeComoChapterMoodRaw = String(chapter?.fields?.mood || '').trim()
-
-const HELPER_POSE_RE =
-  /^(shower reset|post-swim shower reset|wake up|morning refresh|getting dressed)$/i
-
-const BAD_LAKE_COMO_LOCATION_RE =
-  /^(marble bathroom|lake como villa bathroom)$/i
-
-const BAD_LAKE_COMO_MOOD_RE =
-  /^(elegant italian lake luxury|private villa calm|intimate high-status realism)$/i
-
-const safeLakeComoVariantPose = HELPER_POSE_RE.test(lakeComoVariantPoseRaw)
-  ? ''
-  : lakeComoVariantPoseRaw
-
-const safeLakeComoChapterPose = HELPER_POSE_RE.test(lakeComoChapterPoseRaw)
-  ? ''
-  : lakeComoChapterPoseRaw
-
-const safeLakeComoVariantLocation = BAD_LAKE_COMO_LOCATION_RE.test(
-  lakeComoVariantLocationRaw.toLowerCase()
-)
-  ? ''
-  : lakeComoVariantLocationRaw
-
-const safeLakeComoChapterLocation = BAD_LAKE_COMO_LOCATION_RE.test(
-  lakeComoChapterLocationRaw.toLowerCase()
-)
-  ? ''
-  : lakeComoChapterLocationRaw
-
-const safeLakeComoVariantMood = BAD_LAKE_COMO_MOOD_RE.test(
-  lakeComoVariantMoodRaw.toLowerCase()
-)
-  ? ''
-  : lakeComoVariantMoodRaw
-
-const safeLakeComoChapterMood = BAD_LAKE_COMO_MOOD_RE.test(
-  lakeComoChapterMoodRaw.toLowerCase()
-)
-  ? ''
-  : lakeComoChapterMoodRaw
+merged = sanitizeMergedIdentityFieldsForSubject({
+  subjectGender: String(subjectState?.subjectA?.gender || 'female')
+    .trim()
+    .toLowerCase(),
+  merged,
+})
 
 const generatedPhase =
   feedPhaseOrder.length
@@ -5674,6 +6147,39 @@ const generatedWorldLighting = applyWorldFieldFilter({
   ),
   worldId: resolvedWorldId,
 })
+
+const deterministicScenePayload = resolveDeterministicScenePayload({
+  customStoryAction,
+  customStoryEnvironment,
+  customStoryMood,
+  customStoryCamera,
+  customStoryLighting,
+
+  generatedWorldScene,
+  generatedWorldLocation,
+  generatedWorldMood,
+  generatedWorldCamera,
+  generatedWorldLighting,
+
+  structuredPickedScene,
+  structuredPickedLocation,
+
+  generatedTime,
+
+  worldControlMode,
+  activeWorldId,
+  activeSubLocationId,
+  activeSceneGroupId,
+
+  resolvedWorldId,
+  customStoryPhaseKey,
+  feedPoolPhaseKey,
+})
+
+deterministicScenePayload.action = stripIdentityFromAction(
+  String(deterministicScenePayload.action || '').trim()
+)
+console.log('ACTION AFTER SOURCE CLEAN:', deterministicScenePayload.action)
 const {
   generatedWorldWindow,
   generatedWorldOutfit,
@@ -5715,74 +6221,7 @@ const {
   pacingProfile: feedPacingProfile,
 })
 
-let resolvedGeneratedWorldActivity = generatedWorldActivity || ''
-
-if (!resolvedGeneratedWorldActivity && isStructuredWorld) {
-  const locationContext = String(generatedWorldLocation || '').toLowerCase()
-  const sceneContext = String(generatedWorldScene || '').toLowerCase()
-  const combinedContext = `${locationContext} ${sceneContext}`
-
-  let fallbackByContext = [
-    'walking forward with calm, controlled movement',
-    'pausing briefly before continuing forward',
-    'turning slightly as the environment shifts around her',
-    'holding still for a moment before continuing',
-  ]
-
-  if (/pool|water|infinity/i.test(combinedContext)) {
-    fallbackByContext = [
-      'resting one hand along the pool edge while watching the water ripple',
-      'slowly stepping into the water with controlled, deliberate movement',
-      'standing at the edge of the pool with one foot grazing the surface',
-      'leaning slightly forward as her reflection shifts in the water',
-    ]
-  } else if (/balcony|terrace|view/i.test(combinedContext)) {
-    fallbackByContext = [
-      'resting her hands lightly on the railing while looking out over the view',
-      'leaning into the balcony edge as the air moves around her',
-      'turning slightly as she steps toward the open view',
-      'pausing at the edge while taking in the surroundings',
-    ]
-  } else if (/bedroom|suite|bed/i.test(combinedContext)) {
-    fallbackByContext = [
-      'sitting at the edge of the bed as she gathers herself into the moment',
-      'slowly standing from the bed with controlled posture',
-      'walking barefoot across the room toward the light',
-      'adjusting the sheets before stepping away from the bed',
-    ]
-  } else if (/spa|bath|wellness/i.test(combinedContext)) {
-    fallbackByContext = [
-      'lowering herself slowly into the bath with controlled movement',
-      'resting back as steam rises softly around her',
-      'lifting one hand through the water, watching it fall',
-      'stepping out of the bath with slow, deliberate control',
-    ]
-  } else if (/restaurant|dining|bar/i.test(combinedContext)) {
-    fallbackByContext = [
-      'lifting a glass slowly before taking a controlled sip',
-      'resting one arm along the table while observing the room',
-      'turning slightly as she acknowledges movement around her',
-      'adjusting her posture as she settles into the seat',
-    ]
-  } else if (/street|bridge|gardens|walkway|entrance|arrival|car|chauffeur|taxi|cab|mount street|sloane|kensington|piccadilly|embankment|cathedral|steps/i.test(combinedContext)) {
-    fallbackByContext = [
-      'stepping forward with composed city polish',
-      'crossing the setting with quiet control',
-      'turning slightly as the city movement builds around her',
-      'moving with calm composed ease',
-    ]
-  } else if (/suite|bedroom|window|mirror|dressing|private|shard suite|savoy suite|claridge|connaught|ritz suite|living room|sitting room/i.test(combinedContext)) {
-    fallbackByContext = [
-      'resting by the glass with soft private composure',
-      'turning toward the window as the room brightens',
-      'crossing the room with measured elegance',
-      'holding a quiet pause before continuing',
-    ]
-  }
-
-  resolvedGeneratedWorldActivity =
-    fallbackByContext[Math.floor(Math.random() * fallbackByContext.length)] || ''
-}
+const resolvedGeneratedWorldActivity = generatedWorldActivity || ''
 
 const generatedHumanFlowLineRaw = getFeedHumanFlowLine({
   isStructuredWorld,
@@ -5869,248 +6308,28 @@ const structuredWorldLocationLine =
       })
     : ''
 
-const finalPose = applyWorldFieldFilter({
-  key: 'pose',
-  value:
-    isStructuredWorld
-      ? generatedWorldScene   // 🔥 ONLY THIS
-      : isBaliWorldActive
-        ? generatedBaliPose
-        : merged.pose,
-  worldId: resolvedWorldId,
-})
+const finalPose = deterministicScenePayload.action
 
-const veniceLocationLine =
-  isVeniceWorldActive
-    ? applyWorldFieldFilter({
-        key: 'location',
-        value: [
-          generatedWorldLocation,
-          generatedWorldScene,
-          generatedWorldAtmosphere,
-        ]
-          .filter(Boolean)
-          .join(', '),
-        worldId: resolvedWorldId,
-      })
-    : ''
+const finalLocationLine = deterministicScenePayload.environment
 
-const isPackMode = !!activePackData
+const finalMood = stripWeakMoodFragments(deterministicScenePayload.mood)
 
-const REAL_ENVIRONMENT_RE =
-  /\b(bedroom|suite|bathroom|pool|spa|restaurant|bar|lounge|rooftop|terrace|balcony|courtyard|garden|deck|beach|club|walkway|entrance|dining|sink|mirror|bath|kitchen|living room|dressing room|locker room|gym floor|studio|apartment)\b/i
+const finalCamera = deterministicScenePayload.camera
 
-const BLOCKED_ENVIRONMENT_RE =
-  /^(villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details|private interior setting|private luxury setting|refined private interior|after-dark private interior|window-side reading chair|mirror wall with open floor space|vanity table with mirror lights|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner)$/i
-
-const environmentSourceChain = [
-  chapter?.fields?.location || '',
-  customStoryEnvironment || '',
-  generatedWorldLocation || '',
-  structuredWorldLocationLine || '',
-  merged.location || '',
-]
-
-const rawEnvironmentParts = environmentSourceChain
-  .flatMap((value) =>
-    String(value || '')
-      .split(',')
-      .map((part) => String(part || '').trim())
-      .filter(Boolean)
-  )
-  .filter(
-    (part) =>
-      !/bedroom or bathroom|apartment hallway or outdoor entrance/i.test(part)
-  )
-
-const actionContextSource = [
-  customStoryAction || '',
-  generatedWorldScene || '',
-  resolvedGeneratedWorldActivity || '',
-  finalPose || '',
-].join(' ').toLowerCase()
-
-const isBathroomActionContext =
-  /bathroom|shower|mirror|washing face|refresh|vanity|sink/.test(actionContextSource)
-
-const isKitchenActionContext =
-  /breakfast|coffee|kitchen|food|meal|eating|table/.test(actionContextSource)
-
-const isTransitActionContext =
-  /walking out|walking|door|leaving|headphones|entrance|hallway/.test(actionContextSource)
-
-const isGymActionContext =
-  /gym|set|sets|training|workout|weights|barbell|machine|tripod|camera|footage/.test(actionContextSource)
-
-const isBedroomActionContext =
-  /bed|bedroom|wake|waking|resting|get up|first light|window/.test(actionContextSource)
-
-const isEnvironmentCompatibleWithAction = (part) => {
-  const env = String(part || '').toLowerCase()
-
-  if (!env) return false
-
-  if (/bedroom or bathroom|apartment hallway or outdoor entrance/.test(env)) {
-    return false
-  }
-
-  if (isBathroomActionContext) {
-    return /bathroom|shower|mirror|vanity|sink|spa/.test(env)
-  }
-
-  if (isKitchenActionContext) {
-    return /kitchen|breakfast|coffee|table|dining|terrace/.test(env)
-  }
-
-  if (isTransitActionContext) {
-    return /hallway|entrance|outdoor|street|door/.test(env)
-  }
-
-  if (isGymActionContext) {
-    return /gym|weights|barbell|machine|free weights|gym floor|studio/.test(env)
-  }
-
-  if (isBedroomActionContext) {
-    return /bedroom|suite|bed|window|hotel bed/.test(env)
-  }
-
-  return true
-}
-
-let finalLocationLine =
-  rawEnvironmentParts.find(
-    (part) =>
-      REAL_ENVIRONMENT_RE.test(part) &&
-      !BLOCKED_ENVIRONMENT_RE.test(part) &&
-      isEnvironmentCompatibleWithAction(part)
-  ) ||
-  rawEnvironmentParts.find(
-    (part) =>
-      REAL_ENVIRONMENT_RE.test(part) &&
-      !BLOCKED_ENVIRONMENT_RE.test(part) &&
-      !/bedroom or bathroom|apartment hallway or outdoor entrance/i.test(part)
-  ) ||
-  ''
-
-const ACTION_VERB_RE =
-  /\b(walking|sitting|standing|leaning|resting|lifting|turning|adjusting|stepping|pausing|moving|crossing|lowering|settling|opening|checking|touching|brushing|stretching|sliding|tracing)\b/i
-
-const BLOCKED_ACTION_RE =
-  /^(holding still for a brief moment before continuing|moving with calm composed ease|turning slightly as movement builds around her|crossing the setting with quiet control|stepping forward with composed city polish|holding a calm, composed presence within the moment|quiet composed posture)$/i
-
-const actionSourceChain = [
-  customStoryAction || '',
-  generatedWorldScene || '',
-  resolvedGeneratedWorldActivity || '',
-  finalPose || '',
-]
-
-const rawGeneratedHumanAction =
-  actionSourceChain
-    .flatMap((value) =>
-      String(value || '')
-        .split(',')
-        .map((part) => String(part || '').trim())
-        .filter(Boolean)
-    )
-    .find(
-      (part) =>
-        ACTION_VERB_RE.test(part) &&
-        !BLOCKED_ACTION_RE.test(part)
-    ) || ''
-
-const safeLocationForMoodCompare = finalLocationLine || ''
-
-const finalMoodRaw = applyWorldFieldFilter({
-  key: 'mood',
-  value: getFeedFinalMood({
-    worldId: resolvedWorldId,
-    world,
-    isStructuredWorld,
-    isBaliWorldActive,
-    isLakeComoWorldActive,
-    generatedBaliMood,
-    generatedWorldMood,
-    generatedWorldFacialExpression,
-    generatedWorldSocialEnergy,
-    generatedWorldAtmosphere,
-    generatedWorldPacing,
-    baliMood,
-    mergedMood: merged.mood,
-  }),
-  worldId: resolvedWorldId,
-})
-
-const finalMood = stripWeakMoodFragments(
-  isPackMode
-    ? chapter?.fields?.mood || finalMoodRaw || ''
-    : finalMoodRaw || ''
-)
-
-const safeMoodForParts =
-  normalize(finalMood) === normalize(finalLocationLine) ? '' : finalMood
-finalLocationLine = stripWeakEnvironmentFallbacks(finalLocationLine)
-
-const safeHandDetailForCamera =
-  normalize(generatedWorldHandDetail || '').includes(normalize(generatedWorldCamera || '')) ||
-  normalize(generatedWorldCamera || '').includes(normalize(generatedWorldHandDetail || ''))
-    ? ''
-    : generatedWorldHandDetail
-
-const safeEnvironmentForCamera =
-  /bedroom or bathroom|apartment hallway or outdoor entrance/i.test(
-    String(finalLocationLine || generatedWorldLocation || customStoryEnvironment || '')
-  )
-    ? ''
-    : finalLocationLine || generatedWorldLocation || customStoryEnvironment || ''
-
-const finalCamera = applyWorldFieldFilter({
-  key: 'camera',
-  value: resolveCameraForSceneFamily({
-    environment: safeEnvironmentForCamera,
-    customStoryCamera,
-    generatedWorldCamera,
-    generatedCamera,
-    safeHandDetailForCamera,
-    fallbackCamera:
-      isLakeComoWorldActive || world === 'lake-como-life'
-        ? pickFromPool(getFeedLakeComoCameraPool(), i)
-        : 'cinematic framing',
-  }),
-  worldId: resolvedWorldId,
-})
-
-const safeWindowForLighting =
-  normalize(generatedWorldWindow || '').includes(normalize(generatedWorldLighting || '')) ||
-  normalize(generatedWorldLighting || '').includes(normalize(generatedWorldWindow || ''))
-    ? ''
-    : generatedWorldWindow
-
-const finalLighting = applyWorldFieldFilter({
-  key: 'lighting',
-  value:
-    customStoryLighting ||
-    generatedWorldLighting ||
-    generatedLighting ||
-    (
-      isLakeComoWorldActive || world === 'lake-como-life'
-        ? pickFromPool(getFeedLakeComoLightingPool(baliPhase), i)
-        : ''
-    ) ||
-    safeWindowForLighting ||
-    generatedWorldWindow ||
-    '',
-  worldId: resolvedWorldId,
-})
+const finalLighting = deterministicScenePayload.lighting
 
 const cleanIdentityBase = Array.from(
   new Map(
-    String(merged.identity || 'Elegant woman')
-      .replace(/\bElegant AI influencer\b/gi, 'Elegant woman')
-      .replace(/\bAI influencer\b/gi, 'woman')
-      .replace(/\bAI\b/gi, '')
-      .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
-      .replace(/\belegant elegant woman\b/gi, 'elegant woman')
+    normalizeFallbackIdentityForSubject({
+      value: merged.identity || (
+        String(subjectState?.subjectA?.gender || 'female').trim().toLowerCase() === 'male'
+          ? 'Elegant man'
+          : 'Elegant woman'
+      ),
+      subjectGender: String(subjectState?.subjectA?.gender || 'female')
+        .trim()
+        .toLowerCase(),
+    })
       .split(',')
       .map((part) => String(part || '').trim())
       .filter(Boolean)
@@ -6121,1370 +6340,61 @@ const cleanIdentityBase = Array.from(
   .replace(/\s{2,}/g, ' ')
   .trim()
 
-const cleanIdentity = getIdentityAnchor({
-  fallbackIdentity: cleanIdentityBase,
-  age: merged.age,
+const sanitizedIdentityTraits = sanitizeGenderedIdentityTraits({
+  subjectGender: String(subjectState?.subjectA?.gender || 'female')
+    .trim()
+    .toLowerCase(),
   ethnicity: merged.ethnicity,
   bodyShape: merged.body_shape,
   eyeColor: merged.eye_color,
   hair: merged.hair,
+})  
+
+const cleanIdentity = getIdentityAnchor({
+  fallbackIdentity: cleanIdentityBase,
+  age: merged.age,
+  ethnicity: sanitizedIdentityTraits.ethnicity,
+  bodyShape: sanitizedIdentityTraits.bodyShape,
+  eyeColor: sanitizedIdentityTraits.eyeColor,
+  hair: sanitizedIdentityTraits.hair,
 })
 
 const feedIdentityAnchor = getIdentityAnchor({
   fallbackIdentity: cleanIdentityBase,
   age: merged.age,
-  ethnicity: merged.ethnicity,
-  bodyShape: merged.body_shape,
-  eyeColor: merged.eye_color,
-  hair: merged.hair,
+  ethnicity: sanitizedIdentityTraits.ethnicity,
+  bodyShape: sanitizedIdentityTraits.bodyShape,
+  eyeColor: sanitizedIdentityTraits.eyeColor,
+  hair: sanitizedIdentityTraits.hair,
 })
 
-const isLakeComoFeed = isLakeComoWorldActive || world === 'lake-como-life'
-
-const lakeComoFallbackPosePool =
-  generatedTime === 'early morning'
-    ? [
-        'waking slowly beneath soft sheets, relaxed natural posture',
-        'sitting at the bedside in quiet morning stillness',
-        'stretching gently as daylight enters the room',
-      ]
-    : generatedTime === 'morning'
-      ? [
-          'walking barefoot through the villa, effortless presence',
-          'opening the terrace doors to the lake air',
-          'moving through the room with fresh feminine calm',
-        ]
-      : generatedTime === 'late morning'
-        ? [
-            'crossing the terrace with calm confidence',
-            'pausing near the breakfast setting with elegant posture',
-            'leaning lightly into the sunlit balcony rail',
-          ]
-        : generatedTime === 'midday'
-          ? [
-              'sunlit poolside pause, composed body language',
-              'standing in warm daylight with relaxed confidence',
-              'slow movement beside the water with poised presence',
-            ]
-          : generatedTime === 'afternoon'
-            ? [
-                'leaning softly by the railing, reflective posture',
-                'quiet movement through warm open air',
-                'resting into the terrace light with feminine ease',
-              ]
-            : generatedTime === 'late afternoon'
-              ? [
-                  'slow movement through warm light, elegant presence',
-                  'turning gently as the light softens across the terrace',
-                  'lingering near the balcony with calm body language',
-                ]
-              : generatedTime === 'golden hour'
-                ? [
-                    'turning into the sunset glow, poised feminine stance',
-                    'holding still in the golden light with elegant posture',
-                    'sunset-lit pause with quiet magnetic presence',
-                  ]
-                : generatedTime === 'evening'
-                  ? [
-                      'quiet evening movement, intimate composed posture',
-                      'slow candlelit movement across the terrace',
-                      'leaning into the evening air with calm sensuality',
-                    ]
-                  : [
-                      'after-dark stillness, controlled intimate presence',
-                      'quiet night posture with composed sensual calm',
-                      'resting in the darkness with elegant control',
-                    ]
-
-const lakeComoFallbackLocationPool =
-  generatedTime === 'early morning'
-    ? [
-        'lake-view bedroom with soft morning light',
-        'private suite with pale daylight across the bed',
-        'quiet bedroom overlooking the water at dawn',
-      ]
-    : generatedTime === 'morning'
-      ? [
-          'private villa terrace overlooking Lake Como',
-          'sunlit balcony with open views across the lake',
-          'morning terrace washed in fresh lake air',
-        ]
-      : generatedTime === 'late morning'
-        ? [
-            'sunlit breakfast balcony above the water',
-            'private breakfast terrace with lake reflections',
-            'bright upper terrace with soft table setting and open water',
-          ]
-        : generatedTime === 'midday'
-          ? [
-              'poolside stone deck with bright lake reflections',
-              'sunlit lakeside terrace under open sky',
-              'warm midday pool terrace above the water',
-            ]
-          : generatedTime === 'afternoon'
-            ? [
-                'quiet lakeside terrace with warm open air',
-                'shaded villa balcony with still water below',
-                'afternoon terrace overlooking the bright lake',
-              ]
-            : generatedTime === 'late afternoon'
-              ? [
-                  'marble balcony washed in soft afternoon glow',
-                  'warm terrace edge above shimmering water',
-                  'sun-softened stone terrace facing the lake',
-                ]
-              : generatedTime === 'golden hour'
-                ? [
-                    'golden terrace edge above shimmering water',
-                    'sunset balcony with warm reflections across the lake',
-                    'glowing terrace with the lake lit gold below',
-                  ]
-                : generatedTime === 'evening'
-                  ? [
-                      'candlelit outdoor terrace with lake view',
-                      'evening balcony with soft lights above the water',
-                      'private dinner terrace glowing over the lake',
-                    ]
-                  : [
-                      'dim villa balcony overlooking dark water and distant lights',
-                      'night terrace with soft reflections across the lake',
-                      'after-dark balcony with low lights and open water beyond',
-                    ]
-
-const lakeComoFallbackMoodPool =
-  generatedTime === 'early morning'
-    ? [
-        'soft, private, quietly waking',
-        'still, intimate, barely-awake calm',
-        'gentle, feminine, morning-soft presence',
-      ]
-    : generatedTime === 'morning'
-      ? [
-          'fresh, feminine, self-aware calm',
-          'light, elegant, naturally composed',
-          'awake, graceful, quietly magnetic',
-        ]
-      : generatedTime === 'late morning'
-        ? [
-            'light, elegant, socially magnetic',
-            'sunlit confidence with calm charm',
-            'bright, feminine, softly expressive',
-          ]
-        : generatedTime === 'midday'
-          ? [
-              'sunlit confidence with relaxed luxury',
-              'open, warm, visually magnetic',
-              'bright, poised, effortlessly high-value',
-            ]
-          : generatedTime === 'afternoon'
-            ? [
-                'calm, reflective, softly magnetic',
-                'quiet luxury with feminine ease',
-                'composed, warm, subtly intimate',
-              ]
-            : generatedTime === 'late afternoon'
-              ? [
-                  'warm, cinematic, quietly intimate',
-                  'softly seductive, elegant, unhurried',
-                  'gold-washed calm with magnetic stillness',
-                ]
-              : generatedTime === 'golden hour'
-                ? [
-                    'romantic, poised, visually magnetic',
-                    'golden, elegant, softly intimate',
-                    'warm, feminine, sunset-lit confidence',
-                  ]
-                : generatedTime === 'evening'
-                  ? [
-                      'intimate, composed, high-value presence',
-                      'calm evening sensuality with elegant control',
-                      'softly lit, poised, private confidence',
-                    ]
-                  : [
-                      'after-dark calm with controlled sensuality',
-                      'quiet night confidence with intimate presence',
-                      'dark, elegant, composed feminine magnetism',
-                    ]
-
-const lakeComoFallbackPose =
-  lakeComoFallbackPosePool[i % lakeComoFallbackPosePool.length] || ''
-
-const lakeComoFallbackLocation =
-  lakeComoFallbackLocationPool[i % lakeComoFallbackLocationPool.length] || ''
-
-const lakeComoFallbackMood =
-  lakeComoFallbackMoodPool[i % lakeComoFallbackMoodPool.length] || ''
-
-const lakeComoFinalPose =
-  isLakeComoFeed
-    ? (
-        safeLakeComoVariantPose ||
-        safeLakeComoChapterPose ||
-        generatedWorldScene
-      )
-    : ''
-
-const lakeComoFinalLocation =
-  isLakeComoFeed
-    ? (
-        safeLakeComoVariantLocation ||
-        safeLakeComoChapterLocation ||
-        generatedWorldLocation ||
-        generatedWorldProp ||
-        generatedWorldWindow ||
-        finalLocationLine
-      )
-    : ''
-
-const lakeComoFinalMoodRaw =
-  isLakeComoFeed
-    ? (
-        safeLakeComoVariantMood ||
-        safeLakeComoChapterMood ||
-        generatedWorldMood ||
-        generatedWorldFacialExpression ||
-        generatedWorldSocialEnergy ||
-        generatedWorldAtmosphere ||
-        generatedWorldPacing
-      )
-    : ''
-
-const lakeComoFinalMood =
-  normalize(lakeComoFinalMoodRaw).includes(normalize(lakeComoFinalLocation || '')) ||
-  normalize(lakeComoFinalLocation || '').includes(normalize(lakeComoFinalMoodRaw))
-    ? ''
-    : lakeComoFinalMoodRaw
-
-const safeLakeComoFinalPose = isLakeComoFeed ? lakeComoFinalPose : ''
-const safeLakeComoFallbackPose = isLakeComoFeed ? lakeComoFallbackPose : ''
-const safeLakeComoFinalLocation = isLakeComoFeed ? lakeComoFinalLocation : ''
-const safeLakeComoFallbackLocation = isLakeComoFeed ? lakeComoFallbackLocation : ''
-const safeLakeComoFinalMood = isLakeComoFeed ? lakeComoFinalMood : ''
-const safeLakeComoFallbackMood = isLakeComoFeed ? lakeComoFallbackMood : ''    
-
-const hasStrongSceneAction = !!String(
-  finalPose ||
-  rawGeneratedHumanAction ||
-  generatedWorldActivity ||
-  customStoryAction ||
-  ''
-).trim()
-
-const hasStrongSceneLocation = !!String(
-  finalLocationLine ||
-  generatedWorldLocation ||
-  customStoryEnvironment ||
-  ''
-).trim()
-
-const hasStrongSceneFoundation =
-  hasStrongSceneAction &&
-  hasStrongSceneLocation &&
-  String(finalLocationLine || '').length > 20 &&
-  String(finalPose || '').length > 15
-
-const sceneSafeRotatedLuxuryTone =
-  hasStrongSceneFoundation ? '' : rotatedLuxuryTone
-
-const sceneSafeGeneratedOverlay =
-  hasStrongSceneFoundation ? '' : generatedOverlay
-
-const sceneSafeGeneratedWorldIdentity =
-  hasStrongSceneFoundation ? '' : generatedWorldIdentity
-
-const sceneSafeGeneratedWorldSensory = generatedWorldSensory
-
-const sceneSafeGeneratedWorldAtmosphere = generatedWorldAtmosphere
-
-const sceneSafeGeneratedWorldNarrativeIntent = generatedWorldNarrativeIntent
-
-const groundedActionFallbacks = {
-  early_morning: 'waking slowly and settling into the first moment of the day',
-  morning: 'moving through the morning with quiet purpose',
-  late_morning: 'moving through the session with focused intent',
-  midday: 'holding a steady, active presence in the middle of the day',
-  afternoon: 'slowing slightly while staying composed and present',
-  late_afternoon: 'transitioning calmly as the day begins to soften',
-  golden_hour: 'holding a composed pause as the light changes',
-  evening: 'unwinding with calm, deliberate movement',
-  night: 'settling into a quieter, more private end-of-day rhythm',
-}
-
-const groundedEnvironmentFallbacks = {
-  early_morning: 'private bedroom or morning interior',
-  morning: 'home interior with soft natural light',
-  late_morning: 'gym floor or training environment',
-  midday: 'active daytime environment',
-  afternoon: 'quiet interior or recovery setting',
-  late_afternoon: 'calm transition space',
-  golden_hour: 'softly lit private setting',
-  evening: 'private interior or recovery space',
-  night: 'quiet bedroom or low-lit private room',
-}
-
-const groundedMoodFallbacks = {
-  early_morning: 'calm, waking, self-possessed',
-  morning: 'focused, feminine, quietly composed',
-  late_morning: 'driven, controlled, attentive',
-  midday: 'present, steady, naturally confident',
-  afternoon: 'calm, reflective, relaxed',
-  late_afternoon: 'softly reset, composed, unhurried',
-  golden_hour: 'warm, poised, quietly magnetic',
-  evening: 'calm, grounded, gently unwinding',
-  night: 'quiet, private, end-of-day calm',
-}
-
-const resolvedTimeKey =
-  generatedTime === 'early morning' ? 'early_morning' :
-  generatedTime === 'morning' ? 'morning' :
-  generatedTime === 'late morning' ? 'late_morning' :
-  generatedTime === 'midday' ? 'midday' :
-  generatedTime === 'afternoon' ? 'afternoon' :
-  generatedTime === 'late afternoon' ? 'late_afternoon' :
-  generatedTime === 'golden hour' ? 'golden_hour' :
-  generatedTime === 'evening' ? 'evening' :
-  'night'    
-
-  let normalizedAction = String(rawGeneratedHumanAction || finalPose || '').trim()
-let normalizedEnvironment = String(finalLocationLine || generatedWorldLocation || '').trim()
-
-const isBaliContext = /bali|jungle|villa|spa|pool|beach|retreat|daybed|terrace|bath|club|tropical/i.test(
-  `${normalizedEnvironment} ${resolvedWorldId} ${world}`
+const normalizedAction = stripIdentityFromAction(
+  normalizeSceneField(deterministicScenePayload.action)
 )
 
-// kill city-action leakage in Bali/tropical prompts
-if (isBaliContext) {
-  if (
-    /city polish|city movement builds around her/i.test(normalizedAction)
-  ) {
-    normalizedAction = ''
-  }
-}
+const normalizedEnvironment = resolveEnvironmentFromAction(
+  normalizedAction,
+  normalizeSceneField(deterministicScenePayload.environment)
+)
+  .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+  .trim()
 
-// kill fake location fillers
-if (/^(high-status retreat|bali luxury escape|exclusive destination feel|tropical high-status destination)$/i.test(normalizedEnvironment)) {
-  normalizedEnvironment = ''
-}
-
-if (/^(private villa|beach club|jungle retreat|luxury spa|luxury restaurant|nightlife)$/i.test(normalizedEnvironment)) {
-  normalizedEnvironment = ''
-}
-
-// recover action if stripped
-if (!normalizedAction) {
-  if (/pool|water|infinity/i.test(normalizedEnvironment)) {
-    normalizedAction = pickFromPool([
-      'resting one hand along the pool edge while watching the water ripple',
-      'stepping slowly into the water with controlled movement',
-      'leaning forward slightly as her reflection shifts',
-      'standing at the edge with one foot grazing the surface',
-    ], i)
-  } else if (/bedroom|suite|villa|lounge/i.test(normalizedEnvironment)) {
-    normalizedAction = pickFromPool([
-      'walking barefoot across the room toward the light',
-      'sitting at the edge of the bed as she gathers herself',
-      'adjusting the sheets before stepping away',
-      'turning slowly toward the window as light fills the space',
-    ], i)
-  } else if (/spa|bath|wellness|sink|mirror/i.test(normalizedEnvironment)) {
-    normalizedAction = pickFromPool([
-      'stepping out of the bath with slow deliberate control',
-      'lowering herself slowly into the bath with controlled movement',
-      'lifting her hand through the water and watching it fall',
-      'resting back as steam rises softly around her',
-    ], i)
-  } else if (/balcony|terrace|view|breakfast/i.test(normalizedEnvironment)) {
-    normalizedAction = pickFromPool([
-      'resting her hands on the railing while looking out over the view',
-      'leaning into the open air as it moves around her',
-      'stepping toward the edge as the space opens up',
-      'pausing at the edge while taking in the surroundings',
-    ], i)
-  }
-}
-
-// recover environment if stripped
-if (!normalizedEnvironment) {
-  normalizedEnvironment =
-    structuredWorldLocationLine ||
-    generatedWorldLocation ||
-    baliLocationLine ||
-    merged.location ||
-    ''
-}
-
-const normalizedEnvironmentParts = String(normalizedEnvironment || '')
-  .split(',')
-  .map((part) => String(part || '').trim())
-  .filter(Boolean)
-
-const normalizedEnvironmentSceneParts = normalizedEnvironmentParts.filter((part) =>
-  /villa bedroom|lake-view bedroom|marble bathroom|private balcony|breakfast terrace|stone terrace|poolside deck|bedroom|suite|bathroom|pool|spa|restaurant|bar|lounge|terrace|balcony|courtyard|garden|walkway|path|dining room|kitchen/i.test(part)
+const normalizedMood = stripWeakMoodFragments(
+  normalizeSceneField(deterministicScenePayload.mood)
 )
 
-const blockedEnvironmentParts = normalizedEnvironmentSceneParts.filter(
-  (part) =>
-    !/^(villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)$/i.test(part)
-)
-
-if (blockedEnvironmentParts.length > 1) {
-  normalizedEnvironment = blockedEnvironmentParts[0]
-} else if (blockedEnvironmentParts.length === 1) {
-  normalizedEnvironment = blockedEnvironmentParts[0]
-} else {
-  normalizedEnvironment = ''
-}
+const normalizedCamera = normalizeSceneField(deterministicScenePayload.camera)
+const normalizedLighting = normalizeSceneField(deterministicScenePayload.lighting)
+const normalizedTime = normalizeSceneField(deterministicScenePayload.time)
 
 const promptModel = {
   identity: feedIdentityAnchor || cleanIdentity || '',
-
-action: (() => {
-  const resolvedEnvironment = resolveStrictSceneEnvironment({
-    customStoryEnvironment,
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation: safeLakeComoFinalLocation,
-    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
-  })
-
-  const envText = String(resolvedEnvironment || '').toLowerCase()
-  const currentAction =
-    normalizedAction ||
-    rawGeneratedHumanAction ||
-    resolvedGeneratedWorldActivity ||
-    finalPose ||
-    customStoryAction ||
-    ''
-
-  if (/bathroom|bath|spa|mirror detail|marble bathroom/.test(envText)) {
-    return /bath|steam|water|mirror|sink/.test(String(currentAction).toLowerCase())
-      ? currentAction
-      : 'stepping out of the bath with slow deliberate control'
-  }
-
-  if (/bedroom|suite|bed|villa bedroom|lake-view bedroom/.test(envText)) {
-    return /bed|sheet|room|window|bedside/.test(String(currentAction).toLowerCase())
-      ? currentAction
-      : 'walking barefoot across the room toward the light'
-  }
-
-  if (/balcony|terrace|breakfast terrace|stone terrace|private balcony/.test(envText)) {
-    return /balcony|terrace|rail|open air|edge|view/.test(String(currentAction).toLowerCase())
-      ? currentAction
-      : 'resting her hands on the railing while looking out over the view'
-  }
-
-  if (/pool|water|poolside deck/.test(envText)) {
-    return /pool|water|reflection|surface|edge/.test(String(currentAction).toLowerCase())
-      ? currentAction
-      : 'resting one hand along the pool edge while watching the water ripple'
-  }
-
-  return currentAction
-})(),
-
-  environment: resolveStrictSceneEnvironment({
-    customStoryEnvironment,
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation: safeLakeComoFinalLocation,
-    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
-  }),
-
-  mood:
-    safeMoodForParts ||
-    finalMood ||
-    customStoryMood ||
-    '',
-  camera:
-    finalCamera ||
-    customStoryCamera ||
-    '',
-  lighting:
-    finalLighting ||
-    customStoryLighting ||
-    '',
-  time:
-    generatedTime || '',
-}
-
-const resolvedPromptModel = {
-  identity: promptModel.identity || '',
-
-action:
-  promptModel.action ||
-  rawGeneratedHumanAction ||
-  resolvedGeneratedWorldActivity ||
-  generatedWorldActivity ||
-  customStoryAction ||
-  (
-    /slight fabric movement in the wind|hair shifting with natural motion|subtle breath expansion in chest|gentle posture correction mid-movement|fingers lightly adjusting clothing/i.test(String(lakeComoFinalPose || ''))
-      ? ''
-      : safeLakeComoFinalPose
-  ) ||
-  safeLakeComoFallbackPose ||
-  groundedActionFallbacks[resolvedTimeKey] ||
-  'holding a calm, composed presence within the moment',
-
-environment: (() => {
-  const primaryEnv = resolvePrimarySceneEnvironment({
-    customStoryEnvironment,
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation: safeLakeComoFinalLocation,
-    lakeComoFallbackLocation: safeLakeComoFallbackLocation,
-  })
-
-  const cleaned = stripWeakEnvironmentFallbacks(primaryEnv)
-
-  return cleaned || generatedWorldLocation || 'private interior setting'
-})(),
-
-  mood:
-    promptModel.mood ||
-    safeMoodForParts ||
-    finalMood ||
-    customStoryMood ||
-    safeLakeComoFinalMood ||
-    safeLakeComoFallbackMood ||
-    generatedWorldMood ||
-    generatedWorldAtmosphere ||
-    generatedWorldSensory ||
-    groundedMoodFallbacks[resolvedTimeKey] ||
-    'calm, self-possessed, naturally feminine',
-
-  camera:
-    promptModel.camera ||
-    finalCamera ||
-    customStoryCamera ||
-    generatedWorldCamera ||
-    '',
-
-  lighting:
-    promptModel.lighting ||
-    finalLighting ||
-    customStoryLighting ||
-    generatedWorldLighting ||
-    '',
-
-  time:
-    promptModel.time ||
-    generatedTime ||
-    'night',
-}
-
-// ===============================
-// SUBJECT SYSTEM — NEUTRAL SCENE OUTPUT
-// ===============================
-
-const ACTION_REJECT_RE =
-  /^(letting |using |turning the |making the |bringing the |keeping the |framing the |holding the scene from|ending the visible|closing the visible|allowing the |completing the transition|moving the day toward|pulling the tone inward|deepening the sense|building the transition|setting up the day|introducing the world|expanding the mood|turning the city|bridging daytime|raising the social|returning from visible)/i
-
-const ACTION_FALLBACK_POOL = [
-  customStoryAction,
-  generatedWorldScene,
-  resolvedGeneratedWorldActivity,
-  finalPose,
-  generatedWorldActivity,
-].filter(Boolean)
-
-const firstValidWorldAction =
-  ACTION_FALLBACK_POOL.find((item) => {
-    const clean = String(item || '').trim()
-    if (!clean) return false
-    if (ACTION_REJECT_RE.test(clean)) return false
-    return true
-  }) || ''
-
-const realWorldAction = String(firstValidWorldAction || '').trim()
-
-const WORLD_LOCK_RULES = {
-  bali: {
-    blocked: ['paris', 'monaco', 'lake como', 'venice', 'london', 'european'],
-    preferred: [
-      'bali',
-      'canggu',
-      'seminyak',
-      'jimbaran',
-      'uluwatu',
-      'rice field',
-      'jungle',
-      'villa',
-      'beach',
-      'beach club',
-      'shoreline',
-      'coast',
-      'ocean',
-      'palms',
-      'tropical',
-    ],
-    lightingByTime: {
-      'early morning': 'soft tropical sunrise',
-      morning: 'soft tropical morning light',
-      'late morning': 'bright tropical daylight',
-      midday: 'clean tropical midday light',
-      afternoon: 'bright coastal daylight',
-      'late afternoon': 'warm coastal afternoon light',
-      'golden hour': 'warm Bali golden-hour glow',
-      evening: 'warm lantern and candle glow',
-      night: 'low-key tropical night lighting',
-    },
-    moodByTime: {
-      'early morning': 'quiet tropical morning calm',
-      morning: 'soft private villa calm',
-      'late morning': 'light destination ease',
-      midday: 'sunlit social confidence',
-      afternoon: 'open coastal relaxation',
-      'late afternoon': 'warm relaxed couple energy',
-      'golden hour': 'romantic sunset anticipation',
-      evening: 'warm after-dark intimacy',
-      night: 'quiet private nighttime closeness',
-    },
-  },
-
-  'lake-como-private-escape': {
-    blocked: ['bali', 'canggu', 'seminyak', 'jimbaran', 'uluwatu', 'jungle', 'rice field', 'tropical'],
-    preferred: ['lake como', 'villa', 'balcony', 'lake', 'terrace', 'italian', 'coast'],
-    lightingByTime: {
-      'early morning': 'soft Italian morning light',
-      morning: 'refined natural villa daylight',
-      'late morning': 'bright lake-view daylight',
-      midday: 'clean Italian midday light',
-      afternoon: 'warm lakeside afternoon light',
-      'late afternoon': 'soft lake-reflected light',
-      'golden hour': 'warm Lake Como sunset glow',
-      evening: 'candlelit terrace glow',
-      night: 'low-key villa night lighting',
-    },
-    moodByTime: {
-      'early morning': 'quiet villa stillness',
-      morning: 'refined private composure',
-      'late morning': 'calm high-status ease',
-      midday: 'bright luxury calm',
-      afternoon: 'soft lakeside relaxation',
-      'late afternoon': 'self-possessed quiet warmth',
-      'golden hour': 'romantic high-status softness',
-      evening: 'elegant intimate calm',
-      night: 'quiet end-of-day privacy',
-    },
-  },
-
-  default: {
-    blocked: [],
-    preferred: [],
-    lightingByTime: {
-      'early morning': 'soft natural morning light',
-      morning: 'soft natural daylight',
-      'late morning': 'bright natural daylight',
-      midday: 'clean midday daylight',
-      afternoon: 'warm afternoon light',
-      'late afternoon': 'soft late-day light',
-      'golden hour': 'golden hour glow',
-      evening: 'warm evening ambient light',
-      night: 'low-key cinematic shadows',
-    },
-    moodByTime: {
-      'early morning': 'quiet morning calm',
-      morning: 'calm composed presence',
-      'late morning': 'light social ease',
-      midday: 'steady relaxed confidence',
-      afternoon: 'soft relaxed composure',
-      'late afternoon': 'quiet warm ease',
-      'golden hour': 'romantic visual warmth',
-      evening: 'controlled intimate calm',
-      night: 'quiet private stillness',
-    },
-  },
-}
-
-const getWorldLockRules = (worldIdValue) =>
-  WORLD_LOCK_RULES[String(worldIdValue || '').trim().toLowerCase()] || WORLD_LOCK_RULES.default
-
-const lockedWorldRules = getWorldLockRules(resolvedWorldId)
-
-const containsBlockedWorldToken = (value, blockedTokens = []) => {
-  const lower = String(value || '').toLowerCase()
-  return blockedTokens.some((token) => lower.includes(token))
-}
-
-const containsPreferredWorldToken = (value, preferredTokens = []) => {
-  const lower = String(value || '').toLowerCase()
-  return preferredTokens.some((token) => lower.includes(token))
-}
-
-const resolveLockedWorldEnvironment = ({
-  worldId,
-  candidates = [],
-}) => {
-  const rules = getWorldLockRules(worldId)
-
-  const cleaned = candidates
-    .map((v) => String(v || '').trim())
-    .filter(Boolean)
-
-  const preferredMatch = cleaned.find(
-    (value) =>
-      containsPreferredWorldToken(value, rules.preferred) &&
-      !containsBlockedWorldToken(value, rules.blocked)
-  )
-
-  if (preferredMatch) return preferredMatch
-
-  const nonBlocked = cleaned.find(
-    (value) => !containsBlockedWorldToken(value, rules.blocked)
-  )
-
-  return nonBlocked || cleaned[0] || ''
-}
-
-const resolveLockedWorldMood = ({
-  worldId,
-  moodValue = '',
-  timeValue = '',
-}) => {
-  const rules = getWorldLockRules(worldId)
-  const mood = String(moodValue || '').trim()
-
-  if (
-    !mood ||
-    containsBlockedWorldToken(mood, rules.blocked) ||
-    /\b(paris|european|monaco|lake como|bali|canggu|seminyak|jimbaran|uluwatu)\b/i.test(mood)
-  ) {
-    return rules.moodByTime[String(timeValue || '').toLowerCase()] || 'calm composed presence'
-  }
-
-  return mood
-}
-
-const realWorldEnvironment = resolveLockedWorldEnvironment({
-  worldId: resolvedWorldId,
-  candidates: [
-    customStoryEnvironment,
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation,
-    lakeComoFallbackLocation,
-  ],
-})
-
-const realWorldEnvironmentLower = realWorldEnvironment.toLowerCase()
-
-const lockActionToEnvironment = (actionValue, environmentValue) => {
-  const action = String(actionValue || '').trim()
-  const env = String(environmentValue || '').toLowerCase()
-
-  if (!env) return action
-
-  if (/suite|bedroom|room/.test(env)) {
-    if (/balcony|railing|terrace|edge|view/.test(action.toLowerCase())) {
-      return 'standing near the window with calm composed posture'
-    }
-  }
-
-  if (/cafe|terrace seating|table|lunch|breakfast/.test(env)) {
-    if (/balcony|railing|terrace edge|open view/.test(action.toLowerCase())) {
-      return 'sitting with composed posture and soft social ease'
-    }
-  }
-
-  if (/spa|bathroom|marble|wellness/.test(env)) {
-    if (/balcony|railing|terrace|street|walk/.test(action.toLowerCase())) {
-      return 'touching the sink edge lightly in a quiet private moment'
-    }
-  }
-
-  if (/bridge|riverside|garden|courtyard|street|vendome|montaigne/.test(env)) {
-    if (/bed|pillows|sink|bath|robe/.test(action.toLowerCase())) {
-      return 'walking with calm visible composure through the space'
-    }
-  }
-
-  return action
-}
-
-const lockedRealWorldAction = lockActionToEnvironment(
-  realWorldAction,
-  realWorldEnvironment
-)
-
-const realWorldMood = resolveLockedWorldMood({
-  worldId: resolvedWorldId,
-  moodValue:
-    String(
-      customStoryMood ||
-      generatedWorldMood ||
-      generatedWorldFacialExpression ||
-      generatedWorldSocialEnergy ||
-      generatedWorldAtmosphere ||
-      generatedWorldPacing ||
-      ''
-    ).trim(),
-  timeValue: generatedTime,
-})
-
-const resolveLockedCameraForEnvironment = (environmentValue) => {
-  const env = String(environmentValue || '').toLowerCase()
-
-  if (/suite|bedroom|room/.test(env)) {
-    const pool = [
-      'intimate close framing',
-      'soft over-shoulder perspective',
-      'cinematic full-body framing',
-    ]
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  if (/spa|bathroom|marble|wellness/.test(env)) {
-    const pool = [
-      'soft bathroom editorial angle',
-      'mirror-side close framing',
-      'elegant medium portrait composition',
-    ]
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  if (/cafe|table|breakfast|lunch|terrace seating/.test(env)) {
-    const pool = [
-      'table-side medium portrait composition',
-      'soft seated breakfast framing',
-      'street-facing terrace shot',
-    ]
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  if (/balcony|eiffel|rooftop|terrace/.test(env)) {
-    const pool = [
-      'balcony-wide establishing shot',
-      'soft golden-hour editorial angle',
-      'terrace-side medium composition',
-    ]
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  if (/bridge|riverside|garden|courtyard|vendome|montaigne|louvre|palais|opera/.test(env)) {
-    const pool = [
-      'wide establishing shot',
-      'architectural editorial angle',
-      'walking composition through landmark space',
-    ]
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  return String(
-    customStoryCamera ||
-    generatedWorldCamera ||
-    finalCamera ||
-    ''
-  ).trim()
-}
-
-const realWorldCamera = resolveLockedCameraForEnvironment(realWorldEnvironment)
-
-const resolveLockedLighting = (worldIdValue, environmentValue, timeValue) => {
-  const env = String(environmentValue || '').toLowerCase()
-  const time = String(timeValue || '').toLowerCase()
-  const rules = getWorldLockRules(worldIdValue)
-
-  if (/spa|bathroom|marble|wellness|shower|sink|mirror/.test(env)) {
-    return /bali/i.test(String(worldIdValue || ''))
-      ? 'warm spa interior brightness'
-      : rules.lightingByTime[time] || 'warm spa interior brightness'
-  }
-
-  if (/pool|beach|shoreline|coast|ocean|beach club|rice field|jungle|villa exterior|balcony|terrace/.test(env)) {
-    return rules.lightingByTime[time] || 'soft natural daylight'
-  }
-
-  if (/suite|room|bedroom|villa|interior|lounge/.test(env)) {
-    return rules.lightingByTime[time] || 'soft natural daylight'
-  }
-
-  return rules.lightingByTime[time] ||
-    String(
-      customStoryLighting ||
-      generatedWorldLighting ||
-      finalLighting ||
-      ''
-    ).trim() ||
-    'soft natural daylight'
-}
-
-const realWorldLighting = resolveLockedLighting(
-  resolvedWorldId,
-  realWorldEnvironment,
-  generatedTime
-)
-
-const neutralSceneOutput = {
-  worldId: resolvedWorldId,
-  storyWorldId: activeStoryWorld,
-  subLocationId: activeSubLocationId,
-  sceneGroupId: activeSceneGroupId,
-  sceneId: '',
-
-  actionSeed: lockedRealWorldAction,
-  environment: realWorldEnvironment,
-  mood: realWorldMood,
-  camera: realWorldCamera,
-  lighting: realWorldLighting,
-  time: String(generatedTime || '').trim(),
-
-  transition: String(generatedWorldTransition || '').trim(),
-  activity: String(resolvedGeneratedWorldActivity || '').trim(),
-  atmosphere: String(generatedWorldAtmosphere || '').trim(),
-  socialEnergy: String(generatedWorldSocialEnergy || '').trim(),
-  facialExpression: String(generatedWorldFacialExpression || '').trim(),
-  bodyLanguage: String(generatedWorldBodyLanguage || '').trim(),
-  narrativeIntent: String(generatedWorldNarrativeIntent || '').trim(),
-  stylingDetail: String(generatedWorldStylingDetail || '').trim(),
-}
-
-// ===============================
-// SUBJECT SYSTEM — PROMPT BUILD
-// ===============================
-
-const subjectPromptModel = resolveSubjectPromptModel({
-  subjectState,
-  interactionState,
-  worldSceneOutput: neutralSceneOutput,
-})
-
-console.log('SUBJECT DEBUG → characterMode:', subjectState?.characterMode)
-console.log('SUBJECT DEBUG → subjectA.gender:', subjectState?.subjectA?.gender)
-console.log('SUBJECT DEBUG → subjectA.identityName:', subjectState?.subjectA?.identityName)
-console.log('SUBJECT DEBUG → subjectA.imageDataUrl exists:', !!subjectState?.subjectA?.imageDataUrl)
-console.log('SUBJECT DEBUG → subjectPromptModel.identityLead:', subjectPromptModel?.identityLead)
-
-const subjectSystemPrompt = buildDeterministicSubjectPrompt(subjectPromptModel)
-
-const subjectGenerationPayload = buildSubjectGenerationPayload({
-  subjectState,
-  interactionState,
-  prompt: subjectSystemPrompt,
-})
-
-const isCoupleDeterministicMode =
-  String(subjectState?.characterMode || '').trim().toLowerCase() === 'couple'
-
-const coupleDeterministicIdentity =
-  isCoupleDeterministicMode
-    ? (() => {
-        const subjectA = subjectState?.subjectA || {}
-        const subjectB = subjectState?.subjectB || {}
-
-        const aName = String(subjectA?.identityName || '').trim()
-        const bName = String(subjectB?.identityName || '').trim()
-
-        const aNoun =
-          String(subjectA?.gender || '').trim().toLowerCase() === 'male'
-            ? 'man'
-            : 'woman'
-
-        const bNoun =
-          String(subjectB?.gender || '').trim().toLowerCase() === 'female'
-            ? 'woman'
-            : 'man'
-
-        const aHasImage =
-          !!String(subjectA?.imageDataUrl || '').trim() ||
-          !!String(subjectA?.sourceFileName || '').trim()
-
-        const bHasImage =
-          !!String(subjectB?.imageDataUrl || '').trim() ||
-          !!String(subjectB?.sourceFileName || '').trim()
-
-        const pairLabel = [aName, bName].filter(Boolean).join(' and ')
-
-        if (aHasImage && bHasImage) {
-          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} and ${bNoun} as the uploaded reference images, preserve identical facial identity for both subjects, preserve the same two people across every image`
-        }
-
-        if (aHasImage && !bHasImage) {
-          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} as the uploaded reference image paired with fixed recurring ${bNoun} identity, preserve the same two people across every image`
-        }
-
-        if (!aHasImage && bHasImage) {
-          return `${pairLabel ? `${pairLabel}, ` : ''}fixed recurring ${aNoun} identity paired with same exact ${bNoun} as the uploaded reference image, preserve the same two people across every image`
-        }
-
-        if (aName && bName) {
-          return `${aName} and ${bName}, fixed recurring couple identity, preserve the same two people across every image`
-        }
-
-        return `consistent recurring couple identity, preserve the same two people across every image`
-      })()
-    : ''
-
-const deterministicPrompt = isCoupleDeterministicMode
-  ? [
-      coupleDeterministicIdentity,
-      String(subjectPromptModel?.action || '').trim(),
-      String(
-        resolveStrictSceneEnvironment({
-          customStoryEnvironment,
-          generatedWorldLocation,
-          structuredWorldLocationLine,
-          finalLocationLine,
-          lakeComoFinalLocation: safeLakeComoFinalLocation,
-          lakeComoFallbackLocation: safeLakeComoFallbackLocation,
-        }) || ''
-      ).trim(),
-      stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
-      String(subjectPromptModel?.camera || '').trim(),
-      String(subjectPromptModel?.lighting || '').trim(),
-      String(subjectPromptModel?.time || generatedTime || '').trim(),
-    ]
-      .filter(Boolean)
-      .join(', ')
-      .replace(/\s+,/g, ',')
-      .replace(/,\s*,+/g, ', ')
-      .replace(/\s+/g, ' ')
-      .trim()
-  : buildDeterministicFeedPrompt({
-      worldId: resolvedWorldId,
-
-      identity: dedupeCommaParts(
-        sanitizeIdentityLeak(
-          [
-            resolvedPromptModel.identity ||
-            cleanIdentity ||
-            'Elegant woman',
-          ],
-          identityState
-        )[0] ||
-        resolvedPromptModel.identity ||
-        cleanIdentity ||
-        'Elegant woman'
-      ),
-
-      action: String(
-        resolvedPromptModel.action ||
-        ''
-      ).trim(),
-
-      environment: String(
-        resolvedPromptModel.environment ||
-        ''
-      ).trim(),
-
-      mood: stripWeakMoodFragments(
-        String(
-          resolvedPromptModel.mood ||
-          ''
-        ).trim()
-      ),
-
-      camera: String(
-        resolvedPromptModel.camera ||
-        ''
-      ).trim(),
-
-      lighting: String(
-        resolvedPromptModel.lighting ||
-        ''
-      ).trim(),
-
-      time: String(
-        resolvedPromptModel.time ||
-        ''
-      ).trim(),
-    })
-
-const isCoupleMode =
-  String(subjectState?.characterMode || '').trim().toLowerCase() === 'couple'
-
-const rawCoupleFinalPrompt =
-  isCoupleMode
-    ? [
-        coupleDeterministicIdentity,
-        String(subjectPromptModel?.action || '').trim(),
-        String(
-          resolveStrictSceneEnvironment({
-            customStoryEnvironment,
-            generatedWorldLocation,
-            structuredWorldLocationLine,
-            finalLocationLine,
-            lakeComoFinalLocation: safeLakeComoFinalLocation,
-            lakeComoFallbackLocation: safeLakeComoFallbackLocation,
-          }) || ''
-        ).trim(),
-        stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
-        String(subjectPromptModel?.camera || '').trim(),
-        String(subjectPromptModel?.lighting || '').trim(),
-        String(subjectPromptModel?.time || generatedTime || '').trim(),
-      ]
-        .filter(Boolean)
-        .join(', ')
-        .replace(/\s+,/g, ',')
-        .replace(/,\s*,+/g, ', ')
-        .replace(/\s+/g, ' ')
-        .trim()
-    : ''
-
-const cleanCoupleFinalPrompt =
-  isCoupleMode
-    ? (() => {
-        const womanAnchorIndex = rawCoupleFinalPrompt.search(
-          /same exact woman as the uploaded reference image paired with fixed recurring man identity/i
-        )
-
-        const dualAnchorIndex = rawCoupleFinalPrompt.search(
-          /same exact woman and man as the uploaded reference images/i
-        )
-
-        const recurringCoupleIndex = rawCoupleFinalPrompt.search(
-          /consistent recurring couple identity/i
-        )
-
-        const startIndex =
-          womanAnchorIndex >= 0
-            ? womanAnchorIndex
-            : dualAnchorIndex >= 0
-              ? dualAnchorIndex
-              : recurringCoupleIndex >= 0
-                ? recurringCoupleIndex
-                : 0
-
-        return rawCoupleFinalPrompt.slice(startIndex).trim()
-      })()
-    : ''
-
-let finalDeterministicPrompt =
-  isCoupleMode
-    ? cleanCoupleFinalPrompt
-    : (subjectSystemPrompt || deterministicPrompt)
-
-finalDeterministicPrompt = String(finalDeterministicPrompt || '')
-  .replace(/\bsubtle bedroom details\b/gi, '')
-  .replace(/\bthe atmosphere of waking inside a calm cinematic world\b/gi, '')
-  .replace(/\ba luxury bedroom atmosphere shaped by softness\b/gi, '')
-  .replace(/\bthe sensation of waking into calm beauty instead of urgency\b/gi, '')
-  .replace(/\ba morning tone built on stillness\b/gi, '')
-  .replace(/\bstill fully private and self-contained\b/gi, '')
-  .replace(/\bquiet preparation and controlled visual elegance\b/gi, '')
-  .replace(/\bprivate beauty without any rush or friction\b/gi, '')
-  .replace(/\bsocial presence implied by elegance rather than interaction\b/gi, '')
-  .replace(/\blightly placed in the world\b/gi, '')
-  .replace(/\bsoftly magnetic daylight presence\b/gi, '')
-  .replace(/\ban atmosphere of scenic elegance and freedom from urgency\b/gi, '')
-  .replace(/\bvilla space\b/gi, '')
-  .replace(/\barchitecture elements\b/gi, '')
-  .replace(/\bdaybed cushions\b/gi, '')
-  .replace(/\bprivate terrace furniture\b/gi, '')
-  .replace(/\bbalcony stonework\b/gi, '')
-  .replace(/,\s*,/g, ', ')
-  .replace(/\s+,/g, ',')
-  .replace(/,\s*,$/g, '')
-  .replace(/\s{2,}/g, ' ')
-  .trim()
-
-if (isCoupleMode) {
-  const coupleAnchorIndex = finalDeterministicPrompt.search(
-    /same exact woman as the uploaded reference image paired with fixed recurring man identity/i
-  )
-
-  if (coupleAnchorIndex >= 0) {
-    finalDeterministicPrompt = finalDeterministicPrompt
-      .slice(coupleAnchorIndex)
-      .trim()
-  }
-}
-
-finalDeterministicPrompt = finalizeFeedPromptFlow(finalDeterministicPrompt)
-
-finalDeterministicPrompt = applyFinalFeedCleanup(finalDeterministicPrompt, {
-  worldId: resolvedWorldId,
-  storyWorld: activeStoryWorld,
-  identityLead: isCoupleMode ? '' : (resolvedPromptModel.identity || ''),
-})  
-
-const extractPromptAction = (promptText) => {
-  const parts = String(promptText || '')
-    .split(',')
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-
-  return parts[1] || ''
-}
-
-const getPromptActionType = (actionValue) => {
-  const a = String(actionValue || '').toLowerCase()
-
-  if (/bed|sheet|bedside/.test(a)) return 'bed'
-  if (/bath|steam|water|pool|reflection/.test(a)) return 'water'
-  if (/railing|edge|view|terrace/.test(a)) return 'edge'
-  if (/walking|moving|crossing/.test(a)) return 'movement'
-  if (/glass|table|bar|seat/.test(a)) return 'social'
-
-  return 'generic'
-}
-
-const getPromptSceneFamily = (promptText) => {
-  const text = String(promptText || '').toLowerCase()
-
-  if (/bedroom|suite|room|villa bedroom/.test(text)) return 'bedroom'
-  if (/bathroom|bath|spa|sink|mirror/.test(text)) return 'spa'
-  if (/pool|infinity pool|water/.test(text)) return 'pool'
-  if (/terrace|balcony|railing|stone terrace|breakfast terrace/.test(text)) return 'terrace'
-  if (/path|walkway|garden|courtyard/.test(text)) return 'path'
-  if (/bar|lounge|restaurant|dining|table|club/.test(text)) return 'social'
-
-  return 'generic'
-}
-
-const extractPromptMood = (promptText) => {
-  const parts = String(promptText || '')
-    .split(',')
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-
-  return parts[3] || ''
-}
-
-const removePreviousSceneFamilyCandidates = (value, blockedFamily) => {
-  const parts = String(value || '')
-    .split(',')
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-
-  const familyMatchers = {
-    bedroom: /bedroom|suite|room|villa bedroom|outdoor suite|villa living/i,
-    spa: /bathroom|bath|spa|sink|mirror/i,
-    pool: /pool|infinity pool|water/i,
-    terrace: /terrace|balcony|railing|stone terrace|breakfast terrace/i,
-    path: /path|walkway|garden|courtyard/i,
-    social: /bar|lounge|restaurant|dining|table|club/i,
-  }
-
-  const matcher = familyMatchers[blockedFamily]
-
-  if (!matcher) return parts.join(', ')
-
-  return parts.filter((part) => !matcher.test(part)).join(', ')
-}
-
-function stripWeakMoodFragments(value) {
-  const weakMoodFragmentRe =
-    /^(the quiet weight of bed|cool marble|stone countertop|skyline distance|polished chrome|bare floor|soft fabric tension|soft sheets|espresso sound|fresh skin|domestic luxury with skyline calm|private styling atmosphere|settled private power|the atmosphere of waking inside a calm cinematic world|the sensation of waking into calm beauty instead of urgency|a morning tone built on stillness|still fully private and self-contained|quiet preparation and controlled visual elegance|private beauty without any rush or friction|social presence implied by elegance rather than interaction|lightly placed in the world|softly magnetic daylight presence|an atmosphere of scenic elegance and freedom from urgency|the sensation of luxury becoming fully embodied in midday heat|luxury comfort without effort|a face shaped by warmth|water reflections shaping a slower atmosphere|restful quiet satisfaction)$/i
-
-  return String(value || '')
-    .split(',')
-    .map((part) =>
-      String(part || '')
-        .trim()
-        .replace(/^(and|or)\s+/i, '')
-        .trim()
-    )
-    .filter(Boolean)
-    .filter((part) => !weakMoodFragmentRe.test(part))
-    .join(', ')
-}
-
-function stripWeakEnvironmentFallbacks(value) {
-  const weakGenericEnvironmentRe =
-    /^(private interior setting|private luxury setting|refined private interior|after-dark private interior|window-side reading chair|apartment corridor in warm night quiet|vanity table with mirror lights|private balcony or terrace setting|bath or reflective water setting|city-view apartment window|hallway mirror corridor|mirror wall with open floor space|low-lit bedroom mirror corner|balcony doorway with city glow)$/i
-
-  return String(value || '')
-    .split(',')
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .filter((part) => !weakGenericEnvironmentRe.test(part))
-    .join(', ')
-}
-
-function resolvePrimarySceneEnvironment({
-  customStoryEnvironment = '',
-  generatedWorldLocation = '',
-  structuredWorldLocationLine = '',
-  finalLocationLine = '',
-  lakeComoFinalLocation = '',
-  lakeComoFallbackLocation = '',
-}) {
-  const ordered = [
-    customStoryEnvironment,
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation,
-    lakeComoFallbackLocation,
-  ]
-
-  const blockedEnvironmentRe =
-    /^(private interior setting|mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner)$/i
-
-  for (const source of ordered) {
-    const strongParts = extractStrongEnvironmentCandidates(source).filter(
-      (part) => !blockedEnvironmentRe.test(String(part || '').trim())
-    )
-
-    if (strongParts.length) {
-      return strongParts[0]
-    }
-  }
-
-  return ''
-}
-
-function resolveStrictSceneEnvironment({
-  customStoryEnvironment = '',
-  generatedWorldLocation = '',
-  structuredWorldLocationLine = '',
-  finalLocationLine = '',
-  lakeComoFinalLocation = '',
-  lakeComoFallbackLocation = '',
-}) {
-  const primary =
-    resolvePrimarySceneEnvironment({
-      customStoryEnvironment,
-      generatedWorldLocation,
-      structuredWorldLocationLine,
-      finalLocationLine,
-      lakeComoFinalLocation,
-      lakeComoFallbackLocation,
-    }) || ''
-
-  const cleaned = stripWeakEnvironmentFallbacks(primary).trim()
-
-  if (cleaned) return cleaned
-
-  const fallbackPool = [
-    generatedWorldLocation,
-    structuredWorldLocationLine,
-    finalLocationLine,
-    lakeComoFinalLocation,
-    lakeComoFallbackLocation,
-  ]
-    .map((v) => stripWeakEnvironmentFallbacks(String(v || '').trim()))
-    .filter(Boolean)
-    .filter(
-      (v) =>
-        !/^(window-side reading chair|private elevator mirror|private interior setting|entry hallway with mirror and console table|low-lit bedroom mirror corner|balcony doorway with city glow)$/i.test(v)
-    )
-
-  return fallbackPool[0] || ''
-}
-
-function extractStrongEnvironmentCandidates(value) {
-  const STRONG_ENV_RE =
-    /\b(bedroom|suite|bathroom|spa|pool|terrace|balcony|garden|courtyard|walkway|path|lounge|living room|restaurant|bar|club|dining room|kitchen|villa bedroom|stone terrace|poolside deck|breakfast terrace|marble bathroom|lake-view bedroom|private balcony)\b/i
-
-  const WEAK_PART_RE =
-    /\b(chair|sofa|table|console table|mirror wall|mirror lights|elevator mirror|reading chair|floor space|phone glow|styling light|window light|city glow|bed weight|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)\b/i
-
-  const BLOCKED_FULL_RE =
-    /^(mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)$/i
-
-  return String(value || '')
-    .split(',')
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .filter((part) => STRONG_ENV_RE.test(part))
-    .filter((part) => !WEAK_PART_RE.test(part))
-    .filter((part) => !BLOCKED_FULL_RE.test(part))
+  action: normalizedAction,
+  environment: normalizedEnvironment,
+  mood: normalizedMood,
+  camera: normalizedCamera,
+  lighting: normalizedLighting,
+  time: normalizedTime,
 }
 
 function getEnvironmentSceneFamily(value) {
@@ -7554,19 +6464,570 @@ function resolveCameraForSceneFamily({
     : ''
 }
 
+const strictResolvedAction = stripIdentityFromAction(
+  normalizeSceneField(promptModel.action || '')
+)
+
+const strictResolvedEnvironment = resolveStrictSceneEnvironment({
+  customStoryEnvironment,
+  generatedWorldLocation,
+  structuredWorldLocationLine,
+  finalLocationLine,
+})
+  .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+  .trim()
+
+const strictIdentityLead = dedupeCommaParts(
+  sanitizeIdentityLeak(
+    [promptModel.identity || cleanIdentity || 'Elegant woman'],
+    identityState
+  )[0] ||
+  promptModel.identity ||
+  cleanIdentity ||
+  'Elegant woman'
+)
+
+const sanitizedResolvedEnvironment = stripIdentityFromAction(
+  String(strictResolvedEnvironment || '').trim()
+)
+
+const sanitizedResolvedMood = stripWeakMoodFragments(
+  stripIdentityFromAction(String(promptModel.mood || '').trim())
+)
+
+const sanitizedResolvedTime = stripIdentityFromAction(
+  String(promptModel.time || '').trim()
+)
+
+const resolvedPromptModel = {
+  identity: strictIdentityLead,
+  action: stripIdentityFromAction(strictResolvedAction),
+  environment: sanitizedResolvedEnvironment,
+  mood: sanitizedResolvedMood,
+  camera: resolveCameraForSceneFamily({
+    environment: sanitizedResolvedEnvironment,
+    customStoryCamera,
+    generatedWorldCamera,
+    generatedCamera,
+    safeHandDetailForCamera: '',
+    fallbackCamera: promptModel.camera || '',
+  }),
+  lighting: promptModel.lighting || '',
+  time: sanitizedResolvedTime,
+}
+
+// ===============================
+// SUBJECT SYSTEM — NEUTRAL SCENE OUTPUT
+// ===============================
+const neutralSceneOutput = {
+  worldId: resolvedWorldId,
+  storyWorldId: activeStoryWorld,
+  subLocationId: activeSubLocationId,
+  sceneGroupId: activeSceneGroupId,
+  sceneId: deterministicScenePayload.sourceId || '',
+
+  actionSeed: resolvedPromptModel.action,
+  environment: resolvedPromptModel.environment,
+  mood: resolvedPromptModel.mood,
+  camera: resolvedPromptModel.camera,
+  lighting: resolvedPromptModel.lighting,
+  time: resolvedPromptModel.time,
+
+  transition: '',
+  activity: '',
+  atmosphere: '',
+  socialEnergy: '',
+  facialExpression: '',
+  bodyLanguage: '',
+  narrativeIntent: '',
+  stylingDetail: '',
+}
+// ===============================
+// SUBJECT SYSTEM — PROMPT BUILD
+// ===============================
+
+const subjectPromptModel = resolveSubjectPromptModel({
+  subjectState,
+  interactionState,
+  worldSceneOutput: neutralSceneOutput,
+})
+
+console.log('SUBJECT DEBUG → characterMode:', subjectState?.characterMode)
+console.log('SUBJECT DEBUG → subjectA.gender:', subjectState?.subjectA?.gender)
+console.log('SUBJECT DEBUG → subjectA.identityName:', subjectState?.subjectA?.identityName)
+console.log('SUBJECT DEBUG → subjectA.imageDataUrl exists:', !!subjectState?.subjectA?.imageDataUrl)
+console.log('SUBJECT DEBUG → subjectPromptModel.identityLead:', subjectPromptModel?.identityLead)
+
+const subjectSystemPrompt = buildDeterministicSubjectPrompt(subjectPromptModel)
+
+const isCoupleMode =
+  String(subjectState?.characterMode || '').trim().toLowerCase() === 'couple'
+
+const coupleDeterministicIdentity =
+  isCoupleMode
+    ? (() => {
+        const subjectA = subjectState?.subjectA || {}
+        const subjectB = subjectState?.subjectB || {}
+
+        const aName = String(subjectA?.identityName || '').trim()
+        const bName = String(subjectB?.identityName || '').trim()
+
+        const aGender =
+          String(subjectA?.gender || '').trim().toLowerCase() === 'male'
+            ? 'male'
+            : 'female'
+
+        const subjectBHasExplicitIdentity =
+          !!String(subjectB?.identityName || '').trim() ||
+          !!String(subjectB?.imageDataUrl || '').trim() ||
+          !!String(subjectB?.sourceFileName || '').trim() ||
+          Object.values(subjectB?.extractedTraits || {}).some((value) =>
+            String(value || '').trim()
+          )
+
+        const bGender =
+          subjectBHasExplicitIdentity
+            ? (String(subjectB?.gender || '').trim().toLowerCase() === 'female'
+                ? 'female'
+                : 'male')
+            : (aGender === 'male' ? 'female' : 'male')
+
+        const aNoun = aGender === 'male' ? 'man' : 'woman'
+        const bNoun = bGender === 'female' ? 'woman' : 'man'
+
+        const aHasImage =
+          !!String(subjectA?.imageDataUrl || '').trim() ||
+          !!String(subjectA?.sourceFileName || '').trim()
+
+        const bHasImage =
+          !!String(subjectB?.imageDataUrl || '').trim() ||
+          !!String(subjectB?.sourceFileName || '').trim()
+
+        const pairLabel = [aName, bName].filter(Boolean).join(' and ')
+
+        if (aHasImage && bHasImage) {
+          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} and ${bNoun} as the uploaded reference images, preserve identical facial identity for both subjects, preserve the same two people across every image`
+        }
+
+        if (aHasImage && !bHasImage) {
+          const recurringPartnerNoun = aNoun === 'man' ? 'woman' : 'man'
+
+          return `${pairLabel ? `${pairLabel}, ` : ''}same exact ${aNoun} as the uploaded reference image paired with fixed recurring ${recurringPartnerNoun} identity, preserve the same two people across every image`
+        }
+
+        if (!aHasImage && bHasImage) {
+          const recurringPartnerNoun = bNoun === 'man' ? 'woman' : 'man'
+
+          return `${pairLabel ? `${pairLabel}, ` : ''}fixed recurring ${recurringPartnerNoun} identity paired with same exact ${bNoun} as the uploaded reference image, preserve the same two people across every image`
+        }
+
+        if (aName && bName) {
+          return `${aName} and ${bName}, fixed recurring couple identity, preserve the same two people across every image`
+        }
+
+        return `consistent recurring couple identity, preserve the same two people across every image`
+      })()
+    : ''
+
+const rawCoupleFinalPrompt =
+  isCoupleMode
+    ? [
+        coupleDeterministicIdentity,
+        String(subjectPromptModel?.action || '').trim(),
+        String(subjectPromptModel?.environment || '').trim(),
+        stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
+        String(subjectPromptModel?.camera || '').trim(),
+        String(subjectPromptModel?.lighting || '').trim(),
+        String(subjectPromptModel?.time || generatedTime || '').trim(),
+      ]
+        .filter(Boolean)
+        .join(', ')
+        .replace(/\s+,/g, ',')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : ''
+
+const cleanCoupleFinalPrompt =
+  isCoupleMode
+    ? (() => {
+        const womanAnchorIndex = rawCoupleFinalPrompt.search(
+          /same exact woman as the uploaded reference image paired with fixed recurring man identity/i
+        )
+
+        const dualAnchorIndex = rawCoupleFinalPrompt.search(
+          /same exact woman and man as the uploaded reference images/i
+        )
+
+        const recurringCoupleIndex = rawCoupleFinalPrompt.search(
+          /consistent recurring couple identity/i
+        )
+
+        const startIndex =
+          womanAnchorIndex >= 0
+            ? womanAnchorIndex
+            : dualAnchorIndex >= 0
+              ? dualAnchorIndex
+              : recurringCoupleIndex >= 0
+                ? recurringCoupleIndex
+                : 0
+
+        return rawCoupleFinalPrompt.slice(startIndex).trim()
+      })()
+    : ''
+
+function enforcePromptStructure({
+  identity,
+  action,
+  environment,
+  mood,
+  camera,
+  lighting,
+  time,
+}) {
+  return [
+    identity,
+    action,
+    environment,
+    mood,
+    camera,
+    lighting,
+    time,
+  ]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean)
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}    
+
+const cleanedIdentityLead = dedupeCommaParts(
+  String(
+    resolvedPromptModel.identity ||
+    strictIdentityLead ||
+    cleanIdentity ||
+    'Elegant woman'
+  ).trim()
+)
+
+const cleanedResolvedAction = String(resolvedPromptModel.action || '')
+  .replace(/\bsame exact man as the uploaded reference image,?\s*/gi, '')
+  .replace(/\bsame exact woman as the uploaded reference image,?\s*/gi, '')
+  .replace(/\bsame exact person as the uploaded reference image,?\s*/gi, '')
+  .replace(/\bsame exact male as the uploaded reference image,?\s*/gi, '')
+  .replace(/\bsame exact female as the uploaded reference image,?\s*/gi, '')
+  .replace(/\bfixed recurring man identity,?\s*/gi, '')
+  .replace(/\bfixed recurring woman identity,?\s*/gi, '')
+  .replace(/\bconsistent recurring male identity,?\s*/gi, '')
+  .replace(/\bconsistent recurring female identity,?\s*/gi, '')
+  .replace(/\bpreserve identical facial identity,?\s*/gi, '')
+  .replace(/\bsame person,?\s*/gi, '')
+  .replace(/\bsame face,?\s*/gi, '')
+  .replace(/\bsame bone structure,?\s*/gi, '')
+  .replace(/\bsame eyes,?\s*/gi, '')
+  .replace(/\bsame nose,?\s*/gi, '')
+  .replace(/\bsame lips,?\s*/gi, '')
+  .replace(/\bsame facial proportions,?\s*/gi, '')
+  .replace(/\bsame hairline,?\s*/gi, '')
+  .replace(/,\s*,+/g, ', ')
+  .replace(/^\s*,\s*/g, '')
+  .replace(/\s{2,}/g, ' ')
+  .trim()
+
+const cleanedResolvedEnvironment = resolveStrictSceneEnvironment({
+  customStoryEnvironment,
+  generatedWorldLocation,
+  structuredWorldLocationLine,
+  finalLocationLine,
+})
+  .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+  .trim()
+
+const finalSingleAction = stripIdentityFromAction(
+  String(cleanedResolvedAction || resolvedPromptModel.action || '').trim()
+)
+
+const finalSingleEnvironment = resolveEnvironmentFromAction(
+  finalSingleAction,
+  String(cleanedResolvedEnvironment || resolvedPromptModel.environment || '').trim()
+)
+  .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+  .replace(/,\s*,+/g, ', ')
+  .trim()
+
+console.log('TRACE cleanedIdentityLead:', cleanedIdentityLead)
+console.log('TRACE resolvedPromptModel.identity:', resolvedPromptModel.identity)
+console.log('TRACE resolvedPromptModel.action:', resolvedPromptModel.action)
+console.log('TRACE resolvedPromptModel.environment:', resolvedPromptModel.environment)
+console.log('TRACE finalSingleAction:', finalSingleAction)
+console.log('TRACE finalSingleEnvironment:', finalSingleEnvironment)  
+
+let finalDeterministicPrompt =
+  isCoupleMode
+    ? cleanCoupleFinalPrompt
+    : [
+        String(cleanedIdentityLead || '').trim(),
+        String(finalSingleAction || '').trim(),
+        String(finalSingleEnvironment || '').trim(),
+        stripWeakMoodFragments(String(resolvedPromptModel.mood || '').trim()),
+        String(resolvedPromptModel.camera || '').trim(),
+        String(resolvedPromptModel.lighting || '').trim(),
+        String(resolvedPromptModel.time || '').trim(),
+      ]
+        .filter(Boolean)
+        .join(', ')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/\s+,/g, ',')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+
+console.log('TRACE preFinalize finalDeterministicPrompt:', finalDeterministicPrompt)        
+
+finalDeterministicPrompt = String(finalDeterministicPrompt || '')
+  .replace(
+    /\bsame exact man as the uploaded reference image,\s*same exact man as the uploaded reference image\b/gi,
+    'same exact man as the uploaded reference image'
+  )
+  .replace(
+    /\bsame exact woman as the uploaded reference image,\s*same exact woman as the uploaded reference image\b/gi,
+    'same exact woman as the uploaded reference image'
+  )
+  .replace(
+    /\bpreserve identical facial identity,\s*preserve identical facial identity\b/gi,
+    'preserve identical facial identity'
+  )
+  .replace(
+    /same exact man as the uploaded reference image,\s*preserve identical facial identity,\s*same person,\s*same face,\s*same bone structure,\s*same eyes,\s*same nose,\s*same lips,\s*same facial proportions,\s*same hairline,\s*(29 years old,\s*polished,\s*attractive,\s*socially powerful presence,\s*)?same exact man as the uploaded reference image/gi,
+    'same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline'
+  )
+  .replace(
+    /same exact woman as the uploaded reference image,\s*preserve identical facial identity,\s*same person,\s*same face,\s*same bone structure,\s*same eyes,\s*same nose,\s*same lips,\s*same facial proportions,\s*same hairline,\s*(29 years old,\s*polished,\s*attractive,\s*socially powerful presence,\s*)?same exact woman as the uploaded reference image/gi,
+    'same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline'
+  )
+  .replace(/\bbedroom or bathroom\b/gi, '')
+  .replace(
+    /\bnatural window light,\s*kitchen counter profile shot,\s*early morning,\s*bright morning daylight\b/gi,
+    'kitchen counter profile shot, bright morning daylight, early morning'
+  )
+  .replace(
+    /\bnatural light hitting the body,\s*bright morning daylight\b/gi,
+    'bright morning daylight'
+  )
+  .replace(
+    /\bsoft diffused morning light,\s*bright morning daylight\b/gi,
+    'bright morning daylight'
+  )
+  .replace(/\bsubtle bedroom details\b/gi, '')
+  .replace(/\bthe atmosphere of waking inside a calm cinematic world\b/gi, '')
+  .replace(/\ba luxury bedroom atmosphere shaped by softness\b/gi, '')
+  .replace(/\bthe sensation of waking into calm beauty instead of urgency\b/gi, '')
+  .replace(/\ba morning tone built on stillness\b/gi, '')
+  .replace(/\bstill fully private and self-contained\b/gi, '')
+  .replace(/\bquiet preparation and controlled visual elegance\b/gi, '')
+  .replace(/\bprivate beauty without any rush or friction\b/gi, '')
+  .replace(/\bsocial presence implied by elegance rather than interaction\b/gi, '')
+  .replace(/\blightly placed in the world\b/gi, '')
+  .replace(/\bsoftly magnetic daylight presence\b/gi, '')
+  .replace(/\ban atmosphere of scenic elegance and freedom from urgency\b/gi, '')
+  .replace(/\bvilla space\b/gi, '')
+  .replace(/\barchitecture elements\b/gi, '')
+  .replace(/\bdaybed cushions\b/gi, '')
+  .replace(/\bprivate terrace furniture\b/gi, '')
+  .replace(/\bbalcony stonework\b/gi, '')
+.replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+.replace(/\bpolished\b,\s*/gi, '')
+.replace(/\battractive\b,\s*/gi, '')
+.replace(/\bsocially powerful presence\b,\s*/gi, '')
+.replace(/\bhigh-value feminine presence\b/gi, '')
+.replace(/\bfeminine presence\b/gi, '')
+.replace(/\brefined\b,\s*/gi, '')
+.replace(/\bcomposed\b,\s*/gi, '')
+.replace(/,\s*,/g, ', ')
+.replace(/\s+,/g, ',')
+.replace(/,\s*$/g, '')
+.replace(/\s{2,}/g, ' ')
+.trim()
+
+if (isCoupleMode) {
+  const coupleAnchorIndex = finalDeterministicPrompt.search(
+    /same exact woman as the uploaded reference image paired with fixed recurring man identity|same exact woman and man as the uploaded reference images|consistent recurring couple identity/i
+  )
+
+  if (coupleAnchorIndex >= 0) {
+    finalDeterministicPrompt = finalDeterministicPrompt
+      .slice(coupleAnchorIndex)
+      .trim()
+  }
+}
+
+finalDeterministicPrompt = finalizeFeedPromptFlow(finalDeterministicPrompt)
+
+finalDeterministicPrompt = applyFinalFeedCleanup(finalDeterministicPrompt, {
+  worldId: resolvedWorldId,
+  storyWorld: activeStoryWorld,
+  identityLead: isCoupleMode ? '' : (resolvedPromptModel.identity || ''),
+})
+
+function stripWeakMoodFragments(value) {
+  const weakMoodFragmentRe =
+    /^(the quiet weight of bed|cool marble|stone countertop|skyline distance|polished chrome|bare floor|soft fabric tension|soft sheets|espresso sound|fresh skin|domestic luxury with skyline calm|private styling atmosphere|settled private power|the atmosphere of waking inside a calm cinematic world|the sensation of waking into calm beauty instead of urgency|a morning tone built on stillness|still fully private and self-contained|quiet preparation and controlled visual elegance|private beauty without any rush or friction|social presence implied by elegance rather than interaction|lightly placed in the world|softly magnetic daylight presence|an atmosphere of scenic elegance and freedom from urgency|the sensation of luxury becoming fully embodied in midday heat|luxury comfort without effort|a face shaped by warmth|water reflections shaping a slower atmosphere|restful quiet satisfaction)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) =>
+      String(part || '')
+        .trim()
+        .replace(/^(and|or)\s+/i, '')
+        .trim()
+    )
+    .filter(Boolean)
+    .filter((part) => !weakMoodFragmentRe.test(part))
+    .join(', ')
+}
+
+function stripWeakEnvironmentFallbacks(value) {
+  const weakGenericEnvironmentRe =
+    /^(private interior setting|private luxury setting|refined private interior|after-dark private interior|window-side reading chair|apartment corridor in warm night quiet|vanity table with mirror lights|private balcony or terrace setting|bath or reflective water setting|city-view apartment window|hallway mirror corridor|mirror wall with open floor space|low-lit bedroom mirror corner|balcony doorway with city glow)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part) => !weakGenericEnvironmentRe.test(part))
+    .join(', ')
+}
+
+function resolvePrimarySceneEnvironment({
+  customStoryEnvironment = '',
+  generatedWorldLocation = '',
+  structuredWorldLocationLine = '',
+  finalLocationLine = '',
+  lakeComoFinalLocation = '',
+  lakeComoFallbackLocation = '',
+}) {
+  const ordered = [
+    customStoryEnvironment,
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+    lakeComoFinalLocation,
+    lakeComoFallbackLocation,
+  ]
+
+  const blockedEnvironmentRe =
+    /^(private interior setting|mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner)$/i
+
+  for (const source of ordered) {
+    const strongParts = extractStrongEnvironmentCandidates(source).filter(
+      (part) => !blockedEnvironmentRe.test(String(part || '').trim())
+    )
+
+    if (strongParts.length) {
+      return strongParts[0]
+    }
+  }
+
+  return ''
+}
+
+function resolveStrictSceneEnvironment({
+  customStoryEnvironment = '',
+  generatedWorldLocation = '',
+  structuredWorldLocationLine = '',
+  finalLocationLine = '',
+}) {
+  const primary =
+    resolvePrimarySceneEnvironment({
+      customStoryEnvironment,
+      generatedWorldLocation,
+      structuredWorldLocationLine,
+      finalLocationLine,
+    }) || ''
+
+  const cleaned = stripWeakEnvironmentFallbacks(primary)
+    .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+    .trim()
+
+  if (cleaned) return cleaned
+
+  const fallbackPool = [
+    generatedWorldLocation,
+    structuredWorldLocationLine,
+    finalLocationLine,
+  ]
+    .map((v) =>
+      stripWeakEnvironmentFallbacks(String(v || '').trim())
+        .replace(/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i, '')
+        .trim()
+    )
+    .filter(Boolean)
+    .filter(
+      (v) =>
+        !/^(window-side reading chair|private elevator mirror|private interior setting|entry hallway with mirror and console table|low-lit bedroom mirror corner|balcony doorway with city glow)$/i.test(v)
+    )
+
+  return fallbackPool[0] || ''
+}
+
+function extractStrongEnvironmentCandidates(value) {
+  const STRONG_ENV_RE =
+    /\b(bedroom|suite|bathroom|spa|pool|terrace|balcony|garden|courtyard|walkway|path|lounge|living room|restaurant|bar|club|dining room|kitchen|villa bedroom|stone terrace|poolside deck|breakfast terrace|marble bathroom|lake-view bedroom|private balcony)\b/i
+
+  const WEAK_PART_RE =
+    /\b(chair|sofa|table|console table|mirror wall|mirror lights|elevator mirror|reading chair|floor space|phone glow|styling light|window light|city glow|bed weight|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)\b/i
+
+  const BLOCKED_FULL_RE =
+    /^(mirror wall with open floor space|vanity table with mirror lights|window-side reading chair|apartment corridor in warm night quiet|private elevator mirror|city-view apartment window|hallway mirror corridor|low-lit bedroom mirror corner|villa space|architecture elements|daybed cushions|private terrace furniture|balcony stonework|subtle bedroom details)$/i
+
+  return String(value || '')
+    .split(',')
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part) => STRONG_ENV_RE.test(part))
+    .filter((part) => !WEAK_PART_RE.test(part))
+    .filter((part) => !BLOCKED_FULL_RE.test(part))
+}
+
+function resolveEnvironmentFromAction(actionValue, currentEnvironment = '') {
+  const action = String(actionValue || '').toLowerCase()
+  const current = String(currentEnvironment || '').trim()
+
+  if (
+    current &&
+    !/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i.test(current)
+  ) {
+    return current
+  }
+
+  if (/breakfast|coffee|kitchen|meal|cooking|protein/.test(action)) {
+    return 'modern kitchen with clean morning light'
+  }
+
+  if (/bed|waking|wake up|edge of the bed|bedside/.test(action)) {
+    return 'minimal bedroom'
+  }
+
+  if (/bath|sink|mirror|shower|washing face/.test(action)) {
+    return 'clean bathroom with soft natural light'
+  }
+
+  if (/balcony|terrace|railing|view/.test(action)) {
+    return 'private balcony with open morning light'
+  }
+
+  if (/walking|hallway|leaving|door/.test(action)) {
+    return 'quiet interior walkway'
+  }
+
+  return current
+}
+
 const promptKey = String(finalDeterministicPrompt || '')
   .toLowerCase()
   .replace(/\s+/g, ' ')
   .trim()
-
-const currentSceneFamily = getPromptSceneFamily(finalDeterministicPrompt)
-const currentActionType = getPromptActionType(extractPromptAction(finalDeterministicPrompt))
-const currentMoodKey = extractPromptMood(finalDeterministicPrompt).toLowerCase()
-
-const previousPrompt = prompts[prompts.length - 1] || ''
-const previousSceneFamily = getPromptSceneFamily(previousPrompt)
-const previousActionType = getPromptActionType(extractPromptAction(previousPrompt))
-const previousMoodKey = extractPromptMood(previousPrompt).toLowerCase()
 
 const isDuplicatePrompt = recentFinalPromptKeys.includes(promptKey)
 
@@ -7574,11 +7035,6 @@ if (!isDuplicatePrompt) {
   recentFinalPromptKeys.push(promptKey)
   while (recentFinalPromptKeys.length > 6) {
     recentFinalPromptKeys.shift()
-  }
-
-  recentMoodKeys.push(currentMoodKey)
-  while (recentMoodKeys.length > 4) {
-    recentMoodKeys.shift()
   }
 
   prompts.push(finalDeterministicPrompt)
@@ -8956,9 +8412,9 @@ if (chapter.worldId === 'lake-como-life') {
     {subjectState?.subjectA?.extractedTraits?.identity ? (
       <>
         <div style={styles.identityExtractPreviewText}><strong>Subject A</strong></div>
-        <div style={styles.identityExtractPreviewText}>
-          Identity: {subjectState.subjectA.extractedTraits.identity || '—'}
-        </div>
+<div style={styles.identityExtractPreviewText}>
+  Identity: {getDisplayIdentityLabel(subjectState.subjectA.extractedTraits) || '—'}
+</div>
         <div style={styles.identityExtractPreviewText}>
           Age: {subjectState.subjectA.extractedTraits.age || '—'}
         </div>
@@ -8982,9 +8438,9 @@ if (chapter.worldId === 'lake-como-life') {
         <div style={{ ...styles.identityExtractPreviewText, marginTop: 8 }}>
           <strong>Subject B</strong>
         </div>
-        <div style={styles.identityExtractPreviewText}>
-          Identity: {subjectState.subjectB.extractedTraits.identity || '—'}
-        </div>
+<div style={styles.identityExtractPreviewText}>
+  Identity: {getDisplayIdentityLabel(subjectState.subjectB.extractedTraits) || '—'}
+</div>
         <div style={styles.identityExtractPreviewText}>
           Age: {subjectState.subjectB.extractedTraits.age || '—'}
         </div>
@@ -9173,127 +8629,127 @@ if (chapter.worldId === 'lake-como-life') {
 <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
   <div style={styles.ctrlLabel}>CHARACTER MODE</div>
 
-  <div style={styles.row}>
-    <button
-      type="button"
-      onClick={() => {
-        const mode = 'female'
+<div style={styles.row}>
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'female'
 
-        setSubjectState((prev) => ({
-          ...prev,
-          characterMode: mode,
-          subjectA: {
-            ...prev.subjectA,
-            gender: 'female',
-            role: 'primary',
-            enabled: true,
-          },
-          subjectB: {
-            ...prev.subjectB,
-            enabled: false,
-            gender: prev.subjectB?.gender || 'male',
-            role: 'partner',
-          },
-        }))
-
-        setInteractionState((prev) => ({
-          ...prev,
-          enabled: false,
-          lastUpdated: Date.now(),
-        }))
-
-        setClicks((c) => c + 1)
-        setLast('Character Mode → female')
-      }}
-      style={
-        subjectState?.characterMode === 'female'
-          ? styles.btnPrimary
-          : styles.btnGhost
-      }
-    >
-      Female
-    </button>
-
-    <button
-      type="button"
-      onClick={() => {
-        const mode = 'male'
-
-        setSubjectState((prev) => ({
-          ...prev,
-          characterMode: mode,
-          subjectA: {
-            ...prev.subjectA,
-            gender: 'male',
-            role: 'primary',
-            enabled: true,
-          },
-          subjectB: {
-            ...prev.subjectB,
-            enabled: false,
-            gender: prev.subjectB?.gender || 'male',
-            role: 'partner',
-          },
-        }))
-
-        setInteractionState((prev) => ({
-          ...prev,
-          enabled: false,
-          lastUpdated: Date.now(),
-        }))
-
-        setClicks((c) => c + 1)
-        setLast('Character Mode → male')
-      }}
-      style={
-        subjectState?.characterMode === 'male'
-          ? styles.btnPrimary
-          : styles.btnGhost
-      }
-    >
-      Male
-    </button>
-
-    <button
-      type="button"
-      onClick={() => {
-        const mode = 'couple'
-
-        setSubjectState((prev) => ({
-          ...prev,
-          characterMode: mode,
-          subjectA: {
-            ...prev.subjectA,
-            gender: 'female',
-            role: 'primary',
-            enabled: true,
-          },
-          subjectB: {
-            ...prev.subjectB,
-            enabled: true,
-            gender: 'male',
-            role: 'partner',
-          },
-        }))
-
-        setInteractionState((prev) => ({
-          ...prev,
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'female',
+          role: 'primary',
           enabled: true,
-          lastUpdated: Date.now(),
-        }))
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: false,
+          gender: prev.subjectB?.gender || 'male',
+          role: 'partner',
+        },
+      }))
 
-        setClicks((c) => c + 1)
-        setLast('Character Mode → couple')
-      }}
-      style={
-        subjectState?.characterMode === 'couple'
-          ? styles.btnPrimary
-          : styles.btnGhost
-      }
-    >
-      Couple
-    </button>
-  </div>
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: false,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → female')
+    }}
+    style={
+      subjectState?.characterMode === 'female'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Female
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'male'
+
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'male',
+          role: 'primary',
+          enabled: true,
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: false,
+          gender: prev.subjectB?.gender || 'male',
+          role: 'partner',
+        },
+      }))
+
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: false,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → male')
+    }}
+    style={
+      subjectState?.characterMode === 'male'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Male
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'couple'
+
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'female',
+          role: 'primary',
+          enabled: true,
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: true,
+          gender: 'male',
+          role: 'partner',
+        },
+      }))
+
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: true,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → couple')
+    }}
+    style={
+      subjectState?.characterMode === 'couple'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Couple
+  </button>
+</div>
 
   <div style={styles.note}>
     Switch between female, male, and couple generation modes.
