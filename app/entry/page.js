@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { ArrowRight, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function EntryPage() {
@@ -44,7 +43,7 @@ export default function EntryPage() {
       <section className="relative z-10 flex min-h-screen items-center justify-center px-4 pt-20 pb-12 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center text-center">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/50 bg-secondary/50 px-4 py-2 backdrop-blur-sm animate-fade-in">
-            <Sparkles className="h-4 w-4 text-accent" />
+            <span className="h-2 w-2 rounded-full bg-accent" />
             <span className="text-sm text-muted-foreground">
               Prompt CEO Access Portal
             </span>
@@ -89,7 +88,7 @@ export default function EntryPage() {
                     className="flex items-center justify-center gap-2"
                   >
                     Enter Photo
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
                   </Link>
                 </Button>
               </div>
@@ -150,7 +149,7 @@ export default function EntryPage() {
                     className="flex items-center justify-center gap-2"
                   >
                     Get the Bundle
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
                   </Link>
                 </Button>
               </div>
