@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 
 export default function EntryPage() {
   const containerRef = useRef(null)
@@ -78,19 +77,15 @@ export default function EntryPage() {
               </p>
 
               <div className="mt-auto">
-                <Button
-                  size="lg"
-                  className="group w-full bg-foreground text-background hover:bg-foreground/90"
-                  asChild
+                <Link
+                  href="/photo"
+                  className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-background transition hover:bg-foreground/90"
                 >
-                  <Link
-                    href="/photo"
-                    className="flex items-center justify-center gap-2"
-                  >
-                    Enter Photo
-                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
-                  </Link>
-                </Button>
+                  Enter Photo
+                  <span className="transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </Link>
               </div>
             </section>
 
@@ -111,14 +106,12 @@ export default function EntryPage() {
               </p>
 
               <div className="mt-auto">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full border-border hover:bg-secondary/50"
-                  asChild
+                <Link
+                  href="/video"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-border bg-transparent px-6 py-3 text-foreground transition hover:bg-secondary/50"
                 >
-                  <Link href="/video">Enter Video</Link>
-                </Button>
+                  Enter Video
+                </Link>
               </div>
             </section>
 
@@ -139,19 +132,15 @@ export default function EntryPage() {
               </p>
 
               <div className="mt-auto">
-                <Button
-                  size="lg"
-                  className="group w-full bg-foreground text-background hover:bg-foreground/90"
-                  asChild
+                <Link
+                  href="/bundle"
+                  className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-background transition hover:bg-foreground/90"
                 >
-                  <Link
-                    href="/bundle"
-                    className="flex items-center justify-center gap-2"
-                  >
-                    Get the Bundle
-                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
-                  </Link>
-                </Button>
+                  Get the Bundle
+                  <span className="transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </Link>
               </div>
             </section>
           </div>
