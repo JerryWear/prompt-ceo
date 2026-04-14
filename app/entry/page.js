@@ -6,13 +6,13 @@ import { ArrowRight, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function EntryPage() {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef(null)
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e) => {
       const rect = container.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
