@@ -22,153 +22,300 @@ export default function EntryPage() {
     return () => container.removeEventListener("mousemove", handleMouseMove)
   }, [])
 
+  const pageStyle = {
+    minHeight: "100vh",
+    color: "#f5f7fb",
+    background: `
+      radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(120, 80, 200, 0.10) 0%, transparent 28%),
+      radial-gradient(ellipse at top left, rgba(120, 80, 200, 0.18) 0%, transparent 42%),
+      radial-gradient(ellipse at bottom right, rgba(60, 80, 180, 0.14) 0%, transparent 40%),
+      linear-gradient(180deg, #06070b 0%, #090b12 50%, #05060a 100%)
+    `,
+    position: "relative",
+    overflow: "hidden",
+    fontFamily: "Arial, Helvetica, sans-serif",
+  }
+
+  const gridOverlay = {
+    position: "absolute",
+    inset: 0,
+    backgroundImage: `
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
+    `,
+    backgroundSize: "64px 64px",
+    maskImage: "radial-gradient(ellipse at center, black 22%, transparent 72%)",
+    WebkitMaskImage:
+      "radial-gradient(ellipse at center, black 22%, transparent 72%)",
+    pointerEvents: "none",
+  }
+
+  const orbOne = {
+    position: "absolute",
+    top: "12%",
+    left: "14%",
+    width: "420px",
+    height: "420px",
+    borderRadius: "9999px",
+    background: "rgba(120, 80, 200, 0.14)",
+    filter: "blur(110px)",
+    pointerEvents: "none",
+  }
+
+  const orbTwo = {
+    position: "absolute",
+    right: "10%",
+    bottom: "14%",
+    width: "300px",
+    height: "300px",
+    borderRadius: "9999px",
+    background: "rgba(70, 90, 190, 0.10)",
+    filter: "blur(100px)",
+    pointerEvents: "none",
+  }
+
+  const wrapperStyle = {
+    position: "relative",
+    zIndex: 1,
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "96px 24px 48px",
+  }
+
+  const innerStyle = {
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    textAlign: "center",
+  }
+
+  const badgeStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 16px",
+    borderRadius: "9999px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    marginBottom: "28px",
+  }
+
+  const badgeDotStyle = {
+    width: "8px",
+    height: "8px",
+    borderRadius: "9999px",
+    background: "#8b6cff",
+    boxShadow: "0 0 14px rgba(139,108,255,0.75)",
+  }
+
+  const badgeTextStyle = {
+    fontSize: "13px",
+    color: "rgba(255,255,255,0.72)",
+    letterSpacing: "0.04em",
+  }
+
+  const headingStyle = {
+    margin: "0 0 18px",
+    fontSize: "clamp(44px, 7vw, 86px)",
+    lineHeight: 0.95,
+    fontWeight: 700,
+    letterSpacing: "-0.05em",
+    color: "#f7f8fb",
+  }
+
+  const subheadingStyle = {
+    maxWidth: "840px",
+    margin: "0 auto 42px",
+    fontSize: "clamp(18px, 2.2vw, 26px)",
+    lineHeight: 1.5,
+    color: "rgba(255,255,255,0.76)",
+  }
+
+  const cardsStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "22px",
+    marginTop: "12px",
+  }
+
+  const cardBaseStyle = {
+    borderRadius: "28px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02))",
+    boxShadow:
+      "0 18px 60px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.04)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    padding: "28px",
+    minHeight: "340px",
+    display: "flex",
+    flexDirection: "column",
+    textAlign: "left",
+  }
+
+  const overlineStyle = {
+    fontSize: "12px",
+    letterSpacing: "0.22em",
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.58)",
+    margin: "0 0 14px",
+  }
+
+  const bundleOverlineStyle = {
+    ...overlineStyle,
+    color: "#9f8cff",
+  }
+
+  const cardTitleStyle = {
+    margin: "0 0 18px",
+    fontSize: "clamp(34px, 4vw, 48px)",
+    lineHeight: 1,
+    fontWeight: 700,
+    letterSpacing: "-0.04em",
+    color: "#ffffff",
+  }
+
+  const cardTextStyle = {
+    margin: "0 0 28px",
+    fontSize: "17px",
+    lineHeight: 1.65,
+    color: "rgba(255,255,255,0.76)",
+  }
+
+  const primaryButtonStyle = {
+    marginTop: "auto",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "56px",
+    width: "100%",
+    borderRadius: "16px",
+    background: "#f5f7fb",
+    color: "#08090d",
+    fontWeight: 700,
+    fontSize: "16px",
+    textDecoration: "none",
+    boxShadow: "0 10px 26px rgba(255,255,255,0.10)",
+  }
+
+  const secondaryButtonStyle = {
+    ...primaryButtonStyle,
+    background: "rgba(255,255,255,0.04)",
+    color: "#f5f7fb",
+    border: "1px solid rgba(255,255,255,0.12)",
+    boxShadow: "none",
+  }
+
+  const statsStyle = {
+    marginTop: "46px",
+    paddingTop: "28px",
+    borderTop: "1px solid rgba(255,255,255,0.10)",
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "20px",
+  }
+
+  const statTitleStyle = {
+    fontSize: "clamp(24px, 3vw, 34px)",
+    fontWeight: 700,
+    color: "#ffffff",
+    marginBottom: "6px",
+  }
+
+  const statTextStyle = {
+    fontSize: "14px",
+    color: "rgba(255,255,255,0.62)",
+    lineHeight: 1.4,
+  }
+
   return (
-    <main
-      ref={containerRef}
-      className="relative min-h-screen overflow-hidden bg-background text-foreground"
-      style={{
-        background: `
-          radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(120, 80, 200, 0.08) 0%, transparent 50%),
-          radial-gradient(ellipse at 20% 0%, rgba(120, 80, 200, 0.12) 0%, transparent 50%),
-          radial-gradient(ellipse at 80% 100%, rgba(80, 60, 160, 0.08) 0%, transparent 50%)
-        `,
-      }}
-    >
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
+    <main ref={containerRef} style={pageStyle}>
+      <div style={gridOverlay} />
+      <div style={orbOne} />
+      <div style={orbTwo} />
 
-      <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl animate-pulse" />
-      <div className="absolute right-1/4 bottom-1/4 h-64 w-64 rounded-full bg-accent/5 blur-3xl animate-pulse delay-1000" />
-
-      <section className="relative z-10 flex min-h-screen items-center justify-center px-4 pt-20 pb-12 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/50 bg-secondary/50 px-4 py-2 backdrop-blur-sm animate-fade-in">
-            <span className="h-2 w-2 rounded-full bg-accent" />
-            <span className="text-sm text-muted-foreground">
-              Prompt CEO Access Portal
-            </span>
+      <section style={wrapperStyle}>
+        <div style={innerStyle}>
+          <div style={badgeStyle}>
+            <span style={badgeDotStyle} />
+            <span style={badgeTextStyle}>Prompt CEO Access Portal</span>
           </div>
 
-          <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl animate-fade-in-up">
-            <span className="bg-gradient-to-b from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent text-balance">
-              Choose Your Prompt CEO Engine
-            </span>
-          </h1>
+          <h1 style={headingStyle}>Choose Your Prompt CEO Engine</h1>
 
-          <p className="mx-auto mb-12 max-w-2xl text-lg text-muted-foreground sm:text-xl text-pretty animate-fade-in-up delay-100">
+          <p style={subheadingStyle}>
             Enter the system through photo prompts, cinematic video workflows,
             or unlock both together for the full Prompt CEO experience.
           </p>
 
-          <div className="grid w-full gap-6 md:grid-cols-3 animate-fade-in-up delay-200">
-            <section className="flex min-h-[320px] flex-col rounded-2xl border border-border/50 bg-card/60 p-6 text-left backdrop-blur-xl">
-              <div className="mb-6">
-                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  App One
-                </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                  Photo
-                </h2>
-              </div>
-
-              <p className="mb-6 text-sm leading-7 text-muted-foreground sm:text-base">
+          <div style={cardsStyle}>
+            <section style={cardBaseStyle}>
+              <p style={overlineStyle}>App One</p>
+              <h2 style={cardTitleStyle}>Photo</h2>
+              <p style={cardTextStyle}>
                 Generate premium photo prompts for creators, influencers, and
                 brands who need identity-consistent visual content with a luxury
                 cinematic feel.
               </p>
 
-              <div className="mt-auto">
-                <Link
-                  href="/photo"
-                  className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-background transition hover:bg-foreground/90"
-                >
-                  Enter Photo
-                  <span className="transition-transform group-hover:translate-x-0.5">
-                    →
-                  </span>
-                </Link>
-              </div>
+              <Link href="/photo" style={primaryButtonStyle}>
+                Enter Photo →
+              </Link>
             </section>
 
-            <section className="flex min-h-[320px] flex-col rounded-2xl border border-border/50 bg-card/60 p-6 text-left backdrop-blur-xl">
-              <div className="mb-6">
-                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  App Two
-                </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                  Video
-                </h2>
-              </div>
-
-              <p className="mb-6 text-sm leading-7 text-muted-foreground sm:text-base">
+            <section style={cardBaseStyle}>
+              <p style={overlineStyle}>App Two</p>
+              <h2 style={cardTitleStyle}>Video</h2>
+              <p style={cardTextStyle}>
                 Build cinematic video prompt flows for short-form storytelling,
                 motion-first content, stronger hooks, and visual sequences that
                 feel premium from start to finish.
               </p>
 
-              <div className="mt-auto">
-                <Link
-                  href="/video"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-border bg-transparent px-6 py-3 text-foreground transition hover:bg-secondary/50"
-                >
-                  Enter Video
-                </Link>
-              </div>
+              <Link href="/video" style={secondaryButtonStyle}>
+                Enter Video
+              </Link>
             </section>
 
-            <section className="flex min-h-[320px] flex-col rounded-2xl border border-accent/30 bg-card/60 p-6 text-left backdrop-blur-xl">
-              <div className="mb-6">
-                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-accent">
-                  Best Value
-                </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                  Bundle
-                </h2>
-              </div>
-
-              <p className="mb-6 text-sm leading-7 text-muted-foreground sm:text-base">
+            <section
+              style={{
+                ...cardBaseStyle,
+                border: "1px solid rgba(159,140,255,0.28)",
+              }}
+            >
+              <p style={bundleOverlineStyle}>Best Value</p>
+              <h2 style={cardTitleStyle}>Bundle</h2>
+              <p style={cardTextStyle}>
                 Unlock the complete Prompt CEO system with both engines together
                 for maximum creative flexibility, faster output, and full
                 control across photo and video creation.
               </p>
 
-              <div className="mt-auto">
-                <Link
-                  href="/bundle"
-                  className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 py-3 text-background transition hover:bg-foreground/90"
-                >
-                  Get the Bundle
-                  <span className="transition-transform group-hover:translate-x-0.5">
-                    →
-                  </span>
-                </Link>
-              </div>
+              <Link href="/bundle" style={primaryButtonStyle}>
+                Get the Bundle →
+              </Link>
             </section>
           </div>
 
-          <div className="mt-16 grid w-full max-w-4xl grid-cols-3 gap-8 border-t border-border/30 pt-10 animate-fade-in-up delay-300">
+          <div style={statsStyle}>
             <div>
-              <div className="text-2xl font-bold text-foreground sm:text-3xl">
-                Photo
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Identity-stable prompt creation
-              </div>
+              <div style={statTitleStyle}>Photo</div>
+              <div style={statTextStyle}>Identity-stable prompt creation</div>
             </div>
+
             <div>
-              <div className="text-2xl font-bold text-foreground sm:text-3xl">
-                Video
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Cinematic motion workflows
-              </div>
+              <div style={statTitleStyle}>Video</div>
+              <div style={statTextStyle}>Cinematic motion workflows</div>
             </div>
+
             <div>
-              <div className="text-2xl font-bold text-foreground sm:text-3xl">
-                Bundle
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Full Prompt CEO access
-              </div>
+              <div style={statTitleStyle}>Bundle</div>
+              <div style={statTextStyle}>Full Prompt CEO access</div>
             </div>
           </div>
         </div>
