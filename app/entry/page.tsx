@@ -81,10 +81,13 @@ export default function EntryPage() {
               <div className="mt-auto">
                 <Button
                   size="lg"
-                  className="w-full bg-foreground text-background hover:bg-foreground/90 group"
+                  className="group w-full bg-foreground text-background hover:bg-foreground/90"
                   asChild
                 >
-                  <Link href="/photo" className="flex items-center justify-center gap-2">
+                  <Link
+                    href="/photo"
+                    className="flex items-center justify-center gap-2"
+                  >
                     Enter Photo
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
@@ -139,10 +142,13 @@ export default function EntryPage() {
               <div className="mt-auto">
                 <Button
                   size="lg"
-                  className="w-full bg-foreground text-background hover:bg-foreground/90 group"
+                  className="group w-full bg-foreground text-background hover:bg-foreground/90"
                   asChild
                 >
-                  <Link href="/bundle" className="flex items-center justify-center gap-2">
+                  <Link
+                    href="/bundle"
+                    className="flex items-center justify-center gap-2"
+                  >
                     Get the Bundle
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
