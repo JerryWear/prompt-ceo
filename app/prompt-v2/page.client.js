@@ -61,6 +61,10 @@ import { WORLD_ONLYFANS_CREATOR } from './worlds/onlyfansCreator'
 
 import { WORLD_GYM_INFLUENCER } from './worlds/gymInfluencer'
 
+import { WORLD_LUXURY_YACHT_RIVIERA } from './worlds/luxuryYachtRiviera'
+
+import { WORLD_FITNESS_GLOBAL_ELITE } from './worlds/fitness-global-elite'
+
 import {
   createEmptySubjectState,
   createEmptyInteractionState,
@@ -3481,6 +3485,7 @@ const [feedPrompts, setFeedPrompts] = useState([])
 const [generatedImage, setGeneratedImage] = useState('')
 const [isGeneratingImage, setIsGeneratingImage] = useState(false)
 const [generatedImages, setGeneratedImages] = useState([])
+const [imageLoadErrors, setImageLoadErrors] = useState({})
 const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
 const [storyGenerationStatus, setStoryGenerationStatus] = useState('')
 
@@ -3564,12 +3569,50 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
         extractionMode: String(parsed.extractionMode || 'server'),
         useExtractedTraits: !!parsed.useExtractedTraits,
         extractedTraits: {
-          identity: String(parsed?.extractedTraits?.identity || ''),
-          age: String(parsed?.extractedTraits?.age || ''),
-          ethnicity: String(parsed?.extractedTraits?.ethnicity || ''),
-          body_shape: String(parsed?.extractedTraits?.body_shape || ''),
-          eye_color: String(parsed?.extractedTraits?.eye_color || ''),
-          hair: String(parsed?.extractedTraits?.hair || ''),
+          subjectA: {
+            identity: String(
+              parsed?.extractedTraits?.subjectA?.identity ||
+              parsed?.extractedTraits?.identity ||
+              ''
+            ),
+            age: String(
+              parsed?.extractedTraits?.subjectA?.age ||
+              parsed?.extractedTraits?.age ||
+              ''
+            ),
+            ethnicity: String(
+              parsed?.extractedTraits?.subjectA?.ethnicity ||
+              parsed?.extractedTraits?.ethnicity ||
+              ''
+            ),
+            body_shape: String(
+              parsed?.extractedTraits?.subjectA?.body_shape ||
+              parsed?.extractedTraits?.body_shape ||
+              ''
+            ),
+            eye_color: String(
+              parsed?.extractedTraits?.subjectA?.eye_color ||
+              parsed?.extractedTraits?.eye_color ||
+              ''
+            ),
+            hair: String(
+              parsed?.extractedTraits?.subjectA?.hair ||
+              parsed?.extractedTraits?.hair ||
+              ''
+            ),
+            facial_hair: String(parsed?.extractedTraits?.subjectA?.facial_hair || ''),
+            build: String(parsed?.extractedTraits?.subjectA?.build || ''),
+          },
+          subjectB: {
+            identity: String(parsed?.extractedTraits?.subjectB?.identity || ''),
+            age: String(parsed?.extractedTraits?.subjectB?.age || ''),
+            ethnicity: String(parsed?.extractedTraits?.subjectB?.ethnicity || ''),
+            body_shape: String(parsed?.extractedTraits?.subjectB?.body_shape || ''),
+            eye_color: String(parsed?.extractedTraits?.subjectB?.eye_color || ''),
+            hair: String(parsed?.extractedTraits?.subjectB?.hair || ''),
+            facial_hair: String(parsed?.extractedTraits?.subjectB?.facial_hair || ''),
+            build: String(parsed?.extractedTraits?.subjectB?.build || ''),
+          },
         },
       })
     } catch (err) {
@@ -3819,17 +3862,31 @@ useEffect(() => {
     reader.onload = () => {
       const result = String(reader.result || '')
 
-          updateIdentityState({
+      updateIdentityState({
         imageDataUrl: result,
         sourceFileName: file.name || '',
         extractionStatus: 'idle',
         extractedTraits: {
-          identity: '',
-          age: '',
-          ethnicity: '',
-          body_shape: '',
-          eye_color: '',
-          hair: '',
+          subjectA: {
+            identity: '',
+            age: '',
+            ethnicity: '',
+            body_shape: '',
+            eye_color: '',
+            hair: '',
+            facial_hair: '',
+            build: '',
+          },
+          subjectB: {
+            identity: '',
+            age: '',
+            ethnicity: '',
+            body_shape: '',
+            eye_color: '',
+            hair: '',
+            facial_hair: '',
+            build: '',
+          },
         },
       })
 
@@ -3972,12 +4029,26 @@ const resolveIdentityAnchorGender = ({
     applyIdentityExtractionResult({
       status: 'complete',
       traits: {
-        identity: baseName || 'Consistent brunette creator identity',
-        age: blocks.age || '27 years old',
-        ethnicity: blocks.ethnicity || 'European features',
-        body_shape: blocks.body_shape || 'slim athletic feminine build',
-        eye_color: blocks.eye_color || 'brown eyes',
-        hair: blocks.hair || 'long dark brown wavy hair',
+        subjectA: {
+          identity: baseName || 'Consistent brunette creator identity',
+          age: blocks.age || '27 years old',
+          ethnicity: blocks.ethnicity || 'European features',
+          body_shape: blocks.body_shape || 'slim athletic feminine build',
+          eye_color: blocks.eye_color || 'brown eyes',
+          hair: blocks.hair || 'long dark brown wavy hair',
+          facial_hair: '',
+          build: '',
+        },
+        subjectB: {
+          identity: '',
+          age: '',
+          ethnicity: '',
+          body_shape: '',
+          eye_color: '',
+          hair: '',
+          facial_hair: '',
+          build: '',
+        },
       },
     })
 
@@ -3989,12 +4060,26 @@ const resolveIdentityAnchorGender = ({
     updateIdentityState({
       extractionStatus: 'idle',
       extractedTraits: {
-        identity: '',
-        age: '',
-        ethnicity: '',
-        body_shape: '',
-        eye_color: '',
-        hair: '',
+        subjectA: {
+          identity: '',
+          age: '',
+          ethnicity: '',
+          body_shape: '',
+          eye_color: '',
+          hair: '',
+          facial_hair: '',
+          build: '',
+        },
+        subjectB: {
+          identity: '',
+          age: '',
+          ethnicity: '',
+          body_shape: '',
+          eye_color: '',
+          hair: '',
+          facial_hair: '',
+          build: '',
+        },
       },
     })
 
@@ -4293,29 +4378,29 @@ const saveCurrentAsDna = () => {
     ''
   ).trim()
 
-   const resolvedEthnicity = String(
+  const resolvedEthnicity = String(
     identityState?.useExtractedTraits
-      ? identityState?.extractedTraits?.ethnicity || blocks.ethnicity || ''
-      : blocks.ethnicity || identityState?.extractedTraits?.ethnicity || ''
+      ? identityState?.extractedTraits?.subjectA?.ethnicity || blocks.ethnicity || ''
+      : blocks.ethnicity || identityState?.extractedTraits?.subjectA?.ethnicity || ''
   ).trim()
 
   const resolvedBodyShape = String(
     identityState?.useExtractedTraits
-      ? identityState?.extractedTraits?.body_shape || blocks.body_shape || ''
-      : blocks.body_shape || identityState?.extractedTraits?.body_shape || ''
+      ? identityState?.extractedTraits?.subjectA?.body_shape || blocks.body_shape || ''
+      : blocks.body_shape || identityState?.extractedTraits?.subjectA?.body_shape || ''
   ).trim()
 
   const resolvedEyeColor = String(
     identityState?.useExtractedTraits
-      ? identityState?.extractedTraits?.eye_color || blocks.eye_color || ''
-      : blocks.eye_color || identityState?.extractedTraits?.eye_color || ''
+      ? identityState?.extractedTraits?.subjectA?.eye_color || blocks.eye_color || ''
+      : blocks.eye_color || identityState?.extractedTraits?.subjectA?.eye_color || ''
   ).trim()
 
   const resolvedHair = String(
     identityState?.useExtractedTraits
-      ? identityState?.extractedTraits?.hair || blocks.hair || ''
-      : blocks.hair || identityState?.extractedTraits?.hair || ''
-  ).trim() 
+      ? identityState?.extractedTraits?.subjectA?.hair || blocks.hair || ''
+      : blocks.hair || identityState?.extractedTraits?.subjectA?.hair || ''
+  ).trim()
 
   const profile = {
     id: activeDnaId || `dna_${Date.now()}`,
@@ -4411,12 +4496,50 @@ const loadDnaProfile = (id) => {
     extractionMode: String(found?.identityState?.extractionMode || 'server'),
     useExtractedTraits: !!found?.identityState?.useExtractedTraits,
     extractedTraits: {
-      identity: String(found?.identityState?.extractedTraits?.subjectA?.identity || ''),
-      age: String(found?.identityState?.extractedTraits?.subjectA?.age || ''),
-      ethnicity: String(found?.identityState?.extractedTraits?.subjectA?.ethnicity || ''),
-      body_shape: String(found?.identityState?.extractedTraits?.subjectA?.body_shape || ''),
-      eye_color: String(found?.identityState?.extractedTraits?.subjectA?.eye_color || ''),
-      hair: String(found?.identityState?.extractedTraits?.subjectA?.hair || ''),
+      subjectA: {
+        identity: String(
+          found?.identityState?.extractedTraits?.subjectA?.identity ||
+          found?.identityState?.extractedTraits?.identity ||
+          ''
+        ),
+        age: String(
+          found?.identityState?.extractedTraits?.subjectA?.age ||
+          found?.identityState?.extractedTraits?.age ||
+          ''
+        ),
+        ethnicity: String(
+          found?.identityState?.extractedTraits?.subjectA?.ethnicity ||
+          found?.identityState?.extractedTraits?.ethnicity ||
+          ''
+        ),
+        body_shape: String(
+          found?.identityState?.extractedTraits?.subjectA?.body_shape ||
+          found?.identityState?.extractedTraits?.body_shape ||
+          ''
+        ),
+        eye_color: String(
+          found?.identityState?.extractedTraits?.subjectA?.eye_color ||
+          found?.identityState?.extractedTraits?.eye_color ||
+          ''
+        ),
+        hair: String(
+          found?.identityState?.extractedTraits?.subjectA?.hair ||
+          found?.identityState?.extractedTraits?.hair ||
+          ''
+        ),
+        facial_hair: String(found?.identityState?.extractedTraits?.subjectA?.facial_hair || ''),
+        build: String(found?.identityState?.extractedTraits?.subjectA?.build || ''),
+      },
+      subjectB: {
+        identity: String(found?.identityState?.extractedTraits?.subjectB?.identity || ''),
+        age: String(found?.identityState?.extractedTraits?.subjectB?.age || ''),
+        ethnicity: String(found?.identityState?.extractedTraits?.subjectB?.ethnicity || ''),
+        body_shape: String(found?.identityState?.extractedTraits?.subjectB?.body_shape || ''),
+        eye_color: String(found?.identityState?.extractedTraits?.subjectB?.eye_color || ''),
+        hair: String(found?.identityState?.extractedTraits?.subjectB?.hair || ''),
+        facial_hair: String(found?.identityState?.extractedTraits?.subjectB?.facial_hair || ''),
+        build: String(found?.identityState?.extractedTraits?.subjectB?.build || ''),
+      },
     },
     lastUpdated: Date.now(),
   }))
@@ -6764,28 +6887,405 @@ console.log('TRACE resolvedPromptModel.environment:', resolvedPromptModel.enviro
 console.log('TRACE finalSingleAction:', finalSingleAction)
 console.log('TRACE finalSingleEnvironment:', finalSingleEnvironment)  
 
+const repairYachtEnvironment = (value) =>
+  String(value || '')
+    .replace(/\bpolished wood,\s*linen\b/gi, 'polished wood and linen')
+    .replace(/\bwood,\s*linen\b/gi, 'wood and linen')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+const sanitizeLegacyCameraForYachtWorld = (camera, action, environment) => {
+  const cam = String(camera || '').trim()
+  const ctx = `${String(action || '')} ${String(environment || '')}`.toLowerCase()
+
+  const isYachtScene =
+    /yacht|superyacht|deck|stern|foredeck|sun deck|sundeck|swim platform|harbor|harbour|marina|port hercules|monaco|capri|amalfi|riviera|water|sea/.test(
+      ctx
+    )
+
+  if (!isYachtScene) return cam
+
+  if (
+    /soft bedroom profile shot|bedside|pillow height|bed-edge|bed edge|bedroom-wide lifestyle composition/i.test(
+      cam
+    )
+  ) {
+    return ''
+  }
+
+  return cam
+}
+
+const normalizeSceneTime = (time, action, environment) => {
+  const rawTime = String(time || '').trim()
+  const ctx =
+    `${String(action || '')} ${String(environment || '')} ${rawTime}`.toLowerCase()
+
+if (
+  /night bathroom|bedside|after midnight|night glow|late night|after dark|night|candlelit evening|after a long yacht-and-shore day/.test(
+    ctx
+  )
+) {
+  return 'night'
+}
+
+  if (/golden hour|sunset|last sun/.test(ctx)) {
+    return 'sunset'
+  }
+
+  if (
+    /wake|waking|first light|dawn|morning|breakfast|espresso|post-sleep|refresh|getting dressed|wardrobe|stateroom|owner suite|cabin/.test(
+      ctx
+    )
+  ) {
+    return 'morning'
+  }
+
+  return rawTime
+}
+
+const sanitizeYachtAction = (action, environment, time) => {
+  const raw = String(action || '').trim()
+  const ctx =
+    `${String(environment || '')} ${String(time || '')} ${raw}`.toLowerCase()
+
+  const isYachtScene =
+    /yacht|superyacht|deck|stern|foredeck|sun deck|sundeck|swim platform|harbor|harbour|marina|port hercules|monaco|capri|amalfi|riviera|water|sea|cabin|stateroom|owner suite|wardrobe|bathroom|ensuite/.test(
+      ctx
+    )
+
+  if (!isYachtScene) return raw
+
+  if (
+    /walking barefoot across the room toward the light|resting her hands on the railing while looking out over the view|resting back as steam rises around her|lifting a glass slowly before taking a controlled sip/i.test(
+      raw
+    )
+  ) {
+    return ''
+  }
+
+  return raw
+}
+
+const sanitizeYachtMood = (mood, action, environment, time) => {
+  const raw = stripWeakMoodFragments(String(mood || '').trim())
+  const ctx =
+    `${String(action || '')} ${String(environment || '')} ${String(time || '')} ${raw}`.toLowerCase()
+
+  const isMorningScene =
+    /wake|waking|first light|dawn|morning|breakfast|espresso|post-sleep|refresh|getting dressed|wardrobe|stateroom|owner suite|cabin|bathroom/.test(
+      ctx
+    )
+
+  if (isMorningScene && /late-night|midnight|after-dark|night mystery|late-night mystery/i.test(raw)) {
+    return 'quietly magnetic'
+  }
+
+  return raw
+}
+
+const sanitizeYachtEnvironment = (environment, camera) => {
+  const env = repairYachtEnvironment(String(environment || '').trim())
+  const cam = String(camera || '').trim()
+  const merged = `${env} ${cam}`.toLowerCase()
+
+  if (
+    /mirror-framed dressing shot|mirror-side close-up|mid-length wardrobe styling angle|quiet over-shoulder cabin angle|wide breakfast-deck shot/i.test(
+      env
+    )
+  ) {
+    return ''
+  }
+
+  if (/^private interior setting$/i.test(env)) {
+    return ''
+  }
+
+  if (
+    /private interior setting/.test(merged) &&
+    /yacht|superyacht|deck|marina|harbor|cabin|stateroom|wardrobe|bathroom|ensuite/.test(
+      merged
+    )
+  ) {
+    return ''
+  }
+
+  return env
+}
+
+const injectYachtFallbackAction = (action, environment, time) => {
+  const cleanAction = String(action || '').trim()
+  if (cleanAction) return cleanAction
+
+  const ctx =
+    `${String(environment || '')} ${String(time || '')}`.toLowerCase()
+
+  if (/bathroom|ensuite|shower|spa/.test(ctx)) {
+    return 'moving through a quiet onboard self-care routine'
+  }
+
+  if (/wardrobe|dressing|suite/.test(ctx)) {
+    return 'getting ready aboard the same yacht before heading out'
+  }
+
+  if (/breakfast|deck|stern|table|espresso/.test(ctx)) {
+    return 'starting the day slowly on board'
+  }
+
+  if (/cabin|stateroom|owner suite|first light|dawn|wake/.test(ctx)) {
+    return 'waking slowly aboard the same yacht'
+  }
+
+  return ''
+}
+
+const hardCleanLuxuryYachtPrompt = (prompt) => {
+  let out = String(prompt || '').trim()
+
+  out = out
+    .replace(
+      /\bwalking barefoot across the room toward the light\b,?\s*/gi,
+      ''
+    )
+    .replace(
+      /\bresting back as steam rises around her\b,?\s*/gi,
+      ''
+    )
+    .replace(
+      /\bresting her hands on the railing while looking out over the view\b,?\s*/gi,
+      ''
+    )
+    .replace(
+      /\blifting a glass slowly before taking a controlled sip\b,?\s*/gi,
+      ''
+    )
+    .replace(/\bsoft bedroom profile shot\b,?\s*/gi, '')
+    .replace(/\bprivate interior setting\b,?\s*/gi, '')
+    .replace(/\bquietly magnetic\b,?\s*quietly magnetic\b/gi, 'quietly magnetic')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/^,\s*/g, '')
+    .replace(/,\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  const lower = out.toLowerCase()
+
+  if (
+    /bathroom|ensuite|shower|grooming/.test(lower) &&
+    !/self-care|skincare|shower|refresh/.test(lower) &&
+    !/waking slowly aboard the same yacht/.test(lower)
+  ) {
+    out = out
+      ? `moving through a quiet onboard self-care routine, ${out}`
+      : 'moving through a quiet onboard self-care routine'
+  }
+
+  if (
+    /wardrobe|dressing|resortwear|styling suite/.test(lower) &&
+    !/getting ready|preparation|stepping into the day/.test(lower) &&
+    !/moving through a quiet onboard self-care routine/.test(lower) &&
+    !/waking slowly aboard the same yacht/.test(lower)
+  ) {
+    out = out
+      ? `getting ready aboard the same yacht before heading out, ${out}`
+      : 'getting ready aboard the same yacht before heading out'
+  }
+
+  if (
+    /breakfast deck|stern table|espresso|breakfast/.test(lower) &&
+    !/starting the day slowly on board|breakfast on board/.test(lower) &&
+    !/waking slowly aboard the same yacht/.test(lower) &&
+    !/getting ready aboard the same yacht before heading out/.test(lower) &&
+    !/moving through a quiet onboard self-care routine/.test(lower)
+  ) {
+    out = out
+      ? `starting the day slowly on board, ${out}`
+      : 'starting the day slowly on board'
+  }
+
+if (
+  /yacht|superyacht|cabin|stateroom|owner suite/.test(lower) &&
+  /morning|early morning|sunrise|first light/.test(lower) &&
+  !/night|late night|after dark|after midnight|bedside|night bathroom|night glow/.test(lower) &&
+  !/waking|opening the day|first-light|first light|wake-up|wake up/.test(lower) &&
+  !/getting ready aboard the same yacht before heading out/.test(lower) &&
+  !/moving through a quiet onboard self-care routine/.test(lower) &&
+  !/starting the day slowly on board/.test(lower)
+) {
+  out = out
+    ? `waking slowly aboard the same yacht, ${out}`
+    : 'waking slowly aboard the same yacht'
+}
+
+  out = out
+  .replace(
+    /\bquietly magnetic,\s*quietly magnetic\b/gi,
+    'quietly magnetic'
+  )
+  .replace(
+    /\bwaking slowly aboard the same yacht,\s*waking slowly aboard the same yacht\b/gi,
+    'waking slowly aboard the same yacht'
+  )
+  .replace(
+    /\bmoving through a quiet onboard self-care routine,\s*moving through a quiet onboard self-care routine\b/gi,
+    'moving through a quiet onboard self-care routine'
+  )
+  .replace(
+    /\bgetting ready aboard the same yacht before heading out,\s*getting ready aboard the same yacht before heading out\b/gi,
+    'getting ready aboard the same yacht before heading out'
+  )
+  .replace(
+    /\bstarting the day slowly on board,\s*starting the day slowly on board\b/gi,
+    'starting the day slowly on board'
+  )
+
+    let lowerFinal = out.toLowerCase()
+
+  if (!/night|late night|after dark/.test(lowerFinal)) {
+    out = out.replace(/\blate-night mystery\b,?\s*/gi, '')
+  }
+
+  lowerFinal = out.toLowerCase()
+
+  if (
+    /getting ready aboard the same yacht before heading out/.test(lowerFinal)
+  ) {
+    out = out.replace(
+      /\bwaking slowly aboard the same yacht,?\s*/gi,
+      ''
+    )
+  }
+
+  lowerFinal = out.toLowerCase()
+
+  if (
+    /starting the day slowly on board/.test(lowerFinal) &&
+    /waking slowly aboard the same yacht/.test(lowerFinal)
+  ) {
+    out = out.replace(
+      /\bwaking slowly aboard the same yacht,?\s*/gi,
+      ''
+    )
+  }
+
+  lowerFinal = out.toLowerCase()
+
+  if (
+    /mirror-framed dressing shot inside the yacht suite|mid-length wardrobe styling angle/.test(
+      lowerFinal
+    ) &&
+    !/wardrobe|dressing|resortwear|styling|suite/.test(lowerFinal)
+  ) {
+    out = out.replace(
+      /\bmirror-framed dressing shot inside the yacht suite\b,?\s*/gi,
+      ''
+    )
+    out = out.replace(
+      /\bmid-length wardrobe styling angle\b,?\s*/gi,
+      ''
+    )
+  }
+
+  lowerFinal = out.toLowerCase()
+
+  if (
+    /quiet over-shoulder cabin angle toward harbor or open water/.test(lowerFinal) &&
+    !/cabin|stateroom|owner suite|yacht bedroom/.test(lowerFinal)
+  ) {
+    out = out.replace(
+      /\bquiet over-shoulder cabin angle toward harbor or open water\b,?\s*/gi,
+      ''
+    )
+  }
+
+  lowerFinal = out.toLowerCase()
+
+  if (
+    /^.*quietly magnetic,\s*starting the day slowly on board,\s*morning$/i.test(out) ||
+    /^.*quietly magnetic,\s*morning$/i.test(out)
+  ) {
+    out = out.replace(
+      /\bquietly magnetic,?\s*/gi,
+      ''
+    )
+
+    out = `starting the day slowly on board, aft breakfast deck above calm Mediterranean water, morning`
+  }
+
+  lowerFinal = out.toLowerCase()
+
+    lowerFinal = out.toLowerCase()
+
+  if (
+    /night|late night|after dark|after midnight|bedside|night bathroom|night glow/.test(lowerFinal)
+  ) {
+    out = out.replace(
+      /\bwaking slowly aboard the same yacht,?\s*/gi,
+      ''
+    )
+  }
+
+  lowerFinal = out.toLowerCase()
+
+    if (/same exact man as the uploaded reference image/i.test(out)) {
+    out = out.replace(/\bher reflection\b/gi, 'his reflection')
+    out = out.replace(/\bher hair\b/gi, 'his hair')
+  }
+
+  return out
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/^,\s*/g, '')
+    .replace(/,\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 let finalDeterministicPrompt =
   isCoupleMode
     ? cleanCoupleFinalPrompt
-    : [
-        String(cleanedIdentityLead || '').trim(),
-        String(finalSingleAction || '').trim(),
-        String(finalSingleEnvironment || '').trim(),
-        stripWeakMoodFragments(String(resolvedPromptModel.mood || '').trim()),
-        String(resolvedPromptModel.camera || '').trim(),
-        String(resolvedPromptModel.lighting || '').trim(),
-        String(resolvedPromptModel.time || '').trim(),
-      ]
-        .filter(Boolean)
-        .join(', ')
-        .replace(/,\s*,+/g, ', ')
-        .replace(/\s+,/g, ',')
-        .replace(/\s{2,}/g, ' ')
-        .trim()
+    : buildDeterministicFeedPrompt({
+        identity: String(cleanedIdentityLead || '').trim(),
+action: injectYachtFallbackAction(
+  sanitizeYachtAction(
+    String(finalSingleAction || '').trim(),
+    String(finalSingleEnvironment || '').trim(),
+    String(resolvedPromptModel.time || '').trim()
+  ),
+  String(finalSingleEnvironment || '').trim(),
+  String(resolvedPromptModel.time || '').trim()
+),
+        environment: sanitizeYachtEnvironment(
+          String(finalSingleEnvironment || '').trim(),
+          String(resolvedPromptModel.camera || '').trim()
+        ),
+        mood: sanitizeYachtMood(
+          String(resolvedPromptModel.mood || '').trim(),
+          String(finalSingleAction || '').trim(),
+          String(finalSingleEnvironment || '').trim(),
+          String(resolvedPromptModel.time || '').trim()
+        ),
+        camera: sanitizeLegacyCameraForYachtWorld(
+          String(resolvedPromptModel.camera || '').trim(),
+          String(finalSingleAction || '').trim(),
+          String(finalSingleEnvironment || '').trim()
+        ),
+        lighting: String(resolvedPromptModel.lighting || '').trim(),
+        time: normalizeSceneTime(
+          String(resolvedPromptModel.time || '').trim(),
+          String(finalSingleAction || '').trim(),
+          String(finalSingleEnvironment || '').trim()
+        ),
+      })
 
 console.log('TRACE preFinalize finalDeterministicPrompt:', finalDeterministicPrompt)        
 
-finalDeterministicPrompt = String(finalDeterministicPrompt || '')
+finalDeterministicPrompt = isCoupleMode
+  ? String(finalDeterministicPrompt || '')
+  : hardCleanLuxuryYachtPrompt(String(finalDeterministicPrompt || ''))
   .replace(
     /\bsame exact man as the uploaded reference image,\s*same exact man as the uploaded reference image\b/gi,
     'same exact man as the uploaded reference image'
@@ -7133,11 +7633,41 @@ const generateStoryImages = async () => {
   setStopStoryGeneration(false)
   stopStoryGenerationRef.current = false
 
-  if (storyIndex === 0) setGeneratedImages([])
+  if (storyIndex === 0) {
+    setGeneratedImages([])
+    setImageLoadErrors({})
+  }
   setStoryGenerationStatus('')
 
   try {
     const results = []
+
+        const requestStoryImage = async (prompt, signal) => {
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          identity: {
+            image: identityState.imageDataUrl,
+            strength: 1.0,
+            priority: 'max',
+          },
+          extractedTraits: identityState.extractedTraits,
+        }),
+        signal,
+      })
+
+      let json = null
+
+      try {
+        json = await response.json()
+      } catch (err) {
+        json = null
+      }
+
+      return { response, json }
+    }
 
     for (let i = storyIndex; i < feedPrompts.length; i++) {
       if (stopStoryGenerationRef.current) {
@@ -7145,7 +7675,14 @@ const generateStoryImages = async () => {
         break
       }
 
-      const prompt = feedPrompts[i]
+      const rawPrompt = feedPrompts[i]
+      const prompt = sanitizePrompt(rawPrompt)
+        console.log(`STORY TRACE → starting scene ${i + 1}`, {
+        index: i,
+        hasPrompt: !!prompt,
+        promptPreview: String(prompt || '').slice(0, 180),
+        hasIdentityImage: !!identityState.imageDataUrl,
+      })
 
       setStoryGenerationStatus(
         `Generating scene ${i + 1} of ${feedPrompts.length}`
@@ -7158,26 +7695,10 @@ const generateStoryImages = async () => {
       let data = null
 
       try {
-        res = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            identity: {
-              image: identityState.imageDataUrl,
-              strength: 1.0,
-              priority: 'max',
-            },
-            extractedTraits: identityState.extractedTraits,
-          }),
-          signal: controller.signal,
-        })
-
-        try {
-          data = await res.json()
-        } catch (err) {
-          data = null
-        }
+        const requestResult = await requestStoryImage(prompt, controller.signal)
+        res = requestResult.response
+        data = requestResult.json
+      
       } catch (err) {
         if (err?.name === 'AbortError') {
           setStoryGenerationStatus('Story generation stopped')
@@ -7185,11 +7706,33 @@ const generateStoryImages = async () => {
         }
 
         console.log(`Scene ${i + 1} request failed:`, err)
+
         setStoryGenerationStatus(
-          `Scene ${i + 1} failed, waiting and continuing...`
+          `Scene ${i + 1} failed, retrying once...`
         )
-        await new Promise((r) => setTimeout(r, 12000))
-        continue
+
+        await new Promise((r) => setTimeout(r, 4000))
+
+        const retryController = new AbortController()
+        storyAbortControllerRef.current = retryController
+
+        try {
+          const retryResult = await requestStoryImage(prompt, retryController.signal)
+          res = retryResult.response
+          data = retryResult.json
+        } catch (retryErr) {
+          if (retryErr?.name === 'AbortError') {
+            setStoryGenerationStatus('Story generation stopped')
+            break
+          }
+
+          console.log(`Scene ${i + 1} retry request failed:`, retryErr)
+          setStoryGenerationStatus(
+            `Scene ${i + 1} failed twice, waiting and continuing...`
+          )
+          await new Promise((r) => setTimeout(r, 12000))
+          continue
+        }
       } finally {
         storyAbortControllerRef.current = null
       }
@@ -7198,23 +7741,103 @@ const generateStoryImages = async () => {
         console.log(`Scene ${i + 1} failed:`, data)
 
         setStoryGenerationStatus(
-          `Scene ${i + 1} failed, waiting and continuing...`
+          `Scene ${i + 1} failed, retrying once...`
         )
 
-        await new Promise((r) => setTimeout(r, 12000))
-        continue
+        await new Promise((r) => setTimeout(r, 4000))
+
+        const retryController = new AbortController()
+        storyAbortControllerRef.current = retryController
+
+        try {
+          const retryResult = await requestStoryImage(prompt, retryController.signal)
+          res = retryResult.response
+          data = retryResult.json
+        } catch (retryErr) {
+          if (retryErr?.name === 'AbortError') {
+            setStoryGenerationStatus('Story generation stopped')
+            break
+          }
+
+          console.log(`Scene ${i + 1} retry request failed after non-ok response:`, retryErr)
+          setStoryGenerationStatus(
+            `Scene ${i + 1} failed twice, waiting and continuing...`
+          )
+          await new Promise((r) => setTimeout(r, 12000))
+          continue
+        }
+
+        if (!res?.ok) {
+          console.log(`Scene ${i + 1} failed again after retry:`, data)
+          setStoryGenerationStatus(
+            `Scene ${i + 1} failed twice, waiting and continuing...`
+          )
+          await new Promise((r) => setTimeout(r, 12000))
+          continue
+        }
       }
 
       const image = data?.imageUrl || ''
+
+        console.log(`STORY TRACE → response for scene ${i + 1}`, {
+        ok: !!res?.ok,
+        hasImageUrl: !!image,
+        imageUrlPreview: String(image || '').slice(0, 220),
+        rawData: data,
+      })
 
       if (!image) {
         console.log(`Scene ${i + 1} returned no image:`, data)
 
         setStoryGenerationStatus(
-          `Scene ${i + 1} returned no image, waiting and continuing...`
+          `Scene ${i + 1} returned no image, retrying once...`
         )
 
-        await new Promise((r) => setTimeout(r, 12000))
+        await new Promise((r) => setTimeout(r, 4000))
+
+        const retryController = new AbortController()
+        storyAbortControllerRef.current = retryController
+
+        try {
+          const retryResult = await requestStoryImage(prompt, retryController.signal)
+          res = retryResult.response
+          data = retryResult.json
+        } catch (retryErr) {
+          if (retryErr?.name === 'AbortError') {
+            setStoryGenerationStatus('Story generation stopped')
+            break
+          }
+
+          console.log(`Scene ${i + 1} retry request failed after missing image:`, retryErr)
+          setStoryGenerationStatus(
+            `Scene ${i + 1} failed twice, waiting and continuing...`
+          )
+          await new Promise((r) => setTimeout(r, 12000))
+          continue
+        }
+
+        const retryImage = data?.imageUrl || ''
+
+        console.log(`STORY TRACE → retry response for scene ${i + 1}`, {
+          ok: !!res?.ok,
+          hasImageUrl: !!retryImage,
+          imageUrlPreview: String(retryImage || '').slice(0, 220),
+          rawData: data,
+        })
+
+        if (!res?.ok || !retryImage) {
+          setStoryGenerationStatus(
+            `Scene ${i + 1} failed twice, waiting and continuing...`
+          )
+          await new Promise((r) => setTimeout(r, 12000))
+          continue
+        }
+
+        results.push(retryImage)
+        setGeneratedImages((prev) => [...prev, retryImage])
+        setStoryIndex(i + 1)
+
+        await new Promise((r) => setTimeout(r, 7000))
         continue
       }
 
@@ -7244,6 +7867,17 @@ const generateStoryImages = async () => {
     stopStoryGenerationRef.current = false
     setIsGeneratingBatch(false)
   }
+}
+
+const sanitizePrompt = (prompt) => {
+  if (!prompt) return prompt
+
+  return prompt
+    .replace(/seduction/gi, 'presence')
+    .replace(/seductive/gi, 'confident')
+    .replace(/control/gi, 'composure')
+    .replace(/sensual/gi, 'calm')
+    .replace(/intimate/gi, 'natural')
 }
 
   const clearField = (key) => {
@@ -8362,6 +8996,136 @@ if (chapter.worldId === 'lake-como-life') {
                 </div>
               </div>
 
+              <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>CHARACTER MODE</div>
+
+<div style={styles.row}>
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'female'
+
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'female',
+          role: 'primary',
+          enabled: true,
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: false,
+          gender: prev.subjectB?.gender || 'male',
+          role: 'partner',
+        },
+      }))
+
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: false,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → female')
+    }}
+    style={
+      subjectState?.characterMode === 'female'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Female
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'male'
+
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'male',
+          role: 'primary',
+          enabled: true,
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: false,
+          gender: prev.subjectB?.gender || 'male',
+          role: 'partner',
+        },
+      }))
+
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: false,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → male')
+    }}
+    style={
+      subjectState?.characterMode === 'male'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Male
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      const mode = 'couple'
+
+      setSubjectState((prev) => ({
+        ...prev,
+        characterMode: mode,
+        subjectA: {
+          ...prev.subjectA,
+          gender: 'female',
+          role: 'primary',
+          enabled: true,
+        },
+        subjectB: {
+          ...prev.subjectB,
+          enabled: true,
+          gender: 'male',
+          role: 'partner',
+        },
+      }))
+
+      setInteractionState((prev) => ({
+        ...prev,
+        enabled: true,
+        lastUpdated: Date.now(),
+      }))
+
+      setClicks((c) => c + 1)
+      setLast('Character Mode → couple')
+    }}
+    style={
+      subjectState?.characterMode === 'couple'
+        ? styles.btnPrimary
+        : styles.btnGhost
+    }
+  >
+    Couple
+  </button>
+</div>
+
+  <div style={styles.note}>
+    Switch between female, male, and couple generation modes.
+  </div>
+</div>
+
               <div style={styles.identityStatusBox}>
                 <div style={styles.identityStatusTitle}>Identity Status</div>
                 <div style={styles.identityStatusText}>{identityStatusLabel}</div>
@@ -8609,304 +9373,6 @@ if (chapter.worldId === 'lake-como-life') {
     Copy Final Prompt
   </button>
 </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.controlSectionStory}>
-            <div style={styles.controlSectionHeader}>
-              <div>
-                <div style={styles.controlSectionEyebrowStory}>STORY LAYER</div>
-                <div style={styles.controlSectionTitle}>Narrative Direction</div>
-                <div style={styles.controlSectionSub}>
-                  Choose the story world, chapter direction, signature pack, age logic, and recurring character identity.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ ...styles.ownerRowGrid, ...styles.ownerRowMid }}>
-
-<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
-  <div style={styles.ctrlLabel}>CHARACTER MODE</div>
-
-<div style={styles.row}>
-  <button
-    type="button"
-    onClick={() => {
-      const mode = 'female'
-
-      setSubjectState((prev) => ({
-        ...prev,
-        characterMode: mode,
-        subjectA: {
-          ...prev.subjectA,
-          gender: 'female',
-          role: 'primary',
-          enabled: true,
-        },
-        subjectB: {
-          ...prev.subjectB,
-          enabled: false,
-          gender: prev.subjectB?.gender || 'male',
-          role: 'partner',
-        },
-      }))
-
-      setInteractionState((prev) => ({
-        ...prev,
-        enabled: false,
-        lastUpdated: Date.now(),
-      }))
-
-      setClicks((c) => c + 1)
-      setLast('Character Mode → female')
-    }}
-    style={
-      subjectState?.characterMode === 'female'
-        ? styles.btnPrimary
-        : styles.btnGhost
-    }
-  >
-    Female
-  </button>
-
-  <button
-    type="button"
-    onClick={() => {
-      const mode = 'male'
-
-      setSubjectState((prev) => ({
-        ...prev,
-        characterMode: mode,
-        subjectA: {
-          ...prev.subjectA,
-          gender: 'male',
-          role: 'primary',
-          enabled: true,
-        },
-        subjectB: {
-          ...prev.subjectB,
-          enabled: false,
-          gender: prev.subjectB?.gender || 'male',
-          role: 'partner',
-        },
-      }))
-
-      setInteractionState((prev) => ({
-        ...prev,
-        enabled: false,
-        lastUpdated: Date.now(),
-      }))
-
-      setClicks((c) => c + 1)
-      setLast('Character Mode → male')
-    }}
-    style={
-      subjectState?.characterMode === 'male'
-        ? styles.btnPrimary
-        : styles.btnGhost
-    }
-  >
-    Male
-  </button>
-
-  <button
-    type="button"
-    onClick={() => {
-      const mode = 'couple'
-
-      setSubjectState((prev) => ({
-        ...prev,
-        characterMode: mode,
-        subjectA: {
-          ...prev.subjectA,
-          gender: 'female',
-          role: 'primary',
-          enabled: true,
-        },
-        subjectB: {
-          ...prev.subjectB,
-          enabled: true,
-          gender: 'male',
-          role: 'partner',
-        },
-      }))
-
-      setInteractionState((prev) => ({
-        ...prev,
-        enabled: true,
-        lastUpdated: Date.now(),
-      }))
-
-      setClicks((c) => c + 1)
-      setLast('Character Mode → couple')
-    }}
-    style={
-      subjectState?.characterMode === 'couple'
-        ? styles.btnPrimary
-        : styles.btnGhost
-    }
-  >
-    Couple
-  </button>
-</div>
-
-  <div style={styles.note}>
-    Switch between female, male, and couple generation modes.
-  </div>
-</div>
-
-<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
-  <div style={styles.ctrlLabel}>STORY WORLD</div>
-
-  <select
-    value={activeStoryWorld}
-    onChange={(e) => setActiveStoryWorld(e.target.value)}
-    style={styles.ctrlSelect}
-  >
-    <option value="">Select Story World</option>
-    {STORY_WORLDS.map((world) => (
-      <option key={world.id} value={world.id}>
-        {world.name}
-      </option>
-    ))}
-  </select>
-
-  <div style={styles.row}>
-    <button
-      type="button"
-      onClick={() => applyStoryWorld(activeStoryWorld)}
-      style={styles.btnPrimary}
-      disabled={!activeStoryWorld}
-    >
-      Apply World
-    </button>
-
-    <button
-      type="button"
-      onClick={() => {
-        setActiveStoryWorld('')
-        setActiveChapter('')
-      }}
-      style={styles.btnGhost}
-      disabled={!activeStoryWorld}
-    >
-      Clear
-    </button>
-  </div>
-</div>
-
-<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
-  <div style={styles.ctrlLabel}>CHAPTER</div>
-
-  <select
-    value={activeChapter}
-    onChange={(e) => setActiveChapter(e.target.value)}
-    style={styles.select}
-    disabled={!activeStoryWorld}
-  >
-                  <option value="">Select Chapter</option>
-
-                  {chapterOptions.map((chapter) => (
-                    <option key={chapter.id} value={chapter.id}>
-                      {chapter.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div style={styles.row}>
-                  <button
-                    type="button"
-                    onClick={() => applyChapter(activeChapter)}
-                    style={styles.btnPrimary}
-                    disabled={!activeChapter}
-                  >
-                    Apply Chapter
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveChapter('')}
-                    style={styles.btnGhost}
-                    disabled={!activeChapter}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
-  <div style={styles.ctrlLabel}>SIGNATURE PACK</div>
-
-  <select
-    value={activeSignaturePack}
-    onChange={(e) => setActiveSignaturePack(e.target.value)}
-    style={styles.ctrlSelect}
-  >
-                  <option value="">Select Signature Pack</option>
-                  {SIGNATURE_PACKS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div style={styles.row}>
-                  <button
-                    type="button"
-                    onClick={() => applySignaturePack(activeSignaturePack)}
-                    style={styles.btnPrimary}
-                    disabled={!activeSignaturePack}
-                  >
-                    Apply Pack
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveSignaturePack('')}
-                    style={styles.btnGhost}
-                    disabled={!activeSignaturePack}
-                  >
-                    Clear
-                  </button>
-                </div>
-
-                {activeSignaturePack && (
-                  <div style={{ marginTop: 10 }}>
-                    <select
-                      value={activeScene}
-                      onChange={(e) => applyScene(e.target.value)}
-                      style={styles.ctrlSelect}
-                    >
-                      <option value="">Select Scene</option>
-                      {SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack)?.scenes?.map((s) => (
-                        <option key={s.name} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
-  <div style={styles.ctrlLabel}>AGE RANGE</div>
-
-  <select
-    value={selectedAgeRange}
-    onChange={(e) => applyAgeRange(e.target.value)}
-    style={styles.ctrlSelect}
-  >
-                  {AGE_RANGE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-
-                <div style={styles.note}>
-                  Auto by pack uses the most believable age range for the selected creator world.
-                </div>
               </div>
             </div>
           </div>
@@ -9383,6 +9849,174 @@ if (chapter.worldId === 'lake-como-life') {
 ) : null}
           </div>
 
+                    <div style={styles.controlSectionStory}>
+            <div style={styles.controlSectionHeader}>
+              <div>
+                <div style={styles.controlSectionEyebrowStory}>STORY LAYER</div>
+                <div style={styles.controlSectionTitle}>Narrative Direction</div>
+                <div style={styles.controlSectionSub}>
+                  Choose the story world, chapter direction, signature pack, age logic, and recurring character identity.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ ...styles.ownerRowGrid, ...styles.ownerRowMid }}>
+
+<div style={{ ...styles.ctrlBox }}>
+  <div style={styles.ctrlLabel}>STORY WORLD</div>
+
+  <select
+    value={activeStoryWorld}
+    onChange={(e) => setActiveStoryWorld(e.target.value)}
+    style={styles.ctrlSelect}
+  >
+    <option value="">Select Story World</option>
+    {STORY_WORLDS.map((world) => (
+      <option key={world.id} value={world.id}>
+        {world.name}
+      </option>
+    ))}
+  </select>
+
+  <div style={styles.row}>
+    <button
+      type="button"
+      onClick={() => applyStoryWorld(activeStoryWorld)}
+      style={styles.btnPrimary}
+      disabled={!activeStoryWorld}
+    >
+      Apply World
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setActiveStoryWorld('')
+        setActiveChapter('')
+      }}
+      style={styles.btnGhost}
+      disabled={!activeStoryWorld}
+    >
+      Clear
+    </button>
+  </div>
+</div>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>CHAPTER</div>
+
+  <select
+    value={activeChapter}
+    onChange={(e) => setActiveChapter(e.target.value)}
+    style={styles.select}
+    disabled={!activeStoryWorld}
+  >
+                  <option value="">Select Chapter</option>
+
+                  {chapterOptions.map((chapter) => (
+                    <option key={chapter.id} value={chapter.id}>
+                      {chapter.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={styles.row}>
+                  <button
+                    type="button"
+                    onClick={() => applyChapter(activeChapter)}
+                    style={styles.btnPrimary}
+                    disabled={!activeChapter}
+                  >
+                    Apply Chapter
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveChapter('')}
+                    style={styles.btnGhost}
+                    disabled={!activeChapter}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>SIGNATURE PACK</div>
+
+  <select
+    value={activeSignaturePack}
+    onChange={(e) => setActiveSignaturePack(e.target.value)}
+    style={styles.ctrlSelect}
+  >
+                  <option value="">Select Signature Pack</option>
+                  {SIGNATURE_PACKS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={styles.row}>
+                  <button
+                    type="button"
+                    onClick={() => applySignaturePack(activeSignaturePack)}
+                    style={styles.btnPrimary}
+                    disabled={!activeSignaturePack}
+                  >
+                    Apply Pack
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSignaturePack('')}
+                    style={styles.btnGhost}
+                    disabled={!activeSignaturePack}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {activeSignaturePack && (
+                  <div style={{ marginTop: 10 }}>
+                    <select
+                      value={activeScene}
+                      onChange={(e) => applyScene(e.target.value)}
+                      style={styles.ctrlSelect}
+                    >
+                      <option value="">Select Scene</option>
+                      {SIGNATURE_PACKS.find((p) => p.id === activeSignaturePack)?.scenes?.map((s) => (
+                        <option key={s.name} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>AGE RANGE</div>
+
+  <select
+    value={selectedAgeRange}
+    onChange={(e) => applyAgeRange(e.target.value)}
+    style={styles.ctrlSelect}
+  >
+                  {AGE_RANGE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={styles.note}>
+                  Auto by pack uses the most believable age range for the selected creator world.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style={styles.controlSectionWorld}>
             <div style={styles.controlSectionHeader}>
               <div>
@@ -9612,15 +10246,25 @@ if (chapter.worldId === 'lake-como-life') {
 </div>
 
   <div style={{ marginTop: 10 }}>
+
+<div style={{ ...styles.row, width: '100%', gap: 12 }}>
   <button
     type="button"
     onClick={generateInfluencerFeed}
-    style={{ ...styles.btnPrimary, width: '100%' }}
+    style={{ ...styles.btnPrimary, flex: 1 }}
   >
-    {worldControlMode === 'auto'
-  ? 'Generate 30 Cinematic Prompts'
-  : 'Generate 30 Story Prompts'}
+    Generate 30 Story Prompts
   </button>
+
+  <button
+    type="button"
+    onClick={generateStoryImages}
+    disabled={!feedPrompts.length || isGeneratingBatch}
+    style={{ ...styles.btnPrimary, flex: 1 }}
+  >
+    Generate 30 Story Images
+  </button>
+</div>
 
   <div style={{ ...styles.note, marginTop: 8 }}>
     Select World → Sub-location → Scene, then generate prompts.
@@ -10111,6 +10755,31 @@ return (
             src={img}
             alt={`scene-${i + 1}`}
             onClick={() => setPreviewImage(img)}
+            onLoad={() => {
+              console.log(`IMAGE LOAD OK → scene ${i + 1}`, {
+                index: i,
+                srcPreview: String(img || '').slice(0, 220),
+              })
+
+              setImageLoadErrors((prev) => {
+                if (!prev[i]) return prev
+                const next = { ...prev }
+                delete next[i]
+                return next
+              })
+            }}
+            onError={(e) => {
+              console.error(`IMAGE LOAD FAILED → scene ${i + 1}`, {
+                index: i,
+                src: img,
+                currentSrc: e?.currentTarget?.currentSrc || '',
+              })
+
+              setImageLoadErrors((prev) => ({
+                ...prev,
+                [i]: true,
+              }))
+            }}
             style={{
               width: '100%',
               borderRadius: 10,
@@ -10119,6 +10788,12 @@ return (
               display: 'block',
             }}
           />
+
+            {imageLoadErrors[i] ? (
+            <div style={{ ...styles.note, marginTop: 8, color: 'rgba(255,120,120,0.95)' }}>
+            Failed to load image in browser
+            </div>
+          ) : null}
 
           <div style={{ ...styles.row, marginTop: 10 }}>
 <button

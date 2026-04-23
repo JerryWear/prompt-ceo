@@ -11,6 +11,8 @@ import { WORLD_GYM_INFLUENCER } from './gymInfluencer'
 import { WORLD_PARIS } from './paris'
 import { WORLD_LONDON } from './london'
 import { WORLD_MONACO } from './monaco'
+import { WORLD_LUXURY_YACHT_RIVIERA } from './luxuryYachtRiviera'
+import { WORLD_FITNESS_GLOBAL_ELITE } from './fitness-global-elite'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -19,7 +21,9 @@ export const WORLD_LOCATIONS = [
   WORLD_VENICE,
   WORLD_PARIS,
   WORLD_LONDON,
-    WORLD_MONACO,
+  WORLD_MONACO,
+  WORLD_LUXURY_YACHT_RIVIERA,
+  WORLD_FITNESS_GLOBAL_ELITE,
 ]
 
 export const STORY_STYLE_WORLDS = [
@@ -49,4 +53,4 @@ const ALL_WORLDS = [
 export const getWorldById = (id) =>
   ALL_WORLDS.find((w) => w.id === id)
 
-export { WORLD_BALI, WORLD_ITALY, WORLD_AMALFI, WORLD_VENICE, WORLD_MONACO }
+export { WORLD_BALI, WORLD_ITALY, WORLD_AMALFI, WORLD_VENICE, WORLD_MONACO, WORLD_LUXURY_YACHT_RIVIERA, WORLD_FITNESS_GLOBAL_ELITE }
