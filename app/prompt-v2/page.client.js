@@ -3506,7 +3506,8 @@ export default function PromptV2() {
   const [last, setLast] = useState('—')
   const [copied] = useState('')
   const [activeStoryWorld, setActiveStoryWorld] = useState('')
-const [activeChapter, setActiveChapter] = useState('')
+  const [activeChapter, setActiveChapter] = useState('')
+  const [activeStorySceneId, setActiveStorySceneId] = useState('auto')
 
 const [activeWorldId, setActiveWorldId] = useState('')
 const [worldControlMode, setWorldControlMode] = useState('auto')
@@ -3676,6 +3677,8 @@ const [generatedImages, setGeneratedImages] = useState([])
 const [imageLoadErrors, setImageLoadErrors] = useState({})
 const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
 const [storyGenerationStatus, setStoryGenerationStatus] = useState('')
+
+const [imageQualityMode, setImageQualityMode] = useState('balanced')
 
 const [storyIndex, setStoryIndex] = useState(0)
 const stopStoryGenerationRef = useRef(false)
@@ -6437,7 +6440,10 @@ const diversifiedScenePool = rawScenePool.filter((scene) => {
   return true
 })
 
-  const availableScenes = rawScenePool.filter((scene) => {
+  const availableScenes = (diversifiedScenePool.length
+  ? diversifiedScenePool
+  : rawScenePool
+).filter((scene) => {
     const sceneKey = `${selectedStructuredSubLocationId}:${selectedStructuredSceneGroup?.id}:${scene}`
     return !usedScenes.has(sceneKey) && !recentExactSceneQueue.includes(sceneKey)
   })
@@ -7946,6 +7952,9 @@ const generateStoryImages = async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
+
+          qualityMode: imageQualityMode,
+
           identity: {
             image: identityState.imageDataUrl,
             strength: 1.0,
@@ -8028,7 +8037,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 12000))
+          await new Promise((r) => setTimeout(r, 3000))
           continue
         }
       } finally {
@@ -8061,7 +8070,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 12000))
+          await new Promise((r) => setTimeout(r, 3000))
           continue
         }
 
@@ -8070,7 +8079,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 12000))
+          await new Promise((r) => setTimeout(r, 3000))
           continue
         }
       }
@@ -8110,7 +8119,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 12000))
+          await new Promise((r) => setTimeout(r, 3000))
           continue
         }
 
@@ -8127,7 +8136,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 12000))
+          await new Promise((r) => setTimeout(r, 3000))
           continue
         }
 
@@ -8135,15 +8144,27 @@ results.push(retryImage)
 setGeneratedImages((prev) => [...prev, retryImage])
 setStoryIndex(i + 1)
 
-        await new Promise((r) => setTimeout(r, 7000))
-        continue
+const delay =
+  imageQualityMode === 'ultra' ? 3000 :
+  imageQualityMode === 'high' ? 2000 :
+  imageQualityMode === 'balanced' ? 1500 :
+  800
+
+await new Promise((r) => setTimeout(r, delay))
+continue
       }
 
 results.push(image)
 setGeneratedImages((prev) => [...prev, image])
 setStoryIndex(i + 1)
 
-      await new Promise((r) => setTimeout(r, 7000))
+const delay =
+  imageQualityMode === 'ultra' ? 3000 :
+  imageQualityMode === 'high' ? 2000 :
+  imageQualityMode === 'balanced' ? 1500 :
+  800
+
+await new Promise((r) => setTimeout(r, delay))
     }
 
     setGeneratedImages((prev) => {
@@ -8882,12 +8903,55 @@ useEffect(() => {
   }
 }, [chapterOptions, activeChapter])
 
+const activeChapterForScene = useMemo(() => {
+  return STORY_CHAPTERS.find((ch) => ch.id === activeChapter) || null
+}, [activeChapter])
+
+const storySceneOptions = useMemo(() => {
+  const rawScenes =
+    activeChapterForScene?.scenes ||
+    activeChapterForScene?.sceneFlow ||
+    activeChapterForScene?.sceneVariants ||
+    []
+
+  if (!Array.isArray(rawScenes)) return []
+
+  return rawScenes
+    .map((scene, index) => {
+      if (typeof scene === 'string') {
+        return {
+          id: scene,
+          name: scene,
+        }
+      }
+
+      return {
+        id: scene?.id || scene?.name || `story_scene_${index}`,
+        name: scene?.name || scene?.label || scene?.id || `Scene ${index + 1}`,
+      }
+    })
+    .filter((scene) => scene.id && scene.name)
+}, [activeChapterForScene])
+
+useEffect(() => {
+  if (activeStorySceneId === 'auto') return
+
+  const stillExists = storySceneOptions.some(
+    (scene) => scene.id === activeStorySceneId
+  )
+
+  if (!stillExists) {
+    setActiveStorySceneId('auto')
+  }
+}, [storySceneOptions, activeStorySceneId])
+
 const applyStoryWorld = (worldId) => {
   const world = STORY_WORLDS.find((w) => w.id === worldId)
   if (!world) return
 
 setActiveStoryWorld(worldId)
 setActiveChapter('')
+setActiveStorySceneId('auto')
 
 if (worldId === 'lake-como-life') {
   setWorldControlMode('manual')
@@ -8989,6 +9053,7 @@ const applyChapter = (chapterId) => {
  if (pack?.id) setActiveSignaturePack(pack.id)
 setActiveStoryWorld(normalizedChapterWorldId)
 setActiveChapter(chapterId)
+setActiveStorySceneId('auto')
 
 if (chapter.worldId === 'lake-como-life') {
   setActiveWorldId('lake-como-private-escape')
@@ -9612,6 +9677,30 @@ if (chapter.worldId === 'lake-como-life') {
 </div>
 
 <div style={styles.globalActionStack}>
+
+<div style={styles.ctrlBox}>
+  <div style={styles.ctrlLabel}>IMAGE QUALITY</div>
+
+  <select
+    value={imageQualityMode}
+    onChange={(e) => {
+      setImageQualityMode(e.target.value)
+      setClicks((c) => c + 1)
+      setLast(`Image Quality → ${e.target.value}`)
+    }}
+    style={styles.ctrlSelect}
+  >
+    <option value="fast">Fast (lower quality, fastest)</option>
+    <option value="balanced">Balanced (recommended)</option>
+    <option value="high">High Quality</option>
+    <option value="ultra">Ultra Quality (slowest)</option>
+  </select>
+
+  <div style={styles.note}>
+    Controls render speed vs quality. Higher quality = slower generation.
+  </div>
+</div>
+
 <div style={styles.actionRowTight}>
   <button
     type="button"
@@ -10185,17 +10274,18 @@ if (chapter.worldId === 'lake-como-life') {
       Apply World
     </button>
 
-    <button
-      type="button"
-      onClick={() => {
-        setActiveStoryWorld('')
-        setActiveChapter('')
-      }}
-      style={styles.btnGhost}
-      disabled={!activeStoryWorld}
-    >
-      Clear
-    </button>
+<button
+  type="button"
+  onClick={() => {
+    setActiveStoryWorld('')
+    setActiveChapter('')
+    setActiveStorySceneId('auto')
+  }}
+  style={styles.btnGhost}
+  disabled={!activeStoryWorld}
+>
+  Clear
+</button>
   </div>
 </div>
 
@@ -10227,16 +10317,50 @@ if (chapter.worldId === 'lake-como-life') {
                     Apply Chapter
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveChapter('')}
-                    style={styles.btnGhost}
-                    disabled={!activeChapter}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
+<button
+  type="button"
+  onClick={() => {
+    setActiveChapter('')
+    setActiveStorySceneId('auto')
+  }}
+  style={styles.btnGhost}
+  disabled={!activeChapter}
+>
+  Clear
+</button>
+  </div>
+</div>
+
+<div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+  <div style={styles.ctrlLabel}>STORY SCENE</div>
+
+  <select
+    value={activeStorySceneId}
+    onChange={(e) => {
+      setActiveStorySceneId(e.target.value)
+      setClicks((c) => c + 1)
+      setLast(
+        e.target.value === 'auto'
+          ? 'Story Scene → Auto by chapter'
+          : `Story Scene → ${e.target.value}`
+      )
+    }}
+    style={styles.ctrlSelect}
+    disabled={!activeChapter}
+  >
+    <option value="auto">Auto by chapter</option>
+
+    {storySceneOptions.map((scene) => (
+      <option key={scene.id} value={scene.id}>
+        {scene.name}
+      </option>
+    ))}
+  </select>
+
+  <div style={styles.note}>
+    Story Scene belongs only to Story World / Chapter. It does not control Worlds.
+  </div>
+</div>
 
 <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
   <div style={styles.ctrlLabel}>SIGNATURE PACK</div>
@@ -10313,6 +10437,31 @@ if (chapter.worldId === 'lake-como-life') {
               </div>
             </div>
           </div>
+
+          <div style={{ marginTop: 14 }}>
+  <div style={{ ...styles.row, width: '100%', gap: 12 }}>
+    <button
+      type="button"
+      onClick={generateInfluencerFeed}
+      style={{ ...styles.btnPrimary, flex: 1 }}
+    >
+      Generate 30 World Prompts
+    </button>
+
+    <button
+      type="button"
+      onClick={generateStoryImages}
+      disabled={!feedPrompts.length || isGeneratingBatch}
+      style={{ ...styles.btnPrimary, flex: 1 }}
+    >
+      Generate 30 World Images
+    </button>
+  </div>
+
+  <div style={{ ...styles.note, marginTop: 8 }}>
+    Generate based on Story World, Chapter, Scene, and Pack.
+  </div>
+</div>
 
           <div style={styles.controlSectionWorld}>
             <div style={styles.controlSectionHeader}>
@@ -11194,7 +11343,7 @@ const styles = {
     gridTemplateColumns: '1.38fr 1fr',
   },
 ownerRowMid: {
-  gridTemplateColumns: '1.00fr repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: '1.00fr repeat(5, minmax(0, 1fr))',
   alignItems: 'stretch',
 },
 ownerRowBottom: {
