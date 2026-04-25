@@ -9,9 +9,12 @@ export async function POST(req) {
     const body = await req.json()
 
 const prompt = clean(body?.prompt)
-const imageDataUrl = clean(
-  body?.identity?.image || body?.imageDataUrl
-)
+const identityImage =
+  body && body.identity && body.identity.image
+    ? body.identity.image
+    : ''
+
+const imageDataUrl = clean(identityImage || body?.imageDataUrl)
 const extractedTraits = body?.extractedTraits || {}
 
     if (!prompt) {
