@@ -174,6 +174,9 @@ const xaiResponse = await fetch('https://api.x.ai/v1/images/edits', {
 
 const data = await xaiResponse.json()
 
+console.log('XAI_IMAGE_STATUS:', xaiResponse.status)
+console.log('XAI_IMAGE_RESPONSE:', JSON.stringify(data).slice(0, 1200))
+
 if (!xaiResponse.ok) {
   return NextResponse.json(
     {
