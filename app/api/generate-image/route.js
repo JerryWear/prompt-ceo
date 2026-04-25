@@ -158,17 +158,37 @@ Do NOT change identity.
       'Do not replace the person with a different woman.'
     ].join('\n')
 
-const xaiResponse = await fetch('https://api.x.ai/v1/images/generations', {
+const base64Data = imageDataUrl.includes(',')
+  ? imageDataUrl.split(',')[1]
+  : imageDataUrl
+
+const imageBuffer = Buffer.from(base64Data, 'base64')
+
+const formData = new FormData()
+formData.append('model', 'gpt-image-1')
+formData.append('prompt', editPrompt)
+formData.append('image', new Blob([imageBuffer], { type: 'image/png' }), 'identity.png')
+formData.append('input_fidelity', 'high')
+formData.append('size', '1024x1536')
+
+const openaiApiKey = String(process.env.OPENAI_API_KEY || '')
+  .replace(/^Bearer\s+/i, '')
+  .replace(/^"+|"+$/g, '')
+  .trim()
+
+if (!openaiApiKey) {
+  return NextResponse.json(
+    { status: 'error', message: 'Missing OPENAI_API_KEY on server' },
+    { status: 500 }
+  )
+}
+
+const xaiResponse = await fetch('https://api.openai.com/v1/images/edits', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${xaiApiKey}`,
+    Authorization: `Bearer ${openaiApiKey}`,
   },
-  body: JSON.stringify({
-    model: 'grok-imagine-image',
-    prompt: editPrompt,
-    response_format: 'b64_json',
-  }),
+  body: formData,
 })
 
 const data = await xaiResponse.json()
