@@ -1,23 +1,56 @@
 export const LIBRARIES = {
-  identity: [
-    'Ultra-realistic AI influencer, female, natural beauty, balanced proportions, confident but approachable presence, natural skin texture',
-    'Lifestyle fashion influencer, female, healthy athletic build, relaxed confidence, clean facial features, friendly energy',
-    'Luxury lifestyle creator, female, elegant posture, refined facial structure, polished but natural appearance',
+identity: [
+  // Core Influencer / Lifestyle
+  'Ultra-realistic AI influencer, female',
+  'Lifestyle fashion influencer, female',
+  'Luxury lifestyle creator, female',
+  'Travel lifestyle influencer, female',
+  'Fitness lifestyle influencer, female',
 
-    'Luxury fashion influencer, female, tall elegant posture, high-status presence, refined facial features, stable facial identity',
-    'High-fashion editorial model, female, statuesque proportions, sharp jawline, controlled expression, commanding presence',
-    'Premium brand ambassador, female, confident gaze, composed posture, elite campaign-ready look',
+  // Fashion / Editorial
+  'Luxury fashion influencer, female',
+  'High-fashion editorial model, female',
+  'Runway fashion model, female',
+  'Street-style fashion model, female',
+  'Editorial portrait subject, female',
 
-    'Cinematic female character, striking facial features, strong bone structure, intense gaze, dramatic presence',
-    'Editorial portrait subject, female, sculpted features, poised confidence, cinematic realism, controlled emotion',
+  // Elite / Status
+  'Premium brand ambassador, female',
+  'Global luxury ambassador, female',
+  'High-status socialite, female',
+  'Elite private lifestyle figure, female',
 
-    'Ultra-realistic female AI model, consistent facial identity, symmetrical features, realistic skin pores, professional grade realism',
-    'Stable AI character identity, female, repeatable facial features, clean anatomy, high realism fidelity',
+  // Cinematic / Character
+  'Cinematic female character',
+  'Luxury cinematic protagonist, female',
+  'Modern femme fatale character',
+  'Dark editorial female character',
+  'After-hours cinematic female model',
 
-    'Unrestricted editorial female subject, bold facial features, unapologetic confidence, dominant presence',
-    'After-hours cinematic female model, intense gaze, mature sensual confidence, controlled dominance',
-    'Dark editorial female character, powerful posture, predatory calm, unmistakable authority',
-  ],
+  // AI / Consistency / Generation
+  'Ultra-realistic female AI model',
+  'Stable AI character identity, female',
+  'Consistent influencer identity, female',
+  'Photorealistic generated female subject',
+
+  // Bold / Dominant Archetypes
+  'Unrestricted editorial female subject',
+  'Dominant editorial female presence',
+  'Powerful feminine archetype',
+  'Confident modern woman figure',
+
+  // Fitness / Body-focused
+  'Elite fitness model, female',
+  'Athletic performance model, female',
+  'Gym influencer, female',
+  'Bodybuilding female athlete',
+
+  // Soft / Natural
+  'Natural beauty female subject',
+  'Minimalist lifestyle woman',
+  'Clean aesthetic female presence',
+  'Soft lifestyle feminine identity',
+],
 
   ethnicity: [
     'European',

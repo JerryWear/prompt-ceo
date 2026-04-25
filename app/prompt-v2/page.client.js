@@ -22,7 +22,7 @@ import {
 import { STORY_WORLDS } from './story-worlds/index'
 import { STORY_CHAPTERS } from './story-chapters'
 
-import { WORLD_LOCATIONS, getWorldById, WORLD_VENICE, WORLD_ITALY, WORLD_AMALFI, WORLD_BALI, WORLD_PARIS, WORLD_LONDON } from './worlds'
+import { WORLD_LOCATIONS, getWorldById } from './worlds'
 import { ITALY_CINEMATIC_PHASES } from './worlds/italy'
 
 import {
@@ -32,20 +32,15 @@ import {
   CINEMATIC_LIGHTING_SYSTEM,
   BALI_CINEMATIC_PHASES,
   getBaliCinematicPhaseByIndex,
-  BALI_PHASE_SUBLOCATIONS,
-  BALI_PHASE_SCENE_GROUPS,
-  BALI_PHASE_SCENE_VARIANTS,
-  BALI_PHASE_POSE_STYLE,
-  BALI_PHASE_CAMERA_STYLE,
   baliSpaces,
-baliSubLocations,
-baliPhaseSubLocationMap,
-baliPhaseMoodMap,
-baliPhaseLightingMap,
-baliSubLocationCameraMap,
-baliStoryRoutes,
-baliCinematicOverlays,
-baliWorldIdentityPhrases,
+  baliSubLocations,
+  baliPhaseSubLocationMap,
+  baliPhaseMoodMap,
+  baliPhaseLightingMap,
+  baliSubLocationCameraMap,
+  baliStoryRoutes,
+  baliCinematicOverlays,
+  baliWorldIdentityPhrases,
 } from './worlds/bali'
 
 import { FANVUE_PACKAGE } from './packages/fanvue'
@@ -482,28 +477,6 @@ const BLOCK_WEAK_MOOD = [
   'nice',
   'good',
 ]
-
-const LOCATION_FAMILIES = {
-  bedroom: ['bedroom', 'bed', 'soft bedding'],
-  bathroom: ['bathroom', 'mirror area in bedroom', 'mirror area', 'shower'],
-  kitchen: ['kitchen'],
-  gym: ['gym', 'gym entrance', 'high-end gym floor with racks', 'locker room'],
-  home: ['home', 'private interior setting', 'quiet bedroom or low-lit private room'],
-}
-
-  const normalizedSceneText = parts.join(' ').toLowerCase()
-
-  const getLocationFamily = (value) => {
-  const lower = String(value || '').toLowerCase().trim()
-
-  for (const [family, tokens] of Object.entries(LOCATION_FAMILIES)) {
-    if (tokens.some((token) => lower.includes(token))) {
-      return family
-    }
-  }
-
-  return ''
-}
 
   parts = parts.filter((part, index) => {
     const lower = part.toLowerCase()
@@ -1107,6 +1080,59 @@ function buildDeterministicFeedPrompt({
     .trim()
 }
 
+function renderUnifiedPromptModel(model = {}) {
+  return [
+    model.identity,
+    model.action,
+    model.environment,
+    model.mood,
+    model.camera,
+    model.lighting,
+    model.time,
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/g, '')
+    .trim()
+}
+ 
+function buildUnifiedPromptModel({
+  subjectPromptModel = {},
+  fallbackPromptModel = {},
+}) {
+  const pick = (primary, fallback) =>
+    String(primary || '').trim() ||
+    String(fallback || '').trim()
+
+  return {
+identity: cleanPromptParts([
+  String(fallbackPromptModel?.identity || '').trim(),
+  String(subjectPromptModel?.identityLead || '').trim(),
+])[0] || '',
+
+    action: pick(subjectPromptModel?.action, fallbackPromptModel?.action),
+
+    environment: pick(
+      subjectPromptModel?.environment,
+      fallbackPromptModel?.environment
+    ),
+
+    mood: stripWeakMoodFragments(
+      pick(subjectPromptModel?.mood, fallbackPromptModel?.mood)
+    ),
+
+    camera: pick(subjectPromptModel?.camera, fallbackPromptModel?.camera),
+
+    lighting: pick(subjectPromptModel?.lighting, fallbackPromptModel?.lighting),
+
+    time: pick(subjectPromptModel?.time, fallbackPromptModel?.time),
+  }
+}
+
 function normalizeSceneField(value) {
   return String(value || '')
     .replace(/\s+/g, ' ')
@@ -1114,6 +1140,32 @@ function normalizeSceneField(value) {
     .replace(/\s+,/g, ',')
     .replace(/,\s*$/g, '')
     .trim()
+}
+
+function stripWeakMoodFragments(value) {
+  return String(value || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s) return false
+
+      // remove weak / filler mood words
+      const weak = [
+        'nice',
+        'good',
+        'beautiful',
+        'pretty',
+        'calm',
+        'cool',
+        'vibe',
+        'energy',
+        'aesthetic'
+      ]
+
+      return !weak.includes(s.toLowerCase())
+    })
+    .slice(0, 2) // keep max 2 strong moods
+    .join(', ')
 }
 
 function uniqueSceneParts(parts = []) {
@@ -1227,59 +1279,49 @@ function resolveDeterministicScenePayload({
   resolvedWorldId = '',
   customStoryPhaseKey = '',
   feedPoolPhaseKey = '',
+  index = 0,
 }) {
-  const customStoryPayload = buildScenePayload({
-    sourceType: 'custom_story_scene',
-    sourceId: customStoryPhaseKey || '',
-    action: stripIdentityFromAction(String(customStoryAction || '').trim()),
-    environment: customStoryEnvironment,
-    mood: customStoryMood,
-    camera: customStoryCamera,
-    lighting: customStoryLighting,
-    time: generatedTime,
-  })
-
-  if (isCompleteScenePayload(customStoryPayload)) {
-    return customStoryPayload
-  }
-
-  const structuredRoutePayload = buildScenePayload({
-    sourceType: 'structured_world_scene',
-    sourceId: [
-      resolvedWorldId,
-      feedPoolPhaseKey,
-      structuredPickedLocation,
-      structuredPickedScene,
-    ]
+  const worldFirstPayload = buildScenePayload({
+    sourceType: 'world_scene',
+    sourceId: [resolvedWorldId, feedPoolPhaseKey]
       .filter(Boolean)
       .join('::'),
+
     action: stripIdentityFromAction(
-  String(structuredPickedScene || generatedWorldScene || '').trim()
-),
-    environment: structuredPickedLocation || generatedWorldLocation,
-    mood: generatedWorldMood,
-    camera: generatedWorldCamera,
-    lighting: generatedWorldLighting,
+(() => {
+  return firstNonEmpty([
+    structuredPickedScene,
+    generatedWorldScene,
+    customStoryAction,
+  ])
+})()
+    ),
+
+    environment: 
+(() => {
+return structuredPickedLocation || generatedWorldLocation || customStoryEnvironment || ''
+})(),
+
+    mood: firstNonEmpty([
+      generatedWorldMood,
+      customStoryMood,
+    ]),
+
+    camera: firstNonEmpty([
+      generatedWorldCamera,
+      customStoryCamera,
+    ]),
+
+    lighting: firstNonEmpty([
+      generatedWorldLighting,
+      customStoryLighting,
+    ]),
+
     time: generatedTime,
   })
 
-  if (isCompleteScenePayload(structuredRoutePayload)) {
-    return structuredRoutePayload
-  }
-
-  const worldPhasePayload = buildScenePayload({
-    sourceType: 'world_phase_scene',
-    sourceId: [resolvedWorldId, feedPoolPhaseKey].filter(Boolean).join('::'),
-    action: stripIdentityFromAction(String(generatedWorldScene || '').trim()),
-    environment: generatedWorldLocation,
-    mood: generatedWorldMood,
-    camera: generatedWorldCamera,
-    lighting: generatedWorldLighting,
-    time: generatedTime,
-  })
-
-  if (isCompleteScenePayload(worldPhasePayload)) {
-    return worldPhasePayload
+  if (isCompleteScenePayload(worldFirstPayload)) {
+    return worldFirstPayload
   }
 
   if (worldControlMode === 'manual') {
@@ -1288,27 +1330,71 @@ function resolveDeterministicScenePayload({
       sourceId: [activeWorldId, activeSubLocationId, activeSceneGroupId]
         .filter(Boolean)
         .join('::'),
-      action: stripIdentityFromAction(String(generatedWorldScene || '').trim()),
-      environment: generatedWorldLocation,
-      mood: generatedWorldMood,
-      camera: generatedWorldCamera,
-      lighting: generatedWorldLighting,
+
+action: stripIdentityFromAction(
+  firstNonEmpty([
+    structuredPickedScene,
+    generatedWorldScene,
+    customStoryAction,
+  ])
+),
+
+environment: structuredPickedLocation || generatedWorldLocation || customStoryEnvironment,
+
+      mood: firstNonEmpty([
+        generatedWorldMood,
+        customStoryMood,
+      ]),
+
+      camera: firstNonEmpty([
+        generatedWorldCamera,
+        customStoryCamera,
+      ]),
+
+      lighting: firstNonEmpty([
+        generatedWorldLighting,
+        customStoryLighting,
+      ]),
+
       time: generatedTime,
     })
   }
 
   return buildScenePayload({
     sourceType: 'partial_world_scene',
-    sourceId: [resolvedWorldId, feedPoolPhaseKey].filter(Boolean).join('::'),
+    sourceId: [resolvedWorldId, feedPoolPhaseKey, customStoryPhaseKey]
+      .filter(Boolean)
+      .join('::'),
+
     action: stripIdentityFromAction(
-  String(
-    firstNonEmpty([customStoryAction, structuredPickedScene, generatedWorldScene]) || ''
-  ).trim()
-),
-    environment: firstNonEmpty([customStoryEnvironment, structuredPickedLocation, generatedWorldLocation]),
-    mood: firstNonEmpty([customStoryMood, generatedWorldMood]),
-    camera: firstNonEmpty([customStoryCamera, generatedWorldCamera]),
-    lighting: firstNonEmpty([customStoryLighting, generatedWorldLighting]),
+      firstNonEmpty([
+        structuredPickedScene,
+        generatedWorldScene,
+        customStoryAction,
+      ])
+    ),
+
+    environment: firstNonEmpty([
+      structuredPickedLocation,
+      generatedWorldLocation,
+      customStoryEnvironment,
+    ]),
+
+    mood: firstNonEmpty([
+      generatedWorldMood,
+      customStoryMood,
+    ]),
+
+    camera: firstNonEmpty([
+      generatedWorldCamera,
+      customStoryCamera,
+    ]),
+
+    lighting: firstNonEmpty([
+      generatedWorldLighting,
+      customStoryLighting,
+    ]),
+
     time: generatedTime,
   })
 }
@@ -1395,17 +1481,6 @@ function dedupeCommaParts(value) {
       return true
     })
     .join(', ')
-}
-
-function cleanFeedIdentity(value) {
-  return dedupeCommaParts(
-    String(value || '')
-      .split(',')
-      .map((part) => String(part || '').trim())
-      .filter(Boolean)
-      .filter((part) => !/^Elegant woman$/i.test(part))
-      .join(', ')
-  )
 }
 
 function pickRandom(arr) {
@@ -1875,6 +1950,16 @@ const DEFAULT_WORLD_PHASE_ORDER = [
   'night'
 ]
 
+const TIME_SEQUENCE = [
+  'early morning',
+  'morning',
+  'midday',
+  'afternoon',
+  'golden hour',
+  'evening',
+  'night',
+]
+
 const WORLD_MASTER_TEMPLATE = {
   structured: false,
   routeMode: 'free',
@@ -1884,13 +1969,91 @@ const WORLD_MASTER_TEMPLATE = {
 }
 
 const WORLD_ENGINE_CONFIG = {
+  amalfi: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
   bali: {
     ...WORLD_MASTER_TEMPLATE,
     structured: true,
     routeMode: 'free',
   },
 
-  amalfi_coast: {
+  italy: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  venice: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'locked',
+  },
+
+  london: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  paris: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  monaco: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  luxury_life: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  luxury_yacht_riviera: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  private_creator: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  fanvue_creator: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  onlyfans_creator: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  fitness_life: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  gym_influencer: {
+    ...WORLD_MASTER_TEMPLATE,
+    structured: true,
+    routeMode: 'free',
+  },
+
+  fitness_global_elite: {
     ...WORLD_MASTER_TEMPLATE,
     structured: true,
     routeMode: 'free',
@@ -1902,28 +2065,6 @@ const WORLD_ENGINE_CONFIG = {
     routeMode: 'locked',
     useForcedLocations: true,
     autoSubHoldLength: 4,
-  },
-
-  venice: {
-    ...WORLD_MASTER_TEMPLATE,
-    structured: true,
-    routeMode: 'locked',
-  },
-
-  luxury_life: {
-    ...WORLD_MASTER_TEMPLATE,
-    structured: true,
-    routeMode: 'free',
-  },
-  paris: {
-    ...WORLD_MASTER_TEMPLATE,
-    structured: true,
-    routeMode: 'free',
-  },
-  london: {
-    ...WORLD_MASTER_TEMPLATE,
-    structured: true,
-    routeMode: 'free',
   },
 }
 
@@ -3404,13 +3545,17 @@ const [activeSubLocationId, setActiveSubLocationId] = useState('')
 const [activeSceneGroupId, setActiveSceneGroupId] = useState('')
 
 const subLocationOptions = useMemo(() => {
-  const raw = activeWorld?.subLocations
+  const rawSubLocations = activeWorld?.subLocations
+  const rawWorldSceneGroups = activeWorld?.sceneGroups || {}
 
-  if (Array.isArray(raw)) return raw
+  if (Array.isArray(rawSubLocations)) {
+    return rawSubLocations.map((value, index) => {
+      const id = value?.id || `sub_${index}`
 
-  if (raw && typeof raw === 'object') {
-    return Object.entries(raw).map(([id, value]) => {
-      const rawSceneGroups = value?.sceneGroups
+      const rawSceneGroups =
+        value?.sceneGroups ||
+        rawWorldSceneGroups?.[id] ||
+        []
 
       const normalizedSceneGroups = Array.isArray(rawSceneGroups)
         ? rawSceneGroups
@@ -3419,6 +3564,7 @@ const subLocationOptions = useMemo(() => {
             name: String(groupId || '')
               .replaceAll('_', ' ')
               .replace(/\b\w/g, (c) => c.toUpperCase()),
+            phases: Array.isArray(value?.phases) ? value.phases : [],
             scenes: Array.isArray(scenes) ? scenes : [],
           }))
 
@@ -3426,6 +3572,35 @@ const subLocationOptions = useMemo(() => {
         ...value,
         id,
         name: value?.name || value?.label || id,
+        locations: Array.isArray(value?.locations) ? value.locations : [],
+        sceneGroups: normalizedSceneGroups,
+      }
+    })
+  }
+
+  if (rawSubLocations && typeof rawSubLocations === 'object') {
+    return Object.entries(rawSubLocations).map(([id, value]) => {
+      const rawSceneGroups =
+        value?.sceneGroups ||
+        rawWorldSceneGroups?.[id] ||
+        []
+
+      const normalizedSceneGroups = Array.isArray(rawSceneGroups)
+        ? rawSceneGroups
+        : Object.entries(rawSceneGroups || {}).map(([groupId, scenes]) => ({
+            id: groupId,
+            name: String(groupId || '')
+              .replaceAll('_', ' ')
+              .replace(/\b\w/g, (c) => c.toUpperCase()),
+            phases: Array.isArray(value?.phases) ? value.phases : [],
+            scenes: Array.isArray(scenes) ? scenes : [],
+          }))
+
+      return {
+        ...value,
+        id,
+        name: value?.name || value?.label || id,
+        locations: Array.isArray(value?.locations) ? value.locations : [],
         sceneGroups: normalizedSceneGroups,
       }
     })
@@ -3439,12 +3614,25 @@ const activeSubLocation = useMemo(() => {
 }, [subLocationOptions, activeSubLocationId])
 
 const sceneGroupOptions = useMemo(() => {
-  const raw = activeSubLocation?.sceneGroups
+  if (!activeSubLocation) return []
 
-  if (Array.isArray(raw)) return raw
+  const rawSceneGroups = activeSubLocation?.sceneGroups
 
-  if (raw && typeof raw === 'object') {
-    return Object.entries(raw).map(([groupId, scenes]) => ({
+  if (Array.isArray(rawSceneGroups)) {
+    return rawSceneGroups.map((group, index) => ({
+      ...group,
+      id: group?.id || `group_${index}`,
+      name:
+        group?.name ||
+        String(group?.id || `group_${index}`)
+          .replaceAll('_', ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+      scenes: Array.isArray(group?.scenes) ? group.scenes : [],
+    }))
+  }
+
+  if (rawSceneGroups && typeof rawSceneGroups === 'object') {
+    return Object.entries(rawSceneGroups).map(([groupId, scenes]) => ({
       id: groupId,
       name: String(groupId || '')
         .replaceAll('_', ' ')
@@ -3666,37 +3854,62 @@ const [autoSceneLabel, setAutoSceneLabel] = useState('')
 
 useEffect(() => {
   setSubjectState((prev) => {
-    const mode = String(prev?.characterMode || 'female').trim()
+    const mode = String(prev?.characterMode || 'female').trim().toLowerCase()
+
     const resolvedSubjectAGender =
       mode === 'male'
         ? 'male'
-        : String(prev?.subjectA?.gender || 'female').trim() || 'female'
+        : 'female'
+
+    const identityName = String(identityState?.name || '').trim()
+    const imageDataUrl = String(identityState?.imageDataUrl || '').trim()
+    const sourceFileName = String(identityState?.sourceFileName || '').trim()
+
+    const subjectATraits = {
+      identity: String(identityState?.extractedTraits?.subjectA?.identity || '').trim(),
+      age: String(identityState?.extractedTraits?.subjectA?.age || '').trim(),
+      ethnicity: String(identityState?.extractedTraits?.subjectA?.ethnicity || '').trim(),
+      body_shape: String(identityState?.extractedTraits?.subjectA?.body_shape || '').trim(),
+      eye_color: String(identityState?.extractedTraits?.subjectA?.eye_color || '').trim(),
+      hair: String(identityState?.extractedTraits?.subjectA?.hair || '').trim(),
+      facial_hair: String(identityState?.extractedTraits?.subjectA?.facial_hair || '').trim(),
+      build: String(identityState?.extractedTraits?.subjectA?.build || '').trim(),
+    }
+
+    const hasIdentityAnchor =
+      !!identityState?.enabled &&
+      (
+        !!identityName ||
+        !!imageDataUrl ||
+        !!sourceFileName ||
+        Object.values(subjectATraits).some((value) => String(value || '').trim())
+      )
 
     return {
       ...prev,
       subjectA: {
         ...prev.subjectA,
-        enabled: !!identityState?.enabled,
+
+        // Keep Subject A alive by character mode, not by identity toggle.
+        enabled: true,
+
+        // Character mode is the authority for single-subject gender.
         gender: resolvedSubjectAGender,
-        identityName:
+
+        // Same identity name must work for female and male modes.
+        identityName: identityName || prev.subjectA?.identityName || '',
+        maleIdentityName:
           mode === 'male'
-            ? prev.subjectA?.identityName || ''
-            : String(identityState?.name || '').trim(),
-        imageDataUrl: String(identityState?.imageDataUrl || '').trim(),
-        sourceFileName: String(identityState?.sourceFileName || '').trim(),
+            ? identityName || prev.subjectA?.maleIdentityName || prev.subjectA?.identityName || ''
+            : prev.subjectA?.maleIdentityName || '',
+
+        imageDataUrl,
+        sourceFileName,
         extractionStatus: String(identityState?.extractionStatus || 'idle'),
         extractionMode: String(identityState?.extractionMode || 'server'),
         useExtractedTraits: !!identityState?.useExtractedTraits,
-        extractedTraits: {
-          identity: String(identityState?.extractedTraits?.subjectA?.identity || '').trim(),
-          age: String(identityState?.extractedTraits?.subjectA?.age || '').trim(),
-          ethnicity: String(identityState?.extractedTraits?.subjectA?.ethnicity || '').trim(),
-          body_shape: String(identityState?.extractedTraits?.subjectA?.body_shape || '').trim(),
-          eye_color: String(identityState?.extractedTraits?.subjectA?.eye_color || '').trim(),
-          hair: String(identityState?.extractedTraits?.subjectA?.hair || '').trim(),
-          facial_hair: String(identityState?.extractedTraits?.subjectA?.facial_hair || '').trim(),
-          build: String(identityState?.extractedTraits?.subjectA?.build || '').trim(),
-        },
+        extractedTraits: subjectATraits,
+        identityLinked: hasIdentityAnchor,
         lastUpdated: Date.now(),
       },
     }
@@ -5242,41 +5455,55 @@ function getFeedGeneratedTime({
   isStructuredWorld,
   generatedPhase,
   phaseKey,
+  index = 0,
+  count = 30,
 }) {
+  const safeIndex = Number(index) || 0
+  const safeCount = Number(count) || 30
+
   const phaseTimeMap = {
-    arrival: 'morning',
-    social: 'sunset',
-    private: 'evening',
-    night: 'night',
+    arrival: ['early morning', 'morning'],
+    social: ['late morning', 'midday', 'afternoon'],
+    private: ['late afternoon', 'golden hour', 'evening'],
+    night: ['evening', 'night', 'late night'],
   }
 
   const structuredPhaseTimeMap = {
-    wake: 'early morning',
-    morning_refresh: 'morning',
-    getting_dressed: 'morning',
-    breakfast: 'morning',
-    late_morning: 'late morning',
-    lunch: 'midday',
-    afternoon: 'afternoon',
-    reset: 'late afternoon',
-    golden_hour: 'golden hour',
-    dinner: 'evening',
-    evening: 'evening',
-    night: 'night',
+    wake: ['early morning'],
+    morning_refresh: ['morning'],
+    getting_dressed: ['late morning'],
+    breakfast: ['late morning'],
+    late_morning: ['late morning'],
+    lunch: ['midday'],
+    afternoon: ['afternoon'],
+    reset: ['late afternoon'],
+    golden_hour: ['golden hour'],
+    dinner: ['evening'],
+    evening: ['evening'],
+    night: ['night', 'late night'],
+  }
+
+  const customStoryTimeMap = {
+    morning: ['early morning', 'morning'],
+    day: ['late morning', 'midday', 'afternoon'],
+    private: ['late afternoon', 'golden hour', 'evening'],
+    night: ['night', 'late night'],
+  }
+
+  const pickFromTimePool = (pool) => {
+    const safePool = Array.isArray(pool) && pool.length ? pool : ['afternoon']
+    return safePool[safeIndex % safePool.length] || safePool[0] || 'afternoon'
   }
 
   if (isCustomStoryWorldFeed) {
-    if (customStoryPhaseKey === 'morning') return 'early morning'
-    if (customStoryPhaseKey === 'day') return 'late morning'
-    if (customStoryPhaseKey === 'private') return 'evening'
-    return 'night'
+    return pickFromTimePool(customStoryTimeMap[customStoryPhaseKey])
   }
 
   if (isStructuredWorld) {
-    return structuredPhaseTimeMap[generatedPhase] || 'afternoon'
+    return pickFromTimePool(structuredPhaseTimeMap[generatedPhase])
   }
 
-  return phaseTimeMap[phaseKey] || 'night'
+  return pickFromTimePool(phaseTimeMap[phaseKey])
 }
 
 function getFeedWorldContext({
@@ -6057,115 +6284,247 @@ const generatedPhase =
 
 const feedPoolPhaseKey = generatedPhase
 
-const generatedTime = getFeedGeneratedTime({
-  isCustomStoryWorldFeed,
-  customStoryPhaseKey,
-  isStructuredWorld,
-  generatedPhase,
-  phaseKey,
+const PHASE_TIME_MAP = {
+  wake: 'early morning',
+  morning_refresh: 'morning',
+  getting_dressed: 'morning',
+  breakfast: 'morning',
+  late_morning: 'late morning',
+  lunch: 'midday',
+  afternoon: 'afternoon',
+  reset: 'late afternoon',
+  golden_hour: 'golden hour',
+  dinner: 'evening',
+  evening: 'evening',
+  night: 'night',
+}
+
+const generatedTime =
+  PHASE_TIME_MAP[feedPoolPhaseKey] ||
+  PHASE_TIME_MAP[generatedPhase] ||
+  'afternoon'
+
+// ===============================
+// STRUCTURED WORLD ROUTE PICK — LOCKED AMALFI SCHEMA
+// world → phase → subLocation → sceneGroups[subLocationId] → scene
+// ===============================
+
+const structuredWorldObject =
+  WORLD_LOCATIONS.find((w) => w.id === resolvedWorldId) || feedWorld || null
+
+const structuredPhaseData =
+  structuredWorldObject?.phases?.[feedPoolPhaseKey] || null
+
+const structuredPhaseSubLocationIds = Array.isArray(structuredPhaseData?.subLocations)
+  ? structuredPhaseData.subLocations
+  : []
+
+const validStructuredSubLocationIds = structuredPhaseSubLocationIds.filter((id) => {
+  return Boolean(structuredWorldObject?.subLocations?.[id])
 })
 
-// ===============================
-// STRUCTURED WORLD ROUTE PICK (NEW ENGINE)
-// ===============================
+let selectedStructuredSubLocationId = ''
+let selectedSubLocation = null
 
-const structuredRoutePick = isStructuredWorld
-  ? getStructuredWorldRoutePick({
-      worldObject: WORLD_LOCATIONS.find((w) => w.id === resolvedWorldId),
-      phaseKey: feedPoolPhaseKey,
-      recentSubLocationQueue: recentStructuredSubLocations,
-      recentSceneQueue: recentStructuredScenes,
-    })
-  : null
+if (isStructuredWorld && validStructuredSubLocationIds.length) {
+  const availableSubLocationIds = validStructuredSubLocationIds.filter(
+    (id) => !usedSubLocations.has(id)
+  )
 
-const structuredPickedLocation =
-  structuredRoutePick?.resolvedLocation || ''
+  const subLocationPool = availableSubLocationIds.length
+    ? availableSubLocationIds
+    : validStructuredSubLocationIds
 
-const structuredPickedScene =
-  structuredRoutePick?.resolvedScene || ''
+  selectedStructuredSubLocationId =
+    subLocationPool[i % subLocationPool.length] || ''
 
-const selectedSubLocation = structuredRoutePick?.subLocationData || null
+  selectedSubLocation =
+    structuredWorldObject?.subLocations?.[selectedStructuredSubLocationId] || null
+
+  if (selectedStructuredSubLocationId) {
+    usedSubLocations.add(selectedStructuredSubLocationId)
+    recentStructuredSubLocations.push(selectedStructuredSubLocationId)
+    while (recentStructuredSubLocations.length > 8) {
+      recentStructuredSubLocations.shift()
+    }
+  }
+}
+
+const rawStructuredSceneGroupsForSubLocation =
+  selectedStructuredSubLocationId
+    ? structuredWorldObject?.sceneGroups?.[selectedStructuredSubLocationId]
+    : null
+
+const structuredSceneGroupsForSubLocation = Array.isArray(rawStructuredSceneGroupsForSubLocation)
+  ? rawStructuredSceneGroupsForSubLocation.map((group, index) => ({
+      ...group,
+      id: group?.id || `group_${index}`,
+      name:
+        group?.name ||
+        String(group?.id || `group_${index}`)
+          .replaceAll('_', ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+      phases: Array.isArray(group?.phases) ? group.phases : [feedPoolPhaseKey],
+      scenes: Array.isArray(group?.scenes) ? group.scenes : [],
+    }))
+  : rawStructuredSceneGroupsForSubLocation && typeof rawStructuredSceneGroupsForSubLocation === 'object'
+    ? Object.entries(rawStructuredSceneGroupsForSubLocation).map(([groupId, scenes]) => ({
+        id: groupId,
+        name: String(groupId || '')
+          .replaceAll('_', ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+        phases: [groupId],
+        scenes: Array.isArray(scenes) ? scenes : [],
+      }))
+    : []
+
+const validStructuredSceneGroups = structuredSceneGroupsForSubLocation.filter((group) => {
+  if (!Array.isArray(group?.scenes) || !group.scenes.length) return false
+  if (!Array.isArray(group?.phases) || !group.phases.length) return true
+  return group.phases.includes(feedPoolPhaseKey)
+})
+
+let selectedStructuredSceneGroup = null
+let selectedStructuredScene = ''
+
+if (isStructuredWorld && validStructuredSceneGroups.length) {
+  const availableGroups = validStructuredSceneGroups.filter(
+    (group) => !recentSceneGroupQueue.includes(group.id)
+  )
+
+  const sceneGroupPool = availableGroups.length
+    ? availableGroups
+    : validStructuredSceneGroups
+
+const safeSceneGroupPool = sceneGroupPool.filter(
+  (group) => Array.isArray(group?.scenes) && group.scenes.length
+)
+
+selectedStructuredSceneGroup =
+  safeSceneGroupPool[i % safeSceneGroupPool.length] ||
+  safeSceneGroupPool[0] ||
+  null
+
+  if (selectedStructuredSceneGroup?.id) {
+    recentSceneGroupQueue.push(selectedStructuredSceneGroup.id)
+    while (recentSceneGroupQueue.length > 8) {
+      recentSceneGroupQueue.shift()
+    }
+  }
+
+  const rawScenePool = Array.isArray(selectedStructuredSceneGroup?.scenes)
+    ? selectedStructuredSceneGroup.scenes
+    : []
+
+    const lastEnvironment =
+  recentStructuredScenes[recentStructuredScenes.length - 1] || ''
+
+const diversifiedScenePool = rawScenePool.filter((scene) => {
+  if (!lastEnvironment) return true
+
+  const current = scene.toLowerCase()
+  const last = lastEnvironment.toLowerCase()
+
+  // prevent repeating same environment keyword back-to-back
+  if (
+    (current.includes('bedroom') && last.includes('bedroom')) ||
+    (current.includes('kitchen') && last.includes('kitchen')) ||
+    (current.includes('mirror') && last.includes('mirror'))
+  ) {
+    return false
+  }
+
+  return true
+})
+
+  const availableScenes = rawScenePool.filter((scene) => {
+    const sceneKey = `${selectedStructuredSubLocationId}:${selectedStructuredSceneGroup?.id}:${scene}`
+    return !usedScenes.has(sceneKey) && !recentExactSceneQueue.includes(sceneKey)
+  })
+
+  const scenePool = availableScenes.length ? availableScenes : rawScenePool
+
+  selectedStructuredScene = scenePool.length
+    ? scenePool[i % scenePool.length]
+    : ''
+
+  if (selectedStructuredScene) {
+    const sceneKey = `${selectedStructuredSubLocationId}:${selectedStructuredSceneGroup?.id}:${selectedStructuredScene}`
+
+    usedScenes.add(sceneKey)
+    recentStructuredScenes.push(selectedStructuredScene)
+    recentExactSceneQueue.push(sceneKey)
+
+    while (recentStructuredScenes.length > 8) {
+      recentStructuredScenes.shift()
+    }
+
+    while (recentExactSceneQueue.length > 12) {
+      recentExactSceneQueue.shift()
+    }
+  }
+}
 
 let generatedWorldSceneRaw = ''
 let generatedWorldLocation = ''
 
-const phaseSceneGroups = Object.entries(feedWorld?.sceneGroups || {}).filter(
-  ([, groups]) =>
-    Array.isArray(groups) &&
-    groups.some((group) => Array.isArray(group?.phases) && group.phases.includes(feedPoolPhaseKey))
-)
-
-if (isStructuredWorld && structuredPickedScene) {
+if (isStructuredWorld && selectedStructuredScene) {
   generatedWorldSceneRaw = applyWorldFieldFilter({
     key: 'pose',
-    value: structuredPickedScene,
+    value: selectedStructuredScene,
     worldId: resolvedWorldId,
   })
 }
 
-if (isStructuredWorld && structuredPickedLocation) {
+if (
+  isStructuredWorld &&
+  selectedSubLocation &&
+  Array.isArray(selectedSubLocation.locations) &&
+  selectedSubLocation.locations.length
+) {
+
+const normalizeTime = (time) => {
+  const t = String(time || '').toLowerCase()
+
+  if (t.includes('early morning') || t.includes('sunrise')) return 'morning'
+  if (t.includes('late morning')) return 'morning'
+  if (t.includes('midday')) return 'midday'
+  if (t.includes('afternoon')) return 'afternoon'
+  if (t.includes('golden hour')) return 'golden'
+  if (t.includes('evening') || t.includes('sunset')) return 'evening'
+  if (t.includes('night') || t.includes('late night')) return 'night'
+
+  return 'afternoon'
+}
+
+  const timeSafeLocations = selectedSubLocation.locations.filter((loc) => {
+    const lower = String(loc || '').toLowerCase()
+    const time = normalizeTime(generatedTime)
+
+    if (/morning|early morning|late morning/.test(time)) {
+      return !/night|after-dark|evening lights|late night/i.test(lower)
+    }
+
+    if (/golden hour|evening/.test(time)) {
+      return !/early morning|morning light/i.test(lower)
+    }
+
+    if (/night|late night/.test(time)) {
+      return !/morning light|bright daytime|late morning/i.test(lower)
+    }
+
+    return true
+  })
+
+  const locationPool = timeSafeLocations.length
+    ? timeSafeLocations
+    : selectedSubLocation.locations
+
   generatedWorldLocation = applyWorldFieldFilter({
     key: 'location',
-    value: structuredPickedLocation,
+    value: locationPool[i % locationPool.length],
     worldId: resolvedWorldId,
   })
-}
-
-if (!generatedWorldSceneRaw && phaseSceneGroups.length) {
-  const [sceneSubLocationId, groups] =
-    phaseSceneGroups[Math.floor(Math.random() * phaseSceneGroups.length)]
-
-  const validGroups = groups.filter(
-    (group) => Array.isArray(group?.phases) && group.phases.includes(feedPoolPhaseKey)
-  )
-
-  if (validGroups.length) {
-    const selectedGroup =
-      validGroups[Math.floor(Math.random() * validGroups.length)]
-
-    const selectedScenes = Array.isArray(selectedGroup?.scenes)
-      ? selectedGroup.scenes
-      : []
-
-    if (selectedScenes.length) {
-      generatedWorldSceneRaw = applyWorldFieldFilter({
-        key: 'pose',
-        value: selectedScenes[Math.floor(Math.random() * selectedScenes.length)],
-        worldId: resolvedWorldId,
-      })
-    }
-
-    if (Array.isArray(selectedSubLocation?.locations) && selectedSubLocation.locations.length) {
-      const timeSafeLocations = selectedSubLocation.locations.filter((loc) => {
-        const lower = String(loc || '').toLowerCase()
-        const time = String(generatedTime || '').toLowerCase()
-
-        if (/morning|early morning|late morning/.test(time)) {
-          return !/at night|night|after-dark|evening lights|late night/i.test(lower)
-        }
-
-        if (/golden hour|evening/.test(time)) {
-          return !/early morning|morning light|daylight/i.test(lower)
-        }
-
-        if (/night|late night/.test(time)) {
-          return !/morning light|daylight|bright daytime|late morning/i.test(lower)
-        }
-
-        return true
-      })
-
-      const locationPool = timeSafeLocations.length
-        ? timeSafeLocations
-        : selectedSubLocation.locations
-
-      generatedWorldLocation = applyWorldFieldFilter({
-        key: 'location',
-        value: locationPool[Math.floor(Math.random() * locationPool.length)],
-        worldId: resolvedWorldId,
-      })
-    }
-  }
 }
 
 if (!generatedWorldSceneRaw) {
@@ -6215,7 +6574,7 @@ if (!generatedWorldLocation) {
   })
 }
 
-const rawStructuredLocation = structuredPickedLocation || ''
+const rawStructuredLocation = generatedWorldLocation || ''
 
 const cleanedStructuredLocation =
   isStructuredWorld &&
@@ -6284,8 +6643,8 @@ const deterministicScenePayload = resolveDeterministicScenePayload({
   generatedWorldCamera,
   generatedWorldLighting,
 
-  structuredPickedScene,
-  structuredPickedLocation,
+ generatedWorldSceneRaw,
+ generatedWorldLocation,
 
   generatedTime,
 
@@ -6297,6 +6656,7 @@ const deterministicScenePayload = resolveDeterministicScenePayload({
   resolvedWorldId,
   customStoryPhaseKey,
   feedPoolPhaseKey,
+  index: i,
 })
 
 deterministicScenePayload.action = stripIdentityFromAction(
@@ -6523,11 +6883,13 @@ const promptModel = {
 function getEnvironmentSceneFamily(value) {
   const text = String(value || '').toLowerCase()
 
-  if (/bedroom|suite|bed|window light|mirror corner/.test(text)) return 'bedroom'
-  if (/bathroom|bath|spa|vanity|mirror detail/.test(text)) return 'bathroom'
-  if (/balcony|terrace|skyline|breakfast setting|open air/.test(text)) return 'terrace'
-  if (/kitchen|counter|apartment kitchen/.test(text)) return 'kitchen'
-  if (/lounge|living room|sofa/.test(text)) return 'lounge'
+  if (/wardrobe|dressing|closet|outfit|mirror|styling|resortwear|city styling/.test(text)) return 'dressing'
+  if (/bedroom|suite|bed|window light/.test(text)) return 'bedroom'
+  if (/bathroom|bath|spa|vanity|shower|marble-and-glass/.test(text)) return 'bathroom'
+  if (/balcony|terrace|skyline|breakfast setting|open air|open-air|table setting/.test(text)) return 'terrace'
+  if (/kitchen|counter|apartment kitchen|coffee|espresso/.test(text)) return 'kitchen'
+  if (/lounge|living room|sofa|seating/.test(text)) return 'lounge'
+
   return 'generic'
 }
 
@@ -6576,11 +6938,12 @@ function resolveCameraForSceneFamily({
     if (matched) return matched
   }
 
-  if (family === 'bedroom') return 'soft bedroom profile shot'
-  if (family === 'bathroom') return 'mirror-side bathroom framing'
-  if (family === 'terrace') return 'balcony lifestyle angle'
-  if (family === 'kitchen') return 'kitchen counter profile shot'
-  if (family === 'lounge') return 'soft seated lifestyle framing'
+if (family === 'dressing') return 'wardrobe mirror editorial angle'
+if (family === 'bedroom') return 'soft bedroom profile shot'
+if (family === 'bathroom') return 'soft bathroom composition with marble and glass detail'
+if (family === 'terrace') return 'balcony lifestyle angle'
+if (family === 'kitchen') return 'kitchen counter profile shot'
+if (family === 'lounge') return 'soft seated lifestyle framing'
 
   return fallbackCamera && !/^cinematic framing$/i.test(fallbackCamera)
     ? fallbackCamera
@@ -7244,111 +7607,50 @@ if (
     .trim()
 }
 
-let finalDeterministicPrompt =
-  isCoupleMode
-    ? cleanCoupleFinalPrompt
-    : buildDeterministicFeedPrompt({
-        identity: String(cleanedIdentityLead || '').trim(),
-action: injectYachtFallbackAction(
-  sanitizeYachtAction(
-    String(finalSingleAction || '').trim(),
-    String(finalSingleEnvironment || '').trim(),
-    String(resolvedPromptModel.time || '').trim()
-  ),
-  String(finalSingleEnvironment || '').trim(),
-  String(resolvedPromptModel.time || '').trim()
+const isLuxuryYachtWorld =
+  resolvedWorldId === 'luxury_yacht_riviera' ||
+  resolvedWorldId === 'luxury-yacht-riviera'
+
+const fallbackPromptModel = {
+  identity: String(cleanedIdentityLead || '').trim(),
+
+action: normalizeSceneField(String(finalSingleAction || '').trim()),
+
+environment: normalizeSceneField(String(finalSingleEnvironment || '').trim()),
+
+mood: stripWeakMoodFragments(
+  normalizeSceneField(String(resolvedPromptModel.mood || '').trim())
 ),
-        environment: sanitizeYachtEnvironment(
-          String(finalSingleEnvironment || '').trim(),
-          String(resolvedPromptModel.camera || '').trim()
-        ),
-        mood: sanitizeYachtMood(
-          String(resolvedPromptModel.mood || '').trim(),
-          String(finalSingleAction || '').trim(),
-          String(finalSingleEnvironment || '').trim(),
-          String(resolvedPromptModel.time || '').trim()
-        ),
-        camera: sanitizeLegacyCameraForYachtWorld(
-          String(resolvedPromptModel.camera || '').trim(),
-          String(finalSingleAction || '').trim(),
-          String(finalSingleEnvironment || '').trim()
-        ),
-        lighting: String(resolvedPromptModel.lighting || '').trim(),
-        time: normalizeSceneTime(
-          String(resolvedPromptModel.time || '').trim(),
-          String(finalSingleAction || '').trim(),
-          String(finalSingleEnvironment || '').trim()
-        ),
-      })
+
+camera: normalizeSceneField(String(resolvedPromptModel.camera || '').trim()),
+
+lighting: normalizeSceneField(String(resolvedPromptModel.lighting || '').trim()),
+
+time: normalizeSceneField(String(resolvedPromptModel.time || '').trim()),
+}
+
+const unifiedPromptModel = buildUnifiedPromptModel({
+  subjectPromptModel,
+  fallbackPromptModel,
+})
+
+const finalUnifiedPromptModel = isCoupleMode
+  ? {
+      identity: coupleDeterministicIdentity,
+      action: String(subjectPromptModel?.action || '').trim(),
+      environment: String(subjectPromptModel?.environment || '').trim(),
+      mood: stripWeakMoodFragments(String(subjectPromptModel?.mood || '').trim()),
+      camera: String(subjectPromptModel?.camera || '').trim(),
+      lighting: String(subjectPromptModel?.lighting || '').trim(),
+      time: String(subjectPromptModel?.time || generatedTime || '').trim(),
+    }
+  : unifiedPromptModel
+
+let finalDeterministicPrompt = renderUnifiedPromptModel(finalUnifiedPromptModel)
 
 console.log('TRACE preFinalize finalDeterministicPrompt:', finalDeterministicPrompt)        
 
-finalDeterministicPrompt = isCoupleMode
-  ? String(finalDeterministicPrompt || '')
-  : hardCleanLuxuryYachtPrompt(String(finalDeterministicPrompt || ''))
-  .replace(
-    /\bsame exact man as the uploaded reference image,\s*same exact man as the uploaded reference image\b/gi,
-    'same exact man as the uploaded reference image'
-  )
-  .replace(
-    /\bsame exact woman as the uploaded reference image,\s*same exact woman as the uploaded reference image\b/gi,
-    'same exact woman as the uploaded reference image'
-  )
-  .replace(
-    /\bpreserve identical facial identity,\s*preserve identical facial identity\b/gi,
-    'preserve identical facial identity'
-  )
-  .replace(
-    /same exact man as the uploaded reference image,\s*preserve identical facial identity,\s*same person,\s*same face,\s*same bone structure,\s*same eyes,\s*same nose,\s*same lips,\s*same facial proportions,\s*same hairline,\s*(29 years old,\s*polished,\s*attractive,\s*socially powerful presence,\s*)?same exact man as the uploaded reference image/gi,
-    'same exact man as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline'
-  )
-  .replace(
-    /same exact woman as the uploaded reference image,\s*preserve identical facial identity,\s*same person,\s*same face,\s*same bone structure,\s*same eyes,\s*same nose,\s*same lips,\s*same facial proportions,\s*same hairline,\s*(29 years old,\s*polished,\s*attractive,\s*socially powerful presence,\s*)?same exact woman as the uploaded reference image/gi,
-    'same exact woman as the uploaded reference image, preserve identical facial identity, same person, same face, same bone structure, same eyes, same nose, same lips, same facial proportions, same hairline'
-  )
-  .replace(/\bbedroom or bathroom\b/gi, '')
-  .replace(
-    /\bnatural window light,\s*kitchen counter profile shot,\s*early morning,\s*bright morning daylight\b/gi,
-    'kitchen counter profile shot, bright morning daylight, early morning'
-  )
-  .replace(
-    /\bnatural light hitting the body,\s*bright morning daylight\b/gi,
-    'bright morning daylight'
-  )
-  .replace(
-    /\bsoft diffused morning light,\s*bright morning daylight\b/gi,
-    'bright morning daylight'
-  )
-  .replace(/\bsubtle bedroom details\b/gi, '')
-  .replace(/\bthe atmosphere of waking inside a calm cinematic world\b/gi, '')
-  .replace(/\ba luxury bedroom atmosphere shaped by softness\b/gi, '')
-  .replace(/\bthe sensation of waking into calm beauty instead of urgency\b/gi, '')
-  .replace(/\ba morning tone built on stillness\b/gi, '')
-  .replace(/\bstill fully private and self-contained\b/gi, '')
-  .replace(/\bquiet preparation and controlled visual elegance\b/gi, '')
-  .replace(/\bprivate beauty without any rush or friction\b/gi, '')
-  .replace(/\bsocial presence implied by elegance rather than interaction\b/gi, '')
-  .replace(/\blightly placed in the world\b/gi, '')
-  .replace(/\bsoftly magnetic daylight presence\b/gi, '')
-  .replace(/\ban atmosphere of scenic elegance and freedom from urgency\b/gi, '')
-  .replace(/\bvilla space\b/gi, '')
-  .replace(/\barchitecture elements\b/gi, '')
-  .replace(/\bdaybed cushions\b/gi, '')
-  .replace(/\bprivate terrace furniture\b/gi, '')
-  .replace(/\bbalcony stonework\b/gi, '')
-.replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
-.replace(/\bpolished\b,\s*/gi, '')
-.replace(/\battractive\b,\s*/gi, '')
-.replace(/\bsocially powerful presence\b,\s*/gi, '')
-.replace(/\bhigh-value feminine presence\b/gi, '')
-.replace(/\bfeminine presence\b/gi, '')
-.replace(/\brefined\b,\s*/gi, '')
-.replace(/\bcomposed\b,\s*/gi, '')
-.replace(/,\s*,/g, ', ')
-.replace(/\s+,/g, ',')
-.replace(/,\s*$/g, '')
-.replace(/\s{2,}/g, ' ')
-.trim()
+finalDeterministicPrompt = String(finalDeterministicPrompt || '').trim()
 
 if (isCoupleMode) {
   const coupleAnchorIndex = finalDeterministicPrompt.search(
@@ -7362,13 +7664,8 @@ if (isCoupleMode) {
   }
 }
 
-finalDeterministicPrompt = finalizeFeedPromptFlow(finalDeterministicPrompt)
-
-finalDeterministicPrompt = applyFinalFeedCleanup(finalDeterministicPrompt, {
-  worldId: resolvedWorldId,
-  storyWorld: activeStoryWorld,
-  identityLead: isCoupleMode ? '' : (resolvedPromptModel.identity || ''),
-})
+// TEMP: bypass legacy cleanup layers
+finalDeterministicPrompt = String(finalDeterministicPrompt || '').trim()
 
 function stripWeakMoodFragments(value) {
   const weakMoodFragmentRe =
@@ -7494,31 +7791,32 @@ function resolveEnvironmentFromAction(actionValue, currentEnvironment = '') {
   const action = String(actionValue || '').toLowerCase()
   const current = String(currentEnvironment || '').trim()
 
-  if (
-    current &&
-    !/^(bedroom or bathroom|apartment hallway or outdoor entrance)$/i.test(current)
-  ) {
-    return current
-  }
-
-  if (/breakfast|coffee|kitchen|meal|cooking|protein/.test(action)) {
+  // Strong action overrides — these must win even if current environment exists
+  if (/coffee|breakfast|kitchen|meal|cooking|protein|espresso|making coffee/.test(action)) {
     return 'modern kitchen with clean morning light'
   }
 
-  if (/bed|waking|wake up|edge of the bed|bedside/.test(action)) {
-    return 'minimal bedroom'
-  }
-
-  if (/bath|sink|mirror|shower|washing face/.test(action)) {
+  if (/bath|sink|mirror|shower|washing face|vanity|skincare|self-care/.test(action)) {
     return 'clean bathroom with soft natural light'
   }
 
-  if (/balcony|terrace|railing|view/.test(action)) {
-    return 'private balcony with open morning light'
+  if (/bed|waking|wake up|edge of the bed|bedside|soft sheets|phone before fully getting out of bed/.test(action)) {
+    return 'softly lit bedroom'
   }
 
-  if (/walking|hallway|leaving|door/.test(action)) {
+  if (/balcony|terrace|railing|view|window view/.test(action)) {
+    return 'private balcony with open natural light'
+  }
+
+  if (/walking|hallway|leaving|door|corridor/.test(action)) {
     return 'quiet interior walkway'
+  }
+
+  if (
+    current &&
+    !/^(bedroom or bathroom|apartment hallway or outdoor entrance|soft sheets|bed edge|reflective prep area)$/i.test(current)
+  ) {
+    return current
   }
 
   return current
@@ -7676,7 +7974,7 @@ const generateStoryImages = async () => {
       }
 
       const rawPrompt = feedPrompts[i]
-      const prompt = sanitizePrompt(rawPrompt)
+      const prompt = String(rawPrompt || '').trim()
         console.log(`STORY TRACE → starting scene ${i + 1}`, {
         index: i,
         hasPrompt: !!prompt,
@@ -7711,7 +8009,7 @@ const generateStoryImages = async () => {
           `Scene ${i + 1} failed, retrying once...`
         )
 
-        await new Promise((r) => setTimeout(r, 4000))
+        await new Promise((r) => setTimeout(r, 800))
 
         const retryController = new AbortController()
         storyAbortControllerRef.current = retryController
@@ -7833,17 +8131,17 @@ const generateStoryImages = async () => {
           continue
         }
 
-        results.push(retryImage)
-        setGeneratedImages((prev) => [...prev, retryImage])
-        setStoryIndex(i + 1)
+results.push(retryImage)
+setGeneratedImages((prev) => [...prev, retryImage])
+setStoryIndex(i + 1)
 
         await new Promise((r) => setTimeout(r, 7000))
         continue
       }
 
-      results.push(image)
-      setGeneratedImages((prev) => [...prev, image])
-      setStoryIndex(i + 1)
+results.push(image)
+setGeneratedImages((prev) => [...prev, image])
+setStoryIndex(i + 1)
 
       await new Promise((r) => setTimeout(r, 7000))
     }
@@ -7867,17 +8165,6 @@ const generateStoryImages = async () => {
     stopStoryGenerationRef.current = false
     setIsGeneratingBatch(false)
   }
-}
-
-const sanitizePrompt = (prompt) => {
-  if (!prompt) return prompt
-
-  return prompt
-    .replace(/seduction/gi, 'presence')
-    .replace(/seductive/gi, 'confident')
-    .replace(/control/gi, 'composure')
-    .replace(/sensual/gi, 'calm')
-    .replace(/intimate/gi, 'natural')
 }
 
   const clearField = (key) => {
@@ -8599,16 +8886,19 @@ const applyStoryWorld = (worldId) => {
   const world = STORY_WORLDS.find((w) => w.id === worldId)
   if (!world) return
 
-  setActiveStoryWorld(worldId)
-  setActiveChapter('')
-  setActiveSubLocationId('')
-  setActiveSceneGroupId('')
+setActiveStoryWorld(worldId)
+setActiveChapter('')
 
 if (worldId === 'lake-como-life') {
-  setActiveWorldId('lake-como-private-escape')
   setWorldControlMode('manual')
+  setActiveWorldId('lake-como-private-escape')
   setActiveSubLocationId('lake-view-bedroom')
   setActiveSceneGroupId('wake-up')
+} else {
+  setWorldControlMode('auto')
+  setActiveWorldId('')
+  setActiveSubLocationId('')
+  setActiveSceneGroupId('')
 }
 
   if (world.defaultPack) {
@@ -9383,7 +9673,7 @@ if (chapter.worldId === 'lake-como-life') {
             {showSubjectAControls ? (
               <div style={styles.ctrlBox}>
                 <div style={styles.ctrlLabel}>
-                  Subject A {subjectAModeGender === 'male' ? '(Male)' : '(Female)'}
+                  Subject A {subjectState?.characterMode === 'male' ? '(Male)' : '(Female)'}
                 </div>
 
                 <input
@@ -9406,7 +9696,7 @@ if (chapter.worldId === 'lake-como-life') {
                           prev.characterMode === 'male'
                             ? e.target.value
                             : prev.subjectA?.maleIdentityName || '',
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         lastUpdated: Date.now(),
                       },
@@ -9425,7 +9715,7 @@ if (chapter.worldId === 'lake-como-life') {
                       subjectA: {
                         ...prev.subjectA,
                         role: e.target.value,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         lastUpdated: Date.now(),
                       },
@@ -9443,7 +9733,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9465,7 +9755,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9487,7 +9777,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9509,7 +9799,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9531,7 +9821,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9553,7 +9843,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9575,7 +9865,7 @@ if (chapter.worldId === 'lake-como-life') {
                       ...prev,
                       subjectA: {
                         ...prev.subjectA,
-                        gender: subjectAModeGender,
+                        gender: prev.characterMode === 'male' ? 'male' : 'female',
                         enabled: true,
                         extractedTraits: {
                           ...prev.subjectA?.extractedTraits,
@@ -9867,7 +10157,14 @@ if (chapter.worldId === 'lake-como-life') {
 
   <select
     value={activeStoryWorld}
-    onChange={(e) => setActiveStoryWorld(e.target.value)}
+    onChange={(e) => {
+  const value = e.target.value
+  setActiveStoryWorld(value)
+
+  if (value) {
+    applyStoryWorld(value)
+  }
+}}
     style={styles.ctrlSelect}
   >
     <option value="">Select Story World</option>
