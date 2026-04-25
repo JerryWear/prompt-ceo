@@ -165,7 +165,7 @@ const xaiResponse = await fetch('https://api.x.ai/v1/images/edits', {
     Authorization: `Bearer ${xaiApiKey}`,
   },
   body: JSON.stringify({
-    model: 'grok-imagine-image',
+    model: 'grok-vision-beta',
     prompt: editPrompt,
     image: {
       url: imageDataUrl,
