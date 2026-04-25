@@ -8147,7 +8147,7 @@ setStoryIndex(i + 1)
 const delay =
   imageQualityMode === 'ultra' ? 3000 :
   imageQualityMode === 'high' ? 2000 :
-  imageQualityMode === 'balanced' ? 1500 :
+  imageQualityMode === 'balanced' ? 7000 :
   800
 
 await new Promise((r) => setTimeout(r, delay))
@@ -8161,7 +8161,7 @@ setStoryIndex(i + 1)
 const delay =
   imageQualityMode === 'ultra' ? 3000 :
   imageQualityMode === 'high' ? 2000 :
-  imageQualityMode === 'balanced' ? 1500 :
+  imageQualityMode === 'balanced' ? 7000 :
   800
 
 await new Promise((r) => setTimeout(r, delay))
