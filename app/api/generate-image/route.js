@@ -152,66 +152,58 @@ Do NOT change identity.
 const editPrompt = [
   finalPrompt,
   '',
-  'Use the uploaded image as a visual reference for the same fictional character.',
-  'Maintain consistent facial features, age range, hair color, eye color, skin tone, and overall appearance.',
-  'Create a new cinematic scene with updated environment, lighting, pose, wardrobe, and camera framing.',
+  'Use the uploaded image as the identity reference.',
+  'Generate the same person in the new scene.',
+  'Preserve facial structure, eyes, nose, lips, jawline, eyebrows, hairline, skin tone, age range, and body proportions.',
+  'Only change the environment, lighting, pose, wardrobe, camera framing, and atmosphere.',
   'Keep the result realistic, tasteful, non-explicit, and editorial.'
 ].join('\n')
 
-const base64Data = imageDataUrl.includes(',')
-  ? imageDataUrl.split(',')[1]
-  : imageDataUrl
-
-const imageBuffer = Buffer.from(base64Data, 'base64')
-
-const formData = new FormData()
-formData.append('model', 'gpt-image-1')
-formData.append('prompt', editPrompt)
-formData.append('image', new Blob([imageBuffer], { type: 'image/png' }), 'identity.png')
-formData.append('input_fidelity', 'high')
-formData.append('size', '1024x1536')
-
-const openaiApiKey = String(process.env.OPENAI_API_KEY || '')
-  .replace(/^Bearer\s+/i, '')
-  .replace(/^"+|"+$/g, '')
-  .trim()
-
-if (!openaiApiKey) {
-  return NextResponse.json(
-    { status: 'error', message: 'Missing OPENAI_API_KEY on server' },
-    { status: 500 }
-  )
-}
-
-const xaiResponse = await fetch('https://api.openai.com/v1/images/edits', {
+const xaiImageResponse = await fetch('https://api.x.ai/v1/images/edits', {
   method: 'POST',
   headers: {
-    Authorization: `Bearer ${openaiApiKey}`,
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${xaiApiKey}`,
   },
-  body: formData,
+  body: JSON.stringify({
+    model: 'grok-imagine-image',
+    prompt: editPrompt,
+    image: {
+      type: 'image_url',
+      url: imageDataUrl,
+    },
+    aspect_ratio: '2:3',
+  }),
 })
 
-const data = await xaiResponse.json()
+const data = await xaiImageResponse.json()
 
-console.log('XAI_IMAGE_STATUS:', xaiResponse.status)
-console.log('XAI_IMAGE_RESPONSE:', JSON.stringify(data).slice(0, 1200))
+console.log('GROK_IMAGE_STATUS:', xaiImageResponse.status)
+console.log('GROK_IMAGE_RESPONSE:', JSON.stringify(data).slice(0, 1200))
 
-if (!xaiResponse.ok) {
+if (!xaiImageResponse.ok) {
   return NextResponse.json(
     {
       status: 'error',
       message: clean(data?.error?.message) || 'Grok image edit failed',
       raw: data,
     },
-    { status: xaiResponse.status }
+    { status: xaiImageResponse.status }
   )
 }
 
-const imageBase64 = data?.data?.[0]?.b64_json || ''
-const imageUrl =
-  imageBase64
-    ? `data:image/png;base64,${imageBase64}`
-    : clean(data?.data?.[0]?.url)
+const imageUrl = clean(data?.data?.[0]?.url)
+
+if (!imageUrl) {
+  return NextResponse.json(
+    {
+      status: 'error',
+      message: 'No image returned from Grok image edit endpoint',
+      raw: data,
+    },
+    { status: 500 }
+  )
+}
 
 if (!imageUrl) {
   return NextResponse.json(
