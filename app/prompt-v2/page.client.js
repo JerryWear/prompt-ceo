@@ -7878,11 +7878,7 @@ const generateImage = async () => {
 body: JSON.stringify({
   prompt: promptToSend,
 
-  identity: {
-    image: identityState.imageDataUrl,
-    strength: 1.0,
-    priority: 'max',
-  },
+identity: null,
 
   extractedTraits: identityState.extractedTraits,
 }),

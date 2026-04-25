@@ -21,12 +21,9 @@ const extractedTraits = body?.extractedTraits || {}
       )
     }
 
-    if (!imageDataUrl) {
-      return NextResponse.json(
-        { status: 'error', message: 'Missing identity reference image' },
-        { status: 400 }
-      )
-    }
+if (!imageDataUrl) {
+  console.log('No identity image — running without identity')
+}
 
 const xaiApiKey = clean(process.env.XAI_API_KEY)
 
