@@ -158,7 +158,7 @@ Do NOT change identity.
       'Do not replace the person with a different woman.'
     ].join('\n')
 
-const xaiResponse = await fetch('https://api.x.ai/v1/images/edits', {
+const xaiResponse = await fetch('https://api.x.ai/v1/images/generations', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -167,10 +167,6 @@ const xaiResponse = await fetch('https://api.x.ai/v1/images/edits', {
   body: JSON.stringify({
     model: 'grok-imagine-image',
     prompt: editPrompt,
-    image: {
-      url: imageDataUrl,
-      type: 'image_url',
-    },
     response_format: 'b64_json',
   }),
 })
