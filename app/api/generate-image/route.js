@@ -41,7 +41,10 @@ if (!imageDataUrl) {
   console.log('No identity image — running without identity')
 }
 
-const xaiApiKey = clean(process.env.XAI_API_KEY)
+const xaiApiKey = String(process.env.XAI_API_KEY || '')
+  .replace(/^Bearer\s+/i, '')
+  .replace(/^"+|"+$/g, '')
+  .trim()
 
 if (!xaiApiKey) {
   return NextResponse.json(
