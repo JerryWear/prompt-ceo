@@ -7952,9 +7952,6 @@ const generateStoryImages = async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
-
-          qualityMode: imageQualityMode,
-
           identity: {
             image: identityState.imageDataUrl,
             strength: 1.0,
