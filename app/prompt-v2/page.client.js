@@ -8037,7 +8037,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 3000))
+          await new Promise((r) => setTimeout(r, 12000))
           continue
         }
       } finally {
@@ -8070,7 +8070,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 3000))
+          await new Promise((r) => setTimeout(r, 12000))
           continue
         }
 
@@ -8079,7 +8079,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 3000))
+          await new Promise((r) => setTimeout(r, 12000))
           continue
         }
       }
@@ -8119,7 +8119,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 3000))
+          await new Promise((r) => setTimeout(r, 12000))
           continue
         }
 
@@ -8136,7 +8136,7 @@ const generateStoryImages = async () => {
           setStoryGenerationStatus(
             `Scene ${i + 1} failed twice, waiting and continuing...`
           )
-          await new Promise((r) => setTimeout(r, 3000))
+          await new Promise((r) => setTimeout(r, 12000))
           continue
         }
 
