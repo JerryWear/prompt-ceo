@@ -3678,8 +3678,6 @@ const [imageLoadErrors, setImageLoadErrors] = useState({})
 const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
 const [storyGenerationStatus, setStoryGenerationStatus] = useState('')
 
-const [imageQualityMode, setImageQualityMode] = useState('balanced')
-
 const [storyIndex, setStoryIndex] = useState(0)
 const stopStoryGenerationRef = useRef(false)
 const storyAbortControllerRef = useRef(null)
@@ -8141,13 +8139,7 @@ results.push(retryImage)
 setGeneratedImages((prev) => [...prev, retryImage])
 setStoryIndex(i + 1)
 
-const delay =
-  imageQualityMode === 'ultra' ? 3000 :
-  imageQualityMode === 'high' ? 2000 :
-  imageQualityMode === 'balanced' ? 7000 :
-  800
-
-await new Promise((r) => setTimeout(r, delay))
+await new Promise((r) => setTimeout(r, 7000))
 continue
       }
 
@@ -8155,13 +8147,7 @@ results.push(image)
 setGeneratedImages((prev) => [...prev, image])
 setStoryIndex(i + 1)
 
-const delay =
-  imageQualityMode === 'ultra' ? 3000 :
-  imageQualityMode === 'high' ? 2000 :
-  imageQualityMode === 'balanced' ? 7000 :
-  800
-
-await new Promise((r) => setTimeout(r, delay))
+await new Promise((r) => setTimeout(r, 7000))
     }
 
     setGeneratedImages((prev) => {
@@ -9674,31 +9660,7 @@ if (chapter.worldId === 'lake-como-life') {
 </div>
 
 <div style={styles.globalActionStack}>
-
-<div style={styles.ctrlBox}>
-  <div style={styles.ctrlLabel}>IMAGE QUALITY</div>
-
-  <select
-    value={imageQualityMode}
-    onChange={(e) => {
-      setImageQualityMode(e.target.value)
-      setClicks((c) => c + 1)
-      setLast(`Image Quality → ${e.target.value}`)
-    }}
-    style={styles.ctrlSelect}
-  >
-    <option value="fast">Fast (lower quality, fastest)</option>
-    <option value="balanced">Balanced (recommended)</option>
-    <option value="high">High Quality</option>
-    <option value="ultra">Ultra Quality (slowest)</option>
-  </select>
-
-  <div style={styles.note}>
-    Controls render speed vs quality. Higher quality = slower generation.
-  </div>
-</div>
-
-<div style={styles.actionRowTight}>
+  <div style={styles.actionRowTight}>
   <button
     type="button"
     onClick={generateInfluencerFeed}
