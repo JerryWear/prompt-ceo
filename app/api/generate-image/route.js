@@ -17,9 +17,17 @@ const prompt = clean(body?.prompt)
 const identityImage =
   body && body.identity && body.identity.image
     ? body.identity.image
-    : ''
+    : ''   
 
 const imageDataUrl = clean(identityImage || body?.imageDataUrl)
+
+console.log('DEBUG INPUT', {
+  hasPrompt: !!prompt,
+  promptPreview: prompt?.slice(0, 100),
+  hasImage: !!imageDataUrl,
+  imageLength: imageDataUrl?.length
+}) 
+
 const extractedTraits = body?.extractedTraits || {}
 
     if (!prompt) {
