@@ -8,6 +8,11 @@ export async function POST(req) {
   try {
     const body = await req.json()
 
+console.log('GENERATE_IMAGE_BODY_KEYS:', Object.keys(body || {}))
+console.log('GENERATE_IMAGE_HAS_PROMPT:', !!body?.prompt)
+console.log('GENERATE_IMAGE_HAS_IDENTITY:', !!body?.identity)
+console.log('GENERATE_IMAGE_HAS_XAI_KEY:', !!process.env.XAI_API_KEY)    
+
 const prompt = clean(body?.prompt)
 const identityImage =
   body && body.identity && body.identity.image
@@ -80,6 +85,7 @@ Only enhance:
 
 If anything conflicts with identity, preserve identity first.
 `
+console.log('GENERATE_IMAGE_BEFORE_GROK_FETCH')
 
     const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -197,6 +203,7 @@ if (!imageUrl) {
       {
         status: 'error',
         message: clean(err?.message) || 'Server generation failed',
+stack: clean(err?.stack),
       },
       { status: 500 }
     )
