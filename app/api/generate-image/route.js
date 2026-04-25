@@ -149,14 +149,14 @@ Do NOT change identity.
   }
 }
 
-    const editPrompt = [
+const editPrompt = [
   finalPrompt,
-      '',
-      'Preserve the exact same real person from the input image.',
-      'Keep the same face, same identity, same facial structure, same eyes, same nose, same lips, same jawline, same eyebrows, same hairline.',
-      'Only change styling, clothing, pose, scene, camera, or environment as requested.',
-      'Do not replace the person with a different woman.'
-    ].join('\n')
+  '',
+  'Use the uploaded image as a visual reference for the same fictional character.',
+  'Maintain consistent facial features, age range, hair color, eye color, skin tone, and overall appearance.',
+  'Create a new cinematic scene with updated environment, lighting, pose, wardrobe, and camera framing.',
+  'Keep the result realistic, tasteful, non-explicit, and editorial.'
+].join('\n')
 
 const base64Data = imageDataUrl.includes(',')
   ? imageDataUrl.split(',')[1]
