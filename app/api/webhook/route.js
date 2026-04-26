@@ -26,26 +26,19 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  // ✅ PAYMENT SUCCESS
+  // ✅ HANDLE SUCCESSFUL PAYMENT
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
 
-    const userId = session.metadata.userId
-    const product = session.metadata.product
+    const userId = session.metadata?.userId
+    const creditsToAdd = Number(session.metadata?.credits || 0)
 
-    let creditsToAdd = 0
-
-    // 👉 MAP YOUR PRODUCTS HERE
-    if (product === '100') creditsToAdd = 100
-    if (product === '250') creditsToAdd = 250
-    if (product === '600') creditsToAdd = 600
-
-    if (!userId || creditsToAdd === 0) {
-      console.error('Missing user or credits mapping')
+    if (!userId || creditsToAdd <= 0) {
+      console.error('❌ Missing metadata:', session.metadata)
       return NextResponse.json({ received: true })
     }
 
-    // 👉 GET CURRENT CREDITS
+    // 👉 GET CURRENT USER CREDITS
     const { data: user, error: fetchError } = await supabase
       .from('app_users')
       .select('credits')
@@ -53,20 +46,20 @@ export async function POST(req) {
       .single()
 
     if (fetchError) {
-      console.error('Fetch error:', fetchError)
+      console.error('❌ Fetch error:', fetchError)
       return NextResponse.json({ received: true })
     }
 
-    const newCredits = (user.credits || 0) + creditsToAdd
+    const newCredits = (user?.credits || 0) + creditsToAdd
 
-    // 👉 UPDATE CREDITS
+    // 👉 UPDATE USER CREDITS
     const { error: updateError } = await supabase
       .from('app_users')
       .update({ credits: newCredits })
       .eq('id', userId)
 
     if (updateError) {
-      console.error('Update error:', updateError)
+      console.error('❌ Update error:', updateError)
     } else {
       console.log(`✅ Added ${creditsToAdd} credits to user ${userId}`)
     }
