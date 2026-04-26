@@ -3494,6 +3494,7 @@ function getDisplayIdentityLabel(traits = {}) {
 export default function PromptV2() {
   const plan = 'Unrestricted'
   const [adminMode, setAdminMode] = useState(false)
+
   const [subjectState, setSubjectState] = useState(() => createEmptySubjectState())
   const [interactionState, setInteractionState] = useState(() => createEmptyInteractionState())
   const [activePackTab, setActivePackTab] = useState('Packs')
@@ -3504,7 +3505,10 @@ export default function PromptV2() {
   const [intensity, setIntensity] = useState('Fanvue')
   const [clicks, setClicks] = useState(0)
   const [last, setLast] = useState('—')
-  const [copied] = useState('')
+  const [creditError, setCreditError] = useState('')
+  const [selectedCredits, setSelectedCredits] = useState('100')
+
+  const [copied, setCopied] = useState('')
   const [activeStoryWorld, setActiveStoryWorld] = useState('')
   const [activeChapter, setActiveChapter] = useState('')
   const [activeStorySceneId, setActiveStorySceneId] = useState('auto')
@@ -3673,10 +3677,36 @@ useEffect(() => {
 const [feedPrompts, setFeedPrompts] = useState([])
 const [generatedImage, setGeneratedImage] = useState('')
 const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+const [credits, setCredits] = useState(0)
 const [generatedImages, setGeneratedImages] = useState([])
 const [imageLoadErrors, setImageLoadErrors] = useState({})
 const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
 const [storyGenerationStatus, setStoryGenerationStatus] = useState('')
+
+const loadCredits = async () => {
+  try {
+    const res = await fetch('/api/get-credits')
+    const data = await res.json()
+
+if (res.ok) {
+  setCredits(data.credits)
+
+  if (data.credits > 0) {
+    setCreditError('')
+  }
+} else {
+      console.warn('Failed to load credits', data)
+setCreditError(data?.message || 'Credits unavailable')
+setCredits(0)
+    }
+  } catch (err) {
+    console.error('Credits fetch error', err)
+  }
+}
+
+useEffect(() => {
+  loadCredits()
+}, [])
 
 const [storyIndex, setStoryIndex] = useState(0)
 const stopStoryGenerationRef = useRef(false)
@@ -7877,9 +7907,12 @@ const generateImage = async () => {
       },
 body: JSON.stringify({
   prompt: promptToSend,
-
-identity: null,
-
+  identity: {
+    image: identityState.imageDataUrl,
+    strength: 1.0,
+    priority: 'max',
+  },
+  imageDataUrl: identityState.imageDataUrl,
   extractedTraits: identityState.extractedTraits,
 }),
     })
@@ -7888,11 +7921,21 @@ identity: null,
 
     console.log('✅ FULL RESPONSE:', data)
 
-    if (!res.ok) {
-      console.error('❌ BACKEND ERROR:', data)
-      alert(data?.message || 'Image generation failed')
-      return
-    }
+if (!res.ok) {
+  console.error('❌ BACKEND ERROR:', data)
+
+  if (res.status === 402) {
+    setCreditError('⚠️ No credits left — please recharge to continue')
+  } else if (res.status === 401) {
+    alert('You are not authenticated.')
+  } else if (res.status === 403) {
+    alert('No active plan. Please upgrade.')
+  } else {
+    alert(data?.message || 'Image generation failed')
+  }
+
+  return
+}
 
     const image = data?.imageUrl || ''
 
@@ -7906,6 +7949,9 @@ identity: null,
     setGeneratedImage(image)
     setLast('Image generated')
     setClicks((c) => c + 1)
+
+    await loadCredits()
+
   } catch (err) {
     console.error('❌ FETCH ERROR:', err)
     alert(err?.message || 'Image request failed')
@@ -8035,12 +8081,31 @@ const generateStoryImages = async () => {
         storyAbortControllerRef.current = null
       }
 
-      if (!res?.ok) {
-        console.log(`Scene ${i + 1} failed:`, data)
+if (!res?.ok) {
+  console.log(`Scene ${i + 1} failed:`, data)
 
-        setStoryGenerationStatus(
-          `Scene ${i + 1} failed, retrying once...`
-        )
+  if (res?.status === 402) {
+    setStoryGenerationStatus('⚠️ No credits left — generation stopped')
+    alert('⚠️ You ran out of credits.\n\nRecharge to continue generating images.')
+    await loadCredits()
+    break
+  }
+
+  if (res?.status === 401) {
+    setStoryGenerationStatus('Not authenticated — generation stopped')
+    alert('You are not authenticated.')
+    break
+  }
+
+  if (res?.status === 403) {
+    setStoryGenerationStatus('No active plan — generation stopped')
+    alert('No active plan. Please upgrade.')
+    break
+  }
+
+  setStoryGenerationStatus(
+    `Scene ${i + 1} failed, retrying once...`
+  )
 
         await new Promise((r) => setTimeout(r, 4000))
 
@@ -8134,6 +8199,7 @@ const generateStoryImages = async () => {
 results.push(retryImage)
 setGeneratedImages((prev) => [...prev, retryImage])
 setStoryIndex(i + 1)
+await loadCredits()
 
 await new Promise((r) => setTimeout(r, 7000))
 continue
@@ -8142,6 +8208,7 @@ continue
 results.push(image)
 setGeneratedImages((prev) => [...prev, image])
 setStoryIndex(i + 1)
+await loadCredits()
 
 await new Promise((r) => setTimeout(r, 7000))
     }
@@ -9305,32 +9372,103 @@ if (chapter.worldId === 'lake-como-life') {
 </div>
 
 <div style={styles.identityDangerRow}>
-  <button
-    type="button"
-    onClick={generateImage}
-    style={styles.btnPrimary}
-    disabled={isGeneratingImage}
-  >
-    {isGeneratingImage ? 'Generating...' : 'Generate Image (with Identity)'}
-  </button>
 
-  <button
-    type="button"
-    onClick={clearIdentityState}
-    style={styles.btnDanger}
-    disabled={
-      !identityState.imageDataUrl &&
-      !identityState.name &&
-      !identityState.enabled
-    }
-  >
-    Clear Identity
-  </button>
+
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '10px',
+    maxWidth: '100%',
+    overflow: 'hidden',
+  }}
+>
+  {/* EVERYTHING INSIDE HERE */}
 </div>
-                </div>
-              </div>
+{/* Credits */}
+<div
+  style={{
+    color: '#00ffaa',
+    fontSize: 14,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+  }}
+>
+  Credits: {credits}
+</div>
 
-              <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
+{/* Select Credits */}
+<select
+  value={selectedCredits}
+  onChange={(e) => setSelectedCredits(e.target.value)}
+  style={{
+    height: '38px',
+    minWidth: '150px',
+    padding: '0 12px',
+    borderRadius: '10px',
+    background: '#2b2b2b',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.2)',
+    fontWeight: 600,
+  }}
+>
+  <option value="50">50 Credits</option>
+  <option value="100">100 Credits</option>
+  <option value="250">250 Credits</option>
+  <option value="500">500 Credits</option>
+</select>
+
+{/* Buy */}
+<button
+  onClick={async () => {
+    try {
+      const res = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: selectedCredits }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data?.message || 'Checkout failed')
+        return
+      }
+
+      window.location.href = data.url
+    } catch (err) {
+      console.error(err)
+      alert('Something went wrong')
+    }
+  }}
+  style={styles.btnPrimary}
+>
+  Buy Credits
+</button>
+
+{/* Generate */}
+<button
+  onClick={generateImage}
+  style={styles.btnPrimary}
+  disabled={isGeneratingImage}
+>
+  {isGeneratingImage ? 'Generating...' : 'Generate Image Id'}
+</button>
+
+{/* Clear */}
+<button
+  type="button"
+  onClick={clearIdentityState}
+  style={styles.btnDanger}
+>
+  Clear Id
+</button>
+</div>
+ </div>
+  </div>
+
+    <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
   <div style={styles.ctrlLabel}>CHARACTER MODE</div>
 
 <div style={styles.row}>
