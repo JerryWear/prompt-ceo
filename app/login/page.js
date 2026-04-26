@@ -1,60 +1,74 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-
-function createSupabaseClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
-}
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "../../lib/supabase/client"
 
 export default function LoginPage() {
-  const supabase = createSupabaseClient()
+  const router = useRouter()
+  const supabase = createClient()
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  async function handleLogin() {
+  const handleLogin = async (e) => {
+    e.preventDefault()
     setLoading(true)
+    setError("")
 
-    const { error } = await supabase.auth.signInWithOtp({
+    if (!email || !password) {
+      setError("Email and password are required")
+      setLoading(false)
+      return
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: 'http://localhost:3000/prompt-v2',
-      },
+      password,
     })
 
     if (error) {
-      alert(error.message)
-    } else {
-      alert('Check your email for the login link.')
+      setError(error.message)
+      setLoading(false)
+      return
     }
 
-    setLoading(false)
+    // ✅ CRITICAL: redirect AFTER session is created
+    router.push("/prompt-v2")
+    router.refresh()
   }
 
   return (
-    <main style={{ padding: 40 }}>
+    <div style={{ padding: 40 }}>
       <h1>Login</h1>
 
-      <input
-        type="email"
-        placeholder="Enter your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{
-          padding: 12,
-          width: 320,
-          marginBottom: 12,
-          display: 'block',
-        }}
-      />
+      <form onSubmit={handleLogin}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-      <button onClick={handleLogin} disabled={loading || !email}>
-        {loading ? 'Sending...' : 'Send login link'}
-      </button>
-    </main>
+        <br /><br />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <br /><br />
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+
+        {error && <p style={{ color: "red" }}>{error}</p>}
+      </form>
+    </div>
   )
 }

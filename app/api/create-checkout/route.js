@@ -10,9 +10,21 @@ function clean(value) {
 }
 
 const CREDIT_PRODUCTS = {
+  '50': {
+    priceId: process.env.STRIPE_PRICE_50,
+    credits: 50,
+  },
   '100': {
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+    priceId: process.env.STRIPE_PRICE_100,
     credits: 100,
+  },
+  '250': {
+    priceId: process.env.STRIPE_PRICE_250,
+    credits: 250,
+  },
+  '500': {
+    priceId: process.env.STRIPE_PRICE_500,
+    credits: 500,
   },
 }
 
