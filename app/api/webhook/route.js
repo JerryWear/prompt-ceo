@@ -64,13 +64,7 @@ if (upsertError) {
 } else {
   console.log(`✅ Added ${creditsToAdd} credits to user ${userId}`)
 }
-
-    if (updateError) {
-      console.error('❌ Update error:', updateError)
-    } else {
-      console.log(`✅ Added ${creditsToAdd} credits to user ${userId}`)
-    }
-  }
+}
 
   return NextResponse.json({ received: true })
 }
