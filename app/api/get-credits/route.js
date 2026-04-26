@@ -57,7 +57,6 @@ export async function GET() {
     if (error && error.code === 'PGRST116') {
       const { error: insertError } = await admin.from('app_users').insert({
         id: userId,
-        email: user.email || '',
         credits: 50,
         plan: 'trial',
         daily_limit: 20,

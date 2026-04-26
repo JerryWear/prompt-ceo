@@ -53,7 +53,6 @@ const { error: upsertError } = await supabase
   .from('app_users')
   .upsert({
     id: userId,
-    email: session.metadata?.email || '',
     credits: newCredits,
     plan: 'trial',
     daily_limit: 20,
