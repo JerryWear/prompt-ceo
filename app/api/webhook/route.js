@@ -38,25 +38,32 @@ export async function POST(req) {
       return NextResponse.json({ received: true })
     }
 
-    // 👉 GET CURRENT USER CREDITS
-    const { data: user, error: fetchError } = await supabase
-      .from('app_users')
-      .select('credits')
-      .eq('id', userId)
-      .single()
+// 👉 SAFE CREDIT UPSERT (handles new + existing users)
 
-    if (fetchError) {
-      console.error('❌ Fetch error:', fetchError)
-      return NextResponse.json({ received: true })
-    }
+const { data: existingUser } = await supabase
+  .from('app_users')
+  .select('credits')
+  .eq('id', userId)
+  .single()
 
-    const newCredits = (user?.credits || 0) + creditsToAdd
+const currentCredits = existingUser?.credits || 0
+const newCredits = currentCredits + creditsToAdd
 
-    // 👉 UPDATE USER CREDITS
-    const { error: updateError } = await supabase
-      .from('app_users')
-      .update({ credits: newCredits })
-      .eq('id', userId)
+const { error: upsertError } = await supabase
+  .from('app_users')
+  .upsert({
+    id: userId,
+    email: session.metadata?.email || '',
+    credits: newCredits,
+    plan: 'trial',
+    daily_limit: 20,
+  })
+
+if (upsertError) {
+  console.error('❌ Credit upsert error:', upsertError)
+} else {
+  console.log(`✅ Added ${creditsToAdd} credits to user ${userId}`)
+}
 
     if (updateError) {
       console.error('❌ Update error:', updateError)
