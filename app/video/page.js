@@ -1,6 +1,6 @@
 // app/video/page.js
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "../../lib/supabase/server"
 import VideoPage from "./page.client"
 
 export const dynamic = "force-dynamic"
