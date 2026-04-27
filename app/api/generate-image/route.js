@@ -16,16 +16,17 @@ export async function POST(req) {
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
-            })
-          },
-        },
+cookies: {
+  get(name) {
+    return cookieStore.get(name)?.value
+  },
+  set(name, value, options) {
+    cookieStore.set({ name, value, ...options })
+  },
+  remove(name, options) {
+    cookieStore.set({ name, value: '', ...options })
+  },
+},
       }
     )
 
@@ -125,11 +126,12 @@ export async function POST(req) {
 
     // CREATE USER IF NOT EXISTS
     if (!userRow) {
-      const { error: insertError } = await admin.from('app_users').insert({
-        id: access.userId,
-        email: access.email,
-        credits: 50,
-      })
+const { error: insertError } = await admin.from('app_users').insert({
+  id: access.userId,
+  credits: 50,
+  plan: 'trial',
+  daily_limit: 20,
+})
 
       if (insertError) {
         console.error('APP_USER_INSERT_ERROR:', insertError)
