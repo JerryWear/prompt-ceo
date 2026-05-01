@@ -1056,34 +1056,25 @@ export default function VideoPromptBuilder() {
   )
   const [varyLocationCategory, setVaryLocationCategory] = useState(false)
 
-  useEffect(() => {
-    const loadCredits = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
+useEffect(() => {
+  const loadCredits = async () => {
+    try {
+      const res = await fetch('/api/get-credits')
+      const data = await res.json()
 
-      if (userError || !user) {
-        console.error('No logged-in user:', userError)
+      if (!res.ok) {
+        console.error('Credit API error:', data)
         return
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single()
-
-      if (error) {
-        console.error('Credit load error:', error)
-        return
-      }
-
-      setCredits(data?.credits || 0)
+      setCredits(data.credits || 0)
+    } catch (err) {
+      console.error('Credit fetch failed:', err)
     }
+  }
 
-    loadCredits()
-  }, [supabase])
+  loadCredits()
+}, [])
 
   const contentMode = useMemo(() => 'Unrestricted', [])
   const planPresets = useMemo(() => UNRESTRICTED_PRESETS, [])
@@ -1339,14 +1330,12 @@ export default function VideoPromptBuilder() {
       if (data?.videoUrl) {
         setVideoUrl(data.videoUrl)
 
-        const { data: profile, error: creditError } = await supabase
-          .from('profiles')
-          .select('credits')
-          .single()
+const refresh = await fetch('/api/get-credits')
+const refreshedData = await refresh.json()
 
-        if (!creditError && profile) {
-          setCredits(profile.credits || 0)
-        }
+if (refresh.ok) {
+  setCredits(refreshedData.credits || 0)
+}
 
         setLast(`Video generated (-${VIDEO_CREDIT_COST} credits)`)
       } else {

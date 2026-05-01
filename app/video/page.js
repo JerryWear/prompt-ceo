@@ -16,15 +16,15 @@ export default async function Page() {
     redirect("/login")
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("membership_video")
-    .eq("id", user.id)
-    .single()
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("membership_video, is_admin, has_access")
+  .eq("id", user.id)
+  .single()
 
-  if (!profile?.membership_video) {
-    redirect("/pricing?app=video")
-  }
+if (!(profile?.is_admin || profile?.has_access || profile?.membership_video)) {
+  redirect("/pricing?app=video")
+}
 
   return <VideoPage />
 }
