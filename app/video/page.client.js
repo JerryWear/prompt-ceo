@@ -1992,6 +1992,24 @@ const handleBuyCredits = async () => {
               </select>
             </div>
           </div>
+          <div style={{ ...styles.row, marginTop: 12 }}>
+  <button
+    type="button"
+    onClick={generateVideoFeed}
+    style={styles.btnPrimary}
+  >
+    Generate 30 Story World Prompts
+  </button>
+
+  <button
+    type="button"
+    onClick={() => copyText(batchPack, 'Story Video Prompts')}
+    style={styles.btnGhost}
+    disabled={!batchPack}
+  >
+    Copy World Prompts
+  </button>
+</div>
         </div>
 
         <div style={styles.controlSectionWorld}>
