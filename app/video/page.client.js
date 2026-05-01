@@ -2395,9 +2395,15 @@ const handleBuyCredits = async () => {
             Buy Credits
           </button>
 
-          <div style={styles.creditCost}>
-            Video cost: {VIDEO_CREDIT_COST} credits
-          </div>
+<div style={styles.creditCost}>
+  Video cost: {VIDEO_CREDIT_COST} credits
+</div>
+
+<div style={styles.creditInfo}>
+  Credits are shared across all tools.
+  <br />
+  1 image = 5 credits • 1 video = 60 credits
+</div>
         </div>
 
         <textarea
@@ -3141,4 +3147,11 @@ const styles = {
     fontSize: 13,
     minWidth: 110,
   },
+
+  creditInfo: {
+  marginTop: 6,
+  fontSize: 12,
+  color: 'rgba(229,231,235,0.65)',
+  lineHeight: 1.5,
+},
 }

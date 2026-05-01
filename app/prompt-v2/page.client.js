@@ -9468,6 +9468,10 @@ if (chapter.worldId === 'lake-como-life') {
  </div>
   </div>
 
+  <div style={styles.creditInfoWide}>
+  Credits are shared across all Prompt CEO tools: 1 image = 5 credits • 1 video = 60 credits
+</div>
+
     <div style={{ ...styles.ctrlBox, ...styles.storyCtrlBox }}>
   <div style={styles.ctrlLabel}>CHARACTER MODE</div>
 
@@ -12204,5 +12208,13 @@ btnGhostSmall: {
   color: '#aaa',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
+},
+
+creditInfoWide: {
+  width: '100%',
+  marginTop: 10,
+  fontSize: 12,
+  color: 'rgba(229,231,235,0.65)',
+  lineHeight: 1.5,
 },
 }
