@@ -1350,10 +1350,27 @@ if (refresh.ok) {
     }
   }
 
-  const handleBuyCredits = () => {
-    setCredits((prev) => prev + Number(creditPackage))
-    setLast(`Bought ${creditPackage} credits`)
+const handleBuyCredits = async () => {
+  try {
+    const res = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: creditPackage }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      alert(data?.message || 'Checkout failed')
+      return
+    }
+
+    window.location.href = data.url
+  } catch (err) {
+    console.error(err)
+    alert('Something went wrong')
   }
+}
 
   const randomizeField = (key) => {
     if (locks[key]) return
