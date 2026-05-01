@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
@@ -7,6 +8,18 @@ import { createClient } from '../../lib/supabase/client'
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+  const checkSession = async () => {
+    const { data } = await supabase.auth.getSession()
+
+    if (data.session) {
+      router.replace('/prompt-v2')
+    }
+  }
+
+  checkSession()
+}, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +48,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/prompt-v2')
+    router.replace('/prompt-v2')
     router.refresh()
   }
 
