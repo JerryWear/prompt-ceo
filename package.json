@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
+    "@runwayml/sdk": "^3.20.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
     "next": "16.1.1",
