@@ -2381,10 +2381,10 @@ const handleBuyCredits = async () => {
             onChange={(e) => setCreditPackage(Number(e.target.value))}
             style={styles.creditSelect}
           >
+            <option value={50}>50 Credits</option>
             <option value={100}>100 Credits</option>
             <option value={250}>250 Credits</option>
             <option value={500}>500 Credits</option>
-            <option value={1000}>1000 Credits</option>
           </select>
 
           <button
