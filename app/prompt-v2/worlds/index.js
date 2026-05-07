@@ -13,6 +13,7 @@ import { WORLD_LONDON } from './london'
 import { WORLD_MONACO } from './monaco'
 import { WORLD_LUXURY_YACHT_RIVIERA } from './luxuryYachtRiviera'
 import { WORLD_FITNESS_GLOBAL_ELITE } from './fitness-global-elite'
+import { WORLD_HIGH_SOCIETY_LIFE } from './highSocietyLife'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -30,6 +31,7 @@ export const STORY_STYLE_WORLDS = [
   WORLD_PRIVATE_CREATOR,
   WORLD_FITNESS_LIFE,
   WORLD_LUXURY_LIFE,
+  WORLD_HIGH_SOCIETY_LIFE,
   WORLD_FANVUE_CREATOR,
   WORLD_ONLYFANS_CREATOR,
   WORLD_GYM_INFLUENCER,

@@ -302,7 +302,6 @@ Do NOT change identity.
       'Generate a realistic editorial lifestyle image of the same adult character in a non-explicit scene.',
       'Preserve facial structure, eyes, nose, lips, jawline, eyebrows, hairline, skin tone, age range, and body proportions.',
       'Only change the environment, lighting, pose, wardrobe, camera framing, and atmosphere.',
-      'The character must be fully clothed.',
       'Avoid nudity, lingerie, sexual posing, erotic framing, bedroom sexualization, fetish styling, or adult-content framing.',
       'Keep the result realistic, tasteful, non-explicit, commercial, and editorial.',
     ].join('\n')
@@ -320,7 +319,7 @@ Do NOT change identity.
           type: 'image_url',
           url: imageDataUrl,
         },
-        aspect_ratio: '2:3',
+        aspect_ratio: '9:16',
       }),
     })
 

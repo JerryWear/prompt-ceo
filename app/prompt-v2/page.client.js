@@ -1526,15 +1526,12 @@ function normalizeFallbackIdentityForSubject({
   const normalizedSubjectGender =
     /^(male|man)$/i.test(String(subjectGender || '').trim()) ? 'male' : 'female'
 
-  const elegantSubjectLabel =
-    normalizedSubjectGender === 'male' ? 'Elegant man' : 'Elegant woman'
-
   const subjectLabel =
     normalizedSubjectGender === 'male' ? 'man' : 'woman'
 
   return String(value || '')
-    .replace(/\bElegant AI influencer\b/gi, elegantSubjectLabel)
-    .replace(/\bAI influencer\b/gi, subjectLabel)
+    .replace(/\bElegant AI influencer\b/gi, '')
+    .replace(/\bAI influencer\b/gi, '')
     .replace(/\bAI\b/gi, '')
     .replace(/\bElegant elegant woman\b/gi, 'Elegant woman')
     .replace(/\belegant elegant woman\b/gi, 'elegant woman')
@@ -1612,11 +1609,19 @@ const cleanedFallbackIdentity = normalizeFallbackIdentityForSubject({
   subjectGender: normalizedSubjectGender,
 })
 
-  const identityLead = buildReferenceIdentityLead({
-    identityState,
-    fallbackIdentity: cleanedFallbackIdentity,
-    subjectGender: normalizedSubjectGender,
-  })
+const isWorldIdentity =
+  /\b(old-money|high society|inherited status|quiet authority|elite social|socially elite)\b/i.test(
+    String(cleanedFallbackIdentity || '')
+  )
+
+const identityLead =
+  cleanedFallbackIdentity && !/^(elegant woman|elegant man|ai influencer)$/i.test(cleanedFallbackIdentity)
+    ? cleanedFallbackIdentity
+    : buildReferenceIdentityLead({
+        identityState,
+        fallbackIdentity: cleanedFallbackIdentity,
+        subjectGender: normalizedSubjectGender,
+      })
 
 let fallbackIdentityText = cleanedFallbackIdentity
     .replace(/\bsame exact man as the uploaded reference image\b/gi, '')
@@ -1699,6 +1704,10 @@ const safeBodyShape =
         .replace(/\s{2,}/g, ' ')
         .trim()
     : normalizedBodyShape
+
+if (isWorldIdentity) {
+  fallbackIdentityText = ''
+}    
 
 const safeFallbackIdentityText =
   normalizedSubjectGender === 'male'
@@ -3364,14 +3373,18 @@ const downloadImage = (imageUrl, fileName = 'image.png') => {
   try {
     if (!imageUrl) return
 
+    const proxyUrl =
+      `/api/download-image?url=${encodeURIComponent(imageUrl)}&name=${encodeURIComponent(fileName)}`
+
     const a = document.createElement('a')
-    a.href = imageUrl
+    a.href = proxyUrl
     a.download = fileName
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
   } catch (err) {
     console.error('Download failed', err)
+    window.open(imageUrl, '_blank')
   }
 }
 
@@ -6835,14 +6848,26 @@ const finalCamera = deterministicScenePayload.camera
 
 const finalLighting = deterministicScenePayload.lighting
 
+const resolvedWorldIdentityForFeed =
+  getWorldById(resolvedWorldId)?.identity?.archetype ||
+  (
+    resolvedWorldId === 'high-society-life' ||
+    resolvedWorldId === 'high_society_life'
+      ? 'old-money high society woman'
+      : ''
+  )
+
 const cleanIdentityBase = Array.from(
   new Map(
     normalizeFallbackIdentityForSubject({
-      value: merged.identity || (
-        String(subjectState?.subjectA?.gender || 'female').trim().toLowerCase() === 'male'
-          ? 'Elegant man'
-          : 'Elegant woman'
-      ),
+      value:
+        resolvedWorldIdentityForFeed ||
+        merged.identity ||
+        (
+          String(subjectState?.subjectA?.gender || 'female').trim().toLowerCase() === 'male'
+            ? 'Elegant man'
+            : 'Elegant woman'
+        ),
       subjectGender: String(subjectState?.subjectA?.gender || 'female')
         .trim()
         .toLowerCase(),
@@ -6854,8 +6879,23 @@ const cleanIdentityBase = Array.from(
   ).values()
 )
   .join(', ')
+  .replace(/\bpeak feminine aesthetic,?\s*/gi, '')
+  .replace(/\bconfident and visually magnetic,?\s*/gi, '')
+  .replace(/\bpolished,\s*attractive,\s*socially powerful presence,?\s*/gi, '')
+  .replace(/\brefined,\s*composed,\s*high-value feminine presence,?\s*/gi, '')
+  .replace(/,\s*,+/g, ', ')
   .replace(/\s{2,}/g, ' ')
   .trim()
+
+merged.body_shape = String(merged.body_shape || '')
+  .replace(/\bpolished,\s*attractive,\s*socially powerful presence\b/gi, '')
+  .replace(/\brefined,\s*composed,\s*high-value feminine presence\b/gi, '')
+  .replace(/\bpeak feminine aesthetic\b/gi, '')
+  .replace(/\bconfident and visually magnetic\b/gi, '')
+  .replace(/,\s*,+/g, ', ')
+  .replace(/^\s*,\s*/g, '')
+  .replace(/,\s*$/g, '')
+  .trim()  
 
 const sanitizedIdentityTraits = sanitizeGenderedIdentityTraits({
   subjectGender: String(subjectState?.subjectA?.gender || 'female')
@@ -7066,9 +7106,26 @@ const neutralSceneOutput = {
 // SUBJECT SYSTEM — PROMPT BUILD
 // ===============================
 
+const isHighSocietyFeed =
+  resolvedWorldId === 'high-society-life' ||
+  resolvedWorldId === 'high_society_life' ||
+  String(resolvedWorldId || '').includes('high-society')
+
+if (isHighSocietyFeed) {
+  neutralSceneOutput.stylingDetail =
+    'elegant old-money clothing, silk blouse, cashmere knitwear, tailored trousers, modest luxury styling, refined non-lingerie wardrobe'
+}
+
 const subjectPromptModel = resolveSubjectPromptModel({
   subjectState,
-  interactionState,
+  interactionState: isHighSocietyFeed
+    ? {
+        ...interactionState,
+        enabled: false,
+        type: 'none',
+        dynamic: 'no_direct_interaction',
+      }
+    : interactionState,
   worldSceneOutput: neutralSceneOutput,
 })
 
@@ -7856,6 +7913,17 @@ function resolveEnvironmentFromAction(actionValue, currentEnvironment = '') {
   return current
 }
 
+finalDeterministicPrompt = String(finalDeterministicPrompt || '')
+  .replace(/\brefined,\s*composed,\s*high-value feminine presence,?\s*/gi, '')
+  .replace(/\bpolished,\s*attractive,\s*socially powerful presence,?\s*/gi, '')
+  .replace(/\bpeak feminine aesthetic,?\s*/gi, '')
+  .replace(/\bconfident and visually magnetic,?\s*/gi, '')
+  .replace(/,\s*,+/g, ', ')
+  .replace(/\s+,/g, ',')
+  .replace(/,\s*$/g, '')
+  .replace(/\s{2,}/g, ' ')
+  .trim()
+
 const promptKey = String(finalDeterministicPrompt || '')
   .toLowerCase()
   .replace(/\s+/g, ' ')
@@ -7990,15 +8058,15 @@ const generateStoryImages = async () => {
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          identity: {
-            image: identityState.imageDataUrl,
-            strength: 1.0,
-            priority: 'max',
-          },
-          extractedTraits: identityState.extractedTraits,
-        }),
+body: JSON.stringify({
+  prompt,
+  identity: {
+    image: identityState.imageDataUrl,
+    strength: 1.0,
+    priority: 'max',
+  },
+  extractedTraits: identityState.extractedTraits,
+}),
         signal,
       })
 
@@ -8589,6 +8657,7 @@ const batchResolver = getWorldResolver({
 })
 
 const resolvedWorldId = batchResolver.worldId
+
 const isLakeComoWorldActive = batchResolver.isLakeComo
 const isVeniceWorldActive = batchResolver.isVenice
 const resolvedRotationPools = getResolvedRotationPools(resolvedWorldId)
@@ -8757,16 +8826,34 @@ let allowed = filterWorldList(itemsRaw, resolvedWorldId)
         next[key] = v
       }
 
-      const batchIdentityAnchor = getIdentityAnchor({
-        fallbackIdentity: next.identity || 'Elegant woman',
-        age: next.age,
-        ethnicity: next.ethnicity,
-        bodyShape: next.body_shape,
-        eyeColor: next.eye_color,
-        hair: next.hair,
-      })
+const resolvedWorldForIdentity = getWorldById(resolvedWorldId)
 
-      const one = FIELD_ORDER.map(([k, label]) => {
+const worldIdentityLead =
+  resolvedWorldForIdentity?.identity?.archetype || ''
+
+if (worldIdentityLead) {
+  next.identity = worldIdentityLead
+}
+
+next.body_shape = String(next.body_shape || '')
+  .replace(/\bpeak feminine aesthetic\b/gi, '')
+  .replace(/\bconfident and visually magnetic\b/gi, '')
+  .replace(/\bhigh-value feminine presence\b/gi, '')
+  .replace(/\brefined,\s*composed,\s*high-value feminine presence\b/gi, '')
+  .replace(/,\s*,+/g, ', ')
+  .replace(/^\s*,\s*/g, '')
+  .trim()      
+
+const batchIdentityAnchor = getIdentityAnchor({
+  fallbackIdentity: next.identity,
+  age: next.age,
+  ethnicity: next.ethnicity,
+  bodyShape: next.body_shape,
+  eyeColor: next.eye_color,
+  hair: next.hair,
+})
+
+      let one = FIELD_ORDER.map(([k, label]) => {
         const rawValue =
           k === 'identity'
             ? batchIdentityAnchor
@@ -8787,6 +8874,24 @@ let allowed = filterWorldList(itemsRaw, resolvedWorldId)
 
       // Update breadcrumb from last generated prompt
 
+const resolvedWorldIdentity =
+  getWorldById(resolvedWorldId)?.identity?.archetype ||
+  (resolvedWorldId === 'high-society-life' ? 'old-money high society woman' : '')
+
+if (resolvedWorldIdentity) {
+  one = one
+    .replace(
+      /Elegant woman,\s*\d+\s*years old,\s*/i,
+      `${resolvedWorldIdentity}, `
+    )
+    .replace(/^Elegant woman,\s*/i, `${resolvedWorldIdentity}, `)
+    .replace(/\bpeak feminine aesthetic,\s*/gi, '')
+    .replace(/\bconfident and visually magnetic,\s*/gi, '')
+    .replace(/\bpolished,\s*attractive,\s*socially powerful presence,\s*/gi, '')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
       out.push(`### Prompt ${i + 1}\n\n${one}`)
     }
     if (worldControlMode === 'auto') {
@@ -11247,13 +11352,16 @@ return (
         src={previewImage}
         alt="Preview"
         style={{
-          maxWidth: '95vw',
-          maxHeight: '85vh',
-          borderRadius: 14,
-          border: '1px solid rgba(255,255,255,0.12)',
-          display: 'block',
-          background: '#000',
-        }}
+  width: 'auto',
+  height: 'auto',
+  maxWidth: '95vw',
+  maxHeight: '85vh',
+  objectFit: 'contain',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.12)',
+  display: 'block',
+  background: '#000',
+}}
       />
     </div>
   </div>
@@ -11323,13 +11431,16 @@ return (
                 [i]: true,
               }))
             }}
-            style={{
-              width: '100%',
-              borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.1)',
-              cursor: 'pointer',
-              display: 'block',
-            }}
+style={{
+  width: '100%',
+  height: 'auto',
+  aspectRatio: 'auto',
+  objectFit: 'contain',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.1)',
+  cursor: 'pointer',
+  display: 'block',
+}}
           />
 
             {imageLoadErrors[i] ? (
