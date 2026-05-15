@@ -1884,175 +1884,129 @@ export const WORLD_LUXURY_YACHT_RIVIERA = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'soft side angle from bed level inside the yacht cabin',
-      'intimate close framing with sea light entering from the windows',
-      'wide stateroom composition with horizon beyond',
-      'quiet over-shoulder cabin angle toward harbor or open water',
+      '85mm low angle from cabin bed edge, shallow focus, sea-facing windows dissolved behind',
+      '135mm intimate close-up at face height, pale marine dawn defining subject edge',
+      '35mm wide stateroom composition, horizon visible through porthole beyond',
     ],
-
     morning_refresh: [
-      'mirror-side close-up in the yacht bathroom',
-      'elegant mid shot at the onboard vanity',
-      'tight reflected detail framing during self-care',
-      'soft luxury bathroom composition from behind',
+      '85mm mirror-side close-up in yacht bathroom, reflection at same focal plane',
+      '50mm elegant mid shot at onboard vanity, chrome and marble compressing behind',
+      '135mm tight reflected detail, polished marine surface in sharp foreground',
     ],
-
     getting_dressed: [
-      'mirror-framed dressing shot inside the yacht suite',
-      'mid-length wardrobe styling angle',
-      'editorial side profile while preparing on board',
-      'refined interior fashion framing inside a superyacht',
+      '50mm mirror-framed dressing shot inside yacht suite, interior depth receding',
+      '85mm mid-length wardrobe styling angle, polished finishes compressed behind',
+      '85mm editorial side profile, superyacht interior geometry behind subject',
     ],
-
     breakfast: [
-      'wide breakfast-deck shot with water beyond',
-      'soft seated three-quarter angle at the onboard table',
-      'editorial deck-side composition with coastline depth',
-      'sunlit yacht-breakfast framing with polished marine atmosphere',
+      '24mm wide breakfast-deck shot, Mediterranean water filling entire background',
+      '85mm soft seated three-quarter, coastline compressed behind subject',
+      '35mm editorial deck-side composition, sea depth receding in background',
     ],
-
     late_morning: [
-      'arrival shot from the deck or tender facing the destination',
-      'luxury travel editorial angle in motion through a marina or harbor',
-      'sunlit public-arrival composition with yacht continuity implied',
-      'wide destination framing with marina architecture and vessel presence',
+      '50mm arrival shot from deck, marina architecture receding behind subject',
+      '35mm luxury travel editorial, harbor depth pulling eye through frame',
+      '24mm wide destination framing, vessel and marina filling background',
     ],
-
     lunch: [
-      'seated lunch framing with table detail and water beyond',
-      'elegant restaurant side angle at a marina or seaside terrace',
-      'editorial over-table composition with yacht-linked context',
-      'wide lunch shot with coastal or harbor depth',
+      '85mm seated lunch framing, table detail in foreground, sea soft behind',
+      '50mm elegant restaurant side angle, coastal depth compressed behind',
+      '35mm wide lunch shot, Mediterranean filling entire background',
     ],
-
     afternoon: [
-      'wide yacht-leisure shot under hard summer light',
-      'water-level swim-platform composition',
-      'foredeck or sundeck editorial framing with open sea',
-      'sun-drenched full-body or body-length marine leisure angle',
+      '24mm wide yacht-leisure shot, open Mediterranean sea filling background',
+      '50mm water-level swim-platform composition, hull framing left side',
+      '35mm foredeck editorial framing, horizon line at shoulder height',
     ],
-
     reset: [
-      'quiet indoor mirror framing inside the yacht suite',
-      'private cabin side-profile composition',
-      'soft robe-and-vanity close-up onboard',
-      'calm pre-evening interior editorial angle with polished surfaces',
+      '85mm quiet indoor mirror framing inside yacht suite, room soft behind',
+      '85mm private cabin side-profile, 1.4 aperture, polished surfaces dissolved',
+      '50mm calm pre-evening interior angle, marine light fading behind',
     ],
-
     golden_hour: [
-      'sunset backlit rail-side angle on the yacht',
-      'wide deck shot with glowing coastline or marina beyond',
-      'cinematic side profile in warm falling light',
-      'slow editorial composition with late-sun water depth',
+      '135mm sunset backlit rail-side close, rim light from sea glow defining edge',
+      '24mm wide deck shot, coastline and water turning gold in full background',
+      '85mm cinematic side profile, warm backlight separating subject from view',
     ],
-
     dinner: [
-      'candlelit seated portrait framing on board or ashore',
-      'restaurant-side editorial composition with refined ambient light',
-      'intimate dinner-table angle with warm glassware glow',
-      'elegant evening shot with water or harbor lights behind',
+      '85mm candlelit seated portrait, table glow as key, harbor lights beyond',
+      '50mm restaurant-side editorial, ambient marine depth compressed behind',
+      '135mm intimate dinner close, sea dark outside, candle as sole source',
     ],
-
     evening: [
-      'night waterfront editorial framing',
-      'soft-glow harbor or yacht-lounge composition',
-      'walking-after-dark cinematic angle in Monaco Capri or Amalfi',
-      'moody terrace or upper-deck shot with lights below',
+      '85mm night waterfront editorial, harbor lights bokeh behind subject',
+      '50mm soft-glow yacht-lounge composition, warm interior depth behind',
+      '35mm moody upper-deck shot, Riviera lights receding below subject',
     ],
-
     night: [
-      'quiet bedroom ambient close-up inside the yacht',
-      'soft side angle in low marine interior light',
-      'private end-of-day suite framing on the same vessel',
-      'intimate night composition with minimal glow and deep softness',
+      '135mm quiet cabin close-up, single marine lamp as sole source',
+      '85mm soft side angle, low marine interior light, room in shadow',
+      '50mm private end-of-day suite framing, vessel darkness surrounding subject',
     ],
   },
 
   lightingPools: {
     wake: [
-      'soft sunrise light entering the yacht cabin through sea-facing windows',
-      'pale dawn light moving over bedding and polished interior surfaces',
-      'first warm light of day with quiet harbor or open-water reflection',
-      'low early-morning glow with gentle marine shadows',
+      'soft 5500K sunrise entering through sea-facing cabin windows, marine shadows on linen',
+      'pale 5600K dawn light moving over bedding, harbor reflection adding secondary fill',
+      'quiet 5400K early-morning glow, water reflection creating moving light on ceiling',
     ],
-
     morning_refresh: [
-      'clean reflected bathroom light on marble and chrome',
-      'soft natural morning light inside a private yacht ensuite',
-      'fresh clear post-sunrise light across polished surfaces',
-      'bright but gentle onboard interior light with spa calm',
+      'clean 6000K reflected bathroom light on marble and chrome, surfaces sharp',
+      'soft 5600K natural morning light inside private yacht ensuite, even fill',
+      'fresh 5800K clear post-sunrise light across polished marine surfaces',
     ],
-
     getting_dressed: [
-      'bright morning light filtering into the yacht wardrobe area',
-      'clean daylight on fabric skin and polished finishes',
-      'soft sunlit interior glow inside the same vessel',
-      'crisp marine daylight in a luxury dressing space',
+      'bright 5500K morning light filtering into yacht wardrobe area, fabric defined',
+      'clean 5200K daylight on skin and polished finishes, gold accents catching highlight',
+      'crisp 5400K marine daylight in luxury dressing space, no hard shadows',
     ],
-
     breakfast: [
-      'sunlit deck glow with water reflections moving upward',
-      'warm bright marine morning light across tableware and teak',
-      'clean Mediterranean breakfast sunlight over deck surfaces',
-      'luminous yacht-breakfast-hour sunshine with coastal sparkle',
+      'sunlit 4800K deck glow, water reflections moving upward from surface below',
+      'warm 5000K marine morning light across teak and tableware, direct and clean',
+      'clean 5200K Mediterranean breakfast sunlight, sea acting as secondary reflector',
     ],
-
     late_morning: [
-      'bright late-morning sun over harbors marinas and cliffside coastline',
-      'clear Mediterranean daylight with crisp destination freshness',
-      'open-air arrival brightness with elegant public contrast',
-      'sun-forward Riviera travel light',
+      'bright 5000K late-morning sun over marina, hard shadows on stone and hull',
+      'clear 5200K Mediterranean daylight, specular highlights on chrome and glass',
+      'open-air 5400K Riviera travel light, full contrast and color saturation',
     ],
-
     lunch: [
-      'high midday sun softened by terrace shade or club awnings',
-      'bright overhead light with sea reflections and polished glass',
-      'hot coastal sun balanced by cool restaurant shadow',
-      'crisp midday yacht-linked lunch brightness',
+      'high midday 5800K sun blocked by awning, sea brightness as backlight fill',
+      'bright 5500K overhead with awning diffusion, water reflection as secondary fill',
+      'crisp 5600K midday yacht-lunch brightness, shade cooling direct source',
     ],
-
     afternoon: [
-      'strong summer sun with sharp reflective water light',
-      'hard glamorous daylight across teak deck and skin',
-      'sun-drenched marine glare in open-water luxury settings',
-      'intense Mediterranean brightness at the peak of the day',
+      'strong 4500K summer sun, deck and water surface acting as dual reflectors',
+      'hard 4200K glamorous marine daylight, maximum contrast across teak and skin',
+      'intense 4800K Mediterranean brightness, sea multiplying light from below',
     ],
-
     reset: [
-      'cool shaded interior light inside the yacht after the heat',
-      'soft filtered late-afternoon glow in the suite',
-      'quiet refined light during the private reset',
-      'gentle interior brightness before golden hour begins',
+      'cool 4000K shaded interior after deck heat, even fill inside yacht suite',
+      'soft 3800K filtered late-afternoon glow through cabin porthole',
+      'quiet 4200K refined interior light, polished surfaces catching diffused fill',
     ],
-
     golden_hour: [
-      'rich honey-gold sunlight across railings water and coastline',
-      'warm sunset glow on skin fabric glass and deck surfaces',
-      'golden Mediterranean backlight with yacht-side cinematic warmth',
-      'late sun wrapping the vessel and shoreline in amber light',
+      'rich 2800K honey-gold sunlight across railings, water, and coastline at 5 degrees',
+      'warm 3000K sunset glow on skin, fabric, glass and teak deck surfaces',
+      'golden 2700K Mediterranean backlight, vessel silhouetted against amber water',
     ],
-
     dinner: [
-      'candlelight mixed with soft marine or terrace ambience',
-      'warm restaurant or onboard table glow with intimate highlights',
-      'golden dinner light against deepening sea or harbor darkness',
-      'romantic evening low light with polished glass reflections',
+      'candlelight at 1800K mixed with 2700K marine ambient, harbor dark beyond',
+      'warm 2500K table glow, glassware catching flame, sea invisible outside',
+      'romantic 2200K low evening light, polished glass reflections as fill',
     ],
-
     evening: [
-      'warm after-dark harbor lighting with elegant marine shadows',
-      'soft night glow from marinas waterfronts and yacht interiors',
-      'ambient summer nightlife lighting in Monaco Amalfi or Capri',
-      'refined Riviera night light with subtle warmth and controlled shine',
+      'warm 2700K harbor lighting, elegant marine shadow depth behind subject',
+      'soft 2800K night glow from marina and yacht interiors, layered warm fill',
+      'refined 2500K Riviera night light, mixed-source warm ambient, soft shadows',
     ],
-
     night: [
-      'dim yacht-cabin lighting with soft private warmth',
-      'low intimate marine interior light at the end of the day',
-      'quiet night glow with minimal highlights and deep calm',
-      'soft onboard bedroom lighting after midnight',
+      'dim 2200K yacht-cabin lighting, single source pool in surrounding marine dark',
+      'low 2400K intimate marine interior, one lamp defining subject edge',
+      'soft 2000K onboard bedroom lighting after midnight, porthole dark beyond',
     ],
   },
 

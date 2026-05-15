@@ -1090,175 +1090,129 @@ export const WORLD_AMALFI = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'soft side angle from bed level',
-      'intimate morning close-up with natural light',
-      'wide suite framing with open balcony doors',
-      'quiet over-shoulder view toward the sea',
+      '85mm low angle from bed edge, shallow focus, balcony and coastline dissolved behind',
+      '135mm intimate close-up at face height, pale coastal dawn defining subject edge',
+      '35mm wide suite framing, open balcony doors with sea depth beyond',
     ],
-
     morning_refresh: [
-      'mirror-side close-up in soft bathroom light',
-      'elegant mid shot at the vanity',
-      'tight detail shot through reflection',
-      'soft luxury bathroom framing from behind',
+      '85mm mirror-side close-up, reflection at same focal plane as subject',
+      '50mm elegant mid shot at vanity, marble surfaces compressing behind',
+      '135mm tight detail through reflection, double-image shallow focus',
     ],
-
     getting_dressed: [
-      'mirror-framed dressing shot',
-      'mid-length wardrobe styling angle',
-      'editorial side profile while getting ready',
-      'refined suite interior fashion framing',
+      '50mm mirror-framed dressing shot, villa interior depth receding behind',
+      '85mm mid-length wardrobe styling angle, window light defining subject edge',
+      '85mm editorial side profile, Amalfi stone wall compressed behind',
     ],
-
     breakfast: [
-      'wide terrace shot with coastline beyond',
-      'soft seated three-quarter breakfast angle',
-      'editorial table-side framing with sea view',
-      'sunlit balcony composition with depth',
+      '24mm wide terrace shot, coastline filling entire background beyond table',
+      '85mm soft seated three-quarter, sea view compressed behind subject',
+      '35mm editorial table-side framing, Amalfi coast receding in background',
     ],
-
     late_morning: [
-      'walking street-style shot from the front',
-      'luxury travel editorial angle in motion',
-      'sunlit candid side-walk composition',
-      'wide destination framing with subject centered',
+      '50mm walking street-style shot, pastel architecture receding behind subject',
+      '35mm luxury travel editorial, coastal depth pulling eye through frame',
+      '24mm wide destination framing, subject at one-third, sea filling rest',
     ],
-
     lunch: [
-      'seated lunch framing with table detail',
-      'elegant restaurant side angle',
-      'editorial over-table composition',
-      'wide terrace dining shot with coastal depth',
+      '85mm seated lunch framing, table detail in foreground, sea soft behind',
+      '50mm elegant restaurant side angle, coastal depth compressed behind',
+      '35mm wide terrace dining shot, Mediterranean filling entire background',
     ],
-
     afternoon: [
-      'wide luxury leisure shot under bright sun',
-      'beach club candid from a low relaxed angle',
-      'yacht-deck editorial composition with open water',
-      'sun-drenched body-length framing in motion',
+      '24mm wide luxury leisure, Mediterranean sun flattening background geometry',
+      '50mm beach club low angle, lounger in foreground, sea dissolved beyond',
+      '35mm yacht-deck editorial, open Mediterranean water behind subject',
     ],
-
     reset: [
-      'quiet indoor mirror framing',
-      'private suite side-profile composition',
-      'soft robe-and-vanity close-up',
-      'calm pre-evening editorial interior angle',
+      '85mm quiet indoor mirror framing, suite depth dissolved behind',
+      '85mm private suite side-profile, 1.4 aperture, room soft',
+      '50mm calm pre-evening interior angle, coastal light fading behind',
     ],
-
     golden_hour: [
-      'sunset backlit silhouette angle',
-      'wide balcony shot with glowing coastline',
-      'cinematic side angle in warm light',
-      'slow editorial framing with sunset depth',
+      '135mm sunset backlit close, rim light from coastal glow defining edge',
+      '24mm wide balcony shot, coastline turning gold in full background',
+      '85mm cinematic side angle, warm backlight separating subject from view',
     ],
-
     dinner: [
-      'candlelit seated portrait framing',
-      'restaurant-side editorial composition',
-      'intimate dinner table angle with ambient light',
-      'elegant evening shot with soft background glow',
+      '85mm candlelit seated portrait, table glow as key light source',
+      '50mm restaurant-side editorial, ambient depth compressed behind subject',
+      '135mm intimate dinner close, sea dark outside, candle as sole source',
     ],
-
     evening: [
-      'night street editorial framing',
-      'soft-glow hotel bar composition',
-      'walking-after-dark cinematic angle',
-      'moody terrace shot with lights below',
+      '85mm night street editorial, coastal town lights bokeh behind subject',
+      '50mm soft-glow hotel bar, warm interior depth behind subject',
+      '35mm moody terrace shot, town lights receding below subject',
     ],
-
     night: [
-      'quiet bedroom ambient close-up',
-      'soft side angle in low light',
-      'private end-of-day suite framing',
-      'intimate night composition with minimal glow',
+      '135mm quiet bedroom close-up, single ambient lamp as sole source',
+      '85mm soft side angle, coastal night glow barely reaching interior',
+      '50mm private end-of-day suite framing, room in deep shadow around subject',
     ],
   },
 
   lightingPools: {
     wake: [
-      'soft sunrise light entering through open balcony doors',
-      'pale natural dawn light across white sheets',
-      'first warm light of the day with gentle coastal brightness',
-      'quiet early-morning glow with soft shadows',
+      'soft 5500K sunrise entering through open balcony doors, long shadows on white linen',
+      'pale 5600K natural dawn light across sheets, coastal brightness building outside',
+      'quiet 5400K early-morning glow, sea light beginning to fill suite interior',
     ],
-
     morning_refresh: [
-      'clean natural bathroom light on pale marble',
-      'soft reflected morning light in a luxury interior',
-      'bright but gentle post-sunrise light',
-      'fresh clear indoor light with polished surfaces',
+      'clean 6000K natural bathroom light on pale marble, surfaces sharp and bright',
+      'soft 5600K reflected morning light bouncing off stone into bathroom interior',
+      'fresh 5800K clear indoor light, polished surfaces catching directional fill',
     ],
-
     getting_dressed: [
-      'bright morning light through villa windows',
-      'clean daylight on skin, linen, and gold accents',
-      'soft sunlit interior glow',
-      'crisp natural light in a luxury suite',
+      'bright 5500K morning light through villa windows, fabric textures defined',
+      'clean 5200K daylight on skin, linen, and gold accents at shallow angle',
+      'crisp 5400K natural suite light, even fill across wardrobe surfaces',
     ],
-
     breakfast: [
-      'sunlit terrace glow with sparkling sea reflections',
-      'warm bright coastal morning light',
-      'clean Mediterranean sunlight over stone and tableware',
-      'luminous breakfast-hour sunshine',
+      'sunlit 4800K terrace glow, sea reflections multiplying light across table',
+      'warm 5000K coastal morning light, direct and clean from the east',
+      'clean 5200K Mediterranean sunlight raking across stone and tableware',
     ],
-
     late_morning: [
-      'bright late-morning sun over pastel streets',
-      'clear Mediterranean daylight with strong freshness',
-      'open-air coastal brightness with sharp elegant contrast',
-      'sun-forward luxury travel light',
+      'bright 5000K late-morning sun over pastel streets, hard architectural shadows',
+      'clear 5200K Mediterranean daylight, strong specular on stone and glass',
+      'open-air 5400K coastal brightness, full contrast and color saturation',
     ],
-
     lunch: [
-      'high midday sun softened by terrace shade',
-      'bright overhead light with sea reflections',
-      'hot sun balanced by cool restaurant shadow',
-      'crisp midday coastal brightness',
+      'high midday 5800K sun blocked by terrace shade, sea brightness as backlight',
+      'bright 5500K overhead with parasol diffusion, sea reflection as secondary fill',
+      'crisp 5600K midday coastal brightness, shade cooling direct source to fill',
     ],
-
     afternoon: [
-      'strong summer sun with bright reflective water light',
-      'hard glamorous coastal daylight',
-      'sun-drenched afternoon glare on skin and stone',
-      'intense Mediterranean afternoon brightness',
+      'strong 4500K summer sun, sea surface acting as secondary light reflector',
+      'hard 4200K glamorous coastal daylight, maximum contrast and saturation',
+      'intense 4800K Mediterranean afternoon, water multiplying light from below',
     ],
-
     reset: [
-      'cool shaded interior light after the heat',
-      'soft filtered late-afternoon indoor glow',
-      'quiet calm light in a refreshed suite',
-      'gentle post-sun interior brightness',
+      'cool 4000K shaded interior after coastal heat, even fill with no direct source',
+      'soft 3800K filtered late-afternoon light through shutters, warm stripes on stone',
+      'quiet 4200K calm suite light, no direct sun, diffused fill throughout',
     ],
-
     golden_hour: [
-      'rich honey-gold sunlight over the coastline',
-      'warm sunset glow on skin and architecture',
-      'golden Mediterranean backlight with cinematic warmth',
-      'late sun wrapping the scene in amber light',
+      'rich 2800K honey-gold sunlight raking across coastline at 5-degree angle',
+      'warm 3000K sunset glow on skin and Amalfi architecture, everything amber',
+      'golden 2700K coastal backlight at near-horizon angle, long warm shadows',
     ],
-
     dinner: [
-      'candlelight mixed with soft evening ambience',
-      'warm restaurant glow with intimate highlights',
-      'golden table light against deepening night',
-      'romantic low evening light with sea-view atmosphere',
+      'candlelight at 1800K mixed with 2700K restaurant ambient, sea dark outside',
+      'warm 2500K table light, glassware catching flame, deep shadow beyond',
+      'romantic 2200K low evening light, single candle as key, ambience as fill',
     ],
-
     evening: [
-      'warm after-dark architectural lighting',
-      'soft night glow from restaurants, bars, and windows',
-      'ambient summer nightlife lighting with elegant shadows',
-      'refined coastal night light with subtle warmth',
+      'warm 2700K after-dark architectural lighting, building facades lit from below',
+      'soft 2800K night glow from restaurants and bars, layered warm ambient fill',
+      'refined 2500K coastal night light, mixed-source warm ambient, soft shadows',
     ],
-
     night: [
-      'dim ambient suite lighting with soft warmth',
-      'low intimate light at the end of the day',
-      'quiet private night glow with minimal highlights',
-      'soft bedroom lighting after midnight',
+      'dim 2200K ambient suite lighting, single lamp defining subject in darkness',
+      'low 2400K intimate light, one bedside source, coastal night dark outside',
+      'soft 2000K bedroom lighting after midnight, window a dark rectangle behind',
     ],
   },
 

@@ -981,173 +981,127 @@ export const WORLD_VENICE = {
 
   cameraPools: {
     wake: [
-      'tight intimate close-up from bed level',
-      'side profile in low light',
-      'soft over-shoulder morning angle',
-      'wide bedroom framing with faint water reflections',
+      '85mm low angle from bed edge, shallow focus, canal reflections dissolved behind',
+      '135mm intimate close-up at face height, faint water light defining subject edge',
+      '35mm wide bedroom framing, narrow window with canal beyond, subject in foreground',
     ],
-
     morning_refresh: [
-      'mirror reflection framing',
-      'tight bathroom close-up',
-      'soft side angle in dim light',
-      'quiet vanity composition with stone depth',
+      '85mm mirror reflection framing, subject and reflection at same focal plane',
+      '135mm tight bathroom close-up, stone surfaces compressing behind',
+      '50mm soft side angle, dim light, vanity composition with stone depth',
     ],
-
     getting_dressed: [
-      'mirror-centered composition',
-      'half-body fashion framing',
-      'editorial interior angle',
-      'side-profile styling shot in filtered light',
+      '50mm mirror-centered composition, wardrobe depth receding behind',
+      '85mm half-body fashion framing, filtered light defining subject edge',
+      '85mm side-profile styling shot, textured palazzo wall compressed behind',
     ],
-
     breakfast: [
-      'table-level intimate framing',
-      'side seated composition',
-      'close environment shot',
-      'balcony composition with canal depth below',
+      '85mm table-level intimate framing, canal depth dissolved in background',
+      '50mm side seated composition, balcony rail in soft foreground',
+      '35mm balcony composition, canal receding below and behind subject',
     ],
-
     late_morning: [
-      'narrow alley depth shot',
-      'walking forward cinematic angle',
-      'over-shoulder movement framing',
-      'bridge-level composition with layered stone depth',
+      '35mm narrow alley depth shot, stone walls converging to vanishing point',
+      '50mm walking forward medium, calle architecture receding behind subject',
+      '85mm over-shoulder movement framing, canal glimpsed at end of alley',
     ],
-
     lunch: [
-      'intimate table close framing',
-      'side dining composition',
-      'low camera seated angle',
-      'editorial courtyard shot with enclosed depth',
+      '85mm intimate table close framing, courtyard depth dissolved behind',
+      '50mm side dining composition, stone arch framing background depth',
+      '35mm editorial courtyard shot, enclosed architecture receding behind',
     ],
-
     afternoon: [
-      'wide canal perspective shot',
-      'gondola side angle',
-      'water-level cinematic framing',
-      'slow tracking composition through reflected architecture',
+      '24mm wide canal perspective, bridge and buildings receding to horizon',
+      '50mm gondola side angle, water surface in sharp foreground',
+      '35mm slow tracking composition, reflected architecture doubling depth',
     ],
-
     reset: [
-      'mirror reflection interior shot',
-      'soft robe close framing',
-      'calm indoor composition',
-      'private lounge angle with ambient shadows',
+      '85mm mirror reflection interior, palazzo depth dissolved behind',
+      '135mm soft robe close framing, stone wall surface in background',
+      '50mm private lounge angle, ambient shadows filling room behind subject',
     ],
-
     golden_hour: [
-      'backlit silhouette near the canal',
-      'soft wide cinematic shot',
-      'sunset reflection framing',
-      'bridge-side composition with glowing water depth',
+      '135mm backlit close near canal, rim light from water glow defining edge',
+      '24mm soft wide cinematic shot, canal turning gold in full background',
+      '85mm bridge-side composition, glowing water depth behind subject',
     ],
-
     dinner: [
-      'candlelit close portrait',
-      'table intimacy framing',
-      'soft shadow composition',
-      'restaurant-side editorial angle with low background glow',
+      '85mm candlelit close portrait, flame as key light source',
+      '135mm table intimacy framing, restaurant dark water visible outside',
+      '50mm restaurant-side editorial, low background glow compressed behind',
     ],
-
     evening: [
-      'walking night alley shot',
-      'low-light cinematic angle',
-      'moody depth framing',
-      'after-dark bridge perspective with reflected lights',
+      '35mm walking night alley shot, lantern light receding behind subject',
+      '85mm low-light cinematic angle, bridge and reflections in background',
+      '50mm after-dark bridge perspective, reflected lights in canal below',
     ],
-
     night: [
-      'very tight intimate framing',
-      'low-light side angle',
-      'soft bedroom close shot',
-      'window-side private composition with darkness beyond',
+      '135mm very tight intimate framing, single lamp as sole source',
+      '85mm low-light side angle, room in deep shadow around subject',
+      '50mm window-side composition, dark canal barely visible beyond glass',
     ],
   },
 
-  lightingPools: {
+lightingPools: {
     wake: [
-      'very soft low natural light',
-      'faint dawn glow through narrow windows',
-      'dim shadow-heavy morning light',
-      'subtle reflected canal light on dark interiors',
+      'faint 5200K dawn glow through narrow windows, canal reflections moving on ceiling',
+      'dim blue-grey pre-morning light, palazzo walls barely visible in shadow',
+      'subtle reflected canal light entering at low angle on dark stone interior',
     ],
-
     morning_refresh: [
-      'soft reflected bathroom light',
-      'low brightness with gentle highlights',
-      'diffused pale light on stone surfaces',
-      'cool dim light with antique reflection detail',
+      'soft 5600K reflected bathroom light on aged stone and antique mirror',
+      'low 5400K brightness with gentle highlights on polished marble surfaces',
+      'cool diffused 5800K light, canal reflection adding moving secondary fill',
     ],
-
     getting_dressed: [
-      'filtered indoor daylight',
-      'muted golden reflection through windows',
-      'soft shadowed interior lighting',
-      'controlled light falling across textured fabric',
+      'filtered 5000K indoor daylight through tall shutters, fabric textures defined',
+      'muted 4800K golden reflection through arched windows, controlled and soft',
+      'controlled 5200K light falling across textured silk and stone wall behind',
     ],
-
     breakfast: [
-      'low-angle morning light with water reflections',
-      'soft ambient glow across table surfaces',
-      'subtle canal-reflected lighting',
-      'quiet pale light with moving reflections below',
+      'low-angle 5000K morning light with canal reflections multiplying across table',
+      'soft 4800K ambient glow, moving water reflections on ceiling above table',
+      'quiet pale 5500K light with canal shimmer adding secondary fill from below',
     ],
-
     late_morning: [
-      'controlled daylight through narrow streets',
-      'light-shadow contrast in alleys',
-      'soft overhead light with dark edges',
-      'filtered open-air light bouncing off stone',
+      'controlled 5200K daylight through narrow calle, high contrast shaft of light',
+      'light-shadow contrast in alleys, hard 5500K overhead with deep stone shadow',
+      'filtered 5000K open-air light bouncing off stone walls into enclosed space',
     ],
-
     lunch: [
-      'shaded daylight with warm highlights',
-      'soft reflection from water surfaces',
-      'low contrast midday lighting',
-      'contained midday light inside enclosed spaces',
+      'shaded 4800K daylight with warm highlights from courtyard stone reflection',
+      'soft 5000K reflection from water surfaces below, even fill on faces',
+      'contained 5200K midday light inside enclosed courtyard, even and soft',
     ],
-
     afternoon: [
-      'reflected light from canals',
-      'moving water light patterns',
-      'muted afternoon glow',
-      'soft brightness broken by bridges and walls',
+      'reflected 4500K canal light creating moving patterns on stone and skin',
+      'soft 4200K brightness broken by bridges and walls, intermittent warmth',
+      'muted 4800K afternoon glow, canal acting as secondary light reflector',
     ],
-
     reset: [
-      'dim interior light with minimal contrast',
-      'cool shadowed room lighting',
-      'low ambient reset lighting',
-      'quiet lamplight mixing with the last daylight',
+      'dim 3800K interior light with minimal contrast, shutters half-closed',
+      'cool 4000K shadowed room, last daylight mixing with single lamp source',
+      'quiet 3600K lamplight, canal reflections barely reaching interior',
     ],
-
     golden_hour: [
-      'deep golden reflections on water',
-      'warm fading light through narrow spaces',
-      'cinematic dusk glow',
-      'amber reflected light on stone and skin',
+      'deep 2800K golden reflections off canal water, everything amber-toned',
+      'warm 3000K fading light through narrow spaces, stone walls going orange',
+      'amber 2700K reflected canal light on stone and skin, cinematic dusk',
     ],
-
     dinner: [
-      'candlelight dominant lighting',
-      'warm low light with strong shadows',
-      'intimate golden glow',
-      'soft restaurant light against dark water outside',
+      'candlelight at 1800K dominant, deep shadow beyond immediate table surface',
+      'warm 2200K low light with strong shadows, water dark outside the window',
+      'intimate 2500K golden glow, single candle defining faces across the table',
     ],
-
     evening: [
-      'lantern and window light sources',
-      'low-light shadow contrast',
-      'soft glowing night reflections',
-      'warm architectural lighting across old stone',
+      'lantern and window light at 2700K, warm pools against deep stone shadow',
+      'low-light 2500K shadow contrast, reflections multiplying warm sources',
+      'warm 2800K architectural lighting across old stone, canal dark below',
     ],
-
     night: [
-      'minimal ambient lighting',
-      'single light source glow',
-      'dark soft bedroom light',
-      'quiet lamplight with reflected water shimmer',
+      'minimal 2200K ambient, single lamp creating small pool in dark room',
+      'quiet 2000K lamplight with faint canal shimmer on ceiling above',
+      'dark soft 2400K bedroom light, water reflections barely visible on walls',
     ],
   },
 

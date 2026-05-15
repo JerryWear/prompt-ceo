@@ -1572,175 +1572,129 @@ export const WORLD_PARIS = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'cinematic full-body framing',
-      'soft over-shoulder perspective',
-      'intimate close framing',
-      'wide suite establishing shot',
+      '85mm low angle from bed edge, shallow focus, Haussmann rooftops dissolved behind',
+      '135mm intimate close-up at face height, pale Paris dawn defining subject edge',
+      '35mm wide suite establishing shot, tall windows with rooftops beyond',
     ],
-
     morning_refresh: [
-      'elegant medium portrait composition',
-      'mirror-side close framing',
-      'soft bathroom editorial angle',
-      'private spa interior framing',
+      '85mm mirror-side close framing, reflection at same focal plane as subject',
+      '135mm mirror close-up, marble and brass surfaces compressing behind',
+      '50mm soft bathroom editorial angle, pale stone depth behind subject',
     ],
-
     getting_dressed: [
-      'editorial fashion angle',
-      'mirror-framed dressing composition',
-      'medium portrait styling shot',
-      'suite-side profile composition',
+      '50mm wardrobe mirror-framed dressing composition, suite depth receding',
+      '85mm medium portrait styling shot, window light defining subject edge',
+      '85mm suite-side profile, Haussmann facade visible through window behind',
     ],
-
     breakfast: [
-      'balcony-wide establishing shot',
-      'terrace-side medium composition',
-      'soft seated breakfast framing',
-      'open-air editorial angle',
+      '24mm balcony-wide establishing shot, Paris rooftops filling background',
+      '85mm terrace-side medium composition, avenue depth compressed behind',
+      '50mm soft seated breakfast framing, tall window with city beyond',
     ],
-
     late_morning: [
-      'street-style editorial angle',
-      'wide luxury visibility shot',
-      'medium public-facing portrait framing',
-      'fashion-boulevard establishing composition',
+      '50mm street-style editorial angle, boulevard architecture receding behind',
+      '35mm wide luxury visibility shot, avenue perspective pulling eye through',
+      '85mm medium public-facing portrait, Haussmann facade compressed behind',
     ],
-
     lunch: [
-      'table-side medium portrait composition',
-      'café candid editorial framing',
-      'soft seated close angle',
-      'street-facing terrace shot',
+      '85mm table-side medium portrait, café interior depth dissolved behind',
+      '50mm café candid editorial framing, street visible through glass beyond',
+      '135mm soft seated close angle, ambient depth completely dissolved',
     ],
-
     afternoon: [
-      'wide establishing shot',
-      'architectural editorial angle',
-      'walking composition through landmark space',
-      'romantic city-distance framing',
+      '24mm wide establishing shot, Paris landmark architecture filling frame',
+      '35mm architectural editorial angle, stone facades receding behind subject',
+      '50mm walking composition, boulevard depth pulling eye through frame',
     ],
-
     reset: [
-      'quiet spa portrait framing',
-      'mirror-led interior composition',
-      'soft robe-side medium shot',
-      'calm private reset angle',
+      '85mm quiet spa portrait framing, interior depth soft behind subject',
+      '85mm mirror-led interior composition, marble depth dissolved behind',
+      '50mm soft robe-side medium shot, suite geometry compressed behind',
     ],
-
     golden_hour: [
-      'cinematic bridge-wide framing',
-      'sunset backlit composition',
-      'elegant medium portrait against skyline',
-      'soft golden-hour editorial angle',
+      '135mm cinematic bridge close, Paris skyline completely dissolved behind',
+      '85mm sunset backlit composition, Seine or rooftop rim-lighting subject',
+      '50mm elegant medium portrait, golden Paris architecture compressed behind',
     ],
-
     dinner: [
-      'candlelit table-side composition',
-      'intimate close framing',
-      'rooftop portrait angle with city lights',
-      'warm evening editorial shot',
+      '85mm candlelit table-side composition, restaurant depth soft behind',
+      '135mm intimate close framing, candle dissolved in background bokeh',
+      '50mm rooftop portrait angle, city lights bokeh filling background',
     ],
-
     evening: [
-      'low-lit lounge portrait framing',
-      'bar-side cinematic angle',
-      'arrival-shot composition under hotel lights',
-      'after-dark editorial medium shot',
+      '85mm low-lit lounge portrait, warm interior depth behind subject',
+      '50mm bar-side cinematic angle, ambient glow compressed behind subject',
+      '35mm after-dark editorial medium, Paris street lights receding behind',
     ],
-
     night: [
-      'window-side intimate framing',
-      'balcony-wide city-light shot',
-      'soft after-hours portrait angle',
-      'private suite closing composition',
+      '135mm window-side intimate close, city lights dissolved in background',
+      '24mm balcony-wide city-light shot, Paris at night filling background',
+      '85mm soft after-hours portrait, suite lamp as sole defining light',
     ],
   },
 
-  lightingPools: {
+lightingPools: {
     wake: [
-      'soft Paris morning light',
-      'window-lit interior glow',
-      'pale dawn light across bedding and curtains',
-      'quiet suite brightness just beginning to form',
+      'pale 5600K Paris dawn through tall windows, long shadows across Haussmann bedding',
+      'quiet 5400K window-lit interior, first light barely reaching room interior',
+      'soft blue-grey 5800K pre-dawn across bedding and curtains, city not yet awake',
     ],
-
     morning_refresh: [
-      'window-lit interior glow',
-      'soft Paris morning light',
-      'mirror-reflected marble light',
-      'warm spa interior brightness',
+      'clean 5800K window-lit interior, marble and brass surfaces sharp and bright',
+      'soft 5500K Paris morning light, mirror reflecting full natural brightness',
+      '5600K warm marble reflection, bathroom interior evenly filled from window',
     ],
-
     getting_dressed: [
-      'bright European daylight',
-      'window-lit interior glow',
-      'clean suite daylight',
-      'soft polished interior light on fabric and skin',
+      'bright 5200K European daylight through tall windows, fabric textures defined',
+      'clean 5500K suite daylight, even fill across mirrors and polished surfaces',
+      'soft 5000K polished interior light, gold accents catching directional highlight',
     ],
-
     breakfast: [
-      'soft Paris morning light',
-      'bright European daylight',
-      'open-air terrace glow',
-      'clear morning light across tableware and balcony rail',
+      'soft 5000K Paris morning light across terrace table, avenue below still quiet',
+      'bright 5200K European daylight, clear morning light over tableware and rail',
+      'open-air 5400K terrace glow, light bouncing off Haussmann stone below',
     ],
-
     late_morning: [
-      'bright European daylight',
-      'clean luxury daylight',
-      'strong boulevard light on stone and storefront glass',
-      'open city brightness with polished contrast',
+      'bright 5000K boulevard daylight, hard shadows on stone and storefront glass',
+      'clean 5200K luxury daylight, full contrast, specular on chrome and window glass',
+      'strong 5500K open city brightness, nothing softened by shade or atmosphere',
     ],
-
     lunch: [
-      'bright European daylight',
-      'warm Paris daylight',
-      'café-side daylight with soft reflections',
-      'midday light filtered through terrace atmosphere',
+      'bright 4800K Paris daylight, café-side light with soft internal reflections',
+      'warm 4600K Paris daylight filtered through terrace umbrella, even fill',
+      'midday 5000K light through glass, reflections multiplying across table surface',
     ],
-
     afternoon: [
-      'bright European daylight',
-      'soft European city light',
-      'architectural daylight across stone, glass, and air',
-      'romantic open-afternoon brightness',
+      'bright 4500K European city light, long shadows on stone and cobblestone',
+      'soft 4200K afternoon Paris light, architectural depth adding fill from sides',
+      'romantic 4800K open-afternoon brightness, stone facades warming slightly',
     ],
-
     reset: [
-      'window-lit interior glow',
-      'soft spa ambient light',
-      'warm marble reflections',
-      'restorative interior calm lighting',
+      'quiet 4000K window-lit interior glow, shutters half-closed, even soft fill',
+      'soft 3800K spa ambient, warm marble reflections from single interior source',
+      'restorative 4200K interior calm, no direct source, diffused fill throughout',
     ],
-
     golden_hour: [
-      'golden hour city glow',
-      'warm sunset reflections',
-      'soft riverside light warming skin and stone',
-      'late sun turning Paris into amber cinematic light',
+      'rich 2800K golden hour city glow, Seine and stone surfaces turning amber',
+      'warm 3000K sunset reflections, last sun raking across rooftops at 5 degrees',
+      'soft 2700K riverside light, Paris stone and skin warming to amber together',
     ],
-
     dinner: [
-      'candlelit fine dining glow',
-      'soft evening ambient light',
-      'warm rooftop or courtyard candlelight',
-      'intimate low evening illumination with city depth',
+      'candlelit 1800K fine dining glow, deep shadow beyond immediate table',
+      'soft 2500K evening ambient, warm rooftop or courtyard candlelight',
+      'intimate 2200K low evening illumination, city depth visible beyond window',
     ],
-
     evening: [
-      'soft evening ambient light',
-      'luxury nightlife ambiance',
-      'bar-side warm shadows and reflective glow',
-      'hotel-entry light spill across polished surfaces',
+      'soft 2700K evening ambient, bar and restaurant sources creating warm fill',
+      'warm 2800K luxury nightlife ambiance, polished surfaces reflecting sources',
+      'hotel-entry 2500K light spill across polished stone, street dark beyond',
     ],
-
     night: [
-      'low-key cinematic shadows',
-      'luxury nightlife ambiance',
-      'soft room darkness with city lights beyond',
-      'quiet after-hours glow through glass and balcony air',
+      'low-key 2200K cinematic shadows, single lamp defining subject in darkness',
+      'quiet 2400K luxury nightlife ambiance, city lights bleeding through glass',
+      'soft 2000K room darkness, Paris lights visible as warm bokeh beyond window',
     ],
   },
 

@@ -216,7 +216,7 @@ const { error: insertError } = await admin.from('app_users').insert({
 
       const identityBlock = `
 CRITICAL: The generated person must be the exact same real person as the reference image.
-This is the same woman in a different scene, not a new woman and not a variation.
+This is the same person in a different scene. Preserve their gender exactly as shown in the reference image.
 
 Preserve:
 - same face
@@ -319,7 +319,7 @@ Do NOT change identity.
           type: 'image_url',
           url: imageDataUrl,
         },
-        aspect_ratio: '9:16',
+        aspect_ratio: '2:3',
       }),
     })
 

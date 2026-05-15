@@ -9531,7 +9531,7 @@ if (chapter.worldId === 'lake-como-life') {
       const res = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product: selectedCredits }),
+        body: JSON.stringify({ product: selectedCredits, returnPath: 'prompt-v2' }),
       })
 
       const data = await res.json()

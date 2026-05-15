@@ -1287,151 +1287,130 @@ export const WORLD_LUXURY_LIFE = {
     ],
   },
 
-  cameraPools: {
+
+cameraPools: {
     wake: [
-      'intimate suite close-up with natural window light',
-      'soft bed-level side angle in a palace or villa suite',
-      'wide luxury suite framing with open curtains and depth',
+      '85mm low angle from bed edge, shallow focus, suite depth dissolved behind',
+      '135mm intimate close-up at face height, pale dawn light defining subject edge',
+      '35mm wide suite framing, open curtains in background, subject small in frame',
     ],
-
     morning_refresh: [
-      'mirror-side private beauty framing',
-      'soft bathroom composition with marble and glass detail',
-      'quiet self-care close shot with polished surfaces',
+      '85mm mirror-side close-up, reflection at same focal plane as subject',
+      '50mm soft bathroom composition, marble and glass compressing behind',
+      '135mm quiet self-care close, polished stone surface in sharp foreground',
     ],
-
     getting_dressed: [
-      'wardrobe mirror editorial angle',
-      'mid-length luxury styling frame',
-      'refined dressing-room composition with symmetry',
+      '50mm wardrobe mirror framing, dressing room depth receding behind',
+      '85mm mid-length styling angle, background softened at f/1.8',
+      '85mm refined dressing-room profile, window light defining subject edge',
     ],
-
     breakfast: [
-      'elegant breakfast-table composition with open view',
-      'soft seated three-quarter terrace angle',
-      'wide luxury breakfast framing with architectural depth',
+      '35mm wide breakfast-table composition, open view filling background',
+      '85mm soft seated three-quarter terrace angle, view compressed behind',
+      '24mm wide luxury breakfast framing, architectural depth receding',
     ],
-
     late_morning: [
-      'editorial walking shot through refined public space',
-      'front-facing luxury street-style composition',
-      'destination fashion frame with architectural depth',
+      '50mm editorial walking shot, refined public space receding behind subject',
+      '85mm front-facing street medium, architecture compressed at f/1.8',
+      '35mm destination fashion frame, boulevard depth pulling eye through',
     ],
-
     lunch: [
-      'elegant lunch-table side composition',
-      'refined seated midday editorial angle',
-      'wide luxury terrace lunch framing',
+      '85mm elegant lunch-table side angle, marina or courtyard dissolved behind',
+      '50mm refined seated midday medium, interior depth compressed behind',
+      '35mm wide luxury terrace lunch, view filling entire background',
     ],
-
     afternoon: [
-      'sunlit rooftop leisure framing',
-      'wide architectural luxury leisure shot',
-      'body-length editorial movement shot in bright afternoon light',
+      '24mm sunlit rooftop leisure wide, architecture and sky filling frame',
+      '35mm wide architectural leisure shot, subject at one-third of frame',
+      '50mm body-length medium in bright afternoon, background heat-hazed',
     ],
-
     reset: [
-      'private suite reset composition from a calm distance',
-      'mirror-side transition framing',
-      'soft interior editorial angle before evening',
+      '85mm private suite reset from distance, room depth soft behind subject',
+      '85mm mirror-side transition close, reflection doubling focal plane',
+      '50mm soft interior editorial angle, suite geometry dissolved behind',
     ],
-
     golden_hour: [
-      'sunset editorial framing with skyline or water depth',
-      'wide balcony composition in golden light',
-      'slow cinematic profile shot in sunset glow',
+      '135mm sunset editorial close, skyline or water completely dissolved behind',
+      '24mm wide balcony composition, golden light filling entire background',
+      '85mm cinematic profile in sunset glow, rim light defining subject edge',
     ],
-
     dinner: [
-      'refined candlelit dinner composition',
-      'intimate table-side evening editorial angle',
-      'luxury restaurant framing with polished ambience',
+      '85mm refined candlelit dinner medium, table glow as key light source',
+      '135mm intimate table-side close, candle dissolved in background bokeh',
+      '50mm luxury restaurant framing, ambient depth compressed behind subject',
     ],
-
     evening: [
-      'after-dinner cinematic walking shot',
-      'moody hotel-lounge editorial composition',
-      'night street luxury frame with relaxed glamour',
+      '50mm after-dinner cinematic walking shot, city lights bokeh behind',
+      '85mm moody hotel-lounge medium, warm interior depth behind subject',
+      '35mm night street medium, luxury architectural lighting receding behind',
     ],
-
     night: [
-      'quiet suite close-up in low light',
-      'private bedroom composition with lamp glow',
-      'soft end-of-day intimate framing',
+      '135mm quiet suite close-up, single lamp as sole light source',
+      '85mm private bedroom medium, lamp glow defining subject edge',
+      '85mm soft end-of-day intimate framing, room in deep shadow around subject',
     ],
   },
 
-  lightingPools: {
+lightingPools: {
     wake: [
-      'soft dawn light through luxury curtains',
-      'pale early light across polished suite surfaces',
-      'quiet first-light glow in a high-end room',
+      'pale 5500K dawn light through luxury curtains, long soft shadows across bedding',
+      'first light at suite window edge, room in blue-grey pre-dawn, surfaces barely lit',
+      'quiet 5800K first-light glow entering at low angle, polished surfaces catching edge',
     ],
-
     morning_refresh: [
-      'clean natural bathroom light on marble and glass',
-      'fresh private morning light with soft reflection',
-      'clear early light across skin and polished stone',
+      'clean 6000K natural light on marble and glass, surfaces sharp and bright',
+      'fresh 5600K morning light bouncing off polished stone into bathroom interior',
+      'clear directional daylight through frosted glass, mirror catching full brightness',
     ],
-
     getting_dressed: [
-      'bright suite daylight with clean interior glow',
-      'soft morning light across mirrors, fabric, and skin',
-      'polished daylight with refined luxury clarity',
+      'bright 5500K suite daylight, fabric textures sharp, gold accents catching highlight',
+      'soft morning light raking across mirrors, fabric, and skin at shallow angle',
+      'polished 5200K daylight with even fill, no harsh shadows on wardrobe surfaces',
     ],
-
     breakfast: [
-      'warm breakfast-hour sunlight with terrace reflections',
-      'clear morning light over tableware and architecture',
-      'sunlit luxury morning glow with open-air softness',
+      'warm 4800K breakfast-hour sun, terrace reflections multiplying light across table',
+      'clear 5000K morning light over tableware and architecture, clean and direct',
+      'sunlit luxury morning at 20-degree angle, open-air brightness with soft fill',
     ],
-
     late_morning: [
-      'crisp late-morning daylight with architectural definition',
-      'bright destination light over stone, glass, and fabric',
-      'clean luxury daylight with strong visual freshness',
+      'crisp 5000K late-morning daylight, hard architectural shadows with strong definition',
+      'bright destination light raking across stone, glass, and fabric at 30 degrees',
+      'clean 5200K luxury daylight, full contrast, specular highlights on chrome and glass',
     ],
-
     lunch: [
-      'bright midday light softened by linen or shade',
-      'clear lunch-hour reflections across glass and table settings',
-      'sunlit midday luxury with polished highlights',
+      'bright midday light softened by linen shade, harbor brightness as backlight',
+      'clear 5800K lunch-hour reflections across glass and table settings',
+      'sunlit 5500K midday luxury, polished surface highlights catching overhead source',
     ],
-
     afternoon: [
-      'strong afternoon brightness over water, stone, and metal',
-      'sun-drenched luxury daylight with reflective heat',
-      'bright leisure-hour light with rooftop or coastal glare',
+      'strong 4500K afternoon sun, specular reflections off water and stone surfaces',
+      'sun-drenched 4200K luxury daylight, heat shimmer softening distant background',
+      'bright 4800K leisure-hour light, rooftop or coastal glare as secondary fill',
     ],
-
     reset: [
-      'cool shaded interior light before evening',
-      'quiet suite light after the heat of the day',
-      'soft private reset lighting with polished calm',
+      'cool 4000K shaded interior after direct sun, even fill with no directional source',
+      'quiet 3800K suite light after heat of day, soft through half-closed shutters',
+      'soft 4200K private reset lighting, polished surfaces catching diffused fill',
     ],
-
     golden_hour: [
-      'amber sunset light across water, skyline, or stone',
-      'rich golden-hour backlight with cinematic warmth',
-      'soft honey-gold evening light with refined depth',
+      'rich 2800K amber sunset light raking across water, skyline, or stone at 5 degrees',
+      'warm 3000K golden-hour backlight, rim lighting subject edge against dissolved view',
+      'soft 2700K honey-gold evening light, long shadows, warm specular on architecture',
     ],
-
     dinner: [
-      'romantic candlelit evening glow with polished reflections',
-      'warm table light against deepening surroundings',
-      'refined low evening light with elegant contrast',
+      'romantic 1800K candlelight mixed with 2700K restaurant ambient, deep shadow beyond',
+      'warm 2500K table light against deepening surroundings, glassware catching flame',
+      'refined 2200K low evening light, single candle as key, ambient barely reaching background',
     ],
-
     evening: [
-      'soft after-dark city or coastal glow',
-      'warm nightlife light with elegant shadow depth',
-      'refined night illumination from terraces, windows, and bars',
+      'soft after-dark 2700K city or coastal glow, mixed-source warm ambient fill',
+      'warm 2800K nightlife light, architectural sources creating layered shadow depth',
+      'refined 2500K night illumination from terraces, windows, and bars below subject',
     ],
-
     night: [
-      'quiet low lamp light in a luxury suite',
-      'soft midnight room glow with minimal highlights',
-      'dim end-of-day lighting with intimate calm',
+      'quiet 2200K low lamp light in suite, single source pool in surrounding darkness',
+      'soft midnight 2400K room glow, lamp defining subject edge, room in shadow',
+      'dim 2000K end-of-day lighting, one source from bedside, window dark behind',
     ],
   },
 

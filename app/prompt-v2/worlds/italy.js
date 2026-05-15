@@ -1263,144 +1263,129 @@ export const WORLD_ITALY = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'soft bedroom profile shot',
-      'bedside morning detail shot',
+      '85mm low angle from bed edge, shallow focus, lake-view windows dissolved behind',
+      '135mm intimate close-up at face height, pale Como dawn defining subject edge',
+      '50mm soft bedroom profile, lake reflection light moving on ceiling above',
     ],
-
     morning_refresh: [
-      'balcony lifestyle angle',
-      'bathroom reflection shot',
+      '85mm balcony lifestyle angle, lake depth dissolved in soft background',
+      '85mm bathroom reflection shot, mirror at same focal plane as subject',
+      '50mm soft vanity composition, villa stone depth compressing behind',
     ],
-
     getting_dressed: [
-      'mirror styling shot',
-      'full-body preparation framing',
+      '50mm mirror styling shot, dressing room depth receding behind subject',
+      '85mm full-body preparation framing, window light defining subject edge',
+      '85mm suite-side profile, lake visible through window behind subject',
     ],
-
     breakfast: [
-      'seated terrace lifestyle shot',
-      'over-shoulder breakfast composition',
+      '35mm seated terrace lifestyle shot, lake filling entire background',
+      '85mm over-shoulder breakfast composition, water depth compressed behind',
+      '24mm wide balcony establishing, Como shoreline receding in background',
     ],
-
     late_morning: [
-      'balcony wide scenic shot',
-      'walking lakefront composition',
-      'garden-path elegance shot',
+      '24mm balcony wide scenic shot, lake and mountains filling background',
+      '50mm walking lakefront composition, water receding behind subject',
+      '35mm garden-path elegance shot, villa architecture framing depth',
     ],
-
     lunch: [
-      'wide poolside composition',
-      'lounger-side lifestyle frame',
-      'midday dining shot',
+      '24mm wide poolside composition, lake horizon filling background',
+      '85mm lounger-side lifestyle frame, water depth dissolved behind',
+      '50mm midday dining shot, terrace depth compressed behind subject',
     ],
-
     afternoon: [
-      'poolside cinematic frame',
-      'daybed rest composition',
-      'dock-side scenic shot',
+      '50mm poolside cinematic frame, lake surface in sharp foreground',
+      '85mm daybed rest composition, villa garden depth soft behind',
+      '35mm dock-side scenic shot, Como water receding to far shore',
     ],
-
     reset: [
-      'soft silhouette bathroom framing',
-      'mirror dressing shot',
-      'quiet interior transition angle',
+      '85mm soft silhouette bathroom framing, last lake light defining edge',
+      '85mm mirror dressing shot, suite depth dissolved behind subject',
+      '50mm quiet interior transition angle, window darkening behind',
     ],
-
     golden_hour: [
-      'sunset balcony profile',
-      'overlook scenic frame',
-      'pre-dinner terrace detail shot',
+      '135mm sunset balcony profile, Como going gold completely dissolved behind',
+      '24mm overlook scenic wide, lake and mountains amber in background',
+      '85mm pre-dinner terrace detail, warm backlight rim-lighting subject',
     ],
-
     dinner: [
-      'seated candlelit dining shot',
-      'close romantic table framing',
-      'low-light intimate corner shot',
+      '85mm seated candlelit dining shot, lake dark outside, candle as key',
+      '135mm close romantic table framing, flame dissolved in background bokeh',
+      '50mm low-light intimate corner, villa night depth surrounding subject',
     ],
-
     evening: [
-      'lounge lifestyle shot',
-      'night balcony silhouette',
-      'soft bedroom return shot',
+      '50mm lounge lifestyle shot, warm villa interior depth behind subject',
+      '85mm night balcony silhouette, Como lights reflected in water below',
+      '85mm soft bedroom return shot, lamp as sole defining source',
     ],
-
     night: [
-      'bedside low-light close shot',
-      'wide sleeping composition',
-      'final still bedroom frame',
+      '135mm bedside low-light close, single lamp pool in dark villa room',
+      '35mm wide sleeping composition, lake barely visible through dark window',
+      '85mm final still bedroom frame, room in deep shadow around subject',
     ],
   },
 
   lightingPools: {
     wake: [
-      'soft Italian morning light',
-      'first lake-reflected daylight',
+      'soft 5400K Italian morning light, lake reflection adding moving fill on ceiling',
+      'first 5600K lake-reflected daylight entering through villa windows at low angle',
+      'pale 5200K dawn glow, Como stillness outside, room in blue-grey pre-morning',
     ],
-
     morning_refresh: [
-      'natural villa daylight',
-      'clean warm morning light',
+      'clean 5600K natural villa daylight, stone surfaces sharp and bright',
+      'warm 5200K morning light, lake reflection doubling fill inside bathroom',
+      'soft 5400K reflected dressing-room light, even fill with no direct source',
     ],
-
     getting_dressed: [
-      'soft indoor villa light',
-      'gentle reflected dressing-room light',
+      'soft 5000K indoor villa light through tall shutters, fabric textures defined',
+      'gentle 5200K reflected dressing-room light, lake brightness as secondary fill',
+      'clean 5400K daylight raking across linen and skin at shallow angle',
     ],
-
     breakfast: [
-      'sunlit terrace light',
-      'soft outdoor morning daylight',
+      'sunlit 4800K terrace light, lake surface multiplying morning brightness',
+      'soft 5000K outdoor morning daylight, Como providing open even fill',
+      'warm 4600K Italian sun at breakfast hour, stone terrace reflecting upward',
     ],
-
     late_morning: [
-      'bright lake daylight',
-      'clear Italian sun',
-      'open natural daytime light',
+      'bright 5000K lake daylight, water surface acting as secondary reflector',
+      'clear 5200K Italian sun climbing, hard shadows on villa stone and balustrade',
+      'open 5400K natural daytime light, lake and sky as dual fill sources',
     ],
-
     lunch: [
-      'high summer daylight',
-      'bright midday sun',
-      'strong poolside light',
+      'high 4800K summer daylight, parasol or pergola diffusing overhead source',
+      'bright 5000K midday sun, pool surface multiplying light from below',
+      'strong 4600K poolside light, water reflection creating moving patterns',
     ],
-
     afternoon: [
-      'warm lake reflections',
-      'rich summer terrace light',
-      'bright but softened afternoon glow',
+      'warm 4500K lake reflections, water surface sending secondary fill upward',
+      'rich 4200K summer terrace light, Como warming toward golden hour',
+      'bright 4800K afternoon glow, lake and sky both acting as fill sources',
     ],
-
     reset: [
-      'soft interior light',
-      'warm reflected bathroom light',
-      'gentle evening-prep light',
+      'soft 3800K interior light, shutters half-closed after afternoon heat',
+      'warm 4000K reflected bathroom light, single interior lamp as source',
+      'gentle 3600K evening-prep light, lake darkening outside villa windows',
     ],
-
     golden_hour: [
-      'golden sunset glow',
-      'warm lake gold light',
-      'soft descending evening light',
+      'rich 2800K golden sunset glow, Como surface turning amber from horizon',
+      'warm 3000K lake gold light, everything amber, long shadows across terrace',
+      'soft 2700K descending evening light, villa stone and skin warming together',
     ],
-
     dinner: [
-      'candlelit terrace glow',
-      'warm evening ambience',
-      'sunset-to-night luxury lighting',
+      'candlelit 1800K terrace glow, lake dark beyond flame radius',
+      'warm 2500K evening ambience, candle and architectural sources combined',
+      'sunset-to-night 2200K luxury lighting, last gold fading into candlelight',
     ],
-
     evening: [
-      'warm ambient villa light',
-      'low soft evening light',
-      'night terrace glow',
+      'warm 2700K ambient villa light, Como lights reflected in water below',
+      'low 2500K soft evening light, interior sources taking over from dusk',
+      'quiet 2800K night terrace glow, mixed warm sources in surrounding dark',
     ],
-
     night: [
-      'dim intimate night light',
-      'very soft villa darkness',
-      'low warm lamp light',
-      'minimal ambient bedroom light',
+      'dim 2200K intimate night light, single bedside lamp in dark villa room',
+      'very soft 2000K villa darkness, lake barely visible as ambient glow outside',
+      'low 2400K warm lamp light, room in deep shadow around single source',
     ],
   },
 

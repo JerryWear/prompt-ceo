@@ -934,151 +934,151 @@ export const WORLD_MONACO = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'soft side angle from bed level',
-      'intimate morning close-up with natural light',
-      'wide suite framing with harbor windows',
+      '85mm low angle from bed edge, shallow focus, harbor windows dissolved behind',
+      '135mm intimate close-up, face height, pale dawn light defining edge of subject',
+      '35mm wide suite framing, harbor windows in background, subject small in frame',
     ],
 
     morning_refresh: [
-      'mirror-side close-up in soft bathroom light',
-      'elegant mid shot at the vanity',
-      'tight detail shot through reflection',
+      '85mm mirror-side close-up, reflection at same focal plane as subject',
+      '50mm mid shot at vanity, marble surfaces compressing behind',
+      '135mm tight detail through reflection, double-image shallow focus',
     ],
 
     getting_dressed: [
-      'mirror-framed dressing shot',
-      'mid-length wardrobe styling angle',
-      'editorial side profile while getting ready',
+      '50mm mirror-framed dressing shot, wardrobe depth receding behind',
+      '85mm mid-length styling angle, soft background compression',
+      '85mm editorial side profile, window light defining subject edge',
     ],
 
     breakfast: [
-      'wide terrace shot with harbor beyond',
-      'soft seated three-quarter breakfast angle',
-      'editorial table-side framing with yacht view',
+      '24mm wide terrace shot, harbor filling background beyond table',
+      '85mm soft seated three-quarter, yacht view compressed behind subject',
+      '50mm table-side framing, marina depth dissolving in background',
     ],
 
     late_morning: [
-      'walking street-style shot from the front',
-      'luxury travel editorial angle in motion',
-      'sunlit candid side-walk composition',
+      '50mm front-facing walking shot, Monaco architecture receding behind',
+      '85mm tracking medium, street compressed, subject sharp against city',
+      '35mm sunlit candid, pavement leading lines pulling eye through frame',
     ],
 
     lunch: [
-      'seated lunch framing with table detail',
-      'elegant restaurant side angle',
-      'wide terrace dining shot with marina depth',
+      '85mm seated framing, table detail in foreground, marina soft behind',
+      '50mm restaurant side angle, interior depth compressed behind subject',
+      '35mm wide terrace dining, marina filling entire background depth',
     ],
 
     afternoon: [
-      'wide luxury leisure shot under bright sun',
-      'beach club candid from a low relaxed angle',
-      'yacht-deck editorial composition with open water',
+      '24mm wide luxury leisure, Riviera sun flattening background geometry',
+      '50mm beach club low angle, lounger in foreground, sea dissolved beyond',
+      '35mm yacht-deck medium, open Mediterranean water behind subject',
     ],
 
     reset: [
-      'quiet indoor mirror framing',
-      'private suite side-profile composition',
-      'soft robe-and-vanity close-up',
+      '85mm quiet indoor mirror framing, suite depth dissolved behind',
+      '85mm private suite side-profile, 1.4 aperture, room soft',
+      '135mm soft robe-and-vanity close-up, marble detail in sharp foreground',
     ],
 
     golden_hour: [
-      'sunset backlit silhouette angle',
-      'wide balcony shot with glowing harbor',
-      'cinematic side angle in warm light',
+      '135mm sunset backlit close, rim light from harbor glow defining edge',
+      '24mm wide balcony shot, harbor turning gold in full background',
+      '85mm cinematic side angle, warm backlight separating subject from view',
     ],
 
     dinner: [
-      'candlelit seated portrait framing',
-      'restaurant-side editorial composition',
-      'intimate dinner table angle with ambient light',
+      '85mm candlelit seated portrait, table glow as key light source',
+      '50mm restaurant-side medium, ambient light compressed behind',
+      '135mm intimate dinner close, candle dissolved in background bokeh',
     ],
 
     evening: [
-      'night street editorial framing',
-      'soft-glow hotel bar composition',
-      'walking-after-dark cinematic angle',
+      '85mm night street medium, Monaco lights bokeh filling background',
+      '50mm soft-glow hotel bar, warm interior depth behind subject',
+      '35mm walking-after-dark, street perspective receding behind subject',
     ],
 
     night: [
-      'quiet bedroom ambient close-up',
-      'soft side angle in low light',
-      'private end-of-day suite framing',
+      '135mm quiet bedroom close-up, ambient lamp as sole light source',
+      '85mm soft side angle, low light, room geometry dissolved',
+      '85mm private end-of-day suite, 1.4 aperture, darkness framing subject',
     ],
   },
 
-  lightingPools: {
+lightingPools: {
     wake: [
-      'soft sunrise light entering through suite windows',
-      'pale natural dawn light across white sheets',
-      'quiet early-morning glow with soft shadows',
+      'pale 5600K dawn light entering low through east-facing suite windows, long soft shadows across white linen',
+      'first light at the harbor-facing window edge, room in blue-grey pre-dawn, sheets barely lit',
+      'soft diffused sunrise entering through sheer curtains, warm edge catching pillow and bedframe',
     ],
 
     morning_refresh: [
-      'clean natural bathroom light on pale marble',
-      'soft reflected morning light in a luxury interior',
-      'fresh clear indoor light with polished surfaces',
+      'clean 6000K natural light on pale Carrara marble, no shadows, surfaces sharp and bright',
+      'soft reflected morning light bouncing off polished stone into the bathroom interior',
+      'fresh directional daylight through frosted glass, surfaces crisp, mirror catching full brightness',
     ],
 
     getting_dressed: [
-      'bright morning light through suite windows',
-      'clean daylight on skin, fabric, and gold accents',
-      'soft sunlit interior glow',
+      'bright 5500K morning light through suite windows, fabric textures sharp, gold accents catching highlights',
+      'clean east-facing daylight raking across linen and skin at shallow angle, natural color rendering',
+      'soft interior sunlight, diffused through curtains, even fill across the wardrobe space',
     ],
 
     breakfast: [
-      'sunlit terrace glow with sparkling harbor reflections',
-      'warm bright coastal morning light',
-      'clean Riviera sunlight over stone and tableware',
+      'warm coastal morning sun at 15-degree angle, harbor reflections multiplying light across the terrace table',
+      '5200K Riviera morning light, direct and clean, bouncing off white stone and tableware',
+      'bright terrace sun with secondary harbor reflection fill, shadows short and crisp',
     ],
 
     late_morning: [
-      'bright late-morning sun over polished streets',
-      'clear Riviera daylight with strong freshness',
-      'sun-forward luxury travel light',
+      '5000K Riviera sun climbing toward zenith, hard directional light on polished stone and glass',
+      'clear coastal daylight with strong specular highlights on chrome, glass, and wet surfaces',
+      'sun-forward Mediterranean light, no cloud diffusion, full contrast and color saturation',
     ],
 
     lunch: [
-      'high midday sun softened by terrace shade',
-      'bright overhead light with water reflections',
-      'crisp midday harbor brightness',
+      'high midday sun blocked by terrace shade, even soft fill light with harbor brightness as backlight',
+      'overhead 5800K with terrace parasol diffusion, water reflections adding secondary fill from below',
+      'crisp harbor brightness at noon, shade cooling the direct source to a clean fill',
     ],
 
     afternoon: [
-      'strong coastal sun with bright reflective water light',
-      'hard glamorous Riviera daylight',
-      'intense Mediterranean afternoon brightness',
+      'strong 4800K coastal sun, specular reflections off water surface creating moving light patterns',
+      'hard westward Riviera sun, high contrast, shadows lengthening, saturated color temperature',
+      'intense Mediterranean afternoon at 45 degrees, water acting as secondary reflector from below',
     ],
 
     reset: [
-      'cool shaded interior light after the heat',
-      'soft filtered late-afternoon indoor glow',
-      'quiet calm light in a refreshed suite',
+      'cool shaded interior after direct coastal sun, 4200K ambient fill, no directional source',
+      'soft filtered late-afternoon light through shutters, warm stripes across marble and fabric',
+      'quiet north-facing suite light, no direct sun, even low-contrast fill across all surfaces',
     ],
 
     golden_hour: [
-      'rich honey-gold sunlight over the harbor',
-      'warm sunset glow on skin and architecture',
-      'golden coastal backlight with cinematic warmth',
+      'rich 2800K honey-gold sunlight raking across harbor at 5-degree angle, everything amber',
+      'warm sunset backlight from the west, rim lighting subject edge, harbor dissolved in glow',
+      'golden coastal backlight at near-horizon angle, long shadows, warm specular on water surface',
     ],
 
     dinner: [
-      'candlelight mixed with soft evening ambience',
-      'warm restaurant glow with intimate highlights',
-      'romantic low evening light with harbor-view atmosphere',
+      'candlelight at 1800K mixed with restaurant ambient at 2700K, warm-toned fill, deep shadow beyond',
+      'warm tungsten restaurant glow, intimate highlights on glassware and skin, harbor dark outside',
+      'low 2500K evening light, candleflame as key source, ambient fill barely reaching background',
     ],
 
     evening: [
-      'warm after-dark architectural lighting',
-      'soft night glow from restaurants, bars, and windows',
-      'refined coastal night light with subtle warmth',
+      'warm after-dark architectural lighting at 2700K, building facades lit from below, sky deep blue',
+      'soft night glow from street-level sources, restaurants and bars adding warm fill, no hard shadows',
+      'refined coastal night light, mixed-source warm ambient, shadows soft and layered',
     ],
 
     night: [
-      'dim ambient suite lighting with soft warmth',
-      'low intimate light at the end of the day',
-      'soft bedroom lighting after midnight',
+      'single bedside lamp at 2200K, pool of warm light in dark suite, harbor invisible outside',
+      'low intimate ambient at 2400K, one source from the side, rest of the suite in deep shadow',
+      'soft bedroom lamp after midnight, warm colour temperature, window a dark rectangle behind',
     ],
   },
 

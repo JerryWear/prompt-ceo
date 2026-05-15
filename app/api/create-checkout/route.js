@@ -10,22 +10,10 @@ function clean(value) {
 }
 
 const CREDIT_PRODUCTS = {
-  '50': {
-    priceId: process.env.STRIPE_PRICE_50,
-    credits: 50,
-  },
-  '100': {
-    priceId: process.env.STRIPE_PRICE_100,
-    credits: 100,
-  },
-  '250': {
-    priceId: process.env.STRIPE_PRICE_250,
-    credits: 250,
-  },
-  '500': {
-    priceId: process.env.STRIPE_PRICE_500,
-    credits: 500,
-  },
+  '50':  { priceId: process.env.STRIPE_PRICE_50,  credits: 50  },
+  '100': { priceId: process.env.STRIPE_PRICE_100, credits: 100 },
+  '250': { priceId: process.env.STRIPE_PRICE_250, credits: 250 },
+  '500': { priceId: process.env.STRIPE_PRICE_500, credits: 500 },
 }
 
 export async function POST(req) {
@@ -34,7 +22,6 @@ export async function POST(req) {
     const product = clean(body?.product) || '100'
 
     const selectedProduct = CREDIT_PRODUCTS[product]
-
     if (!selectedProduct) {
       return NextResponse.json(
         { status: 'error', message: 'Invalid credit product' },
@@ -43,8 +30,7 @@ export async function POST(req) {
     }
 
     const priceId = clean(selectedProduct.priceId)
-    const baseUrl =
-      clean(process.env.NEXT_PUBLIC_BASE_URL) || 'http://localhost:3000'
+    const baseUrl = clean(process.env.NEXT_PUBLIC_BASE_URL) || 'http://localhost:3000'
 
     if (!priceId) {
       return NextResponse.json(
@@ -53,31 +39,21 @@ export async function POST(req) {
       )
     }
 
-    // 🔐 REAL SUPABASE AUTH USER
+    // 🔐 AUTH
     const cookieStore = await cookies()
-
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
-cookies: {
-  get(name) {
-    return cookieStore.get(name)?.value
-  },
-  set(name, value, options) {
-    cookieStore.set({ name, value, ...options })
-  },
-  remove(name, options) {
-    cookieStore.set({ name, value: '', ...options })
-  },
-},
+        cookies: {
+          get(name)            { return cookieStore.get(name)?.value },
+          set(name, value, o)  { cookieStore.set({ name, value, ...o }) },
+          remove(name, o)      { cookieStore.set({ name, value: '', ...o }) },
+        },
       }
     )
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser()
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json(
@@ -86,36 +62,30 @@ cookies: {
       )
     }
 
+    // 🛒 CREATE STRIPE SESSION
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-
+      line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
-        userId: user.id,
-        email: user.email || '',
+        userId:  user.id,
+        email:   user.email || '',
         product,
         credits: String(selectedProduct.credits),
       },
-
-      success_url: `${baseUrl}/prompt-v2?credits=success`,
-      cancel_url: `${baseUrl}/prompt-v2`,
+      success_url: `${baseUrl}/prompt-engine-v3?credits=success`,
+      cancel_url:  `${baseUrl}/prompt-engine-v3`,
+      ...(body?.returnPath && {
+        success_url: `${baseUrl}/${body.returnPath}?credits=success`,
+        cancel_url:  `${baseUrl}/${body.returnPath}`,
+      }),
     })
 
-    return NextResponse.json({
-      status: 'success',
-      url: session.url,
-    })
+    return NextResponse.json({ status: 'success', url: session.url })
+
   } catch (err) {
+    console.error('CHECKOUT ERROR:', err.message)
     return NextResponse.json(
-      {
-        status: 'error',
-        message: clean(err?.message) || 'Could not create checkout session',
-      },
+      { status: 'error', message: clean(err?.message) || 'Could not create checkout session' },
       { status: 500 }
     )
   }

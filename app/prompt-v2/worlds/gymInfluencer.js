@@ -1233,139 +1233,139 @@ export const WORLD_GYM_INFLUENCER = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'side profile calm morning shot',
+      'soft over-bed editorial angle, 85mm f/2.0, shallow depth of field with face and phone emerging from soft bedding bokeh',
+      'close candid phone interaction framing, 85mm f/1.8, very shallow depth of field isolating expression and screen in quiet morning frame',
     ],
 
     morning_refresh: [
-      'mirror front-facing physique check',
-      'lifestyle kitchen angle',
+      'mirror-side medium shot, 50mm f/2.5, moderate depth of field keeping reflection and posture simultaneously legible',
+      'lifestyle kitchen candid shot, 35mm f/2.5, moderate depth of field with environment and morning movement naturally proportioned',
     ],
 
     getting_dressed: [
-      'full-body mirror shot',
-      'walking tracking shot from behind',
+      'getting-ready full-body composition, 35mm f/2.8, moderate depth of field with full outfit and figure clear in mirror frame',
     ],
 
     breakfast: [
-      'over-shoulder casual interaction shot',
+      'window-side editorial framing, 50mm f/2.2, shallow depth of field with face and food in shared warm morning focus',
     ],
 
     late_morning: [
-      'wide gym entrance shot',
-      'behind-the-scenes setup angle',
-      'mid-set action shot',
+      'behind-the-scenes setup shot, 35mm f/3.5, moderate depth of field with filming rig and subject both in context',
+      'medium creator lifestyle framing, 50mm f/2.5, medium-shallow depth of field with natural gym work environment readable',
     ],
 
     lunch: [
-      'seated candid shot',
-      'low angle strength shot',
+      'over-shoulder review angle, 85mm f/2.0, shallow depth of field with screen content and reaction both in soft focus',
+      'seated candid medium shot, 50mm f/2.5, moderate depth of field with food and phone naturally framed in rest',
     ],
 
     afternoon: [
-      'walking lifestyle gym shot',
-      'direct content framing',
-      'mirror pump shot',
-      'mirror physique shot',
+      'mirror or side-profile creator angle, 85mm f/2.0, shallow depth of field isolating face or physique against mirrored background',
+      'walking lifestyle tracking shot, 35mm f/2.5, moderate depth of field with movement and interior space in shared frame',
+      'over-shoulder editing shot, 85mm f/2.0, shallow depth of field with screen glow and hands as primary focal plane',
+      'close audience-interaction framing, 85mm f/1.8, very shallow depth of field with expression filling the frame with direct energy',
+      'quiet transition portrait angle, 85mm f/2.0, shallow depth of field holding face and posture against softened room depth',
     ],
 
     reset: [
-      'walking exit shot',
-      'soft silhouette or indirect framing',
-      'mirror dressing shot',
+      'mirror-side preparation framing, 85mm f/2.0, shallow depth of field with face and vanity surface as primary focal plane',
     ],
 
     golden_hour: [
-      'kitchen lifestyle shot',
-      'seated casual shot',
-      'over-shoulder editing shot',
+      'full-body mirror composition, 35mm f/2.8, moderate depth of field with outfit and physique legible in warm evening light',
+      'close prep shot, 85mm f/1.8, very shallow depth of field with skin catching warm lamp detail at close range',
     ],
 
     dinner: [
-      'close interaction shot',
-      'relaxed lifestyle shot',
+      'cinematic medium-close framing, 85mm f/1.8, very shallow depth of field with face and low key light as defining elements',
+      'over-shoulder preview angle, 50mm f/2.0, shallow depth of field with screen and reaction naturally readable together',
     ],
 
     evening: [
-      'slow movement shot',
-      'close interaction framing',
+      'seated private interaction shot, 85mm f/2.0, shallow depth of field with expression and phone in intimate shared focus',
+      'slow cinematic tracking angle, 35mm f/2.8, moderate depth of field with deliberate movement through warm evening room',
+      'still after-set portrait shot, 85mm f/1.8, very shallow depth of field with face softly lit and room depth faded',
     ],
 
     night: [
-      'soft bedroom shot',
-      'wide still shot',
-      'final still frame',
-      'bedside close interaction shot',
-      'wide end-of-day sleeping composition',
+      'phone-lit close-up framing, 85mm f/1.8, very shallow depth of field with screen as primary source lighting face',
+      'seated night interaction angle, 85mm f/2.0, shallow depth of field with expression and device in quiet shared focus',
+      'tight cinematic close framing, 135mm f/2.0, telephoto compression isolating face within warm surrounding darkness',
+      'quiet after-post wide shot, 35mm f/3.5, moderate depth of field holding room and settled figure in stillness',
+      'gentle end-of-night portrait angle, 85mm f/1.8, very shallow depth of field with warm lamp tracing face and texture',
+      'wide still night composition, 24mm f/4.0, deep depth of field with room and figure enclosed in composed quiet',
+      'final end-of-day still frame, 50mm f/2.5, medium depth of field holding figure and room in calm end-of-session stillness',
     ],
   },
 
   lightingPools: {
     wake: [
-      'soft diffused morning light',
+      'soft diffused morning light, 4500K neutral-cool, curtain-filtered window source, flat shadow with gentle skin tone separation',
+      'natural indoor morning light, 5000K neutral, ambient window fill with no direct key, low contrast and unhurried',
     ],
 
     morning_refresh: [
-      'natural window light',
-      'bright morning daylight',
+      'window-lit morning contrast, 5200K neutral-cool, side window as key with interior bounce, clean defined shadow',
+      'clean morning daylight, 5500K natural daylight, large window key with soft interior diffusion, colour-accurate and open',
     ],
 
     getting_dressed: [
-      'clean neutral indoor light',
-      'cool morning outdoor light',
+      'soft neutral indoor daylight, 5000K neutral, ambient room balanced with window, even across outfit and physique',
     ],
 
     breakfast: [
-      'soft indoor daylight',
+      'bright soft morning glow, 5200K neutral-cool, window backlight with warm interior counter-fill, airy and inviting',
     ],
 
     late_morning: [
-      'neutral indoor gym lighting',
-      'bright gym lighting',
-      'high-contrast gym lighting',
+      'clean midday natural light, 5500K natural daylight, peak-hour window key with minimal shadow, production-ready',
+      'bright natural daylight, 5600K clean daylight, full window key with interior bounce, open and energised',
     ],
 
     lunch: [
-      'neutral gym light',
-      'sharp directional gym lighting',
+      'soft indoor daylight, 5000K neutral, ambient room fill with window reduced, relaxed midday quality',
+      'soft afternoon room light, 4800K neutral-warm, transitioning window with slight warm shift, gentle and settling',
     ],
 
     afternoon: [
-      'mixed gym lighting',
-      'balanced gym lighting',
-      'high contrast lighting',
-      'harsh gym lighting emphasizing definition',
+      'warm indoor daylight blend, 4500K neutral-warm, window and lamp sources balanced toward warmth',
+      'soft late afternoon interior light, 4000K warm-neutral, diffused window with warm ambient lift, skin richened',
+      'neutral creative workspace light, 5000K neutral white, overhead ambient with screen secondary fill, clean and direct',
+      'soft ambient daylight fading slightly warmer, 4200K warm-neutral, late window with warm ambient rise, transitional',
+      'golden late afternoon light, 3500K warm-golden, low-angle window key with rich directional surface specular',
     ],
 
     reset: [
-      'natural daylight',
-      'soft warm bathroom light',
-      'soft indoor lighting',
+      'soft warm vanity glow, 3000K warm white, vanity bulb array as wrap-around fill, smooth flattering shadow falloff',
     ],
 
     golden_hour: [
-      'neutral daylight',
-      'soft indoor light',
-      'neutral workspace light',
+      'warm flattering indoor light, 3200K warm white, lamp sources as primary key with soft wall bounce',
+      'soft ambient room light, 3500K warm-neutral, room practicals balanced at low level, even and mood-forward',
     ],
 
     dinner: [
-      'soft ambient light',
-      'warm soft light',
+      'warm low-key shadows, 2800K amber-warm, single lamp key with deep shadow falloff, intimate and deliberate',
+      'soft moody interior glow, 3000K warm white, diffused practicals at reduced level, controlled atmosphere',
     ],
 
     evening: [
-      'soft night lighting',
-      'screen glow',
+      'subtle evening lamp light, 2800K warm amber, low lamp source with wide gentle falloff, quiet and personal',
+      'warm intimate room lighting, 2700K warm white, practicals as primary fill, skin warmth maximised',
+      'low ambient evening glow, 2600K amber, minimal practicals with deep surrounding shadow, atmosphere-first',
     ],
 
     night: [
-      'warm night light',
-      'very low soft light',
-      'minimal ambient light',
-      'soft screen glow with low warm room light',
-      'very soft fading night light',
+      'screen glow with soft low room light, 6500K cool screen mixed with 2800K warm lamp, dual-source contrast in quiet',
+      'low-key intimate lighting, 2700K warm amber, single practical key with near-total shadow fill, very selective',
+      'soft moody night light, 2600K amber, minimal warm ambient with deep shadow falloff, cinematic low-key',
+      'warm bedside glow, 2800K warm amber, bedside lamp as key with close soft falloff, face picked from darkness',
+      'very soft warm night light, 2500K amber, near-minimal practical ambient, texture and mood over legibility',
+      'low night ambient light, 2400K deep amber, fading practicals, atmosphere over function',
+      'very soft fading bedside light, 2200K amber, lamp at minimal setting, near-dark with face barely separated',
     ],
   },
 

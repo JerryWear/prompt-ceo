@@ -1381,160 +1381,129 @@ export const WORLD_LONDON = {
     ],
   },
 
-  cameraPools: {
+cameraPools: {
     wake: [
-      'soft window-side portrait framing',
-      'intimate suite doorway frame',
-      'quiet over-shoulder luxury angle',
+      '85mm low angle from bed edge, shallow focus, Georgian windows dissolved behind',
+      '135mm intimate suite close-up, pale London dawn defining subject edge',
+      '50mm quiet over-shoulder luxury angle, suite depth soft behind subject',
     ],
-
     morning_refresh: [
-      'soft window-side portrait framing',
-      'close luxury detail crop',
-      'quiet over-shoulder luxury angle',
+      '85mm soft window-side portrait, marble bathroom depth compressed behind',
+      '135mm close luxury detail, mirror reflection at same focal plane',
+      '50mm quiet over-shoulder angle, vanity depth soft behind subject',
     ],
-
     getting_dressed: [
-      'editorial full-body composition',
-      'close luxury detail crop',
-      'intimate suite doorway frame',
+      '50mm editorial full-body composition, suite interior receding behind',
+      '135mm close luxury detail, wardrobe texture in sharp foreground',
+      '85mm intimate suite doorway frame, room depth dissolved behind subject',
     ],
-
     breakfast: [
-      'quiet over-shoulder luxury angle',
-      'soft window-side portrait framing',
-      'close luxury detail crop',
+      '50mm quiet over-shoulder luxury angle, river or garden depth beyond table',
+      '85mm soft window-side portrait, silver breakfast service in foreground',
+      '35mm wide river-facing composition, London beyond glass in background',
     ],
-
     late_morning: [
-      'street-level candid luxury frame',
-      'cinematic walking profile shot',
-      'editorial full-body composition',
-      'back-seat car perspective',
+      '50mm street-level candid luxury frame, Georgian architecture receding behind',
+      '85mm cinematic walking profile, London street compressed at f/1.8',
+      '35mm editorial full-body, boulevard depth pulling eye through frame',
     ],
-
     lunch: [
-      'quiet over-shoulder luxury angle',
-      'editorial full-body composition',
-      'street-level candid luxury frame',
+      '85mm quiet over-shoulder luxury angle, club interior depth dissolved behind',
+      '50mm editorial medium, refined dining room geometry compressed behind',
+      '35mm street-level candid, garden or terrace depth receding behind',
     ],
-
     afternoon: [
-      'wide landmark establishing shot',
-      'editorial full-body composition',
-      'cinematic walking profile shot',
-      'rooftop skyline composition',
+      '24mm wide landmark establishing, London architecture filling background',
+      '50mm editorial full-body, landmark or park depth receding behind subject',
+      '85mm cinematic walking profile, London skyline compressed behind',
     ],
-
     reset: [
-      'intimate suite doorway frame',
-      'soft window-side portrait framing',
-      'close luxury detail crop',
+      '85mm intimate suite doorway frame, room geometry dissolved behind',
+      '85mm soft window-side portrait, last daylight defining subject edge',
+      '135mm close luxury detail, suite surface in sharp foreground',
     ],
-
     golden_hour: [
-      'street-level candid luxury frame',
-      'rooftop skyline composition',
-      'cinematic walking profile shot',
+      '85mm street-level candid, London skyline going amber behind subject',
+      '24mm rooftop skyline wide, city turning gold in full background',
+      '85mm cinematic walking profile, warm city light rim-lighting subject',
     ],
-
     dinner: [
-      'close luxury detail crop',
-      'quiet over-shoulder luxury angle',
-      'rooftop skyline composition',
-      'editorial full-body composition',
+      '135mm close luxury detail, candle dissolved in background bokeh',
+      '85mm quiet over-shoulder angle, club or restaurant depth soft behind',
+      '50mm rooftop skyline composition, city lights bokeh filling background',
     ],
-
     evening: [
-      'back-seat car perspective',
-      'street-level candid luxury frame',
-      'rooftop skyline composition',
-      'close luxury detail crop',
+      '35mm back-seat car perspective, wet street reflections through glass',
+      '50mm street-level candid, London night lights bokeh behind subject',
+      '24mm rooftop skyline wide, city at night filling entire background',
     ],
-
     night: [
-      'back-seat car perspective',
-      'soft window-side portrait framing',
-      'rooftop skyline composition',
-      'intimate suite doorway frame',
-      'wide landmark establishing shot',
+      '35mm back-seat car perspective, midnight city light through window',
+      '85mm soft window-side portrait, London lights dissolved behind',
+      '24mm wide landmark establishing, city at rest filling background',
     ],
   },
 
   lightingPools: {
     wake: [
-      'soft London dawn light',
-      'pale suite morning glow',
-      'clean hotel daylight',
+      'pale 5400K London dawn through tall sash windows, soft overcast diffusion',
+      'quiet 5600K suite morning glow, grey-white sky providing even fill',
+      'clean 5800K hotel daylight, London overcast acting as giant softbox',
     ],
-
     morning_refresh: [
-      'pale suite morning glow',
-      'clean hotel daylight',
-      'soft luxury interior light',
+      'pale 5600K suite morning glow through frosted glass, even and soft',
+      'clean 5800K hotel daylight on marble and brass, no hard shadows',
+      'soft 5400K luxury interior light, overcast sky diffusing all sources',
     ],
-
     getting_dressed: [
-      'clean hotel daylight',
-      'suite mirror light',
-      'soft luxury indoor glow',
+      'clean 5500K hotel daylight, overcast London sky as natural fill light',
+      '5200K suite mirror light, even soft fill from tall north-facing windows',
+      'soft 5000K luxury indoor glow, diffused daylight with no direct source',
     ],
-
     breakfast: [
-      'clean hotel daylight',
-      'silver breakfast-service light',
-      'soft river-facing morning glow',
+      'clean 5200K hotel daylight, silver breakfast service reflecting even fill',
+      'soft 5000K river-facing morning glow, Thames light adding secondary fill',
+      '5400K overcast London morning, everything evenly lit with no hard shadow',
     ],
-
     late_morning: [
-      'silver overcast city light',
-      'clean city daylight',
-      'soft London brightness',
+      'silver 4800K overcast city light, soft and directionless, no harsh shadow',
+      'clean 5000K city daylight, Georgian stone providing warm secondary reflection',
+      'soft 5200K London brightness, clouds acting as continuous diffusion panel',
     ],
-
     lunch: [
-      'warm afternoon luxury light',
-      'clean daylight through elegant interiors',
-      'soft outdoor garden light',
+      'warm 4600K afternoon luxury light through club windows, soft and even',
+      'clean 4800K daylight through elegant interior glass, refined and controlled',
+      'soft 5000K outdoor garden light, overcast providing perfect portrait fill',
     ],
-
     afternoon: [
-      'warm afternoon luxury light',
-      'silver overcast city light',
-      'clear skyline daylight',
+      'warm 4400K afternoon luxury light, sun breaking through overcast briefly',
+      'silver 4600K overcast city light, soft and enveloping from all directions',
+      'clear 4800K skyline daylight, occasional sun adding specular to glass',
     ],
-
     reset: [
-      'soft hotel light',
-      'private suite transition light',
-      'low luxury room glow',
+      'soft 3800K hotel transition light, day fading to interior lamp sources',
+      'private 4000K suite light, last grey daylight mixing with lamp warmth',
+      'low 3600K luxury room glow, overcast outside, lamps taking over inside',
     ],
-
     golden_hour: [
-      'golden evening reflection',
-      'city light beginning to warm',
-      'soft rooftop twilight',
+      'warm 3200K golden evening reflection off Thames or wet streets below',
+      'city 3400K light beginning to warm, overcast turning orange at edges',
+      'soft 3000K rooftop twilight, London skyline going amber through cloud',
     ],
-
     dinner: [
-      'candlelit dinner glow',
-      'amber club lighting',
-      'golden city reflection through glass',
+      'candlelit 1800K dinner glow, club darkness beyond immediate table',
+      'amber 2500K club lighting, warm and directional against dark interior',
+      'golden 2700K city reflection through glass, candle as primary source',
     ],
-
     evening: [
-      'amber club lighting',
-      'wet-street evening reflections',
-      'city skyline night shimmer',
-      'car-window reflected light',
+      'amber 2500K club lighting, wet street reflections multiplying sources',
+      'warm 2700K wet-street evening reflections, city light bouncing off pavement',
+      'city 2800K skyline night shimmer, mixed urban sources as ambient fill',
     ],
-
     night: [
-      'city skyline night shimmer',
-      'dim suite light',
-      'wet-street reflections',
-      'low after-hours corridor light',
-      'midnight river reflection light',
+      'city 2200K skyline shimmer, dim suite lamp as interior source',
+      'wet-street 2400K reflections through glass, London at rest outside',
+      'low 2000K after-hours corridor light, building settling into darkness',
     ],
   },
 
