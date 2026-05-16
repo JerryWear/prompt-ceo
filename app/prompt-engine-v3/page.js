@@ -840,6 +840,8 @@ export default function PromptCEOPage() {
   const [dnaProfiles,  setDnaProfiles]  = useState([])
   const [dnaSelected,  setDnaSelected]  = useState('')
   const [regenState,   setRegenState]   = useState({})
+  const [history,      setHistory]      = useState([])
+  const [historyOpen,  setHistoryOpen]  = useState(false)
   const stopRef = useRef(false)
 
   const [helpOpen, setHelpOpen] = useState(false)
@@ -896,15 +898,36 @@ export default function PromptCEOPage() {
       .finally(() => set('creditsLoading', false))
   }, [])
 
+   // ── Prompt history ────────────────────────────────────────
+  const saveToHistory = useCallback(async (prompt, meta, imageUrl = '') => {
+    try {
+      await fetch('/api/save-prompt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          world_id:          meta?.primaryWorldId || '',
+          progression_level: meta?.progressionLevel || '',
+          time_of_day:       meta?.timeOfDay || '',
+          director:          s.directorPreset || '',
+          image_url:         imageUrl,
+        }),
+      })
+    } catch (err) {
+      console.error('History save failed:', err)
+    }
+  }, [s.directorPreset])
+
+
   // ── Generate ──────────────────────────────────────────────
-  const generate = useCallback(() => {
+const generate = useCallback(() => {
     const r = buildPromptV3(buildInput(s))
     setResult(r)
     setOutputTab('output')
     if (s.continuityLock && r.finalPrompt) {
       setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
     }
-  }, [s])
+    if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
+  }, [s, saveToHistory])
 
   const runBatch = useCallback(async () => {
     setBatchRun(true)
@@ -1255,6 +1278,16 @@ export default function PromptCEOPage() {
       }
     }
   }, [s, merge, set])
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/get-history')
+      const data = await res.json()
+      if (data?.status === 'success') setHistory(data.history || [])
+    } catch (err) {
+      console.error('History load failed:', err)
+    }
+  }, [])
 
   // ── Resets ────────────────────────────────────────────────
   const rAll = () => {
@@ -2410,7 +2443,63 @@ export default function PromptCEOPage() {
               display: 'flex', flexDirection: 'column', gap: 8,
             }}>
 
-              <Panel title="Saved Prompts"
+              {/* PROMPT HISTORY */}
+              <Panel title="Prompt History" accent={C.blue}
+                badge={history.length > 0 ? <Chip>{history.length}</Chip> : null}
+                defaultOpen={false}
+                right={
+                  <Btn variant="ghost" onClick={() => { loadHistory(); setHistoryOpen(true) }} sx={{ fontSize: 10 }}>
+                    load
+                  </Btn>
+                }
+              >
+                {history.length === 0
+                  ? (
+                    <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>
+                      Click load to fetch your prompt history.
+                    </div>
+                  )
+                  : history.map(h => (
+                    <div key={h.id} style={{
+                      background: C.surface, border: `1px solid ${C.subtle}`,
+                      borderRadius: 5, padding: '8px 9px',
+                    }}>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: 9, color: C.secondary }}>
+                          {h.created_at ? new Date(h.created_at).toLocaleDateString() : ''}
+                        </span>
+                        {h.progression_level && <Pill color={pc(h.progression_level)}>{h.progression_level}</Pill>}
+                        {h.director && h.director !== 'none' && <Pill color={C.gold}>{h.director}</Pill>}
+                        {h.world_id && <Pill color={C.blue}>{h.world_id.replace(/_/g, ' ')}</Pill>}
+                      </div>
+                      {h.image_url && (
+                        <img src={h.image_url} alt="generated"
+                          style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 3, marginBottom: 5 }} />
+                      )}
+                      <div style={{
+                        fontSize: 10, color: C.secondary, fontFamily: C.mono,
+                        lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5,
+                      }}>
+                        {(h.prompt || '').slice(0, 120)}{(h.prompt || '').length > 120 ? '…' : ''}
+                      </div>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <Btn variant="ghost" onClick={() => {
+                          setResult({ finalPrompt: h.prompt, meta: { progressionLevel: h.progression_level, timeOfDay: h.time_of_day, primaryWorldId: h.world_id }, layers: {}, warnings: [] })
+                          setOutputTab('output')
+                          set('view', 'studio')
+                        }} sx={{ fontSize: 10 }}>
+                          load
+                        </Btn>
+                        <Btn variant="ghost" onClick={() => doCopy(h.prompt, `h${h.id}`)} sx={{ fontSize: 10 }}>
+                          {copied === `h${h.id}` ? '✓' : 'copy'}
+                        </Btn>
+                      </div>
+                    </div>
+                  ))
+                }
+              </Panel>
+
+              <Panel title="Saved Prompts" accent={C.blue}
                 badge={saved.length > 0 ? <Chip>{saved.length}</Chip> : null}
                 right={saved.length > 0 && <Btn variant="danger" onClick={() => setSaved([])}>clear</Btn>}
               >
