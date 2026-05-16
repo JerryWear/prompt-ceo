@@ -1100,6 +1100,23 @@ const generate = useCallback(() => {
     }, ...p].slice(0, 50))
   }
 
+  const exportForTool = (tool) => {
+    const formatPrompt = (p) => {
+      if (tool === 'midjourney') return `${p} --ar 2:3 --style raw --q 2`
+      if (tool === 'runway')     return p.slice(0, 1000)
+      if (tool === 'kling')      return `${p} --ratio 9:16 --duration 5`
+      return p
+    }
+    const text = batch.map((r, i) =>
+      `=== Scene ${i + 1} [${r.meta?.progressionLevel} / ${(r.meta?.timeOfDay || '').replace(/_/g, ' ')}] ===\n${formatPrompt(r.finalPrompt)}`
+    ).join('\n\n')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })),
+      download: `promptceo-${tool}-${Date.now()}.txt`,
+    })
+    a.click()
+  }
+
   // ── Export ────────────────────────────────────────────────
   const exportBatch = () => {
     const text = batch.map((r, i) =>
@@ -2136,6 +2153,43 @@ const generate = useCallback(() => {
                         </div>
                       )
                     }
+
+                    {result?.finalPrompt && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+                        {[
+                          {
+                            label: 'MJ',
+                            title: 'Copy for Midjourney',
+                            format: p => `${p} --ar 2:3 --style raw --q 2`,
+                          },
+                          {
+                            label: 'Runway',
+                            title: 'Copy for Runway',
+                            format: p => p.slice(0, 1000),
+                          },
+                          {
+                            label: 'Kling',
+                            title: 'Copy for Kling',
+                            format: p => `${p} --ratio 9:16 --duration 5`,
+                          },
+                        ].map(({ label, title, format }) => (
+                          <Btn
+                            key={label}
+                            variant="ghost"
+                            title={title}
+                            onClick={() => doCopy(format(result.finalPrompt), `export_${label}`)}
+                            sx={{
+                              fontSize: 10,
+                              border: `1px solid ${C.subtle}`,
+                              color: copied === `export_${label}` ? C.green : C.secondary,
+                            }}
+                          >
+                            {copied === `export_${label}` ? `✓ ${label}` : `⎘ ${label}`}
+                          </Btn>
+                        ))}
+                      </div>
+                    )}
+
                     {result?.finalPrompt && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {['scene', 'camera', 'wardrobe', 'mood', 'lighting'].map(l => (
@@ -2573,7 +2627,10 @@ const generate = useCallback(() => {
               {batch.length > 0 && (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <Btn variant="gold" onClick={() => setDirectorOpen(true)}>🎬 Director's Chair</Btn>
-                  <Btn variant="default" onClick={exportBatch}>export .txt</Btn>
+                  <Btn variant="default" onClick={exportBatch}>⎘ .txt</Btn>
+                  <Btn variant="default" onClick={() => exportForTool('midjourney')}>⎘ MJ</Btn>
+                  <Btn variant="default" onClick={() => exportForTool('runway')}>⎘ Runway</Btn>
+                  <Btn variant="default" onClick={() => exportForTool('kling')}>⎘ Kling</Btn>
                   <Btn variant="default" onClick={exportStoryboard}>storyboard</Btn>
                   <Btn variant="default" onClick={() => doCopy(batch.map(r => r.finalPrompt).join('\n\n'), 'ba')}>
                     {copied === 'ba' ? '✓ copied all' : 'copy all'}
