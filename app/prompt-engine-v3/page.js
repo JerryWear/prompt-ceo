@@ -21,44 +21,34 @@ import { SIGNATURE_PACKS } from '../prompt-v2/signature-packs/index.js'
 // ─────────────────────────────────────────────────────────────
 
 const C = {
-  // Backgrounds
   void:     '#040404',
   deep:     '#070707',
   base:     '#0a0a0a',
   raised:   '#0d0d0d',
   surface:  '#111111',
   overlay:  '#151515',
-  // Borders
   hairline: '#1a1a1a',
   subtle:   '#222222',
   mid:      '#2a2a2a',
-  // Text
   primary:  '#e8e4dc',
   secondary:'#8a8680',
   muted:    '#4a4845',
   ghost:    '#2a2825',
-  // Accent — Cinematic Gold
   gold:     '#c8a84b',
   goldDim:  '#7a6428',
   goldGlow: '#c8a84b22',
-  // Accent — Scene Blue
   blue:     '#4a8ab4',
   blueDim:  '#2a4a6a',
   blueGlow: '#4a8ab422',
-  // Progression
   tease:    '#4a7ab4',
   tension:  '#b4944a',
   payoff:   '#b44a4a',
-  // Status
   green:    '#4a9a6a',
   greenDim: '#1a3a2a',
-  // Mono font
   mono:     '"JetBrains Mono", "Fira Code", "Consolas", monospace',
-  // Display font
   display:  '"Georgia", "Times New Roman", serif',
 }
 
-// Time of day color palette
 const TIME_COLORS = {
   early_morning: '#1a2a4a',
   morning:       '#4a6a8a',
@@ -91,43 +81,18 @@ const AGE_OPTIONS = [
   { value: '45-50', label: '45–50' },
 ]
 
-// Cinematic director presets — each applies a full visual grammar
 const DIRECTOR_PRESETS = [
-  {
-    id: 'none', label: 'None', icon: '○',
-    description: 'Engine defaults',
-    overrides: {},
-  },
-  {
-    id: 'kubrick', label: 'Kubrick', icon: '◎',
-    description: 'Symmetrical. Cold. Unsettling precision.',
-    overrides: { cameraStyle: 'ultra-wide symmetrical one-point perspective, slow deliberate push-in, clinical framing' },
-  },
-  {
-    id: 'wong', label: 'Wong Kar-wai', icon: '◈',
-    description: 'Saturated. Blurred longing. Step-printed time.',
-    overrides: { cameraStyle: 'shallow focus step-printed motion, saturated warm tones, Wong Kar-wai visual grammar, blurred foreground bokeh, melancholic intimacy' },
-  },
-  {
-    id: 'coppola', label: 'S. Coppola', icon: '◇',
-    description: 'Dreamy. Feminine ennui. Pastel distance.',
-    overrides: { cameraStyle: 'soft overexposed pastels, hazy window light, distant observational framing, Sofia Coppola aesthetic, ethereal stillness' },
-  },
-  {
-    id: 'fincher', label: 'Fincher', icon: '◆',
-    description: 'Desaturated. Precise. Tension in stillness.',
-    overrides: { cameraStyle: 'desaturated teal-orange grade, ultra-precise composition, slight low angle, Fincher tension framing, controlled shadow depth' },
-  },
-  {
-    id: 'villeneuve', label: 'Villeneuve', icon: '⬡',
-    description: 'Epic scale. Silence. Overwhelming beauty.',
-    overrides: { cameraStyle: 'epic wide establishing, overwhelming negative space, Villeneuve grand scale, silence implied through composition, IMAX-quality depth' },
-  },
-  {
-    id: 'noe', label: 'Gaspar Noé', icon: '◉',
-    description: 'Sensory overload. Neon. Confrontational.',
-    overrides: { cameraStyle: 'neon-saturated high contrast, overhead bird-eye rotation, confrontational intimacy, Gaspar Noé aesthetic, strobe-adjacent intensity' },
-  },
+  { id: 'none',       label: 'None',        icon: '○',  description: 'Engine defaults',                          overrides: {} },
+  { id: 'kubrick',    label: 'Kubrick',      icon: '◎',  description: 'Symmetrical. Cold. Unsettling precision.', overrides: {} },
+  { id: 'wong',       label: 'Wong Kar-wai', icon: '◈',  description: 'Saturated. Blurred longing.',              overrides: {} },
+  { id: 'coppola',    label: 'S. Coppola',   icon: '◇',  description: 'Dreamy. Feminine ennui. Pastel distance.', overrides: {} },
+  { id: 'fincher',    label: 'Fincher',       icon: '◆',  description: 'Desaturated. Precise. Tension.',           overrides: {} },
+  { id: 'villeneuve', label: 'Villeneuve',    icon: '⬡',  description: 'Epic scale. Silence. Overwhelming.',       overrides: {} },
+  { id: 'noe',        label: 'Gaspar Noé',   icon: '◉',  description: 'Neon. Confrontational. Sensory overload.', overrides: {} },
+  { id: 'lynch',      label: 'Lynch',         icon: '◌',  description: 'Dreamlike. Surreal. Visual dread.',        overrides: {} },
+  { id: 'winding',    label: 'Winding Refn',  icon: '◐',  description: 'Neon night. Drive aesthetic. Minimal.',    overrides: {} },
+  { id: 'malick',     label: 'Malick',        icon: '◑',  description: 'Golden hour. Impressionist. Nature.',      overrides: {} },
+  { id: 'antonioni',  label: 'Antonioni',     icon: '◒',  description: 'Cold modernism. Alienation. Stillness.',   overrides: {} },
 ]
 
 // ─────────────────────────────────────────────────────────────
@@ -174,16 +139,10 @@ function getChapterOpts(storyWorldId) {
   return STORY_CHAPTERS.filter(c => c.worldId === storyWorldId).map(c => ({ id: c.id, name: c.name }))
 }
 
-// ─────────────────────────────────────────────────────────────
-// buildInput — FIXED version
-// worldId always passes through (auto mode fix)
-// progressionLevel owned by layer 03 (engine fix baked in)
-// ─────────────────────────────────────────────────────────────
-
 function buildInput(s, overrides = {}) {
   return {
     worldControlMode:    s.worldControlMode,
-    worldId:             s.worldControlMode === 'manual' ? s.worldId : s.worldId, // always pass through
+    worldId:             s.worldId,
     subLocationId:       s.worldControlMode === 'manual' ? s.subLocationId : '',
     sceneGroupId:        s.worldControlMode === 'manual' ? s.sceneGroupId  : '',
     phaseKey:            s.worldControlMode === 'manual' ? s.phaseKey      : '',
@@ -191,30 +150,17 @@ function buildInput(s, overrides = {}) {
     chapterId:           s.chapterId,
     progressionIndex:    Number(s.progressionIndex),
     totalCount:          Number(s.totalCount),
-characterMode:       s.characterMode,
+    characterMode:       s.characterMode,
     subjectGender:       s.subjectGender,
-    // DNA traits feed directly into identity
     identityName:        s.traits?.subjectA?.name || (s.useIdentity ? s.identityName : ''),
     hasReferenceImage:   s.useIdentity ? s.hasImage : false,
     useExtractedTraits:  !!(
-      s.traits?.subjectA?.age        ||
-      s.traits?.subjectA?.ethnicity  ||
-      s.traits?.subjectA?.hair       ||
-      s.traits?.subjectA?.body
-    ),
-identityName: (
-      s.characterMode === 'couple'
-        ? s.traits?.subjectA?.name || (s.useIdentity ? s.identityName : '')
-        : s.traits?.subjectA?.name || (s.useIdentity ? s.identityName : '')
-    ),
-    hasReferenceImage:  s.useIdentity ? s.hasImage : false,
-    useExtractedTraits: !!(
       s.traits?.subjectA?.age       ||
       s.traits?.subjectA?.ethnicity ||
       s.traits?.subjectA?.hair      ||
       s.traits?.subjectA?.body
     ),
-extractedTraits: {
+    extractedTraits: {
       subjectA: {
         identity:   s.traits?.subjectA?.name      || '',
         age:        s.traits?.subjectA?.age        || '',
@@ -248,56 +194,58 @@ extractedTraits: {
 // ─────────────────────────────────────────────────────────────
 
 const INIT = {
-  // World
-  worldControlMode: 'auto',
-  worldId:          '',
-  subLocationId:    '',
-  sceneGroupId:     '',
-  phaseKey:         '',
-  storyWorldId:     'luxury-life',
-  chapterId:        '',
-  packId:           '',
-  // Progression
-  progressionIndex: 0,
-  totalCount:       30,
-  // Character
-  characterMode:    'female',
-  subjectGender:    'female',
-  // Identity
-  useIdentity:      false,
-  identityName:     '',
-  hasImage:         false,
-  imageDataUrl:     '',
-  scanState:        'idle',
-  scanError:        '',
-  useTraits:        false,
-  identityStrength: 100,
-  ageRange:         'auto',
-  continuityLock:   false,
-characterMode:  'female',
+  worldControlMode:   'auto',
+  worldId:            '',
+  subLocationId:      '',
+  sceneGroupId:       '',
+  phaseKey:           '',
+  storyWorldId:       'luxury-life',
+  chapterId:          '',
+  packId:             '',
+  progressionIndex:   0,
+  totalCount:         30,
+  characterMode:      'female',
+  subjectGender:      'female',
+  useIdentity:        false,
+  identityName:       '',
+  hasImage:           false,
+  imageDataUrl:       '',
+  identityStorageUrl: '',
+  imageUploading:     false,
+  scanState:          'idle',
+  scanError:          '',
+  useTraits:          false,
+  identityStrength:   100,
+  ageRange:           'auto',
+  continuityLock:     false,
   traits: {
     subjectA: {
-      name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '',
-      locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false },
+      name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', hair: '',
+      locked: { name: false, age: false, ethnicity: false, body: false, breast: false, glutes: false, eyes: false, hair: false },
     },
     subjectB: {
       name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '',
       locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false },
     },
   },
-  prevOutputs:      [],
-  // Director
-  directorPreset:   'none',
-  // UI
-  view:             'studio',   // 'studio' | 'director' | 'timeline'
-  credits:          null,
-  creditsLoading:   false,
-  generatedImage:   '',
-  imageGenerating:  false,
-  imageError:       '',
-  batchImages:      [],
-  batchImgRunning:  false,
-  batchImgProgress: 0,
+  prevOutputs:        [],
+  directorPreset:     'none',
+  view:               'studio',
+  credits:            null,
+  creditsLoading:     false,
+  generatedImage:     '',
+  imageGenerating:    false,
+  imageError:         '',
+  // Video — single
+  videoGenerating:    false,
+  videoUrl:           '',
+  videoError:         '',
+  // Batch images
+  batchImages:        [],
+  batchImgRunning:    false,
+  batchImgProgress:   0,
+  // Batch videos — keyed by item.index
+  batchVideos:        {},
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -415,11 +363,10 @@ function Btn({ children, onClick, disabled, variant = 'default', style: sx }) {
   )
 }
 
-// Collapsible Panel
 function Panel({ title, badge, right, accent, defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-<div style={{
+    <div style={{
       background: C.base,
       borderTop: `1px solid ${C.hairline}`,
       borderRight: `1px solid ${C.hairline}`,
@@ -457,7 +404,6 @@ function Panel({ title, badge, right, accent, defaultOpen = true, children }) {
   )
 }
 
-// Segmented control
 function Seg({ options, value, onChange }) {
   return (
     <div style={{ display: 'flex', gap: 3 }}>
@@ -485,7 +431,6 @@ function Seg({ options, value, onChange }) {
   )
 }
 
-// Track / progress bar
 function Track({ value, max, color }) {
   const pct = Math.min(100, Math.max(0, (value / Math.max(max, 1)) * 100))
   return (
@@ -500,7 +445,7 @@ function Track({ value, max, color }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SCENE CARD — single prompt result in timeline
+// SCENE CARD
 // ─────────────────────────────────────────────────────────────
 
 function SceneCard({ result, index, total, onClick, isActive, compact }) {
@@ -541,7 +486,7 @@ function SceneCard({ result, index, total, onClick, isActive, compact }) {
     <div
       onClick={onClick}
       style={{
-background: isActive ? C.surface : C.base,
+        background: isActive ? C.surface : C.base,
         borderTop: `1px solid ${isActive ? pc(level) + '66' : C.hairline}`,
         borderRight: `1px solid ${isActive ? pc(level) + '66' : C.hairline}`,
         borderBottom: `1px solid ${isActive ? pc(level) + '66' : C.hairline}`,
@@ -574,7 +519,7 @@ background: isActive ? C.surface : C.base,
 }
 
 // ─────────────────────────────────────────────────────────────
-// DIRECTOR'S CHAIR VIEW — cinematic fullscreen mode
+// DIRECTOR'S CHAIR VIEW
 // ─────────────────────────────────────────────────────────────
 
 function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
@@ -592,14 +537,11 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
       background: C.void,
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Sky gradient */}
       <div style={{
         position: 'absolute', inset: 0,
         background: `radial-gradient(ellipse at 50% 0%, ${bg}88 0%, transparent 60%)`,
         pointerEvents: 'none',
       }} />
-
-      {/* Film slate header */}
       <div style={{
         position: 'relative', zIndex: 2,
         padding: '16px 24px',
@@ -609,7 +551,6 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
         backdropFilter: 'blur(8px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Slate clapper icon */}
           <div style={{
             width: 36, height: 36, background: C.surface,
             border: `1px solid ${C.subtle}`,
@@ -637,7 +578,6 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
         <Btn variant="ghost" onClick={onClose} sx={{ fontSize: 13 }}>✕ Exit</Btn>
       </div>
 
-      {/* Main prompt display */}
       <div style={{
         flex: 1, position: 'relative', zIndex: 2,
         display: 'flex', flexDirection: 'column',
@@ -645,7 +585,6 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
         padding: '40px 80px',
         overflow: 'hidden',
       }}>
-        {/* Arc indicator */}
         <div style={{
           position: 'absolute', top: 24, left: '50%',
           transform: 'translateX(-50%)',
@@ -666,12 +605,7 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
             />
           ))}
         </div>
-
-        {/* The prompt */}
-        <div style={{
-          maxWidth: 820, width: '100%',
-          textAlign: 'center',
-        }}>
+        <div style={{ maxWidth: 820, width: '100%', textAlign: 'center' }}>
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: 3,
             textTransform: 'uppercase', color: C.goldDim,
@@ -699,7 +633,6 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
         </div>
       </div>
 
-      {/* Navigation */}
       <div style={{
         position: 'relative', zIndex: 2,
         padding: '16px 24px',
@@ -708,23 +641,13 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
         background: 'rgba(4,4,4,0.85)',
         backdropFilter: 'blur(8px)',
       }}>
-        <Btn
-          variant="default"
-          disabled={currentIndex === 0}
-          onClick={() => onNavigate(currentIndex - 1)}
-          sx={{ minWidth: 100 }}
-        >
+        <Btn variant="default" disabled={currentIndex === 0} onClick={() => onNavigate(currentIndex - 1)} sx={{ minWidth: 100 }}>
           ← Previous
         </Btn>
         <span style={{ fontSize: 11, color: C.muted, minWidth: 80, textAlign: 'center' }}>
           {currentIndex + 1} / {batch.length}
         </span>
-        <Btn
-          variant="default"
-          disabled={currentIndex === batch.length - 1}
-          onClick={() => onNavigate(currentIndex + 1)}
-          sx={{ minWidth: 100 }}
-        >
+        <Btn variant="default" disabled={currentIndex === batch.length - 1} onClick={() => onNavigate(currentIndex + 1)} sx={{ minWidth: 100 }}>
           Next →
         </Btn>
       </div>
@@ -733,7 +656,7 @@ function DirectorsChair({ batch, currentIndex, onClose, onNavigate }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN PAGE COMPONENT
+// SUBJECT TRAITS
 // ─────────────────────────────────────────────────────────────
 
 const TRAIT_FIELDS_FEMALE = [
@@ -756,7 +679,6 @@ const TRAIT_FIELDS_MALE = [
   { key: 'hair',      label: 'Hair',      placeholder: 'e.g. short dark hair'          },
 ]
 
-// DNA libraries — picked directly from V2
 const DNA_LIBRARIES = {
   name: [],
   age: [
@@ -788,75 +710,14 @@ const DNA_LIBRARIES = {
     '40 years old, refined, powerful, effortlessly high-status presence',
     '45 years old, experienced, composed, deeply confident masculine energy',
   ],
-  ethnicity: [
-    'European',
-    'Nordic',
-    'Mediterranean',
-    'Latina',
-    'East Asian',
-    'South Asian',
-    'Middle Eastern',
-    'Black',
-    'Mixed ethnicity',
-  ],
-  body: [
-    'Slim feminine frame',
-    'Athletic toned build',
-    'Curvy hourglass shape',
-    'Soft feminine curves',
-    'Lean dancer-like physique',
-    'Fit model proportions',
-  ],
-  body_male: [
-    'Athletic muscular build',
-    'Lean athletic physique',
-    'Broad shouldered strong frame',
-    'Fit toned masculine build',
-    'Powerful muscular physique',
-    'Tall lean masculine frame',
-  ],
-  breast: [
-    'Small natural bust',
-    'Medium proportional bust',
-    'Full natural bust',
-    'Full round bust, soft shape',
-  ],
-  glutes: [
-    'Subtle athletic glutes',
-    'Rounded feminine glutes',
-    'Full sculpted glutes',
-    'Strong curvy glutes',
-  ],
-  eyes: [
-    'Dark brown eyes',
-    'Light brown eyes',
-    'Green eyes',
-    'Blue eyes',
-    'Hazel eyes',
-    'Grey eyes',
-    'Deep dark eyes',
-    'Bright expressive eyes',
-  ],
-  hair: [
-    'Long dark hair, loose waves',
-    'Long blonde hair, soft curls',
-    'Medium-length hair, straight and sleek',
-    'Short bob haircut, clean lines',
-    'High ponytail, sporty and confident',
-    'Messy bun, casual and intimate',
-    'Long auburn hair, natural waves',
-    'Platinum blonde, straight and polished',
-    'Dark brown hair, beachy waves',
-    'Short pixie cut, editorial edge',
-  ],
-  hair_male: [
-    'Short dark hair, clean cut',
-    'Short blonde hair, textured',
-    'Medium length dark hair, swept back',
-    'Buzz cut, sharp and clean',
-    'Short curly hair, natural texture',
-    'Slicked back dark hair, polished',
-  ],
+  ethnicity: ['European','Nordic','Mediterranean','Latina','East Asian','South Asian','Middle Eastern','Black','Mixed ethnicity'],
+  body: ['Slim feminine frame','Athletic toned build','Curvy hourglass shape','Soft feminine curves','Lean dancer-like physique','Fit model proportions'],
+  body_male: ['Athletic muscular build','Lean athletic physique','Broad shouldered strong frame','Fit toned masculine build','Powerful muscular physique','Tall lean masculine frame'],
+  breast: ['Small natural bust','Medium proportional bust','Full natural bust','Full round bust, soft shape'],
+  glutes: ['Subtle athletic glutes','Rounded feminine glutes','Full sculpted glutes','Strong curvy glutes'],
+  eyes: ['Dark brown eyes','Light brown eyes','Green eyes','Blue eyes','Hazel eyes','Grey eyes','Deep dark eyes','Bright expressive eyes'],
+  hair: ['Long dark hair, loose waves','Long blonde hair, soft curls','Medium-length hair, straight and sleek','Short bob haircut, clean lines','High ponytail, sporty and confident','Messy bun, casual and intimate','Long auburn hair, natural waves','Platinum blonde, straight and polished','Dark brown hair, beachy waves','Short pixie cut, editorial edge'],
+  hair_male: ['Short dark hair, clean cut','Short blonde hair, textured','Medium length dark hair, swept back','Buzz cut, sharp and clean','Short curly hair, natural texture','Slicked back dark hair, polished'],
 }
 
 function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isMale }) {
@@ -881,9 +742,7 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
       </div>
       {fields.map(({ key, label: fl, placeholder }) => {
         const locked = traits?.locked?.[key] || false
-        const libKey = isMale && DNA_LIBRARIES[`${key}_male`]
-          ? `${key}_male`
-          : key
+        const libKey = isMale && DNA_LIBRARIES[`${key}_male`] ? `${key}_male` : key
         const library = DNA_LIBRARIES[libKey] || []
 
         return (
@@ -891,11 +750,7 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
             display: 'flex', flexDirection: 'column', gap: 2,
             padding: '4px 0', borderBottom: `1px solid #0a0a0a`,
           }}>
-            {/* Field label + lock */}
-            <div style={{
-              display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{
                 fontSize: 9, fontWeight: 700,
                 color: locked ? accentColor : C.muted,
@@ -916,14 +771,10 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
                 {locked ? '🔒' : '○'}
               </button>
             </div>
-
-            {/* Library dropdown */}
             {library.length > 0 && !locked && (
               <select
                 value=""
-                onChange={e => {
-                  if (e.target.value) onChange(key, e.target.value)
-                }}
+                onChange={e => { if (e.target.value) onChange(key, e.target.value) }}
                 style={{
                   width: '100%', background: C.raised, color: C.secondary,
                   border: `1px solid ${C.hairline}`, borderRadius: 3,
@@ -937,15 +788,12 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
                 ))}
               </select>
             )}
-
-            {/* Text input */}
             <input
               style={{
-                background: 'transparent', color: locked ? C.muted : C.primary,
-                border: `1px solid ${locked ? C.hairline : C.hairline}`,
+                background: C.deep, color: locked ? C.muted : C.primary,
+                border: `1px solid ${C.hairline}`,
                 borderRadius: 3, fontSize: 10, outline: 'none',
                 fontFamily: 'inherit', padding: '3px 6px',
-                background: C.deep,
               }}
               value={traits?.[key] || ''}
               onChange={e => !locked && onChange(key, e.target.value)}
@@ -959,19 +807,23 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+// MAIN PAGE COMPONENT
+// ─────────────────────────────────────────────────────────────
+
 export default function PromptCEOPage() {
-  const router = useRouter()
+  const router   = useRouter()
   const supabase = createClient()
 
+  // ── Auth guard ────────────────────────────────────────────
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession()
-      if (!data.session) {
-        router.replace('/prompt-engine-v3/login')
-      }
+      if (!data.session) router.replace('/prompt-engine-v3/login')
     }
     checkSession()
   }, [])
+
   const [s, setS]   = useState(INIT)
   const set         = useCallback((k, v) => setS(p => ({ ...p, [k]: v })), [])
   const merge       = useCallback(patch  => setS(p => ({ ...p, ...patch })), [])
@@ -989,6 +841,8 @@ export default function PromptCEOPage() {
   const [dnaSelected,  setDnaSelected]  = useState('')
   const [regenState,   setRegenState]   = useState({})
   const stopRef = useRef(false)
+
+  const [helpOpen, setHelpOpen] = useState(false)
 
   // ── Derived ───────────────────────────────────────────────
   const worldObj    = useMemo(() => s.worldId ? getWorldById(s.worldId) : null, [s.worldId])
@@ -1016,6 +870,21 @@ export default function PromptCEOPage() {
 
   // DNA init
   useEffect(() => { setDnaProfiles(dnaLoad()) }, [])
+
+  // ── Load persisted identity image on login ────────────────
+  useEffect(() => {
+    const loadPersistedIdentity = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const fileName = `${user.id}/identity.jpg`
+      const { data } = supabase.storage.from('identity-images').getPublicUrl(fileName)
+      if (!data?.publicUrl) return
+      const res = await fetch(data.publicUrl, { method: 'HEAD' }).catch(() => null)
+      if (!res?.ok) return
+      merge({ imageDataUrl: data.publicUrl, identityStorageUrl: data.publicUrl, hasImage: true })
+    }
+    loadPersistedIdentity()
+  }, [])
 
   // Credits
   useEffect(() => {
@@ -1045,7 +914,7 @@ export default function PromptCEOPage() {
     stopRef.current = false
     const total = Number(s.totalCount) || 30
     const res   = []
-for (let i = 0; i < total; i++) {
+    for (let i = 0; i < total; i++) {
       if (stopRef.current) break
       let r
       try {
@@ -1059,13 +928,12 @@ for (let i = 0; i < total; i++) {
       setBatchProg(i + 1)
       await new Promise(resolve => setTimeout(resolve, 0))
     }
-setBatchRun(false)
+    setBatchRun(false)
     set('view', 'timeline')
   }, [s])
 
   const regenLayer = useCallback(layer => {
     setRegenState(p => ({ ...p, [layer]: true }))
-    // FIXED: use current progressionIndex, not +1
     const r = buildPromptV3(buildInput({ ...s, progressionIndex: s.progressionIndex }))
     setResult(prev => !prev ? r : {
       ...r,
@@ -1123,14 +991,10 @@ setBatchRun(false)
       subjectATraits.hair,
     ].filter(Boolean).join(' ').toLowerCase()
 
-    const looksMale =
-      /\b(man|male|masculine|beard|mustache|facial hair|broad shoulders|broad|muscular)\b/.test(genderSignals)
-
-    const looksFemale =
-      /\b(woman|female|feminine|long hair|long wavy|long blonde|long dark)\b/.test(genderSignals)
+    const looksMale   = /\b(man|male|masculine|beard|mustache|facial hair|broad shoulders|broad|muscular)\b/.test(genderSignals)
+    const looksFemale = /\b(woman|female|feminine|long hair|long wavy|long blonde|long dark)\b/.test(genderSignals)
 
     let detectedGender = 'female', detectedCharMode = 'female'
-
     if (hasSubjectB || /\bcouple\b|\btwo people\b/.test(scanText)) {
       detectedGender = 'female'; detectedCharMode = 'couple'
     } else if (looksMale && !looksFemale) {
@@ -1139,38 +1003,61 @@ setBatchRun(false)
       detectedGender = 'female'; detectedCharMode = 'female'
     }
 
-merge({
+    merge({
       scanState: 'done', scanError: '', hasImage: true, useIdentity: true, useTraits: true,
       subjectGender: detectedGender, characterMode: detectedCharMode,
       traits: {
         subjectA: {
-          name:      s.identityName                || '',
-          age:       extract(resolved).age         || '',
-          ethnicity: extract(resolved).ethnicity   || '',
-          body:      extract(resolved).body_shape  || '',
-          eyes:      extract(resolved).eye_color   || '',
-          hair:      extract(resolved).hair        || '',
-          locked:    s.traits?.subjectA?.locked    || {},
+          name:      s.identityName             || '',
+          age:       extract(resolved).age      || '',
+          ethnicity: extract(resolved).ethnicity|| '',
+          body:      extract(resolved).body_shape || '',
+          eyes:      extract(resolved).eye_color || '',
+          hair:      extract(resolved).hair     || '',
+          locked:    s.traits?.subjectA?.locked || {},
         },
         subjectB: hasSubjectB ? {
           name:      '',
-          age:       extract(subjectB).age         || '',
-          ethnicity: extract(subjectB).ethnicity   || '',
-          body:      extract(subjectB).body_shape  || '',
-          eyes:      extract(subjectB).eye_color   || '',
-          hair:      extract(subjectB).hair        || '',
-          locked:    s.traits?.subjectB?.locked    || {},
+          age:       extract(subjectB).age      || '',
+          ethnicity: extract(subjectB).ethnicity|| '',
+          body:      extract(subjectB).body_shape || '',
+          eyes:      extract(subjectB).eye_color || '',
+          hair:      extract(subjectB).hair     || '',
+          locked:    s.traits?.subjectB?.locked || {},
         } : s.traits.subjectB,
       },
     })
     set('characterMode', detectedCharMode)
   }
 
-  const onImg = e => {
+  // ── Image upload + Supabase persistence ───────────────────
+  const onImg = async e => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => merge({ imageDataUrl: reader.result, hasImage: true, scanState: 'idle', scanError: '' })
+    reader.onload = async () => {
+      const dataUrl = reader.result
+      merge({ imageDataUrl: dataUrl, hasImage: true, scanState: 'idle', scanError: '', imageUploading: true })
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const base64 = dataUrl.split(',')[1]
+          const binary = atob(base64)
+          const array  = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i)
+          const blob     = new Blob([array], { type: file.type })
+          const fileName = `${user.id}/identity.jpg`
+          await supabase.storage.from('identity-images').upload(fileName, blob, {
+            upsert: true, contentType: file.type,
+          })
+          const { data: urlData } = supabase.storage.from('identity-images').getPublicUrl(fileName)
+          merge({ identityStorageUrl: urlData?.publicUrl || '', imageUploading: false })
+        }
+      } catch (err) {
+        console.error('Identity upload failed:', err)
+        merge({ imageUploading: false })
+      }
+    }
     reader.readAsDataURL(file)
     e.target.value = ''
   }
@@ -1203,7 +1090,6 @@ merge({
   }
 
   const exportStoryboard = () => {
-    // Plain HTML storyboard — opens in new tab
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -1329,6 +1215,47 @@ merge({
     merge({ batchImgRunning: false })
   }, [batch, s, merge, set])
 
+  // ── Video generation ──────────────────────────────────────
+  const generateVideo = useCallback(async (prompt, imageUrl, progressionLevel, batchKey) => {
+    if (!prompt) return
+
+    if (batchKey !== undefined) {
+      merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: true, url: '', error: '' } } })
+    } else {
+      merge({ videoGenerating: true, videoUrl: '', videoError: '' })
+    }
+
+    try {
+      const res = await fetch('/api/generate-video', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, imageUrl, progressionLevel }),
+      })
+      const data = await res.json()
+
+      if (data?.status === 'complete') {
+        if (batchKey !== undefined) {
+          merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: false, url: data.videoUrl, error: '' } } })
+        } else {
+          merge({ videoGenerating: false, videoUrl: data.videoUrl, videoError: '' })
+        }
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        const errMsg = data?.error || 'Video generation failed'
+        if (batchKey !== undefined) {
+          merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: false, url: '', error: errMsg } } })
+        } else {
+          merge({ videoGenerating: false, videoUrl: '', videoError: errMsg })
+        }
+      }
+    } catch (err) {
+      if (batchKey !== undefined) {
+        merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: false, url: '', error: err.message } } })
+      } else {
+        merge({ videoGenerating: false, videoUrl: '', videoError: err.message })
+      }
+    }
+  }, [s, merge, set])
+
   // ── Resets ────────────────────────────────────────────────
   const rAll = () => {
     setS(INIT); setResult(null); setBatch([]); setSaved([])
@@ -1341,7 +1268,216 @@ merge({
 
   return (
     <>
-      {/* Director's Chair overlay */}
+{/* HELP DRAWER */}
+      {helpOpen && (
+        <>
+          <div
+            onClick={() => setHelpOpen(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 998,
+              background: 'rgba(0,0,0,0.6)',
+            }}
+          />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0,
+            width: 420, zIndex: 999,
+            background: '#0d0d0d',
+            borderLeft: `1px solid ${C.subtle}`,
+            overflowY: 'auto',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: `1px solid ${C.subtle}`,
+              background: '#111',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0, position: 'sticky', top: 0, zIndex: 10,
+            }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>
+                  PROMPT CEO — DIRECTOR'S STUDIO
+                </div>
+                <div style={{ fontSize: 10, color: '#888', letterSpacing: 1, marginTop: 2 }}>Help & Documentation</div>
+              </div>
+              <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: '#aaa', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e4dc', marginBottom: 6 }}>Director's Studio v3</div>
+                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7 }}>
+                  A cinematic AI directing studio for generating high-quality image and video prompts with consistent identity, world-aware scene building, and director-style visual grammar.
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: C.subtle }} />
+
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Credits System</div>
+                <div style={{ fontSize: 12, color: '#9a9690', marginBottom: 10 }}>Every action costs credits. Credits are shared across all Prompt CEO tools.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                  {[
+                    { action: '🎨 Generate Image', cost: '5 credits' },
+                    { action: '🎬 Generate Video', cost: '60 credits' },
+                  ].map(({ action, cost }) => (
+                    <div key={action} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 12px', borderRadius: 5,
+                      background: '#111', border: `1px solid ${C.subtle}`,
+                    }}>
+                      <span style={{ fontSize: 12, color: '#e8e4dc' }}>{action}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{cost}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>Credit packages available in the + Credits dropdown:</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {[
+                    { label: 'Starter', credits: '50 credits' },
+                    { label: 'Standard', credits: '100 credits' },
+                    { label: 'Pro', credits: '250 credits' },
+                    { label: 'Studio', credits: '500 credits' },
+                  ].map(({ label, credits }) => (
+                    <div key={label} style={{
+                      padding: '8px 10px', borderRadius: 4,
+                      background: '#111', border: `1px solid ${C.subtle}`,
+                      display: 'flex', flexDirection: 'column', gap: 2,
+                    }}>
+                      <span style={{ fontSize: 10, color: '#888' }}>{label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc' }}>{credits}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: C.subtle }} />
+
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>How It Works</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    {
+                      num: '1', title: 'Identity System',
+                      body: 'Upload a reference image of your subject. The app saves it to your account permanently — no re-uploading needed.',
+                      bullets: [
+                        'Click the upload area in the Identity panel',
+                        'Click Scan Identity to extract physical traits automatically',
+                        'The system detects gender (male / female / couple) from the image',
+                        'Enable Use identity in prompt to lock the identity across all generations',
+                      ]
+                    },
+                    {
+                      num: '2', title: 'Director Presets',
+                      body: 'Choose a cinematic visual grammar that shapes every generated prompt. Each preset changes the camera layer of every output.',
+                      bullets: []
+                    },
+                    {
+                      num: '3', title: 'World System',
+                      body: 'Select a physical world and the engine picks locations, lighting, and camera angles automatically.',
+                      bullets: [
+                        'Auto mode — world selected based on story world',
+                        'Manual mode — pick world, sub-location, and scene group directly',
+                      ]
+                    },
+                    {
+                      num: '4', title: 'Generate Scene',
+                      body: 'Press Generate Scene for one prompt. Set the scene count and press Batch to generate a full sequence (10–100 scenes) with automatic tease → tension → payoff arc.',
+                      bullets: []
+                    },
+                    {
+                      num: '5', title: 'Generate Images — 5 credits each',
+                      body: 'Go to the image tab and click Generate Image. For batch sequences, click Generate X Images. Images appear in a grid as they complete.',
+                      bullets: []
+                    },
+                    {
+                      num: '6', title: 'Generate Videos — 60 credits each',
+                      body: 'After an image is generated, click the 🎬 button to animate it using Runway Gen4 Turbo.',
+                      bullets: [
+                        'Single image: button appears below the generated image in the image tab',
+                        'Batch images: 🎬 button on each image card',
+                        'Videos play inline and can be downloaded',
+                      ]
+                    },
+                    {
+                      num: '7', title: 'Character DNA',
+                      body: 'Save a reusable character profile with locked traits, identity image, and character mode. Load it instantly in future sessions.',
+                      bullets: []
+                    },
+                    {
+                      num: '8', title: 'Timeline View',
+                      body: "Switch to Timeline to see all generated scenes in a visual arc with time-of-day gradient and progression bars. Use Director's Chair for fullscreen prompt review.",
+                      bullets: []
+                    },
+                  ].map(({ num, title, body, bullets }) => (
+                    <div key={num} style={{ display: 'flex', gap: 12 }}>
+                      <div style={{
+                        flexShrink: 0, width: 22, height: 22,
+                        background: '#1a1408', border: `1px solid ${C.goldDim}`,
+                        borderRadius: 4, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 9, fontWeight: 700,
+                        color: C.gold, marginTop: 1,
+                      }}>
+                        {num}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc', marginBottom: 4 }}>{title}</div>
+                        <div style={{ fontSize: 11, color: '#9a9690', lineHeight: 1.7, marginBottom: bullets.length ? 6 : 0 }}>{body}</div>
+                        {bullets.length > 0 && (
+                          <ul style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {bullets.map((b, i) => (
+                              <li key={i} style={{ fontSize: 11, color: '#888', lineHeight: 1.6 }}>{b}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: C.subtle }} />
+
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Directors Reference</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {DIRECTOR_PRESETS.filter(d => d.id !== 'none').map(d => (
+                    <div key={d.id} style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start',
+                      padding: '8px 0', borderBottom: `1px solid #1a1a1a`,
+                    }}>
+                      <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: '#e8e4dc' }}>{d.icon}</span>
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc' }}>{d.label} </span>
+                        <span style={{ fontSize: 11, color: '#888' }}>— {d.description}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: C.subtle }} />
+
+              <div style={{
+                padding: '14px 16px', borderRadius: 6,
+                background: '#1a1408', border: `1px solid ${C.goldDim}`,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
+                  ✦ Weekly Updates
+                </div>
+                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7 }}>
+                  New content is added every week — new worlds, story worlds, director presets, and signature packs. Your credits never expire. Check back regularly to access the latest additions.
+                </div>
+              </div>
+
+              <div style={{ fontSize: 10, color: '#444', textAlign: 'center', paddingBottom: 8 }}>
+                Prompt CEO — Director's Studio v3
+              </div>
+
+            </div>
+          </div>
+        </>
+      )}
       {directorOpen && batch.length > 0 && (
         <DirectorsChair
           batch={batch}
@@ -1366,7 +1502,6 @@ merge({
           display: 'flex', alignItems: 'center',
           padding: '0 16px', gap: 12, zIndex: 100,
         }}>
-          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               width: 28, height: 28,
@@ -1394,7 +1529,6 @@ merge({
 
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
-          {/* View switcher */}
           <div style={{ display: 'flex', gap: 3 }}>
             {[
               { id: 'studio',   label: '◧ Studio'   },
@@ -1419,7 +1553,6 @@ merge({
 
           <div style={{ flex: 1 }} />
 
-          {/* Director preset badge */}
           {s.directorPreset !== 'none' && (
             <div style={{
               padding: '3px 10px', borderRadius: 3,
@@ -1431,7 +1564,6 @@ merge({
             </div>
           )}
 
-          {/* Credits */}
           <div style={{
             padding: '3px 10px', borderRadius: 3, fontSize: 10, fontWeight: 700,
             background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue,
@@ -1462,6 +1594,17 @@ merge({
             <option value="500">500 credits</option>
           </select>
 
+          <button
+            onClick={() => setHelpOpen(true)}
+            style={{
+              padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', border: `1px solid ${C.goldDim}`,
+              background: C.goldGlow, color: C.gold,
+              letterSpacing: 0.5,
+            }}
+          >
+            ? Help
+          </button>
           <Btn variant="danger" onClick={rAll}>↺ Reset</Btn>
         </div>
 
@@ -1473,7 +1616,7 @@ merge({
             overflow: 'hidden',
           }}>
 
-            {/* ══ LEFT — Identity + World + Story ══ */}
+            {/* ══ LEFT ══ */}
             <div style={{
               borderRight: `1px solid ${C.hairline}`,
               overflowY: 'auto', padding: '10px 9px',
@@ -1482,31 +1625,28 @@ merge({
 
               {/* IDENTITY */}
               <Panel title="Identity" accent={C.green}
-                badge={s.useIdentity
-                  ? <Chip>🔒 locked</Chip>
-                  : <Chip>off</Chip>
-                }
+                badge={s.useIdentity ? <Chip>🔒 locked</Chip> : <Chip>off</Chip>}
                 right={
                   <Btn variant="danger" onClick={() => merge({
                     useIdentity: false, identityName: '', hasImage: false,
-                    imageDataUrl: '', scanState: 'idle', scanError: '',
+                    imageDataUrl: '', identityStorageUrl: '', scanState: 'idle', scanError: '',
                     useTraits: false, identityStrength: 100,
-                    continuityLock: false, prevOutputs: [], traits: {
-  subjectA: {
-name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', hair: '',
-    locked: { name: false, age: false, ethnicity: false, body: false, breast: false, glutes: false, eyes: false, hair: false },
-  },
-  subjectB: {
-    name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '',
-    locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false },
-  },
-},
+                    continuityLock: false, prevOutputs: [],
+                    traits: {
+                      subjectA: {
+                        name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', hair: '',
+                        locked: { name: false, age: false, ethnicity: false, body: false, breast: false, glutes: false, eyes: false, hair: false },
+                      },
+                      subjectB: {
+                        name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '',
+                        locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false },
+                      },
+                    },
                   })}>
                     reset
                   </Btn>
                 }
               >
-                {/* Image upload */}
                 <div
                   onClick={() => document.getElementById('__imgUp').click()}
                   style={{
@@ -1531,13 +1671,12 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                       background: 'rgba(0,0,0,0.7)', padding: '3px 6px',
                       fontSize: 9, color: C.muted, textAlign: 'center',
                     }}>
-                      {s.hasImage ? '✓ reference loaded' : 'loaded'}
+                      {s.imageUploading ? '⟳ Saving…' : s.hasImage ? '✓ reference loaded' : 'loaded'}
                     </div>
                   )}
                   <input id="__imgUp" type="file" accept="image/*" style={{ display: 'none' }} onChange={onImg} />
                 </div>
 
-                {/* Scan */}
                 <div style={{ display: 'flex', gap: 5 }}>
                   <button
                     onClick={scanIdentity}
@@ -1605,10 +1744,7 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <Label>Age range</Label>
-                  <Sel
-                    value={s.ageRange} onChange={v => set('ageRange', v)}
-                    options={AGE_OPTIONS}
-                  />
+                  <Sel value={s.ageRange} onChange={v => set('ageRange', v)} options={AGE_OPTIONS} />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1635,145 +1771,104 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
               </Panel>
 
               {/* CHARACTER DNA */}
-<Panel title="Character DNA" accent="#c8a84b" defaultOpen={false}
-  badge={
-    dnaProfiles.length > 0
-      ? <Chip>{dnaProfiles.length} saved</Chip>
-      : null
-  }
->
-  {/* Mode */}
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-    <Label>Character Mode</Label>
-    <div style={{ display: 'flex', gap: 3 }}>
-      {['female', 'male', 'couple'].map(m => (
-        <button key={m}
-          onClick={() => merge({
-            characterMode: m,
-            subjectGender: m === 'male' ? 'male' : 'female',
-          })}
-          style={{
-            flex: 1, padding: '5px 0', borderRadius: 3,
-            fontSize: 10, fontWeight: 700, cursor: 'pointer', textAlign: 'center',
-            border: `1px solid ${s.characterMode === m ? C.goldDim : C.hairline}`,
-            background: s.characterMode === m ? '#1a1408' : C.deep,
-            color: s.characterMode === m ? C.gold : C.muted,
-            transition: 'all 0.15s',
-          }}
-        >
-          {m}
-        </button>
-      ))}
-    </div>
-  </div>
+              <Panel title="Character DNA" accent="#c8a84b" defaultOpen={false}
+                badge={dnaProfiles.length > 0 ? <Chip>{dnaProfiles.length} saved</Chip> : null}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Label>Character Mode</Label>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {['female', 'male', 'couple'].map(m => (
+                      <button key={m}
+                        onClick={() => merge({ characterMode: m, subjectGender: m === 'male' ? 'male' : 'female' })}
+                        style={{
+                          flex: 1, padding: '5px 0', borderRadius: 3,
+                          fontSize: 10, fontWeight: 700, cursor: 'pointer', textAlign: 'center',
+                          border: `1px solid ${s.characterMode === m ? C.goldDim : C.hairline}`,
+                          background: s.characterMode === m ? '#1a1408' : C.deep,
+                          color: s.characterMode === m ? C.gold : C.muted,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-  {/* Subject A */}
-<SubjectTraits
-    label={
-      s.characterMode === 'male'   ? 'Subject — Male' :
-      s.characterMode === 'couple' ? 'Subject A — Female' :
-      'Subject — Female'
-    }
-    traits={s.traits.subjectA}
-    accentColor={C.green}
-    isMale={s.characterMode === 'male'}
-    onChange={(field, value) => set('traits', {
-      ...s.traits,
-      subjectA: { ...s.traits.subjectA, [field]: value },
-    })}
-    onToggleLock={field => set('traits', {
-      ...s.traits,
-      subjectA: {
-        ...s.traits.subjectA,
-        locked: {
-          ...(s.traits.subjectA.locked || {}),
-          [field]: !(s.traits.subjectA.locked?.[field]),
-        },
-      },
-    })}
-  />
+                <SubjectTraits
+                  label={
+                    s.characterMode === 'male'   ? 'Subject — Male' :
+                    s.characterMode === 'couple' ? 'Subject A — Female' :
+                    'Subject — Female'
+                  }
+                  traits={s.traits.subjectA}
+                  accentColor={C.green}
+                  isMale={s.characterMode === 'male'}
+                  onChange={(field, value) => set('traits', { ...s.traits, subjectA: { ...s.traits.subjectA, [field]: value } })}
+                  onToggleLock={field => set('traits', {
+                    ...s.traits,
+                    subjectA: {
+                      ...s.traits.subjectA,
+                      locked: { ...(s.traits.subjectA.locked || {}), [field]: !(s.traits.subjectA.locked?.[field]) },
+                    },
+                  })}
+                />
 
-  {/* Subject B — couple only */}
-{s.characterMode === 'couple' && (
-    <SubjectTraits
-      label="Subject B — Male"
-      traits={s.traits.subjectB}
-      accentColor={C.blue}
-      isMale={true}
-      onChange={(field, value) => set('traits', {
-        ...s.traits,
-        subjectB: { ...s.traits.subjectB, [field]: value },
-      })}
-      onToggleLock={field => set('traits', {
-        ...s.traits,
-        subjectB: {
-          ...s.traits.subjectB,
-          locked: {
-            ...(s.traits.subjectB.locked || {}),
-            [field]: !(s.traits.subjectB.locked?.[field]),
-          },
-        },
-      })}
-    />
-  )}
+                {s.characterMode === 'couple' && (
+                  <SubjectTraits
+                    label="Subject B — Male"
+                    traits={s.traits.subjectB}
+                    accentColor={C.blue}
+                    isMale={true}
+                    onChange={(field, value) => set('traits', { ...s.traits, subjectB: { ...s.traits.subjectB, [field]: value } })}
+                    onToggleLock={field => set('traits', {
+                      ...s.traits,
+                      subjectB: {
+                        ...s.traits.subjectB,
+                        locked: { ...(s.traits.subjectB.locked || {}), [field]: !(s.traits.subjectB.locked?.[field]) },
+                      },
+                    })}
+                  />
+                )}
 
-  {/* DNA Profiles */}
-  <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-    <Label>Saved Profiles ({dnaProfiles.length})</Label>
-    <select
-      style={{
-        width: '100%', background: C.deep, color: C.primary,
-        border: `1px solid ${C.hairline}`, borderRadius: 4,
-        padding: '6px 8px', fontSize: 11,
-      }}
-      value={dnaSelected}
-      onChange={e => setDnaSelected(e.target.value)}
-    >
-      <option value="">Select profile…</option>
-      {dnaProfiles.map(p => (
-        <option key={p.id} value={String(p.id)}>{p.name}</option>
-      ))}
-    </select>
-    <div style={{ display: 'flex', gap: 5 }}>
-      <Btn variant="gold" onClick={dnaSaveProfile} sx={{ flex: 1, fontSize: 10 }}>💾 Save</Btn>
-      <Btn variant="default" disabled={!dnaSelected}
-        onClick={() => dnaLoadProfile(dnaSelected)}
-        sx={{ flex: 1, fontSize: 10 }}>
-        ↑ Load
-      </Btn>
-      <Btn variant="danger" disabled={!dnaSelected}
-        onClick={() => dnaDeleteProfile(dnaSelected)}
-        sx={{ flex: 1, fontSize: 10 }}>
-        ✕
-      </Btn>
-    </div>
-  </div>
+                <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Label>Saved Profiles ({dnaProfiles.length})</Label>
+                  <select
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 11 }}
+                    value={dnaSelected}
+                    onChange={e => setDnaSelected(e.target.value)}
+                  >
+                    <option value="">Select profile…</option>
+                    {dnaProfiles.map(p => (
+                      <option key={p.id} value={String(p.id)}>{p.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <Btn variant="gold" onClick={dnaSaveProfile} sx={{ flex: 1, fontSize: 10 }}>💾 Save</Btn>
+                    <Btn variant="default" disabled={!dnaSelected} onClick={() => dnaLoadProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>↑ Load</Btn>
+                    <Btn variant="danger" disabled={!dnaSelected} onClick={() => dnaDeleteProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>✕</Btn>
+                  </div>
+                </div>
 
-  {/* Active profile preview */}
-  {dnaSelected && (() => {
-    const p = dnaProfiles.find(x => String(x.id) === dnaSelected)
-    if (!p) return null
-    return (
-      <div style={{
-        background: C.deep, border: `1px solid ${C.hairline}`,
-        borderRadius: 4, padding: '7px 8px',
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 4 }}>
-          {p.name}
-        </div>
-        <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-          <span style={{ color: C.secondary }}>{p.characterMode}</span>
-          {p.traits?.subjectA?.ethnicity ? ` · ${p.traits.subjectA.ethnicity}` : ''}
-          {p.traits?.subjectA?.hair      ? ` · ${p.traits.subjectA.hair}`      : ''}
-        </div>
-        {p.imageDataUrl && (
-          <img src={p.imageDataUrl} alt="dna"
-            style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 3, marginTop: 6 }} />
-        )}
-      </div>
-    )
-  })()}
-</Panel>
+                {dnaSelected && (() => {
+                  const p = dnaProfiles.find(x => String(x.id) === dnaSelected)
+                  if (!p) return null
+                  return (
+                    <div style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '7px 8px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 4 }}>{p.name}</div>
+                      <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
+                        <span style={{ color: C.secondary }}>{p.characterMode}</span>
+                        {p.traits?.subjectA?.ethnicity ? ` · ${p.traits.subjectA.ethnicity}` : ''}
+                        {p.traits?.subjectA?.hair      ? ` · ${p.traits.subjectA.hair}`      : ''}
+                      </div>
+                      {p.imageDataUrl && (
+                        <img src={p.imageDataUrl} alt="dna"
+                          style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 3, marginTop: 6 }} />
+                      )}
+                    </div>
+                  )
+                })()}
+              </Panel>
 
               {/* WORLD */}
               <Panel title="World System" accent={C.blue}
@@ -1830,45 +1925,7 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 )}
               </Panel>
 
-              {/* STORY */}
-              <Panel title="Story System" accent="#5a3a7a"
-                badge={s.storyWorldId ? <Chip>{STORY_WORLDS.find(w => w.id === s.storyWorldId)?.name || s.storyWorldId}</Chip> : null}
-                right={<Btn variant="danger" onClick={() => merge({ storyWorldId: '', chapterId: '', packId: '' })}>reset</Btn>}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <Label>Story world</Label>
-                  <Sel value={s.storyWorldId} onChange={v => set('storyWorldId', v)}
-                    placeholder="None" options={STORY_WORLDS.map(w => ({ id: w.id, name: w.name }))} />
-                </div>
-
-                {chapterOpts.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <Label>Chapter ({chapterOpts.length})</Label>
-                    <Sel value={s.chapterId} onChange={v => set('chapterId', v)}
-                      placeholder="Auto" options={chapterOpts} />
-                    {activeCh && (
-                      <div style={{ fontSize: 9, color: C.muted }}>Phase: {activeCh.phase}</div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <Label>Signature pack</Label>
-                  <Sel value={s.packId} onChange={v => set('packId', v)}
-                    placeholder="None" options={SIGNATURE_PACKS.map(p => ({ id: p.id, name: p.name }))} />
-                </div>
-              </Panel>
-
-            </div>
-
-            {/* ══ CENTER — Director Controls + Output ══ */}
-            <div style={{
-              overflowY: 'auto', padding: '10px 12px',
-              display: 'flex', flexDirection: 'column', gap: 8,
-              background: '#070707',
-            }}>
-
-              {/* DIRECTOR PRESET */}
+              {/* DIRECTOR */}
               <Panel title="Director" accent={C.gold}
                 badge={s.directorPreset !== 'none' ? <Pill color={C.gold}>{activeDirectorPreset.label}</Pill> : null}
               >
@@ -1904,6 +1961,15 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 )}
               </Panel>
 
+            </div>
+
+            {/* ══ CENTER ══ */}
+            <div style={{
+              overflowY: 'auto', padding: '10px 12px',
+              display: 'flex', flexDirection: 'column', gap: 8,
+              background: '#070707',
+            }}>
+
               {/* PROGRESSION */}
               <Panel title="Progression" accent={pc(progLevel)}
                 badge={<Pill color={pc(progLevel)}>{progLevel}</Pill>}
@@ -1914,7 +1980,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                   </div>
                 }
               >
-                {/* Arc zones */}
                 <div style={{ display: 'flex', gap: 3 }}>
                   {['tease', 'tension', 'payoff'].map(l => {
                     const r   = s.progressionIndex / Math.max(s.totalCount - 1, 1)
@@ -1934,7 +1999,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                   })}
                 </div>
 
-                {/* Slider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 9, color: C.ghost, minWidth: 10 }}>0</span>
                   <input
@@ -1979,7 +2043,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                   </div>
                 }
               >
-                {/* Tabs */}
                 <div style={{
                   display: 'flex', gap: 2,
                   borderBottom: `1px solid ${C.hairline}`,
@@ -2097,18 +2160,44 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                     {!s.imageDataUrl && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>Upload an identity image to enable generation.</div>}
                     {s.imageGenerating && <div style={{ padding: '10px', textAlign: 'center', color: C.green, fontSize: 11 }}>⟳ Generating image… (5 credits)</div>}
                     {s.imageError && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.imageError}</div>}
+
                     {s.generatedImage && (
                       <>
                         <img src={s.generatedImage} alt="generated" style={{ width: '100%', borderRadius: 5 }} />
                         <div style={{ display: 'flex', gap: 5 }}>
                           <Btn variant="ghost" onClick={() => doCopy(s.generatedImage, 'imgurl')}>{copied === 'imgurl' ? '✓ copied' : 'copy URL'}</Btn>
-                          <a href={s.generatedImage} download="promptceo-image.jpg" target="_blank" rel="noreferrer"
+                          <a href={`/api/download-image?url=${encodeURIComponent(s.generatedImage)}&name=promptceo-image.jpg`}
                             style={{ padding: '5px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: 'none', color: C.muted, background: C.surface, border: `1px solid ${C.hairline}` }}>
                             ↓ download
                           </a>
                         </div>
+
+                        {/* Video from single image */}
+                        {s.videoError && (
+                          <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                            {s.videoError}
+                          </div>
+                        )}
+                        {s.videoUrl && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <video src={s.videoUrl} controls autoPlay loop style={{ width: '100%', borderRadius: 5 }} />
+                            <a href={`/api/download-image?url=${encodeURIComponent(s.videoUrl)}&name=scene-video.mp4`}
+                              style={{ padding: '5px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: 'none', color: C.muted, background: C.surface, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+                              ↓ download video
+                            </a>
+                          </div>
+                        )}
+                        <Btn
+                          variant="gold"
+                          disabled={s.videoGenerating}
+                          onClick={() => generateVideo(result?.finalPrompt, s.generatedImage, result?.meta?.progressionLevel)}
+                          sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}
+                        >
+                          {s.videoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Generate Video (60 credits)'}
+                        </Btn>
                       </>
                     )}
+
                     <Btn variant="green" disabled={s.imageGenerating || !result?.finalPrompt} onClick={generateImage}
                       sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
                       {s.imageGenerating ? '⟳ Generating…' : '🎨 Generate Image (5 credits)'}
@@ -2151,6 +2240,18 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 >
                   ▶ Generate Scene
                 </button>
+<select
+                  value={s.totalCount}
+                  onChange={e => set('totalCount', Number(e.target.value))}
+                  style={{
+                    background: C.deep, color: C.blue,
+                    border: `1px solid ${C.blueDim}`, borderRadius: 5,
+                    padding: '0 8px', fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer', outline: 'none', minWidth: 64,
+                  }}
+                >
+                  {TOTAL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
                 <button
                   onClick={runBatch}
                   disabled={batchRun}
@@ -2178,7 +2279,7 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 )}
               </div>
 
-{/* Batch image generate */}
+              {/* BATCH IMAGE GENERATE + GRID */}
               {batch.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -2213,30 +2314,60 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                           <Track value={s.batchImgProgress} max={batch.length} color="#c07ef0" />
                         </div>
                       )}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 600, overflowY: 'auto' }}>
                         {s.batchImages.map((item, i) => (
                           <div key={i} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                             {item.imageUrl ? (
                               <>
                                 <img
-  src={item.imageUrl}
-  alt={`Scene ${item.index + 1}`}
-  style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer', background: '#000' }}
-  onClick={() => window.open(item.imageUrl, '_blank')}
-/>
-<div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.75)', padding: '3px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-  <span style={{ fontSize: 8, color: C.muted }}>#{item.index + 1}</span>
-<a href={`/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`}
-  style={{
-    background: '#c07ef0', color: '#000', border: 'none',
-    borderRadius: 3, padding: '3px 8px', fontSize: 10,
-    fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
-    display: 'inline-block',
-  }}
->
-  ↓ save
-</a>
-</div>
+                                  src={item.imageUrl}
+                                  alt={`Scene ${item.index + 1}`}
+                                  style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer', background: '#000' }}
+                                  onClick={() => window.open(item.imageUrl, '_blank')}
+                                />
+                                {/* Overlay bar */}
+                                <div style={{ background: 'rgba(0,0,0,0.75)', padding: '3px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                                  <span style={{ fontSize: 8, color: C.muted }}>#{item.index + 1}</span>
+                                  <div style={{ display: 'flex', gap: 3 }}>
+                                    <a href={`/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`}
+                                      style={{
+                                        background: '#c07ef0', color: '#000', border: 'none',
+                                        borderRadius: 3, padding: '2px 6px', fontSize: 9,
+                                        fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
+                                        display: 'inline-block',
+                                      }}
+                                    >
+                                      ↓
+                                    </a>
+                                    <button
+                                      onClick={() => generateVideo(item.prompt, item.imageUrl, item.meta?.progressionLevel, item.index)}
+                                      disabled={s.batchVideos?.[item.index]?.generating}
+                                      style={{
+                                        background: s.batchVideos?.[item.index]?.generating ? C.goldDim : C.gold,
+                                        color: '#000', border: 'none', borderRadius: 3,
+                                        padding: '2px 6px', fontSize: 9, fontWeight: 700,
+                                        cursor: s.batchVideos?.[item.index]?.generating ? 'not-allowed' : 'pointer',
+                                      }}
+                                    >
+                                      {s.batchVideos?.[item.index]?.generating ? '⟳' : '🎬'}
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Video result for this batch item */}
+                                {s.batchVideos?.[item.index]?.url && (
+                                  <div style={{ padding: '4px' }}>
+                                    <video src={s.batchVideos[item.index].url} controls loop style={{ width: '100%', borderRadius: 3 }} />
+                                    <a href={`/api/download-image?url=${encodeURIComponent(s.batchVideos[item.index].url)}&name=scene-${item.index + 1}.mp4`}
+                                      style={{ display: 'block', textAlign: 'center', marginTop: 4, fontSize: 9, color: C.gold, textDecoration: 'none' }}>
+                                      ↓ save video
+                                    </a>
+                                  </div>
+                                )}
+                                {s.batchVideos?.[item.index]?.error && (
+                                  <div style={{ padding: '4px 6px', fontSize: 8, color: '#cf6a6a' }}>
+                                    {s.batchVideos[item.index].error}
+                                  </div>
+                                )}
                               </>
                             ) : (
                               <div style={{ minHeight: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6 }}>
@@ -2249,20 +2380,20 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                       </div>
                       {s.batchImages.filter(i => i.imageUrl).length > 0 && !s.batchImgRunning && (
                         <div style={{ marginTop: 8, display: 'flex', gap: 5 }}>
-                         <Btn variant="ghost" onClick={() => {
-  s.batchImages.filter(i => i.imageUrl).forEach((item, idx) => {
-    setTimeout(() => {
-      const a = Object.assign(document.createElement('a'), {
-        href: `/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`,
-        download: `scene-${item.index + 1}.jpg`,
-      })
-      a.click()
-    }, idx * 600)
-  })
-}} sx={{ fontSize: 10 }}>
-  ↓ Download All ({s.batchImages.filter(i => i.imageUrl).length})
-</Btn>
-                          <Btn variant="danger" onClick={() => merge({ batchImages: [] })} sx={{ fontSize: 10 }}>clear</Btn>
+                          <Btn variant="ghost" onClick={() => {
+                            s.batchImages.filter(i => i.imageUrl).forEach((item, idx) => {
+                              setTimeout(() => {
+                                const a = Object.assign(document.createElement('a'), {
+                                  href: `/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`,
+                                  download: `scene-${item.index + 1}.jpg`,
+                                })
+                                a.click()
+                              }, idx * 600)
+                            })
+                          }} sx={{ fontSize: 10 }}>
+                            ↓ Download All ({s.batchImages.filter(i => i.imageUrl).length})
+                          </Btn>
+                          <Btn variant="danger" onClick={() => merge({ batchImages: [], batchVideos: {} })} sx={{ fontSize: 10 }}>clear</Btn>
                         </div>
                       )}
                     </div>
@@ -2272,14 +2403,13 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
 
             </div>
 
-            {/* ══ RIGHT — Saved + World Info ══ */}
+            {/* ══ RIGHT ══ */}
             <div style={{
               borderLeft: `1px solid ${C.hairline}`,
               overflowY: 'auto', padding: '10px 9px',
               display: 'flex', flexDirection: 'column', gap: 8,
             }}>
 
-              {/* SAVED PROMPTS */}
               <Panel title="Saved Prompts"
                 badge={saved.length > 0 ? <Chip>{saved.length}</Chip> : null}
                 right={saved.length > 0 && <Btn variant="danger" onClick={() => setSaved([])}>clear</Btn>}
@@ -2305,7 +2435,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 }
               </Panel>
 
-              {/* WORLD INFO */}
               {worldObj && (
                 <Panel title="World Info">
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, fontFamily: C.display }}>{worldObj.name}</div>
@@ -2329,14 +2458,13 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
           </div>
         )}
 
-        {/* ══ TIMELINE VIEW ═══════════════════════════════ */}
+        {/* ══ TIMELINE VIEW ══ */}
         {s.view === 'timeline' && (
           <div style={{
             flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
           }}>
 
-            {/* Timeline header */}
             <div style={{
               flexShrink: 0, padding: '10px 16px',
               borderBottom: `1px solid ${C.hairline}`,
@@ -2371,7 +2499,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
               )}
             </div>
 
-            {/* Minimap scrubber */}
             {batch.length > 0 && (
               <div style={{
                 flexShrink: 0,
@@ -2379,7 +2506,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                 borderBottom: `1px solid ${C.hairline}`,
                 background: C.void,
               }}>
-                {/* Time of day gradient bar */}
                 <div style={{
                   height: 4, borderRadius: 2, marginBottom: 6,
                   background: `linear-gradient(90deg, ${
@@ -2390,7 +2516,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                     }).join(', ')
                   })`,
                 }} />
-                {/* Scene bars */}
                 <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 48 }}>
                   {batch.map((r, i) => (
                     <SceneCard
@@ -2401,7 +2526,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
                     />
                   ))}
                 </div>
-                {/* Labels */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                   <span style={{ fontSize: 8, color: C.ghost, letterSpacing: 1 }}>EARLY MORNING</span>
                   <span style={{ fontSize: 8, color: C.ghost, letterSpacing: 1 }}>GOLDEN HOUR</span>
@@ -2410,7 +2534,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
               </div>
             )}
 
-            {/* Scene list */}
             <div style={{
               flex: 1, minHeight: 0, overflowY: 'auto',
               padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6,
@@ -2440,7 +2563,6 @@ name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', ha
               )}
             </div>
 
-            {/* Active scene detail */}
             {batch[activeScene] && (
               <div style={{
                 flexShrink: 0, borderTop: `1px solid ${C.hairline}`,

@@ -248,17 +248,37 @@ export function runPipeline(rawInput) {
     context = updatedContext
   }
 
-  // ──────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────
   // STAGE 06 — Camera
-  // Produces: cameraPhrase, frameType
-  // Adds to context: cameraPhrase, frameType
-  // Reads context: envFamily, lockedWorldId, progressionLevel,
-  //                actionPhrase
-  // ──────────────────────────────────────────────────────
   {
     const { result, updatedContext } = runLayer(
       resolveCameraLayer, input, context, warnings, 'layer-06-camera'
     )
+
+    // ── Director preset override ──────────────────────────
+    // If a director preset is active, append its camera style
+    // to the resolved camera phrase.
+    const DIRECTOR_CAMERA_OVERRIDES = {
+      kubrick:    'ultra-wide symmetrical one-point perspective, slow deliberate push-in, clinical framing',
+      wong:       'shallow focus step-printed motion, saturated warm tones, blurred foreground bokeh, melancholic intimacy',
+      coppola:    'soft overexposed pastels, hazy window light, distant observational framing, ethereal stillness',
+      fincher:    'desaturated teal-orange grade, ultra-precise composition, slight low angle, controlled shadow depth',
+      villeneuve: 'epic wide establishing, overwhelming negative space, IMAX-quality depth, silence implied through composition',
+      noe:        'neon-saturated high contrast, overhead bird-eye rotation, confrontational intimacy, strobe-adjacent intensity',
+      lynch:      'dreamlike surreal framing, unsettling close detail, slow zoom into texture, David Lynch visual dread',
+      winding:    'neon-drenched night exterior, extreme shallow focus, Drive aesthetic, minimal dialogue energy',
+      malick:     'golden hour natural light, handheld whisper-close, Terrence Malick impressionist framing, nature as backdrop',
+      antonioni:  'architectural cold modernism, subject dwarfed by space, Antonioni alienation framing, long held stillness',
+    }
+
+    const presetId = String(input.directorPreset || '').toLowerCase()
+    const cameraOverride = DIRECTOR_CAMERA_OVERRIDES[presetId]
+
+    if (cameraOverride) {
+      const base = String(result.value || '').trim()
+      result.value = base ? `${base}, ${cameraOverride}` : cameraOverride
+    }
+
     layerResults.camera = result
     context = updatedContext
   }
