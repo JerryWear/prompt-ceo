@@ -45,6 +45,9 @@ const C = {
   payoff:   '#b44a4a',
   green:    '#4a9a6a',
   greenDim: '#1a3a2a',
+  violet:   '#9b6fd4',
+  violetDim:'#4a2a7a',
+  violetGlow:'#9b6fd422',
   mono:     '"JetBrains Mono", "Fira Code", "Consolas", monospace',
   display:  '"Georgia", "Times New Roman", serif',
 }
@@ -94,6 +97,546 @@ const DIRECTOR_PRESETS = [
   { id: 'malick',     label: 'Malick',        icon: '◑',  description: 'Golden hour. Impressionist. Nature.',      overrides: {} },
   { id: 'antonioni',  label: 'Antonioni',     icon: '◒',  description: 'Cold modernism. Alienation. Stillness.',   overrides: {} },
 ]
+
+// ─────────────────────────────────────────────────────────────
+// AD STUDIO — LOADING + RESULT + VIEW
+// ─────────────────────────────────────────────────────────────
+
+const LOADING_LINES = [
+  'Briefing the creative team…',
+  'Scouting the perfect location…',
+  'Setting up the shot…',
+  'Dialling in the lighting…',
+  'Directing the scene…',
+  'Colour grading the output…',
+  'Finalising your ad creative…',
+]
+
+function AdLoadingState({ outputType }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const a = setInterval(() => setLineIndex(i => (i + 1) % LOADING_LINES.length), 2200)
+    const b = setInterval(() => setTick(t => t + 1), 500)
+    return () => { clearInterval(a); clearInterval(b) }
+  }, [])
+  const dots = '.'.repeat((tick % 3) + 1)
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: '60px 40px', textAlign: 'center' }}>
+      <div style={{ fontSize: 40 }}>{outputType === 'video' ? '🎬' : '📣'}</div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 8, letterSpacing: 0.3 }}>
+          Creating your ad creative{dots}
+        </div>
+        <div style={{ fontSize: 11, color: C.gold, letterSpacing: 0.5 }}>{LOADING_LINES[lineIndex]}</div>
+      </div>
+      <div style={{ padding: '8px 16px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}`, fontSize: 10, color: C.muted }}>
+        {outputType === 'video' ? '🎬 Video takes ~2 minutes' : '🖼 Image takes ~30 seconds'}
+      </div>
+    </div>
+  )
+}
+
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
+  const [adMode, setAdMode]             = useState('product_ad')
+  const [adOutputType, setAdOutputType] = useState('image')
+  const [adFormat, setAdFormat]         = useState('feed')
+  const [productName, setProductName]   = useState('')
+  const [productDesc, setProductDesc]   = useState('')
+  const [adStyle, setAdStyle]           = useState('lifestyle')
+  const [targetMood, setTargetMood]     = useState('')
+  const [adPlatform, setAdPlatform]     = useState('instagram')
+  const [creatorNiche, setCreatorNiche] = useState('lifestyle')
+  const [adGoal, setAdGoal]             = useState('awareness')
+  const [visualStyle, setVisualStyle]   = useState('')
+  const [extraContext, setExtraContext]  = useState('')
+  const [suggesting, setSuggesting]     = useState(false)
+  const [suggested, setSuggested]       = useState(false)
+  const [localCopied, setLocalCopied]   = useState('')
+
+  const cost = adOutputType === 'video' ? 60 : 5
+  const hasEnoughCredits = (s.credits || 0) >= cost
+  const hasIdentity = !!s.imageDataUrl
+  const isGenerating = s.adGenerating
+  const canGenerate = hasEnoughCredits && !isGenerating && (adMode !== 'product_ad' || productName.trim())
+
+  // AI auto-suggest style from product name
+  const handleProductNameBlur = async () => {
+    if (!productName.trim() || suggested || suggesting) return
+    setSuggesting(true)
+    try {
+      const n = productName.toLowerCase()
+      if (/food|cookie|cake|snack|bread|burger|pizza|coffee|tea|drink/.test(n)) {
+        setAdStyle('lifestyle'); setTargetMood('warm, indulgent, craveable')
+      } else if (/serum|cream|skin|beauty|glow|moistur|makeup|lip|face/.test(n)) {
+        setAdStyle('minimal'); setTargetMood('clean, premium, clinical trust')
+      } else if (/gym|protein|fitness|sport|muscle|workout|supplement|whey/.test(n)) {
+        setAdStyle('cinematic'); setTargetMood('powerful, energetic, bold')
+      } else if (/fashion|wear|dress|shoe|bag|jacket|coat|style|cloth/.test(n)) {
+        setAdStyle('editorial'); setTargetMood('aspirational, stylish, confident')
+      } else if (/app|tech|software|ai|digital|saas|tool|platform/.test(n)) {
+        setAdStyle('minimal'); setTargetMood('modern, clean, innovative')
+      } else if (/luxury|premium|gold|elite|vip|exclusive/.test(n)) {
+        setAdStyle('editorial'); setTargetMood('luxury, exclusive, high-status')
+      }
+      setSuggested(true)
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
+  function handleGenerate() {
+    if (!canGenerate) return
+    const adConfig = adMode === 'product_ad'
+      ? { productName, productDescription: productDesc, adStyle, targetMood, platform: adPlatform, format: adFormat }
+      : { creatorNiche, adGoal, visualStyle, platform: adPlatform, extraContext, format: adFormat }
+    const promptContext = adMode === 'product_ad'
+      ? `${adStyle} ${adFormat} ad for ${productName}. ${productDesc}. Mood: ${targetMood}`
+      : `${creatorNiche} creator ${adGoal} campaign. ${visualStyle}. Platform: ${adPlatform}`
+    if (adOutputType === 'video') {
+      generateAdVideo({ prompt: promptContext, mode: adMode, adConfig })
+    } else {
+      generateAdImage({ prompt: promptContext, mode: adMode, adConfig })
+    }
+  }
+
+  function handleAnimate() {
+    const promptContext = adMode === 'product_ad'
+      ? `${adStyle} video ad for ${productName}. ${targetMood}`
+      : `${creatorNiche} brand video. ${adGoal} campaign.`
+    generateAdVideo({
+      prompt: promptContext, mode: adMode, imageUrl: s.adGeneratedImage,
+      adConfig: adMode === 'product_ad'
+        ? { productName, adStyle, platform: adPlatform }
+        : { creatorNiche, adGoal, platform: adPlatform },
+    })
+  }
+
+  async function doCopy(text, key) {
+    try { await navigator.clipboard.writeText(text) } catch {}
+    setLocalCopied(key); setTimeout(() => setLocalCopied(''), 1600)
+  }
+
+  // Shared input style — matches rest of app but slightly larger
+  const inp = {
+    width: '100%', background: C.deep, color: C.primary,
+    border: `1px solid ${C.subtle}`, borderRadius: 4,
+    padding: '8px 10px', fontSize: 12, outline: 'none',
+    boxSizing: 'border-box', fontFamily: 'inherit',
+  }
+
+  // Reusable section label
+  const SLabel = ({ children, hint }) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted }}>{children}</span>
+      {hint && <span style={{ fontSize: 9, color: C.goldDim }}>{hint}</span>}
+    </div>
+  )
+
+  // Active/inactive card border helper
+  const cardBorder = active => active
+    ? { border: `1px solid ${C.goldDim}`, background: '#1a1408' }
+    : { border: `1px solid ${C.hairline}`, background: C.deep }
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '280px 1fr', overflow: 'hidden' }}>
+
+      {/* ══ LEFT — Config ════════════════════════════════ */}
+      <div style={{ borderRight: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* Ad Mode */}
+        <Panel title="Ad Mode" accent={C.gold}>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {[
+              { value: 'product_ad',        icon: '📦', title: 'Product Ad',     desc: 'Ecommerce & brand' },
+              { value: 'personal_brand_ad', icon: '⭐', title: 'Personal Brand', desc: 'Creator & influencer' },
+            ].map(m => (
+              <button key={m.value} onClick={() => setAdMode(m.value)} style={{
+                flex: 1, borderRadius: 4, padding: '10px 8px', textAlign: 'left',
+                cursor: 'pointer', transition: 'all 0.15s', ...cardBorder(adMode === m.value),
+              }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{m.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: adMode === m.value ? C.gold : C.secondary, marginBottom: 2 }}>{m.title}</div>
+                <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.4 }}>{m.desc}</div>
+              </button>
+            ))}
+          </div>
+        </Panel>
+
+        {/* Output + Format */}
+        <Panel title="Output" accent={C.gold}>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+            {[{ value: 'image', icon: '🖼️', label: 'Image', cost: 5 }, { value: 'video', icon: '🎬', label: 'Video', cost: 60 }].map(t => (
+              <button key={t.value} onClick={() => setAdOutputType(t.value)} style={{
+                flex: 1, padding: '8px 6px', borderRadius: 4,
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                transition: 'all 0.12s', ...cardBorder(adOutputType === t.value),
+                color: adOutputType === t.value ? C.gold : C.muted,
+              }}>
+                <span style={{ fontSize: 16 }}>{t.icon}</span>
+                <span>{t.label}</span>
+                <span style={{ fontSize: 9, opacity: 0.7 }}>{t.cost} cr</span>
+              </button>
+            ))}
+          </div>
+          <SLabel>Format</SLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+            {[
+              { value: 'story',    label: 'Story',    icon: '▯' },
+              { value: 'feed',     label: 'Feed',     icon: '▪' },
+              { value: 'banner',   label: 'Banner',   icon: '▬' },
+              { value: 'carousel', label: 'Carousel', icon: '▧' },
+            ].map(f => (
+              <button key={f.value} onClick={() => setAdFormat(f.value)} style={{
+                borderRadius: 4, padding: '6px 4px', textAlign: 'center',
+                cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                transition: 'all 0.12s', ...cardBorder(adFormat === f.value),
+                color: adFormat === f.value ? C.gold : C.muted,
+              }}>
+                <div style={{ fontSize: 13, marginBottom: 2 }}>{f.icon}</div>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </Panel>
+
+        {/* Platform */}
+        <Panel title="Platform" accent={C.gold}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {[
+              { value: 'instagram', label: 'Instagram' },
+              { value: 'tiktok',    label: 'TikTok'    },
+              { value: 'facebook',  label: 'Facebook'  },
+              { value: 'general',   label: 'Universal' },
+            ].map(p => (
+              <button key={p.value} onClick={() => setAdPlatform(p.value)} style={{
+                padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.12s', whiteSpace: 'nowrap',
+                ...cardBorder(adPlatform === p.value),
+                color: adPlatform === p.value ? C.gold : C.secondary,
+              }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </Panel>
+
+        {/* ── PRODUCT AD FORM ── */}
+        {adMode === 'product_ad' && (
+          <>
+            <Panel title="Product Details" accent={C.gold}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div>
+                  <SLabel hint={suggesting ? '✦ reading…' : suggested ? '✓ style auto-set' : ''}>Product name *</SLabel>
+                  <input value={productName} onChange={e => { setProductName(e.target.value); setSuggested(false) }}
+                    onBlur={handleProductNameBlur}
+                    placeholder="e.g. Lumina Face Serum"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                  />
+                </div>
+                <div>
+                  <SLabel>Description</SLabel>
+                  <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)}
+                    placeholder="What does it do? Who is it for?"
+                    rows={2} style={{ ...inp, resize: 'none' }}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel hint={suggested ? '✦ AI suggested' : ''}>Target mood</SLabel>
+                  <input value={targetMood} onChange={e => setTargetMood(e.target.value)}
+                    placeholder="e.g. premium, warm, bold, clean…"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="Visual Style" accent={C.gold}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                {[
+                  { value: 'lifestyle',  label: 'Lifestyle',  icon: '🌅', desc: 'Real-world scene' },
+                  { value: 'minimal',    label: 'Minimal',    icon: '⬜', desc: 'Product hero' },
+                  { value: 'editorial',  label: 'Editorial',  icon: '📸', desc: 'Fashion aesthetic' },
+                  { value: 'ugc',        label: 'UGC',        icon: '📱', desc: 'Creator feel' },
+                  { value: 'cinematic',  label: 'Cinematic',  icon: '🎬', desc: 'Wide scene' },
+                ].map(st => (
+                  <button key={st.value} onClick={() => setAdStyle(st.value)} style={{
+                    borderRadius: 4, padding: '8px 6px', textAlign: 'left', cursor: 'pointer',
+                    transition: 'all 0.12s', ...cardBorder(adStyle === st.value),
+                  }}>
+                    <div style={{ fontSize: 14, marginBottom: 3 }}>{st.icon}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: adStyle === st.value ? C.gold : C.secondary }}>{st.label}</div>
+                    <div style={{ fontSize: 8, color: C.muted, marginTop: 1, lineHeight: 1.3 }}>{st.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </Panel>
+          </>
+        )}
+
+        {/* ── PERSONAL BRAND FORM ── */}
+        {adMode === 'personal_brand_ad' && (
+          <>
+            <div style={{
+              padding: '8px 10px', borderRadius: 4,
+              border: `1px solid ${hasIdentity ? '#1a4a2a' : '#3a2010'}`,
+              background: hasIdentity ? '#081208' : '#100800',
+              fontSize: 11, color: hasIdentity ? C.green : '#c8843a',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span>{hasIdentity ? '✓' : '⚠'}</span>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>{hasIdentity ? 'Identity active' : 'No identity uploaded'}</div>
+                <div style={{ fontSize: 10, opacity: 0.8 }}>{hasIdentity ? 'Likeness will be preserved' : 'Upload in Studio tab first'}</div>
+              </div>
+            </div>
+
+            <Panel title="Creator Niche" accent={C.gold}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                {[
+                  { value: 'lifestyle', label: 'Lifestyle', icon: '✨' },
+                  { value: 'fitness',   label: 'Fitness',   icon: '💪' },
+                  { value: 'beauty',    label: 'Beauty',    icon: '💄' },
+                  { value: 'fashion',   label: 'Fashion',   icon: '👗' },
+                  { value: 'business',  label: 'Business',  icon: '💼' },
+                  { value: 'creator',   label: 'Creator',   icon: '🎥' },
+                ].map(n => (
+                  <button key={n.value} onClick={() => setCreatorNiche(n.value)} style={{
+                    borderRadius: 4, padding: '8px 4px', textAlign: 'center',
+                    cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                    transition: 'all 0.12s', ...cardBorder(creatorNiche === n.value),
+                    color: creatorNiche === n.value ? C.gold : C.secondary,
+                  }}>
+                    <div style={{ fontSize: 14, marginBottom: 3 }}>{n.icon}</div>
+                    {n.label}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel title="Campaign Goal" accent={C.gold}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  { value: 'awareness',  label: 'Brand Awareness', desc: 'Bold, memorable',      icon: '📢' },
+                  { value: 'conversion', label: 'Drive Sales',      desc: 'Clear hook',           icon: '💰' },
+                  { value: 'engagement', label: 'Engagement',       desc: 'Community feel',       icon: '❤️' },
+                  { value: 'launch',     label: 'Launch',           desc: 'Announcement energy',  icon: '🚀' },
+                ].map(g => (
+                  <button key={g.value} onClick={() => setAdGoal(g.value)} style={{
+                    borderRadius: 4, padding: '8px 10px',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.12s', ...cardBorder(adGoal === g.value),
+                  }}>
+                    <span style={{ fontSize: 14, flexShrink: 0 }}>{g.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: adGoal === g.value ? C.gold : C.secondary, marginBottom: 1 }}>{g.label}</div>
+                      <div style={{ fontSize: 9, color: C.muted }}>{g.desc}</div>
+                    </div>
+                    {adGoal === g.value && <span style={{ fontSize: 9, color: C.gold }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel title="Style Notes" accent={C.gold} defaultOpen={false}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div>
+                  <SLabel>Visual style</SLabel>
+                  <input value={visualStyle} onChange={e => setVisualStyle(e.target.value)}
+                    placeholder="e.g. dark moody, bright airy…"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Extra context</SLabel>
+                  <textarea value={extraContext} onChange={e => setExtraContext(e.target.value)}
+                    placeholder="Product, colours, key message…"
+                    rows={2} style={{ ...inp, resize: 'none' }}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+              </div>
+            </Panel>
+          </>
+        )}
+      </div>
+
+      {/* ══ RIGHT — Output ════════════════════════════════ */}
+      <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: '#070707' }}>
+
+        {/* Generate button */}
+        <button onClick={handleGenerate} disabled={!canGenerate} style={{
+          width: '100%', padding: '11px 0', borderRadius: 5,
+          fontSize: 13, fontWeight: 800,
+          cursor: canGenerate ? 'pointer' : 'not-allowed',
+          border: `1px solid ${canGenerate ? C.goldDim : C.hairline}`,
+          background: canGenerate ? 'linear-gradient(180deg, #1a1408, #0c0a04)' : C.deep,
+          color: canGenerate ? C.gold : C.muted,
+          letterSpacing: 0.5,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'all 0.2s',
+        }}>
+          {isGenerating
+            ? '⟳ Generating…'
+            : `▶  Generate ${adOutputType === 'video' ? 'Video Ad' : 'Image Ad'}  —  ${cost} credits`
+          }
+        </button>
+
+        {/* Hints */}
+        {!hasEnoughCredits && (
+          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010', textAlign: 'center' }}>
+            Not enough credits — need {cost}, have {s.credits || 0}
+          </div>
+        )}
+        {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
+          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.muted, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+            ← Enter a product name to generate
+          </div>
+        )}
+
+        {/* Error */}
+        {s.adError && (
+          <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+            {s.adError}
+          </div>
+        )}
+
+        {/* Loading */}
+        {isGenerating && <AdLoadingState outputType={adOutputType} />}
+
+        {/* Generated image result */}
+        {!isGenerating && s.adGeneratedImage && (
+          <Panel title="Generated Ad" accent={C.gold}>
+            {/* Image — cropped cleanly, no white border artifacts */}
+            <div style={{ borderRadius: 4, overflow: 'hidden', background: C.void }}>
+              <img
+                src={s.adGeneratedImage}
+                alt="Ad creative"
+                style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover' }}
+              />
+            </div>
+
+            {/* Tags */}
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {adMode === 'product_ad' && productName && <Pill color={C.gold}>{productName}</Pill>}
+              {adStyle && <Pill color={C.blue}>{adStyle}</Pill>}
+              {adPlatform && <Pill color={C.muted}>{adPlatform}</Pill>}
+              {adFormat && <Pill color={C.muted}>{adFormat}</Pill>}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 5 }}>
+              <a
+                href={`/api/download-image?url=${encodeURIComponent(s.adGeneratedImage)}&name=promptceo-ad.jpg`}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 4,
+                  fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                  textAlign: 'center', color: C.gold,
+                  background: '#1a1408', border: `1px solid ${C.goldDim}`,
+                  display: 'block',
+                }}
+              >
+                ↓ Download Ad
+              </a>
+              <button onClick={() => doCopy(s.adGeneratedImage, 'adimg')} style={{
+                padding: '8px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', border: `1px solid ${C.subtle}`,
+                background: C.surface, color: localCopied === 'adimg' ? C.green : C.secondary,
+              }}>
+                {localCopied === 'adimg' ? '✓' : '⎘ URL'}
+              </button>
+              <button onClick={() => window.open(s.adGeneratedImage, '_blank')} style={{
+                padding: '8px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', border: `1px solid ${C.subtle}`,
+                background: C.surface, color: C.secondary,
+              }}>
+                ⤢
+              </button>
+            </div>
+
+            {/* Video result */}
+            {s.adVideoUrl && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <video src={s.adVideoUrl} controls autoPlay loop style={{ width: '100%', borderRadius: 4 }} />
+                <a
+                  href={`/api/download-image?url=${encodeURIComponent(s.adVideoUrl)}&name=promptceo-ad-video.mp4`}
+                  style={{
+                    display: 'block', padding: '8px 0', borderRadius: 4,
+                    fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                    textAlign: 'center', color: C.gold,
+                    background: '#1a1408', border: `1px solid ${C.goldDim}`,
+                  }}
+                >
+                  ↓ Download Video Ad
+                </a>
+              </div>
+            )}
+            {s.adVideoError && (
+              <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                {s.adVideoError}
+              </div>
+            )}
+
+            {/* Animate button */}
+            {!s.adVideoUrl && (
+              <Btn variant="gold" disabled={s.adVideoGenerating} onClick={handleAnimate} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
+                {s.adVideoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Animate to Video Ad — 60 credits'}
+              </Btn>
+            )}
+          </Panel>
+        )}
+
+        {/* Direct video only */}
+        {!isGenerating && s.adVideoUrl && !s.adGeneratedImage && (
+          <Panel title="Generated Video Ad" accent={C.gold}>
+            <video src={s.adVideoUrl} controls autoPlay loop style={{ width: '100%', borderRadius: 4 }} />
+            <a
+              href={`/api/download-image?url=${encodeURIComponent(s.adVideoUrl)}&name=promptceo-ad-video.mp4`}
+              style={{
+                display: 'block', padding: '8px 0', borderRadius: 4,
+                fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                textAlign: 'center', color: C.gold,
+                background: '#1a1408', border: `1px solid ${C.goldDim}`,
+              }}
+            >
+              ↓ Download Video Ad
+            </a>
+          </Panel>
+        )}
+
+        {/* Empty state */}
+        {!isGenerating && !s.adGeneratedImage && !s.adVideoUrl && !s.adError && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 14, padding: '40px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 36 }}>📣</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.secondary, letterSpacing: 0.5 }}>Ad Creative Studio</div>
+            <div style={{ fontSize: 11, color: C.muted, maxWidth: 260, lineHeight: 1.7 }}>
+              Configure your ad on the left and press <span style={{ color: C.gold }}>Generate</span> to create professional ad content.
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              {[{ icon: '📦', label: 'Products' }, { icon: '⭐', label: 'Brands' }, { icon: '🎬', label: 'Video' }].map(i => (
+                <div key={i.label} style={{ padding: '10px 12px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}`, textAlign: 'center', minWidth: 64 }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{i.icon}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.5 }}>{i.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 9, color: C.ghost, marginTop: 4 }}>✦ AI auto-suggests style from your product name</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -236,15 +779,12 @@ const INIT = {
   generatedImage:     '',
   imageGenerating:    false,
   imageError:         '',
-  // Video — single
   videoGenerating:    false,
   videoUrl:           '',
   videoError:         '',
-  // Batch images
   batchImages:        [],
   batchImgRunning:    false,
   batchImgProgress:   0,
-  // Batch videos — keyed by item.index
   batchVideos:        {},
 }
 
@@ -343,6 +883,7 @@ function Btn({ children, onClick, disabled, variant = 'default', style: sx }) {
     danger:  { bg: '#0e0808', border: '#2a1010', color: '#7a3a3a' },
     green:   { bg: C.greenDim, border: '#2a4a2a', color: C.green },
     ghost:   { bg: 'transparent', border: 'transparent', color: C.muted },
+    violet:  { bg: '#0e0818', border: C.violetDim, color: C.violet },
   }
   const v = variants[variant] || variants.default
   return (
@@ -815,7 +1356,6 @@ export default function PromptCEOPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  // ── Auth guard ────────────────────────────────────────────
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession()
@@ -843,7 +1383,6 @@ export default function PromptCEOPage() {
   const [history,      setHistory]      = useState([])
   const [historyOpen,  setHistoryOpen]  = useState(false)
   const stopRef = useRef(false)
-
   const [helpOpen, setHelpOpen] = useState(false)
 
   // ── Derived ───────────────────────────────────────────────
@@ -865,15 +1404,11 @@ export default function PromptCEOPage() {
     [s.directorPreset]
   )
 
-  // Cascades
   useEffect(() => { merge({ subLocationId: '', sceneGroupId: '', phaseKey: '' }) }, [s.worldId])
   useEffect(() => { set('sceneGroupId', '') }, [s.subLocationId])
   useEffect(() => { set('chapterId', '') }, [s.storyWorldId])
-
-  // DNA init
   useEffect(() => { setDnaProfiles(dnaLoad()) }, [])
 
-  // ── Load persisted identity image on login ────────────────
   useEffect(() => {
     const loadPersistedIdentity = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -888,7 +1423,6 @@ export default function PromptCEOPage() {
     loadPersistedIdentity()
   }, [])
 
-  // Credits
   useEffect(() => {
     set('creditsLoading', true)
     fetch('/api/get-credits')
@@ -898,7 +1432,6 @@ export default function PromptCEOPage() {
       .finally(() => set('creditsLoading', false))
   }, [])
 
-   // ── Prompt history ────────────────────────────────────────
   const saveToHistory = useCallback(async (prompt, meta, imageUrl = '') => {
     try {
       await fetch('/api/save-prompt', {
@@ -917,9 +1450,8 @@ export default function PromptCEOPage() {
     }
   }, [s.directorPreset])
 
-
   // ── Generate ──────────────────────────────────────────────
-const generate = useCallback(() => {
+  const generate = useCallback(() => {
     const r = buildPromptV3(buildInput(s))
     setResult(r)
     setOutputTab('output')
@@ -1053,7 +1585,7 @@ const generate = useCallback(() => {
     set('characterMode', detectedCharMode)
   }
 
-  // ── Image upload + Supabase persistence ───────────────────
+  // ── Image upload ──────────────────────────────────────────
   const onImg = async e => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1117,7 +1649,6 @@ const generate = useCallback(() => {
     a.click()
   }
 
-  // ── Export ────────────────────────────────────────────────
   const exportBatch = () => {
     const text = batch.map((r, i) =>
       `=== Scene ${i + 1} [${r.meta?.progressionLevel} / ${(r.meta?.timeOfDay || '').replace(/_/g, ' ')}] ===\n${r.finalPrompt}`
@@ -1129,35 +1660,22 @@ const generate = useCallback(() => {
     a.click()
   }
 
-  const exportStoryboard = () => {
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Prompt CEO — Storyboard</title>
-  <style>
-    body { background:#040404; color:#e8e4dc; font-family:'Georgia',serif; padding:40px; }
-    h1 { font-size:18px; letter-spacing:3px; text-transform:uppercase; color:#c8a84b; margin-bottom:32px; }
-    .scene { border:1px solid #1a1a1a; border-radius:8px; padding:20px 24px; margin-bottom:16px; border-left:3px solid #4a7ab4; }
-    .meta { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#4a4845; margin-bottom:10px; }
-    .prompt { font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9; color:#8a8680; }
-    .slate { font-size:11px; color:#c8a84b; font-weight:700; margin-bottom:4px; }
-  </style>
-</head>
-<body>
-  <h1>Prompt CEO — Storyboard Export</h1>
-  ${batch.map((r, i) => `
-  <div class="scene">
-    <div class="slate">Scene ${i + 1}</div>
-    <div class="meta">${r.meta?.progressionLevel || ''} · ${(r.meta?.timeOfDay || '').replace(/_/g, ' ')} · ${r.meta?.envFamily || ''}</div>
-    <div class="prompt">${r.finalPrompt || '(empty)'}</div>
-  </div>
-  `).join('')}
-</body>
-</html>`
-    const w = window.open()
+  const exportStoryboard = async () => {
+    const scenes = batch.map((r, i) => ({
+      finalPrompt:    r.finalPrompt,
+      meta:           r.meta,
+      imageUrl:       s.batchImages?.find(img => img.index === i)?.imageUrl || '',
+      director:       s.directorPreset,
+    }))
+    const res  = await fetch('/api/storyboard-pdf', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenes }),
+    })
+    const html = await res.text()
+    const w = window.open('', '_blank')
     w.document.write(html)
     w.document.close()
+    setTimeout(() => w.print(), 800)
   }
 
   // ── DNA ───────────────────────────────────────────────────
@@ -1208,6 +1726,7 @@ const generate = useCallback(() => {
         body: JSON.stringify({
           prompt: result.finalPrompt, imageDataUrl: s.imageDataUrl,
           identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {},
+          mode: 'director',
         }),
       })
       const data = await res.json()
@@ -1237,6 +1756,7 @@ const generate = useCallback(() => {
           body: JSON.stringify({
             prompt: r.finalPrompt, imageDataUrl: s.imageDataUrl,
             identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {},
+            mode: 'director',
           }),
         })
         const data = await res.json()
@@ -1255,23 +1775,74 @@ const generate = useCallback(() => {
     merge({ batchImgRunning: false })
   }, [batch, s, merge, set])
 
+  // ── Ad Studio generation ──────────────────────────────────
+  const generateAdImage = useCallback(async ({ prompt, mode, adConfig }) => {
+    merge({ adGenerating: true, adError: '', adGeneratedImage: '', adVideoUrl: '' })
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          mode,
+          adConfig,
+          // Pass identity for personal brand ads
+          ...(mode === 'personal_brand_ad' && s.imageDataUrl ? {
+            imageDataUrl: s.imageDataUrl,
+            identity: { image: s.imageDataUrl },
+            extractedTraits: s.traits?.subjectA || {},
+          } : {}),
+        }),
+      })
+      const data = await res.json()
+      if (data?.status === 'complete') {
+        merge({ adGeneratedImage: data.imageUrl, adGenerating: false })
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        merge({ adError: data?.message || 'Generation failed', adGenerating: false })
+      }
+    } catch (err) {
+      merge({ adError: err.message, adGenerating: false })
+    }
+  }, [s, merge, set])
+
+  const generateAdVideo = useCallback(async ({ prompt, mode, adConfig, imageUrl }) => {
+    merge({ adVideoGenerating: true, adVideoError: '', adVideoUrl: '' })
+    try {
+      const res = await fetch('/api/generate-video', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          mode,
+          adConfig,
+          imageUrl: imageUrl || s.adGeneratedImage || '',
+        }),
+      })
+      const data = await res.json()
+      if (data?.status === 'complete') {
+        merge({ adVideoUrl: data.videoUrl, adVideoGenerating: false })
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        merge({ adVideoError: data?.error || 'Video generation failed', adVideoGenerating: false })
+      }
+    } catch (err) {
+      merge({ adVideoError: err.message, adVideoGenerating: false })
+    }
+  }, [s, merge, set])
+
   // ── Video generation ──────────────────────────────────────
   const generateVideo = useCallback(async (prompt, imageUrl, progressionLevel, batchKey) => {
     if (!prompt) return
-
     if (batchKey !== undefined) {
       merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: true, url: '', error: '' } } })
     } else {
       merge({ videoGenerating: true, videoUrl: '', videoError: '' })
     }
-
     try {
       const res = await fetch('/api/generate-video', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, imageUrl, progressionLevel }),
+        body: JSON.stringify({ prompt, imageUrl, progressionLevel, mode: 'director' }),
       })
       const data = await res.json()
-
       if (data?.status === 'complete') {
         if (batchKey !== undefined) {
           merge({ batchVideos: { ...s.batchVideos, [batchKey]: { generating: false, url: data.videoUrl, error: '' } } })
@@ -1306,7 +1877,6 @@ const generate = useCallback(() => {
     }
   }, [])
 
-  // ── Resets ────────────────────────────────────────────────
   const rAll = () => {
     setS(INIT); setResult(null); setBatch([]); setSaved([])
     setActiveScene(0); setOutputTab('output')
@@ -1318,16 +1888,10 @@ const generate = useCallback(() => {
 
   return (
     <>
-{/* HELP DRAWER */}
+      {/* HELP DRAWER */}
       {helpOpen && (
         <>
-          <div
-            onClick={() => setHelpOpen(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 998,
-              background: 'rgba(0,0,0,0.6)',
-            }}
-          />
+          <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.6)' }} />
           <div style={{
             position: 'fixed', top: 0, right: 0, bottom: 0,
             width: 420, zIndex: 999,
@@ -1351,183 +1915,59 @@ const generate = useCallback(() => {
               </div>
               <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: '#aaa', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
             </div>
-
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e4dc', marginBottom: 6 }}>Director's Studio v3</div>
                 <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7 }}>
                   A cinematic AI directing studio for generating high-quality image and video prompts with consistent identity, world-aware scene building, and director-style visual grammar.
                 </div>
               </div>
-
               <div style={{ height: 1, background: C.subtle }} />
-
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Credits System</div>
-                <div style={{ fontSize: 12, color: '#9a9690', marginBottom: 10 }}>Every action costs credits. Credits are shared across all Prompt CEO tools.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                   {[
-                    { action: '🎨 Generate Image', cost: '5 credits' },
+                    { action: '🎨 Generate Image (Director)', cost: '5 credits' },
+                    { action: '📣 Generate Image (Ad Studio)', cost: '5 credits' },
                     { action: '🎬 Generate Video', cost: '60 credits' },
                   ].map(({ action, cost }) => (
-                    <div key={action} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 12px', borderRadius: 5,
-                      background: '#111', border: `1px solid ${C.subtle}`,
-                    }}>
+                    <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 5, background: '#111', border: `1px solid ${C.subtle}` }}>
                       <span style={{ fontSize: 12, color: '#e8e4dc' }}>{action}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{cost}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>Credit packages available in the + Credits dropdown:</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {[
-                    { label: 'Starter', credits: '50 credits' },
-                    { label: 'Standard', credits: '100 credits' },
-                    { label: 'Pro', credits: '250 credits' },
-                    { label: 'Studio', credits: '500 credits' },
-                  ].map(({ label, credits }) => (
-                    <div key={label} style={{
-                      padding: '8px 10px', borderRadius: 4,
-                      background: '#111', border: `1px solid ${C.subtle}`,
-                      display: 'flex', flexDirection: 'column', gap: 2,
-                    }}>
-                      <span style={{ fontSize: 10, color: '#888' }}>{label}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc' }}>{credits}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
-
               <div style={{ height: 1, background: C.subtle }} />
-
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>How It Works</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.violet, marginBottom: 12 }}>Ad Creative Studio</div>
+                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7, marginBottom: 10 }}>
+                  Generate scroll-stopping ad content — product campaigns or personal brand content — using the same AI pipeline as the Director's Studio.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
-                    {
-                      num: '1', title: 'Identity System',
-                      body: 'Upload a reference image of your subject. The app saves it to your account permanently — no re-uploading needed.',
-                      bullets: [
-                        'Click the upload area in the Identity panel',
-                        'Click Scan Identity to extract physical traits automatically',
-                        'The system detects gender (male / female / couple) from the image',
-                        'Enable Use identity in prompt to lock the identity across all generations',
-                      ]
-                    },
-                    {
-                      num: '2', title: 'Director Presets',
-                      body: 'Choose a cinematic visual grammar that shapes every generated prompt. Each preset changes the camera layer of every output.',
-                      bullets: []
-                    },
-                    {
-                      num: '3', title: 'World System',
-                      body: 'Select a physical world and the engine picks locations, lighting, and camera angles automatically.',
-                      bullets: [
-                        'Auto mode — world selected based on story world',
-                        'Manual mode — pick world, sub-location, and scene group directly',
-                      ]
-                    },
-                    {
-                      num: '4', title: 'Generate Scene',
-                      body: 'Press Generate Scene for one prompt. Set the scene count and press Batch to generate a full sequence (10–100 scenes) with automatic tease → tension → payoff arc.',
-                      bullets: []
-                    },
-                    {
-                      num: '5', title: 'Generate Images — 5 credits each',
-                      body: 'Go to the image tab and click Generate Image. For batch sequences, click Generate X Images. Images appear in a grid as they complete.',
-                      bullets: []
-                    },
-                    {
-                      num: '6', title: 'Generate Videos — 60 credits each',
-                      body: 'After an image is generated, click the 🎬 button to animate it using Runway Gen4 Turbo.',
-                      bullets: [
-                        'Single image: button appears below the generated image in the image tab',
-                        'Batch images: 🎬 button on each image card',
-                        'Videos play inline and can be downloaded',
-                      ]
-                    },
-                    {
-                      num: '7', title: 'Character DNA',
-                      body: 'Save a reusable character profile with locked traits, identity image, and character mode. Load it instantly in future sessions.',
-                      bullets: []
-                    },
-                    {
-                      num: '8', title: 'Timeline View',
-                      body: "Switch to Timeline to see all generated scenes in a visual arc with time-of-day gradient and progression bars. Use Director's Chair for fullscreen prompt review.",
-                      bullets: []
-                    },
-                  ].map(({ num, title, body, bullets }) => (
-                    <div key={num} style={{ display: 'flex', gap: 12 }}>
-                      <div style={{
-                        flexShrink: 0, width: 22, height: 22,
-                        background: '#1a1408', border: `1px solid ${C.goldDim}`,
-                        borderRadius: 4, display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 9, fontWeight: 700,
-                        color: C.gold, marginTop: 1,
-                      }}>
-                        {num}
-                      </div>
+                    { title: 'Product Ad', body: 'Configure product name, visual style (lifestyle, minimal, editorial, UGC, cinematic), platform, and mood. No identity image needed.' },
+                    { title: 'Personal Brand Ad', body: 'Uses your identity image to preserve your likeness. Pick your niche, campaign goal, and platform. Perfect for creator and influencer ad content.' },
+                    { title: 'Animate to Video', body: 'After generating an ad image, hit the Animate button to create a 5-second video ad using Runway Gen4 Turbo.' },
+                  ].map(({ title, body }) => (
+                    <div key={title} style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.violet, flexShrink: 0, marginTop: 5 }} />
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc', marginBottom: 4 }}>{title}</div>
-                        <div style={{ fontSize: 11, color: '#9a9690', lineHeight: 1.7, marginBottom: bullets.length ? 6 : 0 }}>{body}</div>
-                        {bullets.length > 0 && (
-                          <ul style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {bullets.map((b, i) => (
-                              <li key={i} style={{ fontSize: 11, color: '#888', lineHeight: 1.6 }}>{b}</li>
-                            ))}
-                          </ul>
-                        )}
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc', marginBottom: 2 }}>{title}</div>
+                        <div style={{ fontSize: 11, color: '#9a9690', lineHeight: 1.6 }}>{body}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <div style={{ height: 1, background: C.subtle }} />
-
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Directors Reference</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {DIRECTOR_PRESETS.filter(d => d.id !== 'none').map(d => (
-                    <div key={d.id} style={{
-                      display: 'flex', gap: 10, alignItems: 'flex-start',
-                      padding: '8px 0', borderBottom: `1px solid #1a1a1a`,
-                    }}>
-                      <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: '#e8e4dc' }}>{d.icon}</span>
-                      <div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc' }}>{d.label} </span>
-                        <span style={{ fontSize: 11, color: '#888' }}>— {d.description}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ height: 1, background: C.subtle }} />
-
-              <div style={{
-                padding: '14px 16px', borderRadius: 6,
-                background: '#1a1408', border: `1px solid ${C.goldDim}`,
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
-                  ✦ Weekly Updates
-                </div>
-                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7 }}>
-                  New content is added every week — new worlds, story worlds, director presets, and signature packs. Your credits never expire. Check back regularly to access the latest additions.
-                </div>
-              </div>
-
               <div style={{ fontSize: 10, color: '#444', textAlign: 'center', paddingBottom: 8 }}>
                 Prompt CEO — Director's Studio v3
               </div>
-
             </div>
           </div>
         </>
       )}
+
       {directorOpen && batch.length > 0 && (
         <DirectorsChair
           batch={batch}
@@ -1564,46 +2004,74 @@ const generate = useCallback(() => {
               🎬
             </div>
             <div>
-              <div style={{
-                fontSize: 11, fontWeight: 700, letterSpacing: 2,
-                textTransform: 'uppercase', color: C.gold,
-                fontFamily: C.display,
-              }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, fontFamily: C.display }}>
                 PROMPT CEO
               </div>
-              <div style={{ fontSize: 8, color: C.muted, letterSpacing: 1 }}>
-                DIRECTOR'S STUDIO
-              </div>
+              <div style={{ fontSize: 8, color: C.muted, letterSpacing: 1 }}>DIRECTOR'S STUDIO</div>
             </div>
           </div>
 
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
-          <div style={{ display: 'flex', gap: 3 }}>
+          {/* ── View tabs — now 3 tabs ── */}
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {[
-              { id: 'studio',   label: '◧ Studio'   },
-              { id: 'timeline', label: '▤ Timeline'  },
+              { id: 'studio',   label: 'Studio',   icon: '◧' },
+              { id: 'timeline', label: 'Timeline',  icon: '▤' },
             ].map(v => (
               <button
                 key={v.id}
                 onClick={() => set('view', v.id)}
                 style={{
-                  padding: '3px 10px', borderRadius: 3,
-                  fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                  border: `1px solid ${s.view === v.id ? C.goldDim : 'transparent'}`,
-                  background: s.view === v.id ? '#1a1408' : 'transparent',
-                  color: s.view === v.id ? C.gold : C.muted,
-                  letterSpacing: 0.5,
+                  padding: '5px 14px', borderRadius: 4,
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  letterSpacing: 0.4,
+                  border: `1px solid ${s.view === v.id ? C.goldDim : C.subtle}`,
+                  background: s.view === v.id ? '#1a1408' : C.surface,
+                  color: s.view === v.id ? C.gold : '#9a9690',
+                  transition: 'all 0.15s',
                 }}
               >
-                {v.label}
+                {v.icon} {v.label}
               </button>
             ))}
+
+            {/* Ad Studio — visually distinct, always visible */}
+            <button
+              onClick={() => set('view', 'ad_studio')}
+              style={{
+                padding: '5px 16px', borderRadius: 4,
+                fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                letterSpacing: 0.5,
+                border: `1px solid ${s.view === 'ad_studio' ? '#b44aff' : '#7a3abf'}`,
+                background: s.view === 'ad_studio'
+                  ? 'linear-gradient(135deg, #2a0a4a, #1a0838)'
+                  : 'linear-gradient(135deg, #1a0838, #0e0520)',
+                color: s.view === 'ad_studio' ? '#d580ff' : '#a855f7',
+                boxShadow: s.view === 'ad_studio'
+                  ? '0 0 12px #9b2fff44, inset 0 0 8px #9b2fff18'
+                  : '0 0 6px #7a2fff22',
+                transition: 'all 0.15s',
+              }}
+            >
+              📣 Ad Studio
+            </button>
           </div>
 
           <div style={{ flex: 1 }} />
 
-          {s.directorPreset !== 'none' && (
+          {s.view === 'ad_studio' && (
+            <div style={{
+              padding: '3px 10px', borderRadius: 3,
+              fontSize: 9, fontWeight: 700, letterSpacing: 1,
+              background: C.violetGlow, border: `1px solid ${C.violetDim}`,
+              color: C.violet, textTransform: 'uppercase',
+            }}>
+              📣 Ad Creative Mode
+            </div>
+          )}
+
+          {s.directorPreset !== 'none' && s.view !== 'ad_studio' && (
             <div style={{
               padding: '3px 10px', borderRadius: 3,
               fontSize: 9, fontWeight: 700, letterSpacing: 1,
@@ -1649,8 +2117,7 @@ const generate = useCallback(() => {
             style={{
               padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
               cursor: 'pointer', border: `1px solid ${C.goldDim}`,
-              background: C.goldGlow, color: C.gold,
-              letterSpacing: 0.5,
+              background: C.goldGlow, color: C.gold, letterSpacing: 0.5,
             }}
           >
             ? Help
@@ -1658,7 +2125,18 @@ const generate = useCallback(() => {
           <Btn variant="danger" onClick={rAll}>↺ Reset</Btn>
         </div>
 
-        {/* ── BODY ─────────────────────────────────────────── */}
+        {/* ── AD STUDIO VIEW ──────────────────────────────── */}
+        {s.view === 'ad_studio' && (
+          <AdStudioView
+            s={s}
+            set={set}
+            merge={merge}
+            generateAdImage={generateAdImage}
+            generateAdVideo={generateAdVideo}
+          />
+        )}
+
+        {/* ── STUDIO VIEW ─────────────────────────────────── */}
         {s.view === 'studio' && (
           <div style={{
             flex: 1, minHeight: 0,
@@ -1683,14 +2161,8 @@ const generate = useCallback(() => {
                     useTraits: false, identityStrength: 100,
                     continuityLock: false, prevOutputs: [],
                     traits: {
-                      subjectA: {
-                        name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', hair: '',
-                        locked: { name: false, age: false, ethnicity: false, body: false, breast: false, glutes: false, eyes: false, hair: false },
-                      },
-                      subjectB: {
-                        name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '',
-                        locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false },
-                      },
+                      subjectA: { name: '', age: '', ethnicity: '', body: '', breast: '', glutes: '', eyes: '', hair: '', locked: { name: false, age: false, ethnicity: false, body: false, breast: false, glutes: false, eyes: false, hair: false } },
+                      subjectB: { name: '', age: '', ethnicity: '', body: '', eyes: '', hair: '', locked: { name: false, age: false, ethnicity: false, body: false, eyes: false, hair: false } },
                     },
                   })}>
                     reset
@@ -1716,11 +2188,7 @@ const generate = useCallback(() => {
                     )
                   }
                   {s.imageDataUrl && (
-                    <div style={{
-                      position: 'absolute', bottom: 0, left: 0, right: 0,
-                      background: 'rgba(0,0,0,0.7)', padding: '3px 6px',
-                      fontSize: 9, color: C.muted, textAlign: 'center',
-                    }}>
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.7)', padding: '3px 6px', fontSize: 9, color: C.muted, textAlign: 'center' }}>
                       {s.imageUploading ? '⟳ Saving…' : s.hasImage ? '✓ reference loaded' : 'loaded'}
                     </div>
                   )}
@@ -1846,22 +2314,12 @@ const generate = useCallback(() => {
                 </div>
 
                 <SubjectTraits
-                  label={
-                    s.characterMode === 'male'   ? 'Subject — Male' :
-                    s.characterMode === 'couple' ? 'Subject A — Female' :
-                    'Subject — Female'
-                  }
+                  label={s.characterMode === 'male' ? 'Subject — Male' : s.characterMode === 'couple' ? 'Subject A — Female' : 'Subject — Female'}
                   traits={s.traits.subjectA}
                   accentColor={C.green}
                   isMale={s.characterMode === 'male'}
                   onChange={(field, value) => set('traits', { ...s.traits, subjectA: { ...s.traits.subjectA, [field]: value } })}
-                  onToggleLock={field => set('traits', {
-                    ...s.traits,
-                    subjectA: {
-                      ...s.traits.subjectA,
-                      locked: { ...(s.traits.subjectA.locked || {}), [field]: !(s.traits.subjectA.locked?.[field]) },
-                    },
-                  })}
+                  onToggleLock={field => set('traits', { ...s.traits, subjectA: { ...s.traits.subjectA, locked: { ...(s.traits.subjectA.locked || {}), [field]: !(s.traits.subjectA.locked?.[field]) } } })}
                 />
 
                 {s.characterMode === 'couple' && (
@@ -1871,13 +2329,7 @@ const generate = useCallback(() => {
                     accentColor={C.blue}
                     isMale={true}
                     onChange={(field, value) => set('traits', { ...s.traits, subjectB: { ...s.traits.subjectB, [field]: value } })}
-                    onToggleLock={field => set('traits', {
-                      ...s.traits,
-                      subjectB: {
-                        ...s.traits.subjectB,
-                        locked: { ...(s.traits.subjectB.locked || {}), [field]: !(s.traits.subjectB.locked?.[field]) },
-                      },
-                    })}
+                    onToggleLock={field => set('traits', { ...s.traits, subjectB: { ...s.traits.subjectB, locked: { ...(s.traits.subjectB.locked || {}), [field]: !(s.traits.subjectB.locked?.[field]) } } })}
                   />
                 )}
 
@@ -1912,8 +2364,7 @@ const generate = useCallback(() => {
                         {p.traits?.subjectA?.hair      ? ` · ${p.traits.subjectA.hair}`      : ''}
                       </div>
                       {p.imageDataUrl && (
-                        <img src={p.imageDataUrl} alt="dna"
-                          style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 3, marginTop: 6 }} />
+                        <img src={p.imageDataUrl} alt="dna" style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 3, marginTop: 6 }} />
                       )}
                     </div>
                   )
@@ -1925,11 +2376,7 @@ const generate = useCallback(() => {
                 badge={s.worldId ? <Chip>{worldObj?.name || s.worldId}</Chip> : <Chip>auto</Chip>}
                 right={<Btn variant="danger" onClick={() => merge({ worldControlMode: 'auto', worldId: '', subLocationId: '', sceneGroupId: '', phaseKey: '' })}>reset</Btn>}
               >
-                <Seg
-                  options={['auto', 'manual'].map(m => ({ value: m, label: m }))}
-                  value={s.worldControlMode}
-                  onChange={v => set('worldControlMode', v)}
-                />
+                <Seg options={['auto', 'manual'].map(m => ({ value: m, label: m }))} value={s.worldControlMode} onChange={v => set('worldControlMode', v)} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <Label>Physical world</Label>
                   <select
@@ -1946,31 +2393,22 @@ const generate = useCallback(() => {
                     </optgroup>
                   </select>
                 </div>
-
                 {worldObj && subLocOpts.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Label>Sub-location</Label>
-                    <Sel value={s.subLocationId} onChange={v => set('subLocationId', v)}
-                      placeholder="Auto from phase" options={subLocOpts}
-                      disabled={s.worldControlMode !== 'manual'} />
+                    <Sel value={s.subLocationId} onChange={v => set('subLocationId', v)} placeholder="Auto from phase" options={subLocOpts} disabled={s.worldControlMode !== 'manual'} />
                   </div>
                 )}
-
                 {s.subLocationId && sceneGOpts.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Label>Scene group</Label>
-                    <Sel value={s.sceneGroupId} onChange={v => set('sceneGroupId', v)}
-                      placeholder="Auto" options={sceneGOpts}
-                      disabled={s.worldControlMode !== 'manual'} />
+                    <Sel value={s.sceneGroupId} onChange={v => set('sceneGroupId', v)} placeholder="Auto" options={sceneGOpts} disabled={s.worldControlMode !== 'manual'} />
                   </div>
                 )}
-
                 {worldObj && phaseOpts.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Label>Phase</Label>
-                    <Sel value={s.phaseKey} onChange={v => set('phaseKey', v)}
-                      placeholder="Auto from progression" options={phaseOpts}
-                      disabled={s.worldControlMode !== 'manual'} />
+                    <Sel value={s.phaseKey} onChange={v => set('phaseKey', v)} placeholder="Auto from progression" options={phaseOpts} disabled={s.worldControlMode !== 'manual'} />
                   </div>
                 )}
               </Panel>
@@ -1987,8 +2425,7 @@ const generate = useCallback(() => {
                       title={d.description}
                       style={{
                         padding: '6px 4px', borderRadius: 4,
-                        fontSize: 9, fontWeight: 700, cursor: 'pointer',
-                        textAlign: 'center',
+                        fontSize: 9, fontWeight: 700, cursor: 'pointer', textAlign: 'center',
                         border: `1px solid ${s.directorPreset === d.id ? C.goldDim : C.hairline}`,
                         background: s.directorPreset === d.id ? '#1a1408' : C.deep,
                         color: s.directorPreset === d.id ? C.gold : C.muted,
@@ -2001,24 +2438,15 @@ const generate = useCallback(() => {
                   ))}
                 </div>
                 {s.directorPreset !== 'none' && (
-                  <div style={{
-                    fontSize: 10, color: C.muted, fontStyle: 'italic',
-                    padding: '4px 6px', background: C.deep, borderRadius: 3,
-                    border: `1px solid ${C.hairline}`,
-                  }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontStyle: 'italic', padding: '4px 6px', background: C.deep, borderRadius: 3, border: `1px solid ${C.hairline}` }}>
                     {activeDirectorPreset.description}
                   </div>
                 )}
               </Panel>
-
             </div>
 
             {/* ══ CENTER ══ */}
-            <div style={{
-              overflowY: 'auto', padding: '10px 12px',
-              display: 'flex', flexDirection: 'column', gap: 8,
-              background: '#070707',
-            }}>
+            <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: '#070707' }}>
 
               {/* PROGRESSION */}
               <Panel title="Progression" accent={pc(progLevel)}
@@ -2036,41 +2464,27 @@ const generate = useCallback(() => {
                     const inZ = (l==='tease'&&r<0.33)||(l==='tension'&&r>=0.33&&r<0.66)||(l==='payoff'&&r>=0.66)
                     return (
                       <div key={l} style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: 8, fontWeight: 700, textAlign: 'center',
-                          letterSpacing: 0.8, textTransform: 'uppercase',
-                          color: inZ ? pc(l) : C.ghost, marginBottom: 3,
-                        }}>
-                          {l}
-                        </div>
+                        <div style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', letterSpacing: 0.8, textTransform: 'uppercase', color: inZ ? pc(l) : C.ghost, marginBottom: 3 }}>{l}</div>
                         <div style={{ height: 2, borderRadius: 1, background: inZ ? pc(l) : C.hairline }} />
                       </div>
                     )
                   })}
                 </div>
-
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 9, color: C.ghost, minWidth: 10 }}>0</span>
-                  <input
-                    type="range" min={0} max={s.totalCount - 1} value={s.progressionIndex}
-                    onChange={e => set('progressionIndex', Number(e.target.value))}
-                    style={{ flex: 1, accentColor: pc(progLevel) }}
-                  />
+                  <input type="range" min={0} max={s.totalCount - 1} value={s.progressionIndex} onChange={e => set('progressionIndex', Number(e.target.value))} style={{ flex: 1, accentColor: pc(progLevel) }} />
                   <span style={{ fontSize: 9, color: C.ghost, minWidth: 16 }}>{s.totalCount - 1}</span>
                 </div>
-
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Label>Index</Label>
-                    <Inp type="number" min={0} max={s.totalCount - 1}
-                      value={s.progressionIndex} onChange={e => set('progressionIndex', Number(e.target.value))} />
+                    <Inp type="number" min={0} max={s.totalCount - 1} value={s.progressionIndex} onChange={e => set('progressionIndex', Number(e.target.value))} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Label>Total scenes</Label>
                     <select
                       style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 11 }}
-                      value={s.totalCount}
-                      onChange={e => set('totalCount', Number(e.target.value))}
+                      value={s.totalCount} onChange={e => set('totalCount', Number(e.target.value))}
                     >
                       {TOTAL_OPTIONS.map(n => <option key={n} value={n}>{n} scenes</option>)}
                       <option value={s.totalCount} hidden>{s.totalCount} scenes</option>
@@ -2093,110 +2507,54 @@ const generate = useCallback(() => {
                   </div>
                 }
               >
-                <div style={{
-                  display: 'flex', gap: 2,
-                  borderBottom: `1px solid ${C.hairline}`,
-                  marginBottom: 4,
-                }}>
+                <div style={{ display: 'flex', gap: 2, borderBottom: `1px solid ${C.hairline}`, marginBottom: 4 }}>
                   {['output', 'layers', 'meta', 'image', 'warnings'].map(t => {
                     const hasDot = t === 'warnings' && result?.warnings?.length > 0
                     return (
-                      <button key={t}
-                        onClick={() => setOutputTab(t)}
-                        style={{
-                          padding: '5px 9px', borderRadius: '3px 3px 0 0',
-                          fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                          background: outputTab === t ? C.surface : 'transparent',
-                          border: `1px solid ${outputTab === t ? C.hairline : 'transparent'}`,
-                          borderBottom: `1px solid ${outputTab === t ? C.surface : C.hairline}`,
-                          marginBottom: -1, color: outputTab === t ? C.primary : C.muted,
-                          position: 'relative',
-                        }}
-                      >
+                      <button key={t} onClick={() => setOutputTab(t)} style={{
+                        padding: '5px 9px', borderRadius: '3px 3px 0 0',
+                        fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                        background: outputTab === t ? C.surface : 'transparent',
+                        border: `1px solid ${outputTab === t ? C.hairline : 'transparent'}`,
+                        borderBottom: `1px solid ${outputTab === t ? C.surface : C.hairline}`,
+                        marginBottom: -1, color: outputTab === t ? C.primary : C.muted,
+                        position: 'relative',
+                      }}>
                         {t}
-                        {hasDot && (
-                          <span style={{
-                            position: 'absolute', top: 2, right: 2,
-                            width: 4, height: 4, borderRadius: '50%',
-                            background: C.tension,
-                          }} />
-                        )}
+                        {hasDot && <span style={{ position: 'absolute', top: 2, right: 2, width: 4, height: 4, borderRadius: '50%', background: C.tension }} />}
                       </button>
                     )
                   })}
                 </div>
 
-                {/* Output tab */}
                 {outputTab === 'output' && (
                   <>
-                    {result?.finalPrompt
-                      ? (
-                        <div style={{
-                          background: C.void, border: `1px solid #141e12`,
-                          borderRadius: 5, padding: '12px 13px',
-                          fontFamily: C.mono, fontSize: 11, lineHeight: 1.9,
-                          color: '#7ecf7e', whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word', minHeight: 80,
-                          maxHeight: 280, overflowY: 'auto',
-                        }}>
-                          {result.finalPrompt}
-                        </div>
-                      )
-                      : (
-                        <div style={{
-                          background: C.void, border: `1px solid ${C.hairline}`,
-                          borderRadius: 5, padding: '12px 13px',
-                          fontFamily: C.mono, fontSize: 11,
-                          color: C.ghost, fontStyle: 'italic', minHeight: 80,
-                        }}>
-                          Press Generate Scene to build a cinematic prompt.
-                        </div>
-                      )
-                    }
-
+                    {result?.finalPrompt ? (
+                      <div style={{ background: C.void, border: `1px solid #141e12`, borderRadius: 5, padding: '12px 13px', fontFamily: C.mono, fontSize: 11, lineHeight: 1.9, color: '#7ecf7e', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 80, maxHeight: 280, overflowY: 'auto' }}>
+                        {result.finalPrompt}
+                      </div>
+                    ) : (
+                      <div style={{ background: C.void, border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '12px 13px', fontFamily: C.mono, fontSize: 11, color: C.ghost, fontStyle: 'italic', minHeight: 80 }}>
+                        Press Generate Scene to build a cinematic prompt.
+                      </div>
+                    )}
                     {result?.finalPrompt && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
                         {[
-                          {
-                            label: 'MJ',
-                            title: 'Copy for Midjourney',
-                            format: p => `${p} --ar 2:3 --style raw --q 2`,
-                          },
-                          {
-                            label: 'Runway',
-                            title: 'Copy for Runway',
-                            format: p => p.slice(0, 1000),
-                          },
-                          {
-                            label: 'Kling',
-                            title: 'Copy for Kling',
-                            format: p => `${p} --ratio 9:16 --duration 5`,
-                          },
-                        ].map(({ label, title, format }) => (
-                          <Btn
-                            key={label}
-                            variant="ghost"
-                            title={title}
-                            onClick={() => doCopy(format(result.finalPrompt), `export_${label}`)}
-                            sx={{
-                              fontSize: 10,
-                              border: `1px solid ${C.subtle}`,
-                              color: copied === `export_${label}` ? C.green : C.secondary,
-                            }}
-                          >
+                          { label: 'MJ',     format: p => `${p} --ar 2:3 --style raw --q 2` },
+                          { label: 'Runway', format: p => p.slice(0, 1000) },
+                          { label: 'Kling',  format: p => `${p} --ratio 9:16 --duration 5` },
+                        ].map(({ label, format }) => (
+                          <Btn key={label} variant="ghost" onClick={() => doCopy(format(result.finalPrompt), `export_${label}`)} sx={{ fontSize: 10, border: `1px solid ${C.subtle}`, color: copied === `export_${label}` ? C.green : C.secondary }}>
                             {copied === `export_${label}` ? `✓ ${label}` : `⎘ ${label}`}
                           </Btn>
                         ))}
                       </div>
                     )}
-
                     {result?.finalPrompt && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {['scene', 'camera', 'wardrobe', 'mood', 'lighting'].map(l => (
-                          <Btn key={l} variant="ghost"
-                            onClick={() => regenLayer(l)}
-                            sx={{ color: regenState[l] ? C.green : C.muted }}
-                          >
+                          <Btn key={l} variant="ghost" onClick={() => regenLayer(l)} sx={{ color: regenState[l] ? C.green : C.muted }}>
                             {regenState[l] ? `✓ ${l}` : `↺ ${l}`}
                           </Btn>
                         ))}
@@ -2205,49 +2563,33 @@ const generate = useCallback(() => {
                   </>
                 )}
 
-                {/* Layers tab */}
                 {outputTab === 'layers' && (
                   <div>
-                    {result?.layers
-                      ? Object.entries(result.layers).map(([k, v]) => (
-                          <div key={k} style={{
-                            display: 'grid', gridTemplateColumns: '72px 1fr',
-                            gap: 8, padding: '5px 0',
-                            borderBottom: `1px solid ${C.void}`, alignItems: 'start',
-                          }}>
-                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', paddingTop: 1 }}>{k}</div>
-                            <div style={{ fontSize: 10, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', color: v ? C.secondary : C.ghost, fontStyle: v ? 'normal' : 'italic' }}>
-                              {v || '(empty)'}
-                            </div>
-                          </div>
-                        ))
-                      : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic' }}>No result yet.</div>
-                    }
+                    {result?.layers ? Object.entries(result.layers).map(([k, v]) => (
+                      <div key={k} style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 8, padding: '5px 0', borderBottom: `1px solid ${C.void}`, alignItems: 'start' }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', paddingTop: 1 }}>{k}</div>
+                        <div style={{ fontSize: 10, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', color: v ? C.secondary : C.ghost, fontStyle: v ? 'normal' : 'italic' }}>{v || '(empty)'}</div>
+                      </div>
+                    )) : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic' }}>No result yet.</div>}
                   </div>
                 )}
 
-                {/* Meta tab */}
                 {outputTab === 'meta' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {result?.meta
-                      ? Object.entries(result.meta).filter(([k]) => k !== 'layerSources').map(([k, v]) => (
-                          <div key={k} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px' }}>
-                            <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
-                            <div style={{ fontSize: 10, color: C.blue, fontFamily: C.mono, wordBreak: 'break-all' }}>{String(v ?? '—')}</div>
-                          </div>
-                        ))
-                      : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic', gridColumn: 'span 2' }}>No result yet.</div>
-                    }
+                    {result?.meta ? Object.entries(result.meta).filter(([k]) => k !== 'layerSources').map(([k, v]) => (
+                      <div key={k} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px' }}>
+                        <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
+                        <div style={{ fontSize: 10, color: C.blue, fontFamily: C.mono, wordBreak: 'break-all' }}>{String(v ?? '—')}</div>
+                      </div>
+                    )) : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic', gridColumn: 'span 2' }}>No result yet.</div>}
                   </div>
                 )}
 
-                {/* Image tab */}
                 {outputTab === 'image' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {!s.imageDataUrl && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>Upload an identity image to enable generation.</div>}
                     {s.imageGenerating && <div style={{ padding: '10px', textAlign: 'center', color: C.green, fontSize: 11 }}>⟳ Generating image… (5 credits)</div>}
                     {s.imageError && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.imageError}</div>}
-
                     {s.generatedImage && (
                       <>
                         <img src={s.generatedImage} alt="generated" style={{ width: '100%', borderRadius: 5 }} />
@@ -2258,13 +2600,7 @@ const generate = useCallback(() => {
                             ↓ download
                           </a>
                         </div>
-
-                        {/* Video from single image */}
-                        {s.videoError && (
-                          <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
-                            {s.videoError}
-                          </div>
-                        )}
+                        {s.videoError && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.videoError}</div>}
                         {s.videoUrl && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             <video src={s.videoUrl} controls autoPlay loop style={{ width: '100%', borderRadius: 5 }} />
@@ -2274,93 +2610,41 @@ const generate = useCallback(() => {
                             </a>
                           </div>
                         )}
-                        <Btn
-                          variant="gold"
-                          disabled={s.videoGenerating}
-                          onClick={() => generateVideo(result?.finalPrompt, s.generatedImage, result?.meta?.progressionLevel)}
-                          sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}
-                        >
+                        <Btn variant="gold" disabled={s.videoGenerating} onClick={() => generateVideo(result?.finalPrompt, s.generatedImage, result?.meta?.progressionLevel)} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
                           {s.videoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Generate Video (60 credits)'}
                         </Btn>
                       </>
                     )}
-
-                    <Btn variant="green" disabled={s.imageGenerating || !result?.finalPrompt} onClick={generateImage}
-                      sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
+                    <Btn variant="green" disabled={s.imageGenerating || !result?.finalPrompt} onClick={generateImage} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
                       {s.imageGenerating ? '⟳ Generating…' : '🎨 Generate Image (5 credits)'}
                     </Btn>
                   </div>
                 )}
 
-                {/* Warnings tab */}
                 {outputTab === 'warnings' && (
                   <div>
-                    {result?.warnings?.length
-                      ? result.warnings.map((w, i) => (
-                          <div key={i} style={{
-                            padding: '4px 7px', borderRadius: 4, fontSize: 9, marginBottom: 3,
-                            color: w.includes('EXCEPTION') ? '#cf6a6a' : '#c49a2a',
-                            background: w.includes('EXCEPTION') ? '#110606' : '#100e00',
-                            border: `1px solid ${w.includes('EXCEPTION') ? '#2a1010' : '#221a00'}`,
-                            fontFamily: C.mono, lineHeight: 1.5,
-                          }}>
-                            {w}
-                          </div>
-                        ))
-                      : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic' }}>No warnings.</div>
-                    }
+                    {result?.warnings?.length ? result.warnings.map((w, i) => (
+                      <div key={i} style={{ padding: '4px 7px', borderRadius: 4, fontSize: 9, marginBottom: 3, color: w.includes('EXCEPTION') ? '#cf6a6a' : '#c49a2a', background: w.includes('EXCEPTION') ? '#110606' : '#100e00', border: `1px solid ${w.includes('EXCEPTION') ? '#2a1010' : '#221a00'}`, fontFamily: C.mono, lineHeight: 1.5 }}>
+                        {w}
+                      </div>
+                    )) : <div style={{ fontSize: 11, color: C.ghost, fontStyle: 'italic' }}>No warnings.</div>}
                   </div>
                 )}
-
               </Panel>
 
               {/* GENERATE ACTIONS */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button
-                  onClick={generate}
-                  style={{
-                    flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', border: `1px solid #1a4a2a`,
-                    background: 'linear-gradient(180deg, #14381a, #0c2214)',
-                    color: C.green, letterSpacing: 0.5,
-                  }}
-                >
+                <button onClick={generate} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid #1a4a2a', background: 'linear-gradient(180deg, #14381a, #0c2214)', color: C.green, letterSpacing: 0.5 }}>
                   ▶ Generate Scene
                 </button>
-<select
-                  value={s.totalCount}
-                  onChange={e => set('totalCount', Number(e.target.value))}
-                  style={{
-                    background: C.deep, color: C.blue,
-                    border: `1px solid ${C.blueDim}`, borderRadius: 5,
-                    padding: '0 8px', fontSize: 11, fontWeight: 700,
-                    cursor: 'pointer', outline: 'none', minWidth: 64,
-                  }}
-                >
+                <select value={s.totalCount} onChange={e => set('totalCount', Number(e.target.value))} style={{ background: C.deep, color: C.blue, border: `1px solid ${C.blueDim}`, borderRadius: 5, padding: '0 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer', outline: 'none', minWidth: 64 }}>
                   {TOTAL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <button
-                  onClick={runBatch}
-                  disabled={batchRun}
-                  style={{
-                    flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700,
-                    cursor: batchRun ? 'not-allowed' : 'pointer',
-                    border: `1px solid #1a2a4a`,
-                    background: 'linear-gradient(180deg, #101c30, #080e1c)',
-                    color: C.blue, opacity: batchRun ? 0.7 : 1, letterSpacing: 0.5,
-                  }}
-                >
+                <button onClick={runBatch} disabled={batchRun} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: batchRun ? 'not-allowed' : 'pointer', border: '1px solid #1a2a4a', background: 'linear-gradient(180deg, #101c30, #080e1c)', color: C.blue, opacity: batchRun ? 0.7 : 1, letterSpacing: 0.5 }}>
                   {batchRun ? `⟳ ${batchProg} / ${s.totalCount}` : `⚡ Batch ${s.totalCount}`}
                 </button>
                 {batchRun && (
-                  <button
-                    onClick={() => { stopRef.current = true }}
-                    style={{
-                      width: 56, padding: '10px 0', borderRadius: 5, fontSize: 11, fontWeight: 700,
-                      cursor: 'pointer', border: '1px solid #3a1010',
-                      background: '#180808', color: '#cf7e7e',
-                    }}
-                  >
+                  <button onClick={() => { stopRef.current = true }} style={{ width: 56, padding: '10px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid #3a1010', background: '#180808', color: '#cf7e7e' }}>
                     stop
                   </button>
                 )}
@@ -2370,22 +2654,11 @@ const generate = useCallback(() => {
               {batch.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      onClick={generateBatchImages}
-                      disabled={s.batchImgRunning || !s.imageDataUrl}
-                      style={{
-                        flex: 1, padding: '9px 0', borderRadius: 5, fontSize: 11, fontWeight: 700,
-                        cursor: (s.batchImgRunning || !s.imageDataUrl) ? 'not-allowed' : 'pointer',
-                        border: '1px solid #3a1a6a',
-                        background: 'linear-gradient(180deg,#1a0e30,#0e0818)',
-                        color: '#c07ef0', opacity: (s.batchImgRunning || !s.imageDataUrl) ? 0.5 : 1,
-                      }}
-                    >
+                    <button onClick={generateBatchImages} disabled={s.batchImgRunning || !s.imageDataUrl} style={{ flex: 1, padding: '9px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: (s.batchImgRunning || !s.imageDataUrl) ? 'not-allowed' : 'pointer', border: '1px solid #3a1a6a', background: 'linear-gradient(180deg,#1a0e30,#0e0818)', color: '#c07ef0', opacity: (s.batchImgRunning || !s.imageDataUrl) ? 0.5 : 1 }}>
                       {s.batchImgRunning ? `⟳ Image ${s.batchImgProgress}/${batch.length}` : `🎨 Generate ${batch.length} Images`}
                     </button>
                     {s.batchImgRunning && (
-                      <button onClick={() => { stopRef.current = true }}
-                        style={{ width: 56, padding: '9px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid #3a1010', background: '#180808', color: '#cf7e7e' }}>
+                      <button onClick={() => { stopRef.current = true }} style={{ width: 56, padding: '9px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid #3a1010', background: '#180808', color: '#cf7e7e' }}>
                         stop
                       </button>
                     )}
@@ -2396,65 +2669,29 @@ const generate = useCallback(() => {
                       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>
                         Generated Images ({s.batchImages.filter(i => i.imageUrl).length} / {s.batchImages.length})
                       </div>
-                      {s.batchImgRunning && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Track value={s.batchImgProgress} max={batch.length} color="#c07ef0" />
-                        </div>
-                      )}
+                      {s.batchImgRunning && <div style={{ marginBottom: 8 }}><Track value={s.batchImgProgress} max={batch.length} color="#c07ef0" /></div>}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 600, overflowY: 'auto' }}>
                         {s.batchImages.map((item, i) => (
                           <div key={i} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                             {item.imageUrl ? (
                               <>
-                                <img
-                                  src={item.imageUrl}
-                                  alt={`Scene ${item.index + 1}`}
-                                  style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer', background: '#000' }}
-                                  onClick={() => window.open(item.imageUrl, '_blank')}
-                                />
-                                {/* Overlay bar */}
+                                <img src={item.imageUrl} alt={`Scene ${item.index + 1}`} style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer', background: '#000' }} onClick={() => window.open(item.imageUrl, '_blank')} />
                                 <div style={{ background: 'rgba(0,0,0,0.75)', padding: '3px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
                                   <span style={{ fontSize: 8, color: C.muted }}>#{item.index + 1}</span>
                                   <div style={{ display: 'flex', gap: 3 }}>
-                                    <a href={`/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`}
-                                      style={{
-                                        background: '#c07ef0', color: '#000', border: 'none',
-                                        borderRadius: 3, padding: '2px 6px', fontSize: 9,
-                                        fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
-                                        display: 'inline-block',
-                                      }}
-                                    >
-                                      ↓
-                                    </a>
-                                    <button
-                                      onClick={() => generateVideo(item.prompt, item.imageUrl, item.meta?.progressionLevel, item.index)}
-                                      disabled={s.batchVideos?.[item.index]?.generating}
-                                      style={{
-                                        background: s.batchVideos?.[item.index]?.generating ? C.goldDim : C.gold,
-                                        color: '#000', border: 'none', borderRadius: 3,
-                                        padding: '2px 6px', fontSize: 9, fontWeight: 700,
-                                        cursor: s.batchVideos?.[item.index]?.generating ? 'not-allowed' : 'pointer',
-                                      }}
-                                    >
+                                    <a href={`/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`} style={{ background: '#c07ef0', color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 9, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>↓</a>
+                                    <button onClick={() => generateVideo(item.prompt, item.imageUrl, item.meta?.progressionLevel, item.index)} disabled={s.batchVideos?.[item.index]?.generating} style={{ background: s.batchVideos?.[item.index]?.generating ? C.goldDim : C.gold, color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 9, fontWeight: 700, cursor: s.batchVideos?.[item.index]?.generating ? 'not-allowed' : 'pointer' }}>
                                       {s.batchVideos?.[item.index]?.generating ? '⟳' : '🎬'}
                                     </button>
                                   </div>
                                 </div>
-                                {/* Video result for this batch item */}
                                 {s.batchVideos?.[item.index]?.url && (
                                   <div style={{ padding: '4px' }}>
                                     <video src={s.batchVideos[item.index].url} controls loop style={{ width: '100%', borderRadius: 3 }} />
-                                    <a href={`/api/download-image?url=${encodeURIComponent(s.batchVideos[item.index].url)}&name=scene-${item.index + 1}.mp4`}
-                                      style={{ display: 'block', textAlign: 'center', marginTop: 4, fontSize: 9, color: C.gold, textDecoration: 'none' }}>
-                                      ↓ save video
-                                    </a>
+                                    <a href={`/api/download-image?url=${encodeURIComponent(s.batchVideos[item.index].url)}&name=scene-${item.index + 1}.mp4`} style={{ display: 'block', textAlign: 'center', marginTop: 4, fontSize: 9, color: C.gold, textDecoration: 'none' }}>↓ save video</a>
                                   </div>
                                 )}
-                                {s.batchVideos?.[item.index]?.error && (
-                                  <div style={{ padding: '4px 6px', fontSize: 8, color: '#cf6a6a' }}>
-                                    {s.batchVideos[item.index].error}
-                                  </div>
-                                )}
+                                {s.batchVideos?.[item.index]?.error && <div style={{ padding: '4px 6px', fontSize: 8, color: '#cf6a6a' }}>{s.batchVideos[item.index].error}</div>}
                               </>
                             ) : (
                               <div style={{ minHeight: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6 }}>
@@ -2467,17 +2704,7 @@ const generate = useCallback(() => {
                       </div>
                       {s.batchImages.filter(i => i.imageUrl).length > 0 && !s.batchImgRunning && (
                         <div style={{ marginTop: 8, display: 'flex', gap: 5 }}>
-                          <Btn variant="ghost" onClick={() => {
-                            s.batchImages.filter(i => i.imageUrl).forEach((item, idx) => {
-                              setTimeout(() => {
-                                const a = Object.assign(document.createElement('a'), {
-                                  href: `/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`,
-                                  download: `scene-${item.index + 1}.jpg`,
-                                })
-                                a.click()
-                              }, idx * 600)
-                            })
-                          }} sx={{ fontSize: 10 }}>
+                          <Btn variant="ghost" onClick={() => { s.batchImages.filter(i => i.imageUrl).forEach((item, idx) => { setTimeout(() => { const a = Object.assign(document.createElement('a'), { href: `/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`, download: `scene-${item.index + 1}.jpg` }); a.click() }, idx * 600) }) }} sx={{ fontSize: 10 }}>
                             ↓ Download All ({s.batchImages.filter(i => i.imageUrl).length})
                           </Btn>
                           <Btn variant="danger" onClick={() => merge({ batchImages: [], batchVideos: {} })} sx={{ fontSize: 10 }}>clear</Btn>
@@ -2487,142 +2714,75 @@ const generate = useCallback(() => {
                   )}
                 </div>
               )}
-
             </div>
 
             {/* ══ RIGHT ══ */}
-            <div style={{
-              borderLeft: `1px solid ${C.hairline}`,
-              overflowY: 'auto', padding: '10px 9px',
-              display: 'flex', flexDirection: 'column', gap: 8,
-            }}>
+            <div style={{ borderLeft: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-              {/* PROMPT HISTORY */}
-              <Panel title="Prompt History" accent={C.blue}
-                badge={history.length > 0 ? <Chip>{history.length}</Chip> : null}
-                defaultOpen={false}
-                right={
-                  <Btn variant="ghost" onClick={() => { loadHistory(); setHistoryOpen(true) }} sx={{ fontSize: 10 }}>
-                    load
-                  </Btn>
-                }
+              <Panel title="Prompt History" accent={C.blue} badge={history.length > 0 ? <Chip>{history.length}</Chip> : null} defaultOpen={false}
+                right={<Btn variant="ghost" onClick={() => { loadHistory(); setHistoryOpen(true) }} sx={{ fontSize: 10 }}>load</Btn>}
               >
-                {history.length === 0
-                  ? (
-                    <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>
-                      Click load to fetch your prompt history.
+                {history.length === 0 ? (
+                  <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>Click load to fetch your prompt history.</div>
+                ) : history.map(h => (
+                  <div key={h.id} style={{ background: C.surface, border: `1px solid ${C.subtle}`, borderRadius: 5, padding: '8px 9px' }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: 9, color: C.secondary }}>{h.created_at ? new Date(h.created_at).toLocaleDateString() : ''}</span>
+                      {h.progression_level && <Pill color={pc(h.progression_level)}>{h.progression_level}</Pill>}
+                      {h.director && h.director !== 'none' && <Pill color={C.gold}>{h.director}</Pill>}
+                      {h.world_id && <Pill color={C.blue}>{h.world_id.replace(/_/g, ' ')}</Pill>}
                     </div>
-                  )
-                  : history.map(h => (
-                    <div key={h.id} style={{
-                      background: C.surface, border: `1px solid ${C.subtle}`,
-                      borderRadius: 5, padding: '8px 9px',
-                    }}>
-                      <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span style={{ fontSize: 9, color: C.secondary }}>
-                          {h.created_at ? new Date(h.created_at).toLocaleDateString() : ''}
-                        </span>
-                        {h.progression_level && <Pill color={pc(h.progression_level)}>{h.progression_level}</Pill>}
-                        {h.director && h.director !== 'none' && <Pill color={C.gold}>{h.director}</Pill>}
-                        {h.world_id && <Pill color={C.blue}>{h.world_id.replace(/_/g, ' ')}</Pill>}
-                      </div>
-                      {h.image_url && (
-                        <img src={h.image_url} alt="generated"
-                          style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 3, marginBottom: 5 }} />
-                      )}
-                      <div style={{
-                        fontSize: 10, color: C.secondary, fontFamily: C.mono,
-                        lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5,
-                      }}>
-                        {(h.prompt || '').slice(0, 120)}{(h.prompt || '').length > 120 ? '…' : ''}
-                      </div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <Btn variant="ghost" onClick={() => {
-                          setResult({ finalPrompt: h.prompt, meta: { progressionLevel: h.progression_level, timeOfDay: h.time_of_day, primaryWorldId: h.world_id }, layers: {}, warnings: [] })
-                          setOutputTab('output')
-                          set('view', 'studio')
-                        }} sx={{ fontSize: 10 }}>
-                          load
-                        </Btn>
-                        <Btn variant="ghost" onClick={() => doCopy(h.prompt, `h${h.id}`)} sx={{ fontSize: 10 }}>
-                          {copied === `h${h.id}` ? '✓' : 'copy'}
-                        </Btn>
-                      </div>
+                    {h.image_url && <img src={h.image_url} alt="generated" style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 3, marginBottom: 5 }} />}
+                    <div style={{ fontSize: 10, color: C.secondary, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5 }}>
+                      {(h.prompt || '').slice(0, 120)}{(h.prompt || '').length > 120 ? '…' : ''}
                     </div>
-                  ))
-                }
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Btn variant="ghost" onClick={() => { setResult({ finalPrompt: h.prompt, meta: { progressionLevel: h.progression_level, timeOfDay: h.time_of_day, primaryWorldId: h.world_id }, layers: {}, warnings: [] }); setOutputTab('output'); set('view', 'studio') }} sx={{ fontSize: 10 }}>load</Btn>
+                      <Btn variant="ghost" onClick={() => doCopy(h.prompt, `h${h.id}`)} sx={{ fontSize: 10 }}>{copied === `h${h.id}` ? '✓' : 'copy'}</Btn>
+                    </div>
+                  </div>
+                ))}
               </Panel>
 
-              <Panel title="Saved Prompts" accent={C.blue}
-                badge={saved.length > 0 ? <Chip>{saved.length}</Chip> : null}
-                right={saved.length > 0 && <Btn variant="danger" onClick={() => setSaved([])}>clear</Btn>}
-              >
-                {saved.length === 0
-                  ? <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>No saved prompts yet.</div>
-                  : saved.map(e => (
-                      <div key={e.id} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '8px 9px' }}>
-                        <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <span style={{ fontSize: 9, color: C.muted }}>{e.ts}</span>
-                          <Pill color={pc(e.meta?.progressionLevel)}>{e.meta?.progressionLevel}</Pill>
-                          <Pill color={TIME_COLORS[e.meta?.timeOfDay] || C.muted}>{(e.meta?.timeOfDay || '').replace(/_/g, ' ')}</Pill>
-                        </div>
-                        <div style={{ fontSize: 10, color: C.muted, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5 }}>
-                          {e.prompt.slice(0, 140)}{e.prompt.length > 140 ? '…' : ''}
-                        </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <Btn variant="ghost" onClick={() => doCopy(e.prompt, `s${e.id}`)}>{copied === `s${e.id}` ? '✓' : 'copy'}</Btn>
-                          <Btn variant="danger" onClick={() => setSaved(p => p.filter(x => x.id !== e.id))}>✕</Btn>
-                        </div>
-                      </div>
-                    ))
-                }
+              <Panel title="Saved Prompts" accent={C.blue} badge={saved.length > 0 ? <Chip>{saved.length}</Chip> : null} right={saved.length > 0 && <Btn variant="danger" onClick={() => setSaved([])}>clear</Btn>}>
+                {saved.length === 0 ? (
+                  <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>No saved prompts yet.</div>
+                ) : saved.map(e => (
+                  <div key={e.id} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '8px 9px' }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: 9, color: C.muted }}>{e.ts}</span>
+                      <Pill color={pc(e.meta?.progressionLevel)}>{e.meta?.progressionLevel}</Pill>
+                      <Pill color={TIME_COLORS[e.meta?.timeOfDay] || C.muted}>{(e.meta?.timeOfDay || '').replace(/_/g, ' ')}</Pill>
+                    </div>
+                    <div style={{ fontSize: 10, color: C.muted, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5 }}>
+                      {e.prompt.slice(0, 140)}{e.prompt.length > 140 ? '…' : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Btn variant="ghost" onClick={() => doCopy(e.prompt, `s${e.id}`)}>{copied === `s${e.id}` ? '✓' : 'copy'}</Btn>
+                      <Btn variant="danger" onClick={() => setSaved(p => p.filter(x => x.id !== e.id))}>✕</Btn>
+                    </div>
+                  </div>
+                ))}
               </Panel>
 
               {worldObj && (
                 <Panel title="World Info">
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, fontFamily: C.display }}>{worldObj.name}</div>
-                  {worldObj.description && (
-                    <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-                      {worldObj.description.slice(0, 180)}{worldObj.description.length > 180 ? '…' : ''}
-                    </div>
-                  )}
-                  {worldObj.identity?.vibe?.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                      {worldObj.identity.vibe.slice(0, 5).map((v, i) => <Chip key={i}>{v}</Chip>)}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 9, color: C.ghost }}>
-                    {Object.keys(worldObj.subLocations || {}).length} sub-locations · {worldObj.phaseOrder?.length || 0} phases
-                  </div>
+                  {worldObj.description && <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>{worldObj.description.slice(0, 180)}{worldObj.description.length > 180 ? '…' : ''}</div>}
+                  {worldObj.identity?.vibe?.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>{worldObj.identity.vibe.slice(0, 5).map((v, i) => <Chip key={i}>{v}</Chip>)}</div>}
+                  <div style={{ fontSize: 9, color: C.ghost }}>{Object.keys(worldObj.subLocations || {}).length} sub-locations · {worldObj.phaseOrder?.length || 0} phases</div>
                 </Panel>
               )}
-
             </div>
           </div>
         )}
 
         {/* ══ TIMELINE VIEW ══ */}
         {s.view === 'timeline' && (
-          <div style={{
-            flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
-            overflow: 'hidden',
-          }}>
-
-            <div style={{
-              flexShrink: 0, padding: '10px 16px',
-              borderBottom: `1px solid ${C.hairline}`,
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: C.deep,
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>
-                Director's Timeline
-              </span>
-              {batch.length > 0 && (
-                <>
-                  <Chip>{batch.length} scenes</Chip>
-                  <Chip>{activeScene + 1} active</Chip>
-                </>
-              )}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Director's Timeline</span>
+              {batch.length > 0 && (<><Chip>{batch.length} scenes</Chip><Chip>{activeScene + 1} active</Chip></>)}
               <div style={{ flex: 1 }} />
               {batch.length > 0 && (
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -2632,9 +2792,7 @@ const generate = useCallback(() => {
                   <Btn variant="default" onClick={() => exportForTool('runway')}>⎘ Runway</Btn>
                   <Btn variant="default" onClick={() => exportForTool('kling')}>⎘ Kling</Btn>
                   <Btn variant="default" onClick={exportStoryboard}>storyboard</Btn>
-                  <Btn variant="default" onClick={() => doCopy(batch.map(r => r.finalPrompt).join('\n\n'), 'ba')}>
-                    {copied === 'ba' ? '✓ copied all' : 'copy all'}
-                  </Btn>
+                  <Btn variant="default" onClick={() => doCopy(batch.map(r => r.finalPrompt).join('\n\n'), 'ba')}>{copied === 'ba' ? '✓ copied all' : 'copy all'}</Btn>
                 </div>
               )}
               {batchRun && (
@@ -2646,30 +2804,11 @@ const generate = useCallback(() => {
             </div>
 
             {batch.length > 0 && (
-              <div style={{
-                flexShrink: 0,
-                padding: '8px 16px',
-                borderBottom: `1px solid ${C.hairline}`,
-                background: C.void,
-              }}>
-                <div style={{
-                  height: 4, borderRadius: 2, marginBottom: 6,
-                  background: `linear-gradient(90deg, ${
-                    batch.map((r, i) => {
-                      const col = TIME_COLORS[r.meta?.timeOfDay] || C.deep
-                      const pct = ((i / batch.length) * 100).toFixed(1)
-                      return `${col} ${pct}%`
-                    }).join(', ')
-                  })`,
-                }} />
+              <div style={{ flexShrink: 0, padding: '8px 16px', borderBottom: `1px solid ${C.hairline}`, background: C.void }}>
+                <div style={{ height: 4, borderRadius: 2, marginBottom: 6, background: `linear-gradient(90deg, ${batch.map((r, i) => { const col = TIME_COLORS[r.meta?.timeOfDay] || C.deep; const pct = ((i / batch.length) * 100).toFixed(1); return `${col} ${pct}%` }).join(', ')})` }} />
                 <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 48 }}>
                   {batch.map((r, i) => (
-                    <SceneCard
-                      key={i} result={r} index={i} total={batch.length}
-                      onClick={() => { setActiveScene(i); set('progressionIndex', i) }}
-                      isActive={i === activeScene}
-                      compact={true}
-                    />
+                    <SceneCard key={i} result={r} index={i} total={batch.length} onClick={() => { setActiveScene(i); set('progressionIndex', i) }} isActive={i === activeScene} compact={true} />
                   ))}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
@@ -2680,63 +2819,34 @@ const generate = useCallback(() => {
               </div>
             )}
 
-            <div style={{
-              flex: 1, minHeight: 0, overflowY: 'auto',
-              padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6,
-            }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {batch.length === 0 ? (
-                <div style={{
-                  flex: 1, display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  color: C.ghost, gap: 12,
-                }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 12 }}>
                   <div style={{ fontSize: 32 }}>🎬</div>
                   <div style={{ fontSize: 12, letterSpacing: 1 }}>No scenes generated yet.</div>
-                  <div style={{ fontSize: 10, color: C.ghost, opacity: 0.6 }}>
-                    Switch to Studio view and press Batch Generate.
-                  </div>
+                  <div style={{ fontSize: 10, color: C.ghost, opacity: 0.6 }}>Switch to Studio view and press Batch Generate.</div>
                   <Btn variant="gold" onClick={() => set('view', 'studio')}>← Back to Studio</Btn>
                 </div>
-              ) : (
-                batch.map((r, i) => (
-                  <SceneCard
-                    key={i} result={r} index={i} total={batch.length}
-                    onClick={() => { setActiveScene(i); set('progressionIndex', i) }}
-                    isActive={i === activeScene}
-                    compact={false}
-                  />
-                ))
-              )}
+              ) : batch.map((r, i) => (
+                <SceneCard key={i} result={r} index={i} total={batch.length} onClick={() => { setActiveScene(i); set('progressionIndex', i) }} isActive={i === activeScene} compact={false} />
+              ))}
             </div>
 
             {batch[activeScene] && (
-              <div style={{
-                flexShrink: 0, borderTop: `1px solid ${C.hairline}`,
-                padding: '10px 16px', background: C.deep,
-                display: 'flex', gap: 16, alignItems: 'flex-start',
-                maxHeight: 180,
-              }}>
+              <div style={{ flexShrink: 0, borderTop: `1px solid ${C.hairline}`, padding: '10px 16px', background: C.deep, display: 'flex', gap: 16, alignItems: 'flex-start', maxHeight: 180 }}>
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>Scene {activeScene + 1}</span>
                     <Pill color={pc(batch[activeScene].meta?.progressionLevel)}>{batch[activeScene].meta?.progressionLevel}</Pill>
-                    <Pill color={TIME_COLORS[batch[activeScene].meta?.timeOfDay] || C.muted}>
-                      {(batch[activeScene].meta?.timeOfDay || '').replace(/_/g, ' ')}
-                    </Pill>
+                    <Pill color={TIME_COLORS[batch[activeScene].meta?.timeOfDay] || C.muted}>{(batch[activeScene].meta?.timeOfDay || '').replace(/_/g, ' ')}</Pill>
                     <Pill color={C.blue}>{batch[activeScene].meta?.envFamily}</Pill>
                   </div>
-                  <div style={{
-                    fontSize: 11, fontFamily: C.mono, lineHeight: 1.8,
-                    color: '#7ecf7e', wordBreak: 'break-word',
-                    overflowY: 'auto', maxHeight: 120,
-                  }}>
+                  <div style={{ fontSize: 11, fontFamily: C.mono, lineHeight: 1.8, color: '#7ecf7e', wordBreak: 'break-word', overflowY: 'auto', maxHeight: 120 }}>
                     {batch[activeScene].finalPrompt}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-                  <Btn variant="ghost" onClick={() => doCopy(batch[activeScene].finalPrompt, `t${activeScene}`)}>
-                    {copied === `t${activeScene}` ? '✓ copied' : 'copy'}
-                  </Btn>
+                  <Btn variant="ghost" onClick={() => doCopy(batch[activeScene].finalPrompt, `t${activeScene}`)}>{copied === `t${activeScene}` ? '✓ copied' : 'copy'}</Btn>
                   <Btn variant="gold" onClick={() => setDirectorOpen(true)}>🎬 Chair</Btn>
                   <div style={{ display: 'flex', gap: 3 }}>
                     <Btn variant="ghost" disabled={activeScene === 0} onClick={() => { const n = activeScene - 1; setActiveScene(n); set('progressionIndex', n) }}>←</Btn>
@@ -2745,7 +2855,6 @@ const generate = useCallback(() => {
                 </div>
               </div>
             )}
-
           </div>
         )}
 

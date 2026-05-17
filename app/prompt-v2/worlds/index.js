@@ -14,6 +14,13 @@ import { WORLD_MONACO } from './monaco'
 import { WORLD_LUXURY_YACHT_RIVIERA } from './luxuryYachtRiviera'
 import { WORLD_FITNESS_GLOBAL_ELITE } from './fitness-global-elite'
 import { WORLD_HIGH_SOCIETY_LIFE } from './highSocietyLife'
+import { WORLD_SANTORINI } from './santorini'
+import { WORLD_INTIMATE_CREATOR } from './intimateCreator'
+import { WORLD_LINGERIE_MODEL } from './lingerieModel'
+import { WORLD_DUBAI } from './dubai'
+import { WORLD_MALIBU } from './malibu'
+import { WORLD_TULUM } from './tulum'
+import { WORLD_LUXURY_HOTEL_SUITE } from './luxuryHotelSuite'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -25,6 +32,11 @@ export const WORLD_LOCATIONS = [
   WORLD_MONACO,
   WORLD_LUXURY_YACHT_RIVIERA,
   WORLD_FITNESS_GLOBAL_ELITE,
+  WORLD_SANTORINI,
+  WORLD_DUBAI,
+  WORLD_MALIBU,
+  WORLD_TULUM,
+  WORLD_LUXURY_HOTEL_SUITE,
 ]
 
 export const STORY_STYLE_WORLDS = [
@@ -35,6 +47,8 @@ export const STORY_STYLE_WORLDS = [
   WORLD_FANVUE_CREATOR,
   WORLD_ONLYFANS_CREATOR,
   WORLD_GYM_INFLUENCER,
+  WORLD_INTIMATE_CREATOR,
+  WORLD_LINGERIE_MODEL,
 ]
 
 export const WORLD_LOCATION_IDS = WORLD_LOCATIONS.map((w) => w.id)
