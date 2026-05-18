@@ -1,0 +1,61 @@
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+// POST /api/save-ad-project
+// Saves the current connected ad project to Supabase
+
+export async function POST(req) {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (cs) => cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
+        },
+      }
+    )
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ status: 'error', message: 'Not authenticated' }, { status: 401 })
+    }
+
+    const {
+      productName, campaignName, platform, campaignGoal, brandVoice, visualStyle,
+      selectedAngle, selectedHook, fullContext, outputs,
+      musicTrackId, musicLicenseId,
+    } = await req.json()
+
+    const { data, error } = await supabase
+      .from('ad_projects')
+      .insert({
+        user_id:                 user.id,
+        product_name:            productName  || '',
+        campaign_name:           campaignName || productName || '',
+        platform:                platform     || null,
+        campaign_goal:           campaignGoal || null,
+        brand_voice:             brandVoice   || null,
+        visual_style:            visualStyle  || null,
+        selected_angle:          selectedAngle  || null,
+        selected_hook:           selectedHook   || null,
+        full_context:            fullContext    || null,
+        outputs:                 outputs        || null,
+        selected_music_track_id: musicTrackId   || null,
+        music_license_id:        musicLicenseId || null,
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ status: 'success', projectId: data.id })
+  } catch (err) {
+    return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
+  }
+}

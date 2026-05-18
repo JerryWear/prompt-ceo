@@ -9,38 +9,88 @@ function clean(value) {
 
 // ─── Ad Creative prompt builders ─────────────────────────────────────────────
 
-function buildProductAdPrompt({ productName, productDescription, adStyle, targetMood, platform }) {
+function buildProductAdPrompt({
+  productName,
+  productDescription,
+  adStyle,
+  targetMood,
+  platform,
+  // Phase 1 strategy fields
+  targetCustomer,
+  mainProblem,
+  mainDesire,
+  mainBenefit,
+  proofPoint,
+  brandVoice,
+  pricePoint,
+}) {
   const styleMap = {
-    lifestyle: 'aspirational lifestyle photography with the product naturally integrated into a real-world scene',
-    minimal: 'clean minimal product photography on a simple elegant background with dramatic lighting',
-    editorial: 'high-end editorial fashion-style photography with the product as the hero element',
-    ugc: 'authentic user-generated content style, casual real-life setting, handheld feel, natural light',
-    cinematic: 'cinematic wide-shot product placement in a dramatic environmental scene',
+    lifestyle:  'aspirational lifestyle photography with the product naturally integrated into a real-world scene',
+    minimal:    'clean minimal product photography on a simple elegant background with dramatic lighting',
+    editorial:  'high-end editorial fashion-style photography with the product as the hero element',
+    ugc:        'authentic user-generated content style, casual real-life setting, handheld feel, natural light',
+    cinematic:  'cinematic wide-shot product placement in a dramatic environmental scene',
   }
 
   const platformMap = {
-    instagram: 'vertical 4:5 crop, bold visual hierarchy, Instagram-ready composition',
-    tiktok: 'vertical 9:16 composition, dynamic energy, TikTok-native feel',
-    facebook: 'square or landscape, clear CTA visual space, Facebook ad format',
-    general: 'versatile composition suitable for multiple platforms',
+    instagram:  'vertical 4:5 crop, bold visual hierarchy, Instagram-ready composition',
+    tiktok:     'vertical 9:16 composition, dynamic energy, TikTok-native feel',
+    facebook:   'square or landscape, clear CTA visual space, Facebook ad format',
+    shopify:    'clean square or landscape, product centred, white or minimal background, DTC premium feel',
+    general:    'versatile composition suitable for multiple platforms',
   }
+
+  const voiceMoodMap = {
+    luxury:     'ultra-premium, exclusive, cinematic elegance',
+    bold:       'powerful, high-energy, direct and confident',
+    emotional:  'warm, intimate, personally resonant',
+    clean:      'minimal, fresh, modern and clinical',
+    aggressive: 'urgent, punchy, pattern-interrupt energy',
+    feminine:   'soft, aspirational, beautifully lit',
+    premium:    'refined, quality-first, selective',
+    friendly:   'warm, relatable, approachable and real',
+  }
+
+  const priceVisualMap = {
+    'low-ticket': 'accessible and relatable setting, everyday luxury feel',
+    'mid-ticket': 'aspirational but achievable, premium residential or lifestyle setting',
+    'premium':    'high-end environment, designer details, polished surfaces',
+    'luxury':     'ultra-luxury setting, architectural elegance, cinematic scale',
+  }
+
+  // Build the strategy context from filled-in fields
+  const strategyLines = [
+    targetCustomer && `Target customer: ${targetCustomer}`,
+    mainDesire     && `The customer deeply desires: ${mainDesire}`,
+    mainBenefit    && `The key visual promise: ${mainBenefit}`,
+    mainProblem    && `The problem being solved: ${mainProblem}`,
+    proofPoint     && `Social proof signal: ${proofPoint}`,
+  ].filter(Boolean)
+
+  const moodInstruction = targetMood
+    || voiceMoodMap[brandVoice]
+    || 'aspirational, premium, desirable'
 
   return `
 High-end commercial advertising photograph for: ${productName}
-Product details: ${productDescription}
+Product details: ${productDescription || 'Not specified'}
 
 Visual style: ${styleMap[adStyle] || styleMap.lifestyle}
 Platform optimisation: ${platformMap[platform] || platformMap.general}
-Target mood: ${targetMood || 'aspirational, premium, desirable'}
+${pricePoint ? `Price tier visual language: ${priceVisualMap[pricePoint] || ''}` : ''}
+Brand mood: ${moodInstruction}
+
+${strategyLines.length > 0 ? `Strategic context for the visual:\n${strategyLines.map(l => `- ${l}`).join('\n')}` : ''}
 
 Requirements:
 - Product must be the clear hero or naturally prominent in the scene
 - Photorealistic, commercial-grade quality
 - Professional studio or location lighting
-- No text, logos, or overlays in the image
+- No text, logos, watermarks, or overlays in the image
 - Colour grade: clean, punchy, commercially appealing
 - Composition leaves natural space for ad copy overlay
-- Convey: quality, desirability, lifestyle aspiration
+- Visual should directly support the key benefit: ${mainBenefit || 'quality and desirability'}
+- Convey: ${moodInstruction}
 `
 }
 
@@ -177,12 +227,25 @@ export async function POST(req) {
 
     if (mode === 'product_ad') {
       // ── PRODUCT AD MODE ───────────────────────────────────────────────────
-      const adContext = buildProductAdPrompt({
-        productName: clean(body?.adConfig?.productName) || 'the product',
-        productDescription: clean(body?.adConfig?.productDescription) || '',
-        adStyle: clean(body?.adConfig?.adStyle) || 'lifestyle',
-        targetMood: clean(body?.adConfig?.targetMood) || '',
-        platform: clean(body?.adConfig?.platform) || 'general',
+      const cfg           = body?.adConfig || {}
+      const prebuiltPrompt = clean(body?.prebuiltPrompt) // AI-written prompt from Images tab
+
+      // If a pre-built prompt was passed (from Images tab), use it directly
+      // and skip buildProductAdPrompt — just refine with Grok
+      const adContext = prebuiltPrompt || buildProductAdPrompt({
+        productName:        clean(cfg.productName)        || 'the product',
+        productDescription: clean(cfg.productDescription) || '',
+        adStyle:            clean(cfg.adStyle)            || 'lifestyle',
+        targetMood:         clean(cfg.targetMood)         || '',
+        platform:           clean(cfg.platform)           || 'general',
+        // Phase 1 strategy fields
+        targetCustomer: clean(cfg.targetCustomer),
+        mainProblem:    clean(cfg.mainProblem),
+        mainDesire:     clean(cfg.mainDesire),
+        mainBenefit:    clean(cfg.mainBenefit),
+        proofPoint:     clean(cfg.proofPoint),
+        brandVoice:     clean(cfg.brandVoice),
+        pricePoint:     clean(cfg.pricePoint),
       })
 
       // Improve with Grok text model
@@ -199,7 +262,7 @@ export async function POST(req) {
               },
               {
                 role: 'user',
-                content: `${adContext}\n\nExpand into a precise image generation prompt. Be specific about: lighting setup, camera angle, scene composition, colour palette, product placement, and commercial mood. Max 400 words. No preamble.`,
+                content: `${adContext}\n\nExpand into a precise image generation prompt for a high-converting paid ad. Be specific about: lighting setup (colour temperature, direction, quality), camera angle and lens feel, scene composition, colour palette, product placement, environment detail, and the emotional commercial mood. The visual must directly support the product's key benefit and target customer. No text overlays. No watermarks. Max 400 words. No preamble.`,
               },
             ],
           }),

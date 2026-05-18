@@ -5,6 +5,7 @@ import { createClient } from '../../lib/supabase/client'
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { buildPromptV3 } from './index.js'
+import MusicSelector from './components/MusicSelector.js'
 
 import {
   WORLD_LOCATIONS,
@@ -137,7 +138,7 @@ function AdLoadingState({ outputType }) {
   )
 }
 
-function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText }) {
   const [adMode, setAdMode]             = useState('product_ad')
   const [adOutputType, setAdOutputType] = useState('image')
   const [adFormat, setAdFormat]         = useState('feed')
@@ -150,9 +151,679 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
   const [adGoal, setAdGoal]             = useState('awareness')
   const [visualStyle, setVisualStyle]   = useState('')
   const [extraContext, setExtraContext]  = useState('')
+  // Phase 1 — extended ad strategy fields
+  const [targetCustomer, setTargetCustomer] = useState('')
+  const [mainProblem, setMainProblem]       = useState('')
+  const [mainDesire, setMainDesire]         = useState('')
+  const [mainBenefit, setMainBenefit]       = useState('')
+  const [proofPoint, setProofPoint]         = useState('')
+  const [offer, setOffer]                   = useState('')
+  const [callToAction, setCallToAction]     = useState('')
+  const [brandVoice, setBrandVoice]         = useState('premium')
+  const [pricePoint, setPricePoint]         = useState('mid-ticket')
+  const [platformGoal, setPlatformGoal]     = useState('sales')
+  // Selection state — shared across all tabs
+  const [selectedAngle,    setSelectedAngle]    = useState(null)
+  const [selectedHook,     setSelectedHook]     = useState(null)
+  const [buildingProject,  setBuildingProject]  = useState(false)
+  const [projectSaved,     setProjectSaved]     = useState(false)
+  // Lock state — locked items are injected into every generation
+  const [lockedAngle,       setLockedAngle]       = useState(null)
+  const [lockedHook,        setLockedHook]        = useState(null)
+  const [lockedCaption,     setLockedCaption]     = useState(null)
+  const [lockedVisualStyle, setLockedVisualStyle] = useState(null)
+  const [lockedMusic,       setLockedMusic]       = useState(null)
+  const [lockedBrandVoice,  setLockedBrandVoice]  = useState(null)
+  // Saved projects
+  const [savedProjects,    setSavedProjects]    = useState([])
+  const [projectsLoading,  setProjectsLoading]  = useState(false)
+  const [projectsLoaded,   setProjectsLoaded]   = useState(false)
+  // Creative Director notes — one per generation type
+  const [directorNotes,    setDirectorNotes]    = useState({})
+  const [directorLoading,  setDirectorLoading]  = useState(false)
+  // Campaign Consistency
+  const [consistencyResult, setConsistencyResult] = useState(null)
+  const [consistencyLoading, setConsistencyLoading] = useState(false)
+  // Ad Fatigue Detection
+  const [fatigueResult,   setFatigueResult]   = useState(null)
+  const [fatigueLoading,  setFatigueLoading]  = useState(false)
+  // Project Score (Creative Score Dashboard)
+  const [projectScore,    setProjectScore]    = useState(null)
+  const [projectScoreLoading, setProjectScoreLoading] = useState(false)
+  // Competitor / Inspired Analysis
+  const [competitorText,  setCompetitorText]  = useState('')
+  const [competitorResult, setCompetitorResult] = useState(null)
+  const [competitorLoading, setCompetitorLoading] = useState(false)
+  // Campaign Timeline
+  const [timeline,        setTimeline]        = useState([])
+  // Brand Brain winners
+  const [winners,         setWinners]         = useState(() => {
+    try { return JSON.parse(localStorage.getItem('promptceo_winners_v1') || '{"angles":[],"hooks":[]}') } catch { return { angles: [], hooks: [] } }
+  })
+  // Storyboards — keyed by video card index
+  const [storyboards,     setStoryboards]     = useState({})
+  const [storyboardLoading, setStoryboardLoading] = useState({})
+  // Export Briefs
+  const [briefs,          setBriefs]          = useState({})
+  const [briefLoading,    setBriefLoading]    = useState(false)
+  const [briefOpen,       setBriefOpen]       = useState(null) // 'campaign' | 'creator' | 'media_buyer'
+  // Brand DNA state
+  const [dnaProfiles,   setDnaProfiles]    = useState([])
+  const [dnaName,       setDnaName]        = useState('')
+  const [dnaSaveOpen,   setDnaSaveOpen]    = useState(false)
+
+  // Load DNA profiles on mount
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('promptceo_ad_brand_dna_v1') || '[]')
+      setDnaProfiles(raw)
+    } catch {}
+  }, [])
+
+  // Auto-fetch Creative Director note + track timeline when a generation completes
+  const prevGenerating = useRef(false)
+  useEffect(() => {
+    const wasGenerating = prevGenerating.current
+    prevGenerating.current = s.adTextGenerating
+    if (!wasGenerating || s.adTextGenerating) return
+    const type = s.adTextType
+    if (!type || type === 'variation' || type === 'quality_score') return
+    const key = type + (s.adTextHookType ? `_${s.adTextHookType}` : '')
+    if (!s.adTextResults?.[key]) return
+    // Timeline event
+    const count = Array.isArray(s.adTextResults[key]) ? s.adTextResults[key].length : s.adTextResults[key]?.hooks?.length || 1
+    addTimelineEvent(`Generated ${type.replace(/_/g, ' ')}`, `${count} outputs`)
+    // Director note
+    if (!directorNotes[key]) fetchDirectorNote(key, s.adTextResults[key])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.adTextGenerating])
+
+  const dnaPersist = (profiles) => {
+    try { localStorage.setItem('promptceo_ad_brand_dna_v1', JSON.stringify(profiles)) } catch {}
+    setDnaProfiles(profiles)
+  }
+
+  const dnaGetCurrentFields = () => ({
+    productName, productDesc, targetMood, targetCustomer, mainProblem,
+    mainDesire, mainBenefit, proofPoint, offer, callToAction,
+    brandVoice, pricePoint, platformGoal, adPlatform, adStyle, inspiredStyle,
+  })
+
+  const dnaSaveProfile = () => {
+    const name = dnaName.trim() || productName.trim() || `Brand ${Date.now()}`
+    const profiles = dnaProfiles.filter(p => p.name !== name)
+    const profile  = { id: Date.now(), name, savedAt: new Date().toISOString(), fields: dnaGetCurrentFields() }
+    const updated  = [profile, ...profiles].slice(0, 10)
+    dnaPersist(updated)
+    setDnaName('')
+    setDnaSaveOpen(false)
+  }
+
+  const dnaLoadProfile = (profile) => {
+    const f = profile.fields || {}
+    if (f.productName    !== undefined) setProductName(f.productName)
+    if (f.productDesc    !== undefined) setProductDesc(f.productDesc)
+    if (f.targetMood     !== undefined) setTargetMood(f.targetMood)
+    if (f.targetCustomer !== undefined) setTargetCustomer(f.targetCustomer)
+    if (f.mainProblem    !== undefined) setMainProblem(f.mainProblem)
+    if (f.mainDesire     !== undefined) setMainDesire(f.mainDesire)
+    if (f.mainBenefit    !== undefined) setMainBenefit(f.mainBenefit)
+    if (f.proofPoint     !== undefined) setProofPoint(f.proofPoint)
+    if (f.offer          !== undefined) setOffer(f.offer)
+    if (f.callToAction   !== undefined) setCallToAction(f.callToAction)
+    if (f.brandVoice     !== undefined) setBrandVoice(f.brandVoice)
+    if (f.pricePoint     !== undefined) setPricePoint(f.pricePoint)
+    if (f.platformGoal   !== undefined) setPlatformGoal(f.platformGoal)
+    if (f.adPlatform     !== undefined) setAdPlatform(f.adPlatform)
+    if (f.adStyle        !== undefined) setAdStyle(f.adStyle)
+    if (f.inspiredStyle  !== undefined) setInspiredStyle(f.inspiredStyle)
+  }
+
+  const dnaDeleteProfile = (id) => {
+    const updated = dnaProfiles.filter(p => p.id !== id)
+    dnaPersist(updated)
+  }
+
+  // Output tab state
+  const [adOutputTab,    setAdOutputTab]    = useState(() => {
+    if (typeof window !== 'undefined' && window.__adStudioInitTab) {
+      const tab = window.__adStudioInitTab
+      delete window.__adStudioInitTab
+      return tab
+    }
+    return 'creative'
+  })
+  const [activeHookType, setActiveHookType] = useState('pain')
+  const [inspiredStyle,  setInspiredStyle]  = useState('none')
+  const [scoreInput,     setScoreInput]     = useState('')
+  const [copiedText,     setCopiedText]     = useState('')
+
+  const doCopyAdText = async (text, key) => {
+    try { await navigator.clipboard.writeText(text) } catch {}
+    setCopiedText(key); setTimeout(() => setCopiedText(''), 1600)
+  }
+
+  const buildAdConfig = () => ({
+    productName, productDescription: productDesc, adStyle, targetMood, platform: adPlatform,
+    targetCustomer, mainProblem, mainDesire, mainBenefit, proofPoint,
+    offer, callToAction, brandVoice, pricePoint, platformGoal,
+    selectedAngle, selectedHook,
+    lockedAngle, lockedHook, lockedCaption, lockedVisualStyle, lockedMusic, lockedBrandVoice,
+  })
+
+  const handleGenerateText = (type, hookType) => {
+    if (!productName.trim()) return
+    generateAdText({ type, hookType: hookType || null, adConfig: buildAdConfig(), inspiredStyle: inspiredStyle !== 'none' ? inspiredStyle : null })
+  }
+
+  const handleScoreContent = () => {
+    if (!scoreInput.trim()) return
+    generateAdText({ type: 'quality_score', adConfig: buildAdConfig(), contentToScore: scoreInput })
+  }
+
+  // Per-card image generation for image prompts tab
+  const [cardImages,       setCardImages]       = useState({})  // { [cardKey]: { url, generating, error } }
+
+  const generateCardImage = async (prompt, cardKey) => {
+    setCardImages(prev => ({ ...prev, [cardKey]: { generating: true, url: '', error: '' } }))
+    try {
+      const res  = await fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          prebuiltPrompt: prompt,  // use the AI-written image prompt directly
+          mode: 'product_ad',
+          adConfig: buildAdConfig(),
+        }),
+      })
+      const data = await res.json()
+      if (data?.status === 'complete') {
+        setCardImages(prev => ({ ...prev, [cardKey]: { generating: false, url: data.imageUrl, error: '' } }))
+        if (typeof data.creditsRemaining === 'number') merge({ credits: data.creditsRemaining })
+      } else {
+        setCardImages(prev => ({ ...prev, [cardKey]: { generating: false, url: '', error: data?.message || 'Generation failed' } }))
+      }
+    } catch (err) {
+      setCardImages(prev => ({ ...prev, [cardKey]: { generating: false, url: '', error: err.message } }))
+    }
+  }
+
+  const handleVariation = (content, variationType, contentType = 'hook') => {
+    if (!content || s.adTextGenerating) return
+    generateAdText({
+      type: 'variation', adConfig: buildAdConfig(),
+      variationContent: content, variationType, variationContentType: contentType,
+    })
+  }
+
+  // ── Build Full Ad Project ──────────────────────────────────
+  // Chains angle → hook → captions + UGC sequentially via direct fetch.
+  // Results land in s.adTextResults via merge.
+  const handleBuildFullProject = async () => {
+    if (!productName.trim() || buildingProject || s.adTextGenerating) return
+    setBuildingProject(true)
+    setProjectSaved(false)
+    const baseConfig = buildAdConfig()
+    const accum = {}
+
+    const runStep = async (type, config, hookType) => {
+      merge({ adTextGenerating: true, adTextType: type, adTextError: '' })
+      const res = await fetch('/api/generate-ad-text', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, hookType: hookType || null, adConfig: config }),
+      })
+      const data = await res.json()
+      merge({ adTextGenerating: false })
+      if (data.status !== 'complete') throw new Error(data.message || `${type} generation failed`)
+      if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      const key = type + (hookType ? `_${hookType}` : '')
+      accum[key] = data.data
+      merge({ adTextResults: { ...accum } })
+      return data.data
+    }
+
+    try {
+      // Step 1 — Angles
+      const angles = await runStep('angles', baseConfig)
+      const bestAngle = angles?.[0] || null
+      if (bestAngle) setSelectedAngle(bestAngle)
+
+      // Step 2 — Hooks (using selected angle)
+      const configWithAngle = { ...baseConfig, selectedAngle: bestAngle }
+      const hooksResult = await runStep('hooks', configWithAngle, 'pain')
+      const bestHook = (Array.isArray(hooksResult?.hooks) ? hooksResult.hooks : hooksResult)?.[0] || null
+      if (bestHook) setSelectedHook(bestHook)
+
+      // Step 3 — Captions + UGC in parallel
+      const configFull = { ...configWithAngle, selectedHook: bestHook }
+      await Promise.all([
+        runStep('captions', configFull),
+        runStep('ugc_scripts', configFull),
+      ])
+
+      setAdOutputTab('angles')
+    } catch (err) {
+      merge({ adTextError: err.message, adTextGenerating: false })
+    } finally {
+      setBuildingProject(false)
+      merge({ adTextGenerating: false })
+    }
+  }
+
+  const handleSaveProject = async () => {
+    if (!productName.trim()) return
+    try {
+      const res = await fetch('/api/save-ad-project', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName,
+          campaignName: productName,
+          platform: adPlatform,
+          campaignGoal: platformGoal,
+          brandVoice,
+          visualStyle: adStyle,
+          selectedAngle,
+          selectedHook,
+          fullContext: buildAdConfig(),
+          outputs: s.adTextResults || {},
+          musicTrackId: s.adMusicTrack?.id || null,
+          musicLicenseId: s.adMusicLicenseId || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setProjectSaved(true)
+        setProjectsLoaded(false) // force reload next open
+      }
+    } catch {}
+  }
+
+  const fetchDirectorNote = async (type, data) => {
+    if (!productName.trim() || directorNotes[type]) return
+    setDirectorLoading(true)
+    try {
+      const res  = await fetch('/api/creative-director-note', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, data, adConfig: buildAdConfig() }),
+      })
+      const resp = await res.json()
+      if (resp.status === 'success') {
+        setDirectorNotes(prev => ({ ...prev, [type]: resp.note }))
+      }
+    } catch {}
+    finally { setDirectorLoading(false) }
+  }
+
+  const checkConsistency = async () => {
+    if (!productName.trim() || consistencyLoading) return
+    setConsistencyLoading(true)
+    try {
+      const res  = await fetch('/api/campaign-consistency', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...buildAdConfig(),
+          adMusicTrack: s.adMusicTrack,
+          adTextResults: s.adTextResults,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setConsistencyResult(data.report)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setConsistencyLoading(false) }
+  }
+
+  const checkAdFatigue = async () => {
+    if (fatigueLoading || !s.adTextResults || Object.keys(s.adTextResults).length < 2) return
+    setFatigueLoading(true)
+    try {
+      const res  = await fetch('/api/ad-fatigue', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outputs: s.adTextResults, adConfig: buildAdConfig() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setFatigueResult(data.report)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setFatigueLoading(false) }
+  }
+
+  const scoreFullProject = async () => {
+    if (projectScoreLoading || !productName.trim()) return
+    setProjectScoreLoading(true)
+    try {
+      const res  = await fetch('/api/project-score', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: buildAdConfig(),
+          outputs: s.adTextResults || {},
+          selections: { selectedAngle, selectedHook, lockedAngle, lockedHook, lockedBrandVoice, lockedVisualStyle, lockedMusic, adMusicTrack: s.adMusicTrack },
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setProjectScore(data.score)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setProjectScoreLoading(false) }
+  }
+
+  const analyseCompetitor = async () => {
+    if (!competitorText.trim() || competitorLoading) return
+    setCompetitorLoading(true)
+    try {
+      const res  = await fetch('/api/competitor-analysis', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competitorText, adConfig: buildAdConfig() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setCompetitorResult(data.analysis)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setCompetitorLoading(false) }
+  }
+
+  const addTimelineEvent = (event, detail = '') => {
+    setTimeline(prev => [{ ts: Date.now(), event, detail }, ...prev].slice(0, 30))
+  }
+
+  const toggleWinner = (type, item) => {
+    setWinners(prev => {
+      const key = type === 'angle' ? 'angles' : 'hooks'
+      const id  = type === 'angle' ? item.title : item
+      const exists = prev[key].some(w => (type === 'angle' ? w.title : w) === id)
+      const updated = exists
+        ? { ...prev, [key]: prev[key].filter(w => (type === 'angle' ? w.title : w) !== id) }
+        : { ...prev, [key]: [item, ...prev[key]].slice(0, 10) }
+      try { localStorage.setItem('promptceo_winners_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }
+
+  const generateStoryboard = async (videoPrompt, cardKey, adDuration = 30) => {
+    setStoryboardLoading(prev => ({ ...prev, [cardKey]: true }))
+    try {
+      const res  = await fetch('/api/video-storyboard', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoPrompt, adConfig: { ...buildAdConfig(), adMusicTrack: s.adMusicTrack }, adDuration }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setStoryboards(prev => ({ ...prev, [cardKey]: data.storyboard }))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setStoryboardLoading(prev => ({ ...prev, [cardKey]: false })) }
+  }
+
+  const generateBrief = async (briefType) => {
+    if (briefLoading || briefs[briefType]) { setBriefOpen(briefType); return }
+    setBriefLoading(true)
+    try {
+      const res  = await fetch('/api/export-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefType, adConfig: { ...buildAdConfig(), adMusicTrack: s.adMusicTrack }, outputs: s.adTextResults || {} }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setBriefs(prev => ({ ...prev, [briefType]: data.brief }))
+        setBriefOpen(briefType)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setBriefLoading(false) }
+  }
+
+  const exportBriefAsTxt = (brief) => {
+    if (!brief) return
+    const text = [
+      brief.title,
+      '='.repeat(brief.title?.length || 40),
+      '',
+      ...(brief.sections || []).flatMap(sec => [
+        sec.heading.toUpperCase(),
+        '-'.repeat(sec.heading.length),
+        sec.content,
+        '',
+      ])
+    ].join('\n')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })),
+      download: `${brief.title?.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'brief'}.txt`,
+    })
+    a.click()
+  }
+
+  const loadSavedProjects = async () => {
+    if (projectsLoading) return
+    setProjectsLoading(true)
+    try {
+      const res  = await fetch('/api/load-ad-projects')
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSavedProjects(data.projects || [])
+        setProjectsLoaded(true)
+      }
+    } catch {}
+    finally { setProjectsLoading(false) }
+  }
+
+  const restoreProject = (project) => {
+    const ctx = project.full_context || {}
+    // Restore all form fields
+    if (ctx.productName          !== undefined) setProductName(ctx.productName)
+    if (ctx.productDescription   !== undefined) setProductDesc(ctx.productDescription)
+    if (ctx.targetMood           !== undefined) setTargetMood(ctx.targetMood)
+    if (ctx.platform             !== undefined) setAdPlatform(ctx.platform)
+    if (ctx.targetCustomer       !== undefined) setTargetCustomer(ctx.targetCustomer)
+    if (ctx.mainProblem          !== undefined) setMainProblem(ctx.mainProblem)
+    if (ctx.mainDesire           !== undefined) setMainDesire(ctx.mainDesire)
+    if (ctx.mainBenefit          !== undefined) setMainBenefit(ctx.mainBenefit)
+    if (ctx.proofPoint           !== undefined) setProofPoint(ctx.proofPoint)
+    if (ctx.offer                !== undefined) setOffer(ctx.offer)
+    if (ctx.callToAction         !== undefined) setCallToAction(ctx.callToAction)
+    if (ctx.brandVoice           !== undefined) setBrandVoice(ctx.brandVoice)
+    if (ctx.pricePoint           !== undefined) setPricePoint(ctx.pricePoint)
+    if (ctx.platformGoal         !== undefined) setPlatformGoal(ctx.platformGoal)
+    if (ctx.adStyle              !== undefined) setAdStyle(ctx.adStyle)
+    // Restore selections
+    if (project.selected_angle)  setSelectedAngle(project.selected_angle)
+    if (project.selected_hook)   setSelectedHook(project.selected_hook)
+    // Restore all generated outputs
+    if (project.outputs && Object.keys(project.outputs).length > 0) {
+      merge({ adTextResults: project.outputs })
+    }
+    setProjectSaved(true)
+    setAdOutputTab('angles')
+  }
+
+  // Export helpers — client-side only, no API needed
+  const exportTxt = (content, filename) => {
+    const text = Array.isArray(content)
+      ? content.map((item, i) => `--- ${i + 1} ---\n${extractText(item)}`).join('\n\n')
+      : String(content)
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })),
+      download: filename || `promptceo-ad-${Date.now()}.txt`,
+    })
+    a.click()
+  }
+
+  const exportJson = (content, filename) => {
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' })),
+      download: filename || `promptceo-ad-${Date.now()}.json`,
+    })
+    a.click()
+  }
+
+  const extractText = (item) => {
+    if (typeof item === 'string') return item
+    return item?.fullCaption || item?.hook || item?.script || item?.prompt || item?.fullPrompt || JSON.stringify(item)
+  }
+
+  const copyAll = (items) => {
+    const text = (items || []).map((item, i) => `${i + 1}. ${extractText(item)}`).join('\n\n')
+    doCopyAdText(text, 'copy_all')
+  }
+
+  // Variation bar — rendered below each generate button or inline
+  const VARIATION_BUTTONS = [
+    { id: 'luxury',    label: '👑 Luxury'    },
+    { id: 'emotional', label: '💛 Emotional' },
+    { id: 'direct',    label: '⚡ Direct'    },
+    { id: 'viral',     label: '🔥 Viral'     },
+    { id: 'shorter',   label: '✂ Shorter'    },
+    { id: 'premium',   label: '💎 Premium'   },
+    { id: 'ugc',       label: '📱 UGC'       },
+    { id: 'cinematic', label: '🎬 Cinematic' },
+    { id: 'bold',      label: '💥 Bolder'    },
+    { id: 'curious',   label: '🔮 Curious'   },
+  ]
+
+  // Prominent variation buttons — 6 core actions
+  const QUICK_VARIATIONS = [
+    { id: 'luxury',    label: '👑 More Luxury',    color: '#c8a84b' },
+    { id: 'direct',    label: '⚡ More Direct',    color: '#4a8ab4' },
+    { id: 'emotional', label: '💛 More Emotional', color: '#c8843a' },
+    { id: 'viral',     label: '🔥 More Viral',     color: '#b44a4a' },
+    { id: 'shorter',   label: '✂ Shorter',         color: '#4a9a6a' },
+    { id: 'bold',      label: '💥 Bolder',         color: '#9b6fd4' },
+  ]
+  const MORE_VARIATIONS = [
+    { id: 'premium',   label: '💎 Premium'   },
+    { id: 'ugc',       label: '📱 UGC'       },
+    { id: 'cinematic', label: '🎬 Cinematic' },
+    { id: 'curious',   label: '🔮 Curious'   },
+  ]
+
+  const VariationBar = ({ content, contentType = 'hook' }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Make it more…</div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {QUICK_VARIATIONS.map(v => (
+          <button key={v.id}
+            onClick={() => handleVariation(content, v.id, contentType)}
+            disabled={s.adTextGenerating}
+            style={{
+              padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+              cursor: s.adTextGenerating ? 'not-allowed' : 'pointer',
+              border: `1px solid ${v.color}44`, background: v.color + '11',
+              color: s.adTextGenerating ? C.muted : v.color,
+              whiteSpace: 'nowrap', opacity: s.adTextGenerating ? 0.5 : 1,
+              transition: 'all 0.15s',
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+        {MORE_VARIATIONS.map(v => (
+          <button key={v.id}
+            onClick={() => handleVariation(content, v.id, contentType)}
+            disabled={s.adTextGenerating}
+            style={{
+              padding: '4px 8px', borderRadius: 999, fontSize: 9, fontWeight: 700,
+              cursor: s.adTextGenerating ? 'not-allowed' : 'pointer',
+              border: `1px solid ${C.hairline}`, background: C.deep,
+              color: C.muted, whiteSpace: 'nowrap', opacity: s.adTextGenerating ? 0.5 : 1,
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  const ExportBar = ({ items, filename, type }) => (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+      <button onClick={() => copyAll(items)} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === 'copy_all' ? C.green : C.secondary }}>
+        {copiedText === 'copy_all' ? '✓ Copied All' : '⎘ Copy All'}
+      </button>
+      <button onClick={() => exportTxt(items, `${filename}.txt`)} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}>
+        ↓ TXT
+      </button>
+      <button onClick={() => exportJson(items, `${filename}.json`)} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}>
+        ↓ JSON
+      </button>
+    </div>
+  )
+
+  // Variation result display (inline, appended below the originals)
+  const variationResult = s.adTextResults?.variation
+  const VariationResult = () => {
+    if (!variationResult || s.adTextType !== 'variation' || s.adTextGenerating) return null
+    return (
+      <div style={{ borderRadius: 6, border: `2px solid ${C.goldDim}`, background: C.goldGlow, overflow: 'hidden' }}>
+        <div style={{ padding: '7px 11px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>✦ Variation — {variationResult.variationLabel}</span>
+          <button onClick={() => doCopyAdText(variationResult.content, 'var_result')} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: C.raised, color: copiedText === 'var_result' ? C.green : C.gold }}>
+            {copiedText === 'var_result' ? '✓' : '⎘ Copy'}
+          </button>
+        </div>
+        <div style={{ padding: '10px 11px', fontSize: 12, color: C.primary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+          {variationResult.content}
+        </div>
+      </div>
+    )
+  }
   const [suggesting, setSuggesting]     = useState(false)
   const [suggested, setSuggested]       = useState(false)
   const [localCopied, setLocalCopied]   = useState('')
+
+  // ── Creative Director Note component ─────────────────────
+  const DirectorNote = ({ noteKey }) => {
+    const note = directorNotes[noteKey]
+    if (!note && !directorLoading) return null
+    if (directorLoading && !note) {
+      return (
+        <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: C.goldGlow, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, animation: 'pulse 1s infinite', flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: C.gold }}>Creative Director is reviewing…</span>
+        </div>
+      )
+    }
+    if (!note) return null
+    return (
+      <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+        <div style={{ padding: '7px 12px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 1 }}>✦ CREATIVE DIRECTOR</span>
+          <button onClick={() => setDirectorNotes(prev => { const n = { ...prev }; delete n[noteKey]; return n })}
+            style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>✕</button>
+        </div>
+        <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {note.directorQuote && (
+            <div style={{ fontSize: 12, color: C.primary, fontStyle: 'italic', lineHeight: 1.55, borderLeft: `2px solid ${C.gold}`, paddingLeft: 10 }}>
+              "{note.directorQuote}"
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div style={{ padding: '6px 8px', borderRadius: 4, background: '#081208', border: '1px solid #1a3a1a' }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Why it works</div>
+              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{note.whyThisWorks}</div>
+            </div>
+            <div style={{ padding: '6px 8px', borderRadius: 4, background: '#110806', border: '1px solid #2a1010' }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>What is weak</div>
+              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{note.whatIsWeak}</div>
+            </div>
+          </div>
+          {note.bestNextAction && (
+            <div style={{ padding: '6px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>Next action: </span>
+              <span style={{ fontSize: 10, color: C.primary }}>{note.bestNextAction}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const cost = adOutputType === 'video' ? 60 : 5
   const hasEnoughCredits = (s.credits || 0) >= cost
@@ -188,11 +859,46 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
   function handleGenerate() {
     if (!canGenerate) return
     const adConfig = adMode === 'product_ad'
-      ? { productName, productDescription: productDesc, adStyle, targetMood, platform: adPlatform, format: adFormat }
+      ? {
+          productName,
+          productDescription: productDesc,
+          adStyle,
+          targetMood,
+          platform: adPlatform,
+          format: adFormat,
+          // Phase 1 strategy fields
+          targetCustomer,
+          mainProblem,
+          mainDesire,
+          mainBenefit,
+          proofPoint,
+          offer,
+          callToAction,
+          brandVoice,
+          pricePoint,
+          platformGoal,
+        }
       : { creatorNiche, adGoal, visualStyle, platform: adPlatform, extraContext, format: adFormat }
+
+    const strategyContext = adMode === 'product_ad' && (targetCustomer || mainProblem || mainBenefit)
+      ? [
+          targetCustomer && `Target: ${targetCustomer}`,
+          mainProblem    && `Problem: ${mainProblem}`,
+          mainDesire     && `Desire: ${mainDesire}`,
+          mainBenefit    && `Benefit: ${mainBenefit}`,
+          proofPoint     && `Proof: ${proofPoint}`,
+          offer          && `Offer: ${offer}`,
+          callToAction   && `CTA: ${callToAction}`,
+          `Voice: ${brandVoice}`,
+          `Price: ${pricePoint}`,
+          `Goal: ${platformGoal}`,
+        ].filter(Boolean).join('. ')
+      : ''
+
     const promptContext = adMode === 'product_ad'
-      ? `${adStyle} ${adFormat} ad for ${productName}. ${productDesc}. Mood: ${targetMood}`
+      ? `${adStyle} ${adFormat} ad for ${productName}. ${productDesc}. Mood: ${targetMood}${strategyContext ? '. ' + strategyContext : ''}`
       : `${creatorNiche} creator ${adGoal} campaign. ${visualStyle}. Platform: ${adPlatform}`
+
     if (adOutputType === 'video') {
       generateAdVideo({ prompt: promptContext, mode: adMode, adConfig })
     } else {
@@ -228,7 +934,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
   // Reusable section label
   const SLabel = ({ children, hint }) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
-      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted }}>{children}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.secondary }}>{children}</span>
       {hint && <span style={{ fontSize: 9, color: C.goldDim }}>{hint}</span>}
     </div>
   )
@@ -244,6 +950,174 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
       {/* ══ LEFT — Config ════════════════════════════════ */}
       <div style={{ borderRight: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
+        {/* Brand DNA */}
+        <Panel title="Brand DNA" accent={C.violet} defaultOpen={false}>
+          {/* Saved profiles */}
+          {dnaProfiles.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+              {dnaProfiles.map(profile => (
+                <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                  <button onClick={() => dnaLoadProfile(profile)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{profile.name}</div>
+                    <div style={{ fontSize: 8, color: C.secondary }}>
+                      {profile.fields?.productName || '—'} · {new Date(profile.savedAt).toLocaleDateString()}
+                    </div>
+                  </button>
+                  <button onClick={() => dnaDeleteProfile(profile.id)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Save current */}
+          {!dnaSaveOpen ? (
+            <button onClick={() => setDnaSaveOpen(true)} style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
+              + Save Current Brand
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 5 }}>
+              <input
+                value={dnaName}
+                onChange={e => setDnaName(e.target.value)}
+                placeholder={productName || 'Brand name…'}
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.violetDim}`, borderRadius: 4, padding: '6px 8px', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
+                onKeyDown={e => e.key === 'Enter' && dnaSaveProfile()}
+                autoFocus
+              />
+              <button onClick={dnaSaveProfile} style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>Save</button>
+              <button onClick={() => setDnaSaveOpen(false)} style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+            </div>
+          )}
+
+          {dnaProfiles.length === 0 && !dnaSaveOpen && (
+            <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', marginTop: 4, lineHeight: 1.5 }}>
+              Fill in your product details and save a brand profile to reload instantly next time.
+            </div>
+          )}
+
+          {/* Brand Brain Winners */}
+          {(winners.angles.length > 0 || winners.hooks.length > 0) && (
+            <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>⭐ Brand Brain Winners</div>
+              {winners.angles.slice(0, 3).map((a, i) => (
+                <div key={i} style={{ padding: '5px 7px', borderRadius: 3, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ flex: 1, fontSize: 9, color: C.gold, fontWeight: 700 }}>{a.title}</div>
+                  <button onClick={() => toggleWinner('angle', a)} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>✕</button>
+                </div>
+              ))}
+              {winners.hooks.slice(0, 3).map((h, i) => (
+                <div key={i} style={{ padding: '5px 7px', borderRadius: 3, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ flex: 1, fontSize: 9, color: C.primary, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{h.slice(0, 50)}{h.length > 50 ? '…' : ''}"</div>
+                  <button onClick={() => toggleWinner('hook', h)} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(dnaProfiles.length === 0 && !dnaSaveOpen && winners.angles.length === 0 && winners.hooks.length === 0) && (
+            <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', marginTop: 4, lineHeight: 1.5 }}>
+              Star your best angles and hooks to build your Brand Brain.
+            </div>
+          )}
+        </Panel>
+
+        {/* My Projects */}
+        <Panel title="My Projects" accent={C.blue} defaultOpen={false}>
+
+          {/* Save current project — always visible */}
+          <button
+            onClick={handleSaveProject}
+            disabled={!productName.trim()}
+            style={{
+              width: '100%', padding: '9px 0', borderRadius: 4,
+              fontSize: 11, fontWeight: 700,
+              cursor: productName.trim() ? 'pointer' : 'not-allowed',
+              border: `1px solid ${projectSaved ? '#2a4a2a' : productName.trim() ? C.blueDim : C.hairline}`,
+              background: projectSaved ? '#081208' : productName.trim() ? '#080c10' : C.deep,
+              color: projectSaved ? C.green : productName.trim() ? C.blue : C.muted,
+              opacity: productName.trim() ? 1 : 0.5,
+            }}
+          >
+            {projectSaved ? '✓ Project Saved' : '↑ Save Current Project'}
+          </button>
+
+          {!productName.trim() && (
+            <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', lineHeight: 1.5 }}>
+              Enter a product name first, then save.
+            </div>
+          )}
+
+          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Saved Projects</span>
+              <button
+                onClick={loadSavedProjects}
+                style={{ padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}
+              >
+                {projectsLoading ? '⟳' : '↺ Load'}
+              </button>
+            </div>
+          </div>
+
+          {!projectsLoaded && !projectsLoading && (
+            <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', lineHeight: 1.5 }}>
+              Click ↺ Load to see your saved projects.
+            </div>
+          )}
+          {projectsLoading && (
+            <div style={{ fontSize: 10, color: C.secondary, textAlign: 'center', padding: '6px 0' }}>Loading projects…</div>
+          )}
+          {projectsLoaded && savedProjects.length === 0 && (
+            <div style={{ fontSize: 10, color: C.secondary, textAlign: 'center', padding: '6px 0', lineHeight: 1.5 }}>
+              No saved projects yet.
+            </div>
+          )}
+          {projectsLoaded && savedProjects.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {savedProjects.map(project => (
+                <div
+                  key={project.id}
+                  style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}
+                >
+                  <button
+                    onClick={() => restoreProject(project)}
+                    style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px' }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 3 }}>
+                      {project.product_name || project.campaign_name || 'Untitled'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {project.platform && (
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>
+                          {project.platform}
+                        </span>
+                      )}
+                      {project.campaign_goal && (
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>
+                          {project.campaign_goal}
+                        </span>
+                      )}
+                      {project.selected_angle && (
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: C.goldGlow, border: `1px solid ${C.goldDim}`, color: C.gold }}>
+                          ✦ Angle
+                        </span>
+                      )}
+                      {project.outputs && Object.keys(project.outputs).length > 0 && (
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#081208', border: '1px solid #1a3a1a', color: C.green }}>
+                          {Object.keys(project.outputs).length} outputs
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 8, color: C.muted, marginTop: 4 }}>
+                      {new Date(project.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
         {/* Ad Mode */}
         <Panel title="Ad Mode" accent={C.gold}>
           <div style={{ display: 'flex', gap: 5 }}>
@@ -256,8 +1130,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                 cursor: 'pointer', transition: 'all 0.15s', ...cardBorder(adMode === m.value),
               }}>
                 <div style={{ fontSize: 18, marginBottom: 4 }}>{m.icon}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: adMode === m.value ? C.gold : C.secondary, marginBottom: 2 }}>{m.title}</div>
-                <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.4 }}>{m.desc}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: adMode === m.value ? C.gold : C.primary, marginBottom: 2 }}>{m.title}</div>
+                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{m.desc}</div>
               </button>
             ))}
           </div>
@@ -272,7 +1146,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                 fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                 transition: 'all 0.12s', ...cardBorder(adOutputType === t.value),
-                color: adOutputType === t.value ? C.gold : C.muted,
+                color: adOutputType === t.value ? C.gold : C.primary,
               }}>
                 <span style={{ fontSize: 16 }}>{t.icon}</span>
                 <span>{t.label}</span>
@@ -292,7 +1166,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                 borderRadius: 4, padding: '6px 4px', textAlign: 'center',
                 cursor: 'pointer', fontSize: 9, fontWeight: 700,
                 transition: 'all 0.12s', ...cardBorder(adFormat === f.value),
-                color: adFormat === f.value ? C.gold : C.muted,
+                color: adFormat === f.value ? C.gold : C.primary,
               }}>
                 <div style={{ fontSize: 13, marginBottom: 2 }}>{f.icon}</div>
                 {f.label}
@@ -314,7 +1188,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                 padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700,
                 cursor: 'pointer', transition: 'all 0.12s', whiteSpace: 'nowrap',
                 ...cardBorder(adPlatform === p.value),
-                color: adPlatform === p.value ? C.gold : C.secondary,
+                color: adPlatform === p.value ? C.gold : C.primary,
               }}>
                 {p.label}
               </button>
@@ -357,6 +1231,184 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
               </div>
             </Panel>
 
+            {/* ── AD STRATEGY ── */}
+            <Panel title="Ad Strategy" accent={C.gold} defaultOpen={false}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div>
+                  <SLabel>Target Customer</SLabel>
+                  <input value={targetCustomer} onChange={e => setTargetCustomer(e.target.value)}
+                    placeholder="e.g. women 25-40 who want glowing skin"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Main Problem</SLabel>
+                  <input value={mainProblem} onChange={e => setMainProblem(e.target.value)}
+                    placeholder="e.g. dull tired-looking skin"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Main Desire</SLabel>
+                  <input value={mainDesire} onChange={e => setMainDesire(e.target.value)}
+                    placeholder="e.g. radiant, effortlessly beautiful skin"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Main Benefit</SLabel>
+                  <input value={mainBenefit} onChange={e => setMainBenefit(e.target.value)}
+                    placeholder="e.g. visibly brighter skin in 7 days"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Proof Point</SLabel>
+                  <input value={proofPoint} onChange={e => setProofPoint(e.target.value)}
+                    placeholder="e.g. 50,000 women, dermatologist-tested"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Offer</SLabel>
+                  <input value={offer} onChange={e => setOffer(e.target.value)}
+                    placeholder="e.g. 20% off, free shipping, limited bundle"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                <div>
+                  <SLabel>Call to Action</SLabel>
+                  <input value={callToAction} onChange={e => setCallToAction(e.target.value)}
+                    placeholder="e.g. Shop now, Book a call, Download free"
+                    style={inp}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            {/* ── BRAND VOICE ── */}
+            <Panel title="Brand Voice" accent={C.gold} defaultOpen={false}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4, marginBottom: 8 }}>
+                {[
+                  { value: 'luxury',     label: 'Luxury',     desc: 'Premium, exclusive' },
+                  { value: 'bold',       label: 'Bold',       desc: 'Direct, high energy' },
+                  { value: 'emotional',  label: 'Emotional',  desc: 'Deep, heartfelt' },
+                  { value: 'clean',      label: 'Clean',      desc: 'Minimal, modern' },
+                  { value: 'aggressive', label: 'Aggressive', desc: 'Urgent, no-nonsense' },
+                  { value: 'feminine',   label: 'Feminine',   desc: 'Soft, aspirational' },
+                  { value: 'premium',    label: 'Premium',    desc: 'Refined, quality-first' },
+                  { value: 'friendly',   label: 'Friendly',   desc: 'Warm, relatable' },
+                ].map(v => (
+                  <button key={v.value} onClick={() => { if (!lockedBrandVoice) setBrandVoice(v.value) }} style={{
+                    borderRadius: 4, padding: '6px 8px', textAlign: 'left',
+                    cursor: lockedBrandVoice ? 'default' : 'pointer',
+                    transition: 'all 0.12s', ...cardBorder(brandVoice === v.value),
+                    opacity: lockedBrandVoice && lockedBrandVoice !== v.value ? 0.4 : 1,
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: brandVoice === v.value ? C.gold : C.primary }}>{v.label}</div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginTop: 1 }}>{v.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => lockedBrandVoice ? setLockedBrandVoice(null) : setLockedBrandVoice(brandVoice)}
+                style={{
+                  width: '100%', padding: '5px 0', borderRadius: 4, fontSize: 9, fontWeight: 700,
+                  cursor: 'pointer', marginBottom: 4,
+                  border: `1px solid ${lockedBrandVoice ? C.gold : C.subtle}`,
+                  background: lockedBrandVoice ? '#1a1c08' : C.surface,
+                  color: lockedBrandVoice ? C.gold : C.muted,
+                }}
+              >
+                {lockedBrandVoice ? `🔒 Locked: ${lockedBrandVoice} — click to unlock` : '🔓 Lock Brand Voice'}
+              </button>
+
+              <SLabel>Price Point</SLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4, marginBottom: 8 }}>
+                {[
+                  { value: 'low-ticket', label: 'Low Ticket', desc: 'Under $50' },
+                  { value: 'mid-ticket', label: 'Mid Ticket', desc: '$50–$300' },
+                  { value: 'premium',    label: 'Premium',    desc: '$300–$1000' },
+                  { value: 'luxury',     label: 'Luxury',     desc: '$1000+' },
+                ].map(p => (
+                  <button key={p.value} onClick={() => setPricePoint(p.value)} style={{
+                    borderRadius: 4, padding: '6px 8px', textAlign: 'left',
+                    cursor: 'pointer', transition: 'all 0.12s', ...cardBorder(pricePoint === p.value),
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: pricePoint === p.value ? C.gold : C.primary }}>{p.label}</div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginTop: 1 }}>{p.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              <SLabel>Campaign Goal</SLabel>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {[
+                  { value: 'awareness',   label: 'Awareness' },
+                  { value: 'traffic',     label: 'Traffic' },
+                  { value: 'leads',       label: 'Leads' },
+                  { value: 'sales',       label: 'Sales' },
+                  { value: 'retargeting', label: 'Retargeting' },
+                ].map(g => (
+                  <button key={g.value} onClick={() => setPlatformGoal(g.value)} style={{
+                    padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    cursor: 'pointer', transition: 'all 0.12s', whiteSpace: 'nowrap',
+                    ...cardBorder(platformGoal === g.value),
+                    color: platformGoal === g.value ? C.gold : C.primary,
+                  }}>
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+
+            {/* ── INSPIRED STYLE ── */}
+            <Panel title="Inspired Style" accent={C.gold} defaultOpen={false}>
+              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
+                Apply a brand creative DNA to your output. We translate — not copy.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                {[
+                  { value: 'none',    label: 'None',    desc: 'Engine defaults' },
+                  { value: 'apple',   label: 'Apple',   desc: 'Minimal. Pure.' },
+                  { value: 'nike',    label: 'Nike',    desc: 'Bold. Action.' },
+                  { value: 'dior',    label: 'Dior',    desc: 'Luxury. Fashion.' },
+                  { value: 'skims',   label: 'Skims',   desc: 'Body. Inclusive.' },
+                  { value: 'alo',     label: 'Alo',     desc: 'Wellness. Soft.' },
+                  { value: 'gymshark',label: 'Gymshark',desc: 'Fitness. Real.' },
+                  { value: 'redbull', label: 'Red Bull',desc: 'Extreme. Energy.' },
+                  { value: 'tesla',   label: 'Tesla',   desc: 'Future. Precise.' },
+                ].map(st => (
+                  <button key={st.value} onClick={() => setInspiredStyle(st.value)} style={{
+                    borderRadius: 4, padding: '6px 8px', textAlign: 'left', cursor: 'pointer',
+                    transition: 'all 0.12s', ...cardBorder(inspiredStyle === st.value),
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: inspiredStyle === st.value ? C.gold : C.primary }}>{st.label}</div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginTop: 1 }}>{st.desc}</div>
+                  </button>
+                ))}
+              </div>
+              {inspiredStyle !== 'none' && (
+                <div style={{ marginTop: 6, padding: '6px 8px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 9, color: C.gold }}>
+                  ✦ {inspiredStyle.charAt(0).toUpperCase() + inspiredStyle.slice(1)} style will influence all text generation
+                </div>
+              )}
+            </Panel>
+
             <Panel title="Visual Style" accent={C.gold}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                 {[
@@ -366,16 +1418,30 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                   { value: 'ugc',        label: 'UGC',        icon: '📱', desc: 'Creator feel' },
                   { value: 'cinematic',  label: 'Cinematic',  icon: '🎬', desc: 'Wide scene' },
                 ].map(st => (
-                  <button key={st.value} onClick={() => setAdStyle(st.value)} style={{
-                    borderRadius: 4, padding: '8px 6px', textAlign: 'left', cursor: 'pointer',
+                  <button key={st.value} onClick={() => { if (!lockedVisualStyle) setAdStyle(st.value) }} style={{
+                    borderRadius: 4, padding: '8px 6px', textAlign: 'left',
+                    cursor: lockedVisualStyle ? 'default' : 'pointer',
                     transition: 'all 0.12s', ...cardBorder(adStyle === st.value),
+                    opacity: lockedVisualStyle && lockedVisualStyle !== st.value ? 0.4 : 1,
                   }}>
                     <div style={{ fontSize: 14, marginBottom: 3 }}>{st.icon}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: adStyle === st.value ? C.gold : C.secondary }}>{st.label}</div>
-                    <div style={{ fontSize: 8, color: C.muted, marginTop: 1, lineHeight: 1.3 }}>{st.desc}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: adStyle === st.value ? C.gold : C.primary }}>{st.label}</div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginTop: 1, lineHeight: 1.3 }}>{st.desc}</div>
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => lockedVisualStyle ? setLockedVisualStyle(null) : setLockedVisualStyle(adStyle)}
+                style={{
+                  width: '100%', padding: '6px 0', borderRadius: 4, fontSize: 9, fontWeight: 700,
+                  cursor: 'pointer',
+                  border: `1px solid ${lockedVisualStyle ? C.gold : C.subtle}`,
+                  background: lockedVisualStyle ? '#1a1c08' : C.surface,
+                  color: lockedVisualStyle ? C.gold : C.muted,
+                }}
+              >
+                {lockedVisualStyle ? `🔒 Locked: ${lockedVisualStyle} — click to unlock` : '🔓 Lock Visual Style'}
+              </button>
             </Panel>
           </>
         )}
@@ -411,7 +1477,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                     borderRadius: 4, padding: '8px 4px', textAlign: 'center',
                     cursor: 'pointer', fontSize: 10, fontWeight: 700,
                     transition: 'all 0.12s', ...cardBorder(creatorNiche === n.value),
-                    color: creatorNiche === n.value ? C.gold : C.secondary,
+                    color: creatorNiche === n.value ? C.gold : C.primary,
                   }}>
                     <div style={{ fontSize: 14, marginBottom: 3 }}>{n.icon}</div>
                     {n.label}
@@ -436,8 +1502,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
                   }}>
                     <span style={{ fontSize: 14, flexShrink: 0 }}>{g.icon}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: adGoal === g.value ? C.gold : C.secondary, marginBottom: 1 }}>{g.label}</div>
-                      <div style={{ fontSize: 9, color: C.muted }}>{g.desc}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: adGoal === g.value ? C.gold : C.primary, marginBottom: 1 }}>{g.label}</div>
+                      <div style={{ fontSize: 9, color: C.secondary }}>{g.desc}</div>
                     </div>
                     {adGoal === g.value && <span style={{ fontSize: 9, color: C.gold }}>✓</span>}
                   </button>
@@ -472,7 +1538,138 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
       </div>
 
       {/* ══ RIGHT — Output ════════════════════════════════ */}
-      <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: '#070707' }}>
+      <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: '#070707' }}>
+
+        {/* Global generating indicator */}
+        {s.adTextGenerating && (
+          <div style={{ padding: '6px 12px', background: C.goldGlow, borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, animation: 'pulse 1s infinite' }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>
+              {s.adTextType === 'variation'     ? `Generating variation…` :
+               s.adTextType === 'quality_score' ? 'Scoring your ad…' :
+               s.adTextType === 'campaign'      ? 'Building 7-stage campaign…' :
+               `Generating ${s.adTextType?.replace(/_/g, ' ')}…`}
+            </span>
+          </div>
+        )}
+
+        {/* Campaign context bar — shows selections and locks */}
+        {(productName || selectedAngle || selectedHook || s.adMusicTrack || lockedAngle || lockedHook || lockedBrandVoice || lockedMusic) && (
+          <div style={{ padding: '4px 12px', borderBottom: `1px solid ${C.hairline}`, background: C.raised, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, flexWrap: 'wrap', minHeight: 26 }}>
+            {productName && <span style={{ fontSize: 9, fontWeight: 700, color: C.primary }}>{productName}</span>}
+            {adPlatform && <><span style={{ fontSize: 8, color: C.muted }}>·</span><span style={{ fontSize: 9, color: C.secondary }}>{adPlatform}</span></>}
+            {platformGoal && <><span style={{ fontSize: 8, color: C.muted }}>·</span><span style={{ fontSize: 9, color: C.secondary }}>{platformGoal}</span></>}
+
+            {/* Active selections */}
+            {selectedAngle && !lockedAngle && (
+              <><span style={{ fontSize: 8, color: C.muted, marginLeft: 4 }}>|</span>
+              <span style={{ fontSize: 8, fontWeight: 700, color: C.gold }}>✦ {selectedAngle.title}</span>
+              <button onClick={() => setSelectedAngle(null)} style={{ padding: '0 4px', borderRadius: 2, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted, lineHeight: 1.6 }}>✕</button></>
+            )}
+            {selectedHook && !lockedHook && (
+              <><span style={{ fontSize: 8, color: C.muted }}>·</span>
+              <span style={{ fontSize: 8, color: C.gold }}>🪝 Hook set</span>
+              <button onClick={() => setSelectedHook(null)} style={{ padding: '0 4px', borderRadius: 2, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted, lineHeight: 1.6 }}>✕</button></>
+            )}
+            {s.adMusicTrack && !lockedMusic && (
+              <><span style={{ fontSize: 8, color: C.muted }}>·</span>
+              <span style={{ fontSize: 8, color: C.gold }}>🎵 {s.adMusicTrack.title}</span></>
+            )}
+
+            {/* Locked items */}
+            {(lockedAngle || lockedHook || lockedBrandVoice || lockedVisualStyle || lockedCaption || lockedMusic) && (
+              <span style={{ fontSize: 8, color: C.muted, marginLeft: 4 }}>|</span>
+            )}
+            {lockedAngle && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 {lockedAngle.title}
+                <button onClick={() => setLockedAngle(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+            {lockedHook && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 Hook
+                <button onClick={() => setLockedHook(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+            {lockedBrandVoice && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 {lockedBrandVoice} voice
+                <button onClick={() => setLockedBrandVoice(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+            {lockedVisualStyle && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 {lockedVisualStyle}
+                <button onClick={() => setLockedVisualStyle(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+            {lockedCaption && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 Caption
+                <button onClick={() => setLockedCaption(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+            {lockedMusic && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#1a1c08', border: `1px solid ${C.gold}44`, color: C.gold }}>
+                🔒 {lockedMusic.title}
+                <button onClick={() => setLockedMusic(null)} style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 8, padding: 0 }}>✕</button>
+              </span>
+            )}
+
+            {(selectedAngle || selectedHook || (s.adTextResults && Object.keys(s.adTextResults).length > 0)) && (
+              <button onClick={handleSaveProject} style={{ marginLeft: 'auto', padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${projectSaved ? '#2a4a2a' : C.subtle}`, background: projectSaved ? '#081208' : C.surface, color: projectSaved ? C.green : C.muted }}>
+                {projectSaved ? '✓ Saved' : '↑ Save Project'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Output tabs */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${C.hairline}`, flexShrink: 0, overflowX: 'auto' }}>
+          {[
+            { id: 'creative',     label: 'Creative',  count: null },
+            { id: 'angles',       label: 'Angles',    count: s.adTextResults?.angles?.length || 0 },
+            { id: 'hooks',        label: 'Hooks',     count: s.adTextResults?.[`hooks_${activeHookType}`]?.hooks?.length || 0 },
+            { id: 'captions',     label: 'Captions',  count: s.adTextResults?.captions?.length || 0 },
+            { id: 'image_prompt', label: 'Images',    count: s.adTextResults?.image_prompt?.length || 0 },
+            { id: 'video_prompt', label: 'Video',     count: s.adTextResults?.video_prompt?.length || 0 },
+            { id: 'ugc_scripts',  label: 'UGC',       count: s.adTextResults?.ugc_scripts?.length || 0 },
+            { id: 'campaign',     label: 'Campaign',  count: s.adTextResults?.campaign?.length || 0 },
+            { id: 'score',        label: 'Score',     count: (s.adTextResults?.quality_score || projectScore) ? 1 : 0 },
+            { id: 'soundtrack',   label: 'Music',     count: s.adMusicTrack ? 1 : 0 },
+            { id: 'inspire',      label: 'Inspire',   count: competitorResult ? 1 : 0 },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setAdOutputTab(tab.id)} style={{
+              flex: 1, padding: '8px 3px', fontSize: 9, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: 'uppercase', cursor: 'pointer',
+              background: adOutputTab === tab.id ? C.surface : 'transparent',
+              color: adOutputTab === tab.id ? C.gold : C.primary,
+              border: 'none', minWidth: 60,
+              borderBottom: adOutputTab === tab.id ? `2px solid ${C.gold}` : '2px solid transparent',
+              transition: 'all 0.15s', position: 'relative',
+            }}>
+              {tab.label}
+              {tab.count > 0 && (
+                <span style={{
+                  position: 'absolute', top: 4, right: 3,
+                  fontSize: 7, fontWeight: 800, lineHeight: 1,
+                  padding: '1px 4px', borderRadius: 999,
+                  background: adOutputTab === tab.id ? C.gold : C.muted,
+                  color: C.void,
+                }}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content wrapper */}
+        <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+
+        {/* ── CREATIVE TAB ── */}
+        {adOutputTab === 'creative' && (<>
 
         {/* Generate button */}
         <button onClick={handleGenerate} disabled={!canGenerate} style={{
@@ -499,8 +1696,70 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
           </div>
         )}
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
-          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.muted, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.secondary, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
             ← Enter a product name to generate
+          </div>
+        )}
+
+        {/* Campaign Consistency Check */}
+        {productName.trim() && (selectedAngle || selectedHook || s.adMusicTrack || (s.adTextResults && Object.keys(s.adTextResults).length > 1)) && (
+          <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Campaign Consistency Check</div>
+                <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>Checks if your angle, hook, voice, music, and goal are aligned</div>
+              </div>
+              <button
+                onClick={checkConsistency}
+                disabled={consistencyLoading}
+                style={{
+                  padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                  cursor: consistencyLoading ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${C.goldDim}`, background: '#1a1408',
+                  color: C.gold, opacity: consistencyLoading ? 0.6 : 1,
+                }}
+              >
+                {consistencyLoading ? '⟳ Checking…' : '✦ Check — 1 credit'}
+              </button>
+            </div>
+            {consistencyResult && (
+              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Score */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: consistencyResult.consistencyScore >= 80 ? C.green : consistencyResult.consistencyScore >= 60 ? C.gold : '#cf6a6a' }}>
+                    {consistencyResult.consistencyScore}<span style={{ fontSize: 14, color: C.muted, fontWeight: 400 }}>/100</span>
+                  </div>
+                  <div style={{ flex: 1, fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{consistencyResult.summary}</div>
+                </div>
+                {/* Verdict */}
+                {consistencyResult.verdict && (
+                  <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic', borderLeft: `2px solid ${C.gold}`, paddingLeft: 10, lineHeight: 1.5 }}>"{consistencyResult.verdict}"</div>
+                )}
+                {/* Strong / Weak */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ padding: '6px 8px', borderRadius: 4, background: '#081208', border: '1px solid #1a3a1a' }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Strong</div>
+                    {(consistencyResult.strong || []).map((s, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, marginBottom: 3 }}>✓ {s}</div>)}
+                  </div>
+                  <div style={{ padding: '6px 8px', borderRadius: 4, background: '#110806', border: '1px solid #2a1010' }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Weak</div>
+                    {(consistencyResult.weak || []).map((w, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, marginBottom: 3 }}>✗ {w}</div>)}
+                  </div>
+                </div>
+                {/* Fixes */}
+                {(consistencyResult.fixes || []).length > 0 && (
+                  <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Fixes</div>
+                    {consistencyResult.fixes.map((f, i) => (
+                      <div key={i} style={{ marginBottom: 5 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary }}>{f.issue}</div>
+                        <div style={{ fontSize: 10, color: C.primary }}>{f.fix}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -614,14 +1873,109 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
           </Panel>
         )}
 
+        {/* Licensed music display in Creative tab */}
+        {!isGenerating && s.adMusicTrack && (
+          <Panel title="Licensed Soundtrack" accent={C.gold}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                🎵
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.gold }}>{s.adMusicTrack.title}</div>
+                <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>
+                  {[s.adMusicTrack.mood, s.adMusicTrack.bpm && `${s.adMusicTrack.bpm} BPM`, s.adMusicTrack.energy && `${s.adMusicTrack.energy} energy`].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <div style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: C.greenDim, border: '1px solid #2a4a2a', color: C.green }}>
+                ✓ Licensed
+              </div>
+            </div>
+
+            {/* Best for */}
+            {(s.adMusicTrack.best_for || []).length > 0 && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                {s.adMusicTrack.best_for.map((bf, i) => (
+                  <span key={i} style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>
+                    {bf}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Timing plan */}
+            {s.adMusicTimingPlan && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden', marginTop: 4 }}>
+                <div style={{ padding: '6px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  Ad Timing Plan
+                </div>
+                {s.adMusicTimingPlan.sections.map((sec, i) => (
+                  <div key={i} style={{ padding: '6px 10px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8 }}>
+                    <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, minWidth: 65, fontFamily: 'monospace', flexShrink: 0 }}>
+                      {sec.start}s–{sec.end}s
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: sec.isDropMoment ? C.gold : C.primary }}>{sec.label}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{sec.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 5, marginTop: 2 }}>
+              <button onClick={() => setAdOutputTab('soundtrack')} style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary }}>
+                Change Track
+              </button>
+              <button
+                onClick={() => lockedMusic ? setLockedMusic(null) : setLockedMusic(s.adMusicTrack)}
+                style={{
+                  padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                  border: `1px solid ${lockedMusic ? C.gold : C.subtle}`,
+                  background: lockedMusic ? '#1a1c08' : C.surface,
+                  color: lockedMusic ? C.gold : C.muted,
+                }}
+              >
+                {lockedMusic ? '🔒 Locked' : '🔓 Lock Music'}
+              </button>
+            </div>
+          </Panel>
+        )}
+
         {/* Empty state */}
         {!isGenerating && !s.adGeneratedImage && !s.adVideoUrl && !s.adError && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 14, padding: '40px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 36 }}>📣</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.secondary, letterSpacing: 0.5 }}>Ad Creative Studio</div>
-            <div style={{ fontSize: 11, color: C.muted, maxWidth: 260, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, letterSpacing: 0.5 }}>Ad Creative Studio</div>
+            <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.7 }}>
               Configure your ad on the left and press <span style={{ color: C.gold }}>Generate</span> to create professional ad content.
             </div>
+
+            {/* Build Full Ad Project */}
+            {productName.trim() && (
+              <button
+                onClick={handleBuildFullProject}
+                disabled={buildingProject || s.adTextGenerating}
+                style={{
+                  padding: '12px 24px', borderRadius: 5, fontSize: 12, fontWeight: 800,
+                  cursor: buildingProject || s.adTextGenerating ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${buildingProject ? C.subtle : C.gold}`,
+                  background: buildingProject ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)',
+                  color: buildingProject ? C.muted : C.gold,
+                  letterSpacing: 0.5, opacity: buildingProject || s.adTextGenerating ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}
+              >
+                {buildingProject
+                  ? `⟳ Building full project… (${s.adTextType || '…'})`
+                  : '⚡ Build Full Ad Project — Angles + Hooks + Captions + UGC'}
+              </button>
+            )}
+            {buildingProject && (
+              <div style={{ fontSize: 9, color: C.gold, maxWidth: 260, lineHeight: 1.6 }}>
+                Generating angles → selecting best → hooks → captions + UGC. Results appear in each tab.
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               {[{ icon: '📦', label: 'Products' }, { icon: '⭐', label: 'Brands' }, { icon: '🎬', label: 'Video' }].map(i => (
                 <div key={i.label} style={{ padding: '10px 12px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}`, textAlign: 'center', minWidth: 64 }}>
@@ -633,6 +1987,1380 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo }) {
             <div style={{ fontSize: 9, color: C.ghost, marginTop: 4 }}>✦ AI auto-suggests style from your product name</div>
           </div>
         )}
+
+        {/* Campaign Timeline */}
+        {timeline.length > 0 && (
+          <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+            <div style={{ padding: '7px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Campaign Timeline</span>
+              <button onClick={() => setTimeline([])} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
+            </div>
+            <div style={{ padding: '6px 0', maxHeight: 180, overflowY: 'auto' }}>
+              {timeline.map((evt, i) => (
+                <div key={i} style={{ padding: '5px 12px', display: 'flex', alignItems: 'flex-start', gap: 8, borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? C.gold : C.muted, flexShrink: 0, marginTop: 3 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: i === 0 ? C.primary : C.secondary, fontWeight: i === 0 ? 700 : 400 }}>{evt.event}</div>
+                    {evt.detail && <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{evt.detail}</div>}
+                  </div>
+                  <div style={{ fontSize: 7, color: C.muted, flexShrink: 0 }}>
+                    {new Date(evt.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Export Briefs — show when there's enough campaign data */}
+        {productName.trim() && (s.adTextResults && Object.keys(s.adTextResults).length > 0) && (
+          <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Export Professional Briefs</div>
+              <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>AI-generated documents ready to send to clients or your team</div>
+            </div>
+            <div style={{ padding: '8px 12px', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {[
+                { key: 'campaign',    label: 'Campaign Brief',    icon: '📋', desc: 'Strategy, direction, KPIs' },
+                { key: 'creator',     label: 'Creator Brief',     icon: '🎤', desc: 'UGC brief for talent' },
+                { key: 'media_buyer', label: 'Media Buyer Brief', icon: '📊', desc: 'Targeting, bidding, rotation' },
+              ].map(b => (
+                <button
+                  key={b.key}
+                  onClick={() => generateBrief(b.key)}
+                  disabled={briefLoading}
+                  style={{
+                    flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 4, textAlign: 'left',
+                    cursor: briefLoading ? 'not-allowed' : 'pointer',
+                    border: `1px solid ${briefs[b.key] ? C.green : C.subtle}`,
+                    background: briefs[b.key] ? '#081208' : C.raised,
+                    opacity: briefLoading && !briefs[b.key] ? 0.6 : 1,
+                  }}
+                >
+                  <div style={{ fontSize: 13, marginBottom: 3 }}>{b.icon}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: briefs[b.key] ? C.green : C.primary }}>{briefs[b.key] ? '✓ ' : ''}{b.label}</div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginTop: 1 }}>{briefs[b.key] ? 'Click to view' : `${b.desc} — 2 cr`}</div>
+                </button>
+              ))}
+            </div>
+            {/* Brief viewer */}
+            {briefOpen && briefs[briefOpen] && (
+              <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{briefs[briefOpen].title}</div>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button
+                      onClick={() => exportBriefAsTxt(briefs[briefOpen])}
+                      style={{ padding: '4px 10px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}
+                    >
+                      ↓ Download TXT
+                    </button>
+                    <button onClick={() => setBriefOpen(null)} style={{ padding: '4px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                  </div>
+                </div>
+                {(briefs[briefOpen].sections || []).map((sec, si) => (
+                  <div key={si} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: si < briefs[briefOpen].sections.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>{sec.heading}</div>
+                    <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.65 }}>{sec.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        </>)}
+        {/* ── END CREATIVE TAB ── */}
+
+        {/* ── ANGLES TAB ── */}
+        {adOutputTab === 'angles' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('angles')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5,
+                fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'angles' ? '⟳ Generating angles…' : '✦ Generate 10 Ad Angles — 2 credits'}
+            </button>
+
+            {!productName.trim() && (
+              <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.secondary, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+                ← Enter a product name to generate angles
+              </div>
+            )}
+
+            {s.adTextError && s.adTextType === 'angles' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                {s.adTextError}
+              </div>
+            )}
+
+            {/* Angles export + variation */}
+            {(s.adTextResults?.angles || []).length > 0 && (
+              <ExportBar items={s.adTextResults.angles} filename="promptceo-angles" type="angles" />
+            )}
+            <VariationResult />
+
+            {/* Angles results */}
+            {(s.adTextResults?.angles || []).map((angle, i) => (
+              <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.gold, letterSpacing: 0.5 }}>{angle.title}</span>
+                    <span style={{ fontSize: 9, color: C.muted, marginLeft: 8 }}>{angle.emotionalTrigger}</span>
+                  </div>
+                  <button
+                    onClick={() => doCopyAdText(`${angle.hook}\n\nVisual: ${angle.visualDirection}\nCaption: ${angle.captionDirection}\nScript: ${angle.scriptDirection}`, `angle_${i}`)}
+                    style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `angle_${i}` ? C.green : C.muted }}
+                  >
+                    {copiedText === `angle_${i}` ? '✓' : '⎘'}
+                  </button>
+                </div>
+                <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, lineHeight: 1.5, fontStyle: 'italic' }}>"{angle.hook}"</div>
+                  <VariationBar content={angle.hook} contentType="hook" />
+                  <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>
+                    <span style={{ color: C.muted, fontWeight: 700 }}>Promise: </span>{angle.adPromise}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.4 }}>
+                      <span style={{ color: C.secondary, fontWeight: 700, display: 'block', marginBottom: 2 }}>Visual</span>
+                      {angle.visualDirection}
+                    </div>
+                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.4 }}>
+                      <span style={{ color: C.secondary, fontWeight: 700, display: 'block', marginBottom: 2 }}>Script</span>
+                      {angle.scriptDirection}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 5, marginTop: 2 }}>
+                    <button
+                      onClick={() => { setSelectedAngle(angle); setAdOutputTab('hooks'); addTimelineEvent('Angle selected', angle.title) }}
+                      style={{
+                        flex: 1, padding: '7px 0', borderRadius: 4,
+                        fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                        border: `1px solid ${selectedAngle?.title === angle.title ? C.gold : C.goldDim}`,
+                        background: selectedAngle?.title === angle.title ? '#2a1c08' : '#1a1408',
+                        color: selectedAngle?.title === angle.title ? C.gold : '#8a7a5a',
+                      }}
+                    >
+                      {selectedAngle?.title === angle.title ? '✓ Selected → Hooks' : '✓ Use This Angle'}
+                    </button>
+                    <button
+                      onClick={() => { toggleWinner('angle', angle); addTimelineEvent('Starred angle', angle.title) }}
+                      style={{ padding: '7px 8px', borderRadius: 4, fontSize: 12, cursor: 'pointer', border: `1px solid ${winners.angles.some(w => w.title === angle.title) ? C.gold : C.hairline}`, background: winners.angles.some(w => w.title === angle.title) ? C.goldGlow : C.deep, flexShrink: 0 }}
+                      title="Mark as winner"
+                    >
+                      {winners.angles.some(w => w.title === angle.title) ? '⭐' : '☆'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (lockedAngle?.title === angle.title) { setLockedAngle(null) }
+                        else { setLockedAngle(angle); setSelectedAngle(angle) }
+                      }}
+                      style={{
+                        padding: '7px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                        border: `1px solid ${lockedAngle?.title === angle.title ? C.gold : C.subtle}`,
+                        background: lockedAngle?.title === angle.title ? '#1a1c08' : C.surface,
+                        color: lockedAngle?.title === angle.title ? C.gold : C.muted,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {lockedAngle?.title === angle.title ? '🔒' : '🔓'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Creative Director Note — Angles */}
+            {(s.adTextResults?.angles || []).length > 0 && (
+              <DirectorNote noteKey="angles" />
+            )}
+
+            {/* Continue to Hooks */}
+            {(s.adTextResults?.angles || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>
+                  {selectedAngle ? `Direction: ${selectedAngle.title}` : 'Select an angle above to continue'}
+                </div>
+                <button onClick={() => setAdOutputTab('hooks')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Hooks →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.angles && !s.adTextGenerating && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎯</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 10 distinct psychological angles for your product. Each angle is a different way to sell the same thing.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── HOOKS TAB ── */}
+        {adOutputTab === 'hooks' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Generate ALL 5 types at once */}
+            <button
+              onClick={async () => {
+                if (!productName.trim() || s.adTextGenerating) return
+                const types = ['pain', 'desire', 'curiosity', 'luxury', 'directOffer']
+                const cfg = buildAdConfig()
+                const style = inspiredStyle !== 'none' ? inspiredStyle : null
+                for (const hookType of types) {
+                  setActiveHookType(hookType)
+                  await generateAdText({ type: 'hooks', hookType, adConfig: cfg, inspiredStyle: style })
+                }
+              }}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '10px 0', borderRadius: 5,
+                fontSize: 12, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? '#4a6a9a' : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#080c18,#04080e)' : C.deep,
+                color: productName.trim() ? '#6a9ad4' : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'hooks'
+                ? `⟳ Generating ${activeHookType} hooks…`
+                : '⚡ Generate All 5 Hook Types — 5 credits'}
+            </button>
+
+            {/* Hook type selector with fill indicators */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+              {[
+                { id: 'pain',        label: 'Pain'      },
+                { id: 'desire',      label: 'Desire'    },
+                { id: 'curiosity',   label: 'Curiosity' },
+                { id: 'luxury',      label: 'Luxury'    },
+                { id: 'directOffer', label: 'Offer'     },
+              ].map(h => {
+                const hasList = (s.adTextResults?.[`hooks_${h.id}`]?.hooks || []).length > 0
+                const count   = s.adTextResults?.[`hooks_${h.id}`]?.hooks?.length || 0
+                return (
+                  <button key={h.id} onClick={() => setActiveHookType(h.id)} style={{
+                    padding: '7px 4px', borderRadius: 4, fontSize: 9, fontWeight: 700,
+                    textAlign: 'center', cursor: 'pointer', transition: 'all 0.12s',
+                    border: `1px solid ${activeHookType === h.id ? C.goldDim : hasList ? '#2a4a2a' : C.hairline}`,
+                    background: activeHookType === h.id ? '#1a1408' : hasList ? '#081208' : C.deep,
+                    color: activeHookType === h.id ? C.gold : hasList ? C.green : C.secondary,
+                    position: 'relative',
+                  }}>
+                    {h.label}
+                    {hasList && (
+                      <span style={{ position: 'absolute', top: 2, right: 3, fontSize: 7, fontWeight: 800, color: C.green }}>{count}</span>
+                    )}
+                    {!hasList && (
+                      <span style={{ display: 'block', fontSize: 7, color: C.muted, marginTop: 2 }}>empty</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Generate current type */}
+            <button
+              onClick={() => handleGenerateText('hooks', activeHookType)}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '9px 0', borderRadius: 5,
+                fontSize: 12, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'hooks'
+                ? `⟳ Generating ${activeHookType} hooks…`
+                : `✦ Generate ${activeHookType.charAt(0).toUpperCase() + activeHookType.slice(1)} Hooks only — 1 credit`}
+            </button>
+
+            {s.adTextError && s.adTextType === 'hooks' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                {s.adTextError}
+              </div>
+            )}
+
+            {/* Hook results */}
+            {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).length > 0 && (
+              <ExportBar items={s.adTextResults[`hooks_${activeHookType}`].hooks} filename={`promptceo-hooks-${activeHookType}`} />
+            )}
+            <VariationResult />
+
+            {/* Selected hook banner */}
+            {selectedAngle && !s.adTextResults?.[`hooks_${activeHookType}`] && !s.adTextGenerating && (
+              <div style={{ padding: '6px 10px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, color: C.gold }}>
+                ✦ Angle selected: <strong>{selectedAngle.title}</strong> — Generate hooks that use this angle
+              </div>
+            )}
+
+            {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).map((hook, i) => (
+              <div key={i} style={{ borderRadius: 6, border: `1px solid ${selectedHook === hook ? C.goldDim : C.hairline}`, background: C.base, padding: '10px 11px' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+                  <span style={{ fontSize: 9, color: C.muted, fontWeight: 700, minWidth: 18, paddingTop: 2 }}>{i + 1}</span>
+                  <div style={{ flex: 1, fontSize: 12, color: C.primary, lineHeight: 1.55 }}>{hook}</div>
+                  <button onClick={() => doCopyAdText(hook, `hook_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `hook_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                    {copiedText === `hook_${i}` ? '✓' : '⎘'}
+                  </button>
+                </div>
+                <VariationBar content={hook} contentType="hook" />
+                <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+                  <button
+                    onClick={() => { setSelectedHook(hook); setAdOutputTab('captions'); addTimelineEvent('Hook selected', hook.slice(0, 60)) }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: 4,
+                      fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      border: `1px solid ${selectedHook === hook ? C.gold : C.goldDim}`,
+                      background: selectedHook === hook ? '#2a1c08' : '#1a1408',
+                      color: selectedHook === hook ? C.gold : '#8a7a5a',
+                    }}
+                  >
+                    {selectedHook === hook ? '✓ Selected → Captions' : '✓ Use This Hook'}
+                  </button>
+                  <button
+                    onClick={() => { toggleWinner('hook', hook); addTimelineEvent('Starred hook', hook.slice(0, 60)) }}
+                    style={{ padding: '6px 8px', borderRadius: 4, fontSize: 12, cursor: 'pointer', border: `1px solid ${winners.hooks.includes(hook) ? C.gold : C.hairline}`, background: winners.hooks.includes(hook) ? C.goldGlow : C.deep, flexShrink: 0 }}
+                    title="Mark as winner"
+                  >
+                    {winners.hooks.includes(hook) ? '⭐' : '☆'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (lockedHook === hook) { setLockedHook(null) }
+                      else { setLockedHook(hook); setSelectedHook(hook) }
+                    }}
+                    style={{
+                      padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      border: `1px solid ${lockedHook === hook ? C.gold : C.subtle}`,
+                      background: lockedHook === hook ? '#1a1c08' : C.surface,
+                      color: lockedHook === hook ? C.gold : C.muted,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {lockedHook === hook ? '🔒' : '🔓'}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Creative Director Note — Hooks */}
+            {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).length > 0 && (
+              <DirectorNote noteKey={`hooks_${activeHookType}`} />
+            )}
+
+            {/* Continue to Captions */}
+            {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>
+                  {selectedHook ? 'Hook selected — ready for captions' : 'Select a hook above to continue'}
+                </div>
+                <button onClick={() => setAdOutputTab('captions')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Captions →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.[`hooks_${activeHookType}`]?.hooks?.length && !s.adTextGenerating && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🪝</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Select a hook type above and generate 10 scroll-stopping opening lines for your ad.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── CAPTIONS TAB ── */}
+        {adOutputTab === 'captions' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('captions')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5,
+                fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'captions' ? '⟳ Generating captions…' : '✦ Generate 6 Ad Captions — 2 credits'}
+            </button>
+
+            {s.adTextError && s.adTextType === 'captions' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                {s.adTextError}
+              </div>
+            )}
+
+            {(s.adTextResults?.captions || []).length > 0 && (
+              <ExportBar items={s.adTextResults.captions} filename="promptceo-captions" />
+            )}
+            <VariationResult />
+
+            {/* Caption results */}
+            {(s.adTextResults?.captions || []).map((cap, i) => {
+              const isLockedCap = lockedCaption?.label === cap.label && lockedCaption?.fullCaption === cap.fullCaption
+              return (
+              <div key={i} style={{ borderRadius: 6, border: `1px solid ${isLockedCap ? C.gold : C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 11px', background: isLockedCap ? '#1a1c08' : C.raised, borderBottom: `1px solid ${isLockedCap ? C.gold + '44' : C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.gold, letterSpacing: 0.5 }}>
+                    {isLockedCap && '🔒 '}{cap.label || cap.type}
+                  </span>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button
+                      onClick={() => { if (isLockedCap) setLockedCaption(null); else setLockedCaption(cap) }}
+                      style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${isLockedCap ? C.gold : C.subtle}`, background: isLockedCap ? '#1a1c08' : C.surface, color: isLockedCap ? C.gold : C.muted }}
+                    >
+                      {isLockedCap ? '🔒 Locked' : '🔓 Lock'}
+                    </button>
+                    <button
+                      onClick={() => doCopyAdText(cap.fullCaption || cap.hook, `cap_${i}`)}
+                      style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `cap_${i}` ? C.green : C.muted }}
+                    >
+                      {copiedText === `cap_${i}` ? '✓' : '⎘'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                    {cap.fullCaption || `${cap.hook}\n${cap.body}\n${cap.benefit}\n${cap.proof}\n${cap.cta}`}
+                  </div>
+                  <VariationBar content={cap.fullCaption || cap.hook} contentType="caption" />
+                </div>
+              </div>
+              )
+            })}
+
+            {/* Creative Director Note — Captions */}
+            {(s.adTextResults?.captions || []).length > 0 && <DirectorNote noteKey="captions" />}
+
+            {/* Continue to Images */}
+            {(s.adTextResults?.captions || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>Captions ready — generate image prompts next</div>
+                <button onClick={() => setAdOutputTab('image_prompt')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Images →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.captions && !s.adTextGenerating && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>✍️</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 6 ready-to-post captions — short, story, problem-solution, luxury, direct sales, and retargeting.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── IMAGE PROMPTS TAB ── */}
+        {adOutputTab === 'image_prompt' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('image_prompt')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'image_prompt' ? '⟳ Generating prompts…' : '✦ Generate 6 Image Ad Prompts — 2 credits'}
+            </button>
+            {s.adTextError && s.adTextType === 'image_prompt' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+            )}
+            {(s.adTextResults?.image_prompt || []).length > 0 && (
+              <ExportBar items={s.adTextResults.image_prompt} filename="promptceo-image-prompts" />
+            )}
+            {(s.adTextResults?.image_prompt || []).map((img, i) => {
+              const cardKey   = `img_card_${i}`
+              const cardState = cardImages[cardKey] || {}
+              return (
+                <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  {/* Card header */}
+                  <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>{img.label || img.format}</span>
+                      <span style={{ fontSize: 9, color: C.muted }}>{img.aspectRatio}</span>
+                    </div>
+                    <button onClick={() => doCopyAdText(img.prompt, `img_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `img_${i}` ? C.green : C.muted }}>
+                      {copiedText === `img_${i}` ? '✓ Copied' : '⎘ Prompt'}
+                    </button>
+                  </div>
+
+                  {/* Prompt text */}
+                  <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.65 }}>{img.prompt}</div>
+                    {img.platformFit && <div style={{ fontSize: 9, color: C.muted }}>Fits: {img.platformFit}</div>}
+                    {img.copyNote    && <div style={{ fontSize: 9, color: C.goldDim, fontStyle: 'italic' }}>{img.copyNote}</div>}
+
+                    {/* Generate Image button */}
+                    {!cardState.url && (
+                      <button
+                        onClick={() => generateCardImage(img.prompt, cardKey)}
+                        disabled={cardState.generating}
+                        style={{
+                          width: '100%', padding: '8px 0', borderRadius: 4, marginTop: 4,
+                          fontSize: 11, fontWeight: 700, cursor: cardState.generating ? 'not-allowed' : 'pointer',
+                          border: `1px solid ${C.goldDim}`, background: '#1a1408',
+                          color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          opacity: cardState.generating ? 0.7 : 1, transition: 'opacity 0.15s',
+                        }}
+                      >
+                        {cardState.generating ? '⟳ Generating image…' : '🖼 Generate This Image — 5 credits'}
+                      </button>
+                    )}
+
+                    {/* Error */}
+                    {cardState.error && (
+                      <div style={{ padding: '6px 8px', borderRadius: 3, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>
+                        {cardState.error}
+                      </div>
+                    )}
+
+                    {/* Generated image result */}
+                    {cardState.url && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                        <div style={{ borderRadius: 4, overflow: 'hidden', background: C.void }}>
+                          <img src={cardState.url} alt={img.label} style={{ width: '100%', height: 'auto', display: 'block' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          <a
+                            href={`/api/download-image?url=${encodeURIComponent(cardState.url)}&name=promptceo-${img.format || i}.jpg`}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}
+                          >
+                            ↓ Download
+                          </a>
+                          <button
+                            onClick={() => generateCardImage(img.prompt, cardKey)}
+                            disabled={cardState.generating}
+                            style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.muted }}
+                          >
+                            ↺ Regenerate
+                          </button>
+                          <button
+                            onClick={() => doCopyAdText(cardState.url, `img_url_${i}`)}
+                            style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `img_url_${i}` ? C.green : C.muted }}
+                          >
+                            {copiedText === `img_url_${i}` ? '✓' : '⎘ URL'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Creative Director Note — Images */}
+            {(s.adTextResults?.image_prompt || []).length > 0 && <DirectorNote noteKey="image_prompt" />}
+
+            {/* Continue to Video */}
+            {(s.adTextResults?.image_prompt || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>Image prompts ready — generate video prompts next</div>
+                <button onClick={() => setAdOutputTab('video_prompt')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Video →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.image_prompt && !s.adTextGenerating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🖼</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 6 ready-to-use image prompts — hero, lifestyle, UGC, before/after, minimal, and story format.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── VIDEO PROMPTS TAB ── */}
+        {adOutputTab === 'video_prompt' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('video_prompt')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'video_prompt' ? '⟳ Generating prompts…' : '✦ Generate 4 Video Ad Prompts — 3 credits'}
+            </button>
+            {s.adTextError && s.adTextType === 'video_prompt' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+            )}
+            {(s.adTextResults?.video_prompt || []).length > 0 && (
+              <ExportBar items={s.adTextResults.video_prompt} filename="promptceo-video-prompts" />
+            )}
+            {(s.adTextResults?.video_prompt || []).map((vid, i) => (
+              <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>{vid.label || vid.format}</span>
+                    <span style={{ fontSize: 9, color: C.muted }}>{vid.duration} · {vid.aspectRatio}</span>
+                  </div>
+                  <button onClick={() => doCopyAdText(vid.fullPrompt, `vid_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `vid_${i}` ? C.green : C.muted }}>
+                    {copiedText === `vid_${i}` ? '✓ Copied' : '⎘ Copy Prompt'}
+                  </button>
+                </div>
+                <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {vid.openingShot && (
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Opening Shot</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55, fontStyle: 'italic' }}>{vid.openingShot}</div>
+                    </div>
+                  )}
+                  {(vid.scenes || []).map((scene, j) => (
+                    <div key={j} style={{ display: 'flex', gap: 8, padding: '6px 0', borderTop: j > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                      <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, minWidth: 36, flexShrink: 0 }}>{scene.timing}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.5 }}>{scene.description}</div>
+                        {scene.cameraMotion && <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>Camera: {scene.cameraMotion}</div>}
+                      </div>
+                    </div>
+                  ))}
+                  {vid.fullPrompt && (
+                    <div style={{ padding: '8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Full Prompt</div>
+                      <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.6 }}>{vid.fullPrompt}</div>
+                    </div>
+                  )}
+
+                  {/* Storyboard */}
+                  {(() => {
+                    const sbKey  = `storyboard_${i}`
+                    const sb     = storyboards[sbKey]
+                    const loading = storyboardLoading[sbKey]
+                    return (
+                      <div>
+                        {!sb && (
+                          <button
+                            onClick={() => generateStoryboard(vid.fullPrompt || vid.openingShot || '', sbKey)}
+                            disabled={loading}
+                            style={{
+                              width: '100%', padding: '7px 0', borderRadius: 4, marginTop: 4,
+                              fontSize: 10, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                              border: `1px solid ${C.violetDim}`, background: '#0e0818',
+                              color: C.violet, opacity: loading ? 0.6 : 1,
+                            }}
+                          >
+                            {loading ? '⟳ Generating storyboard…' : '🎬 Generate Shot-by-Shot Storyboard — 2 credits'}
+                          </button>
+                        )}
+                        {sb && (
+                          <div style={{ borderRadius: 5, border: `1px solid ${C.violetDim}`, background: '#080610', overflow: 'hidden', marginTop: 4 }}>
+                            <div style={{ padding: '7px 10px', background: '#0e0818', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: 0.8 }}>🎬 STORYBOARD</span>
+                                {sb.title && <span style={{ fontSize: 9, color: C.secondary, marginLeft: 8 }}>{sb.title}</span>}
+                              </div>
+                              <button onClick={() => setStoryboards(prev => { const n = { ...prev }; delete n[sbKey]; return n })}
+                                style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                            </div>
+                            {sb.directorNote && (
+                              <div style={{ padding: '7px 10px', fontSize: 10, color: C.violet, fontStyle: 'italic', borderBottom: `1px solid ${C.violetDim}` }}>
+                                "{sb.directorNote}"
+                              </div>
+                            )}
+                            {(sb.shots || []).map((shot, si) => (
+                              <div key={si} style={{ padding: '8px 10px', borderTop: si > 0 ? `1px solid ${C.hairline}` : 'none', display: 'grid', gridTemplateColumns: '52px 1fr', gap: 8 }}>
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 8, fontWeight: 800, color: C.violet, fontFamily: 'monospace' }}>{shot.timeStart}s–{shot.timeEnd}s</div>
+                                  <div style={{ fontSize: 7, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{shot.label}</div>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                  <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.4, fontWeight: 600 }}>{shot.scene}</div>
+                                  {shot.cameraMove && <div style={{ fontSize: 8, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Cam:</span> {shot.cameraMove}</div>}
+                                  {shot.creatorAction && <div style={{ fontSize: 8, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Action:</span> {shot.creatorAction}</div>}
+                                  {shot.onScreenText && <div style={{ fontSize: 8, color: C.gold }}><span style={{ color: C.muted, fontWeight: 700 }}>Text:</span> {shot.onScreenText}</div>}
+                                  {shot.musicMoment && <div style={{ fontSize: 8, color: C.violet }}><span style={{ color: C.muted, fontWeight: 700 }}>Music:</span> {shot.musicMoment}</div>}
+                                  {shot.directorInstruction && <div style={{ fontSize: 8, color: C.gold, fontStyle: 'italic', borderLeft: `2px solid ${C.violetDim}`, paddingLeft: 5 }}>{shot.directorInstruction}</div>}
+                                </div>
+                              </div>
+                            ))}
+                            {sb.productionNotes && (
+                              <div style={{ padding: '7px 10px', borderTop: `1px solid ${C.violetDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.5, background: '#0e0818' }}>
+                                <span style={{ fontWeight: 700, color: C.muted }}>Production: </span>{sb.productionNotes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            ))}
+            {/* Creative Director Note — Video */}
+            {(s.adTextResults?.video_prompt || []).length > 0 && <DirectorNote noteKey="video_prompt" />}
+
+            {/* Continue to UGC */}
+            {(s.adTextResults?.video_prompt || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>Video prompts ready — generate UGC scripts next</div>
+                <button onClick={() => setAdOutputTab('ugc_scripts')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to UGC →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.video_prompt && !s.adTextGenerating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎬</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 4 video ad prompts — TikTok 15s, Meta 30s, UGC creator, and luxury cinematic.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── UGC SCRIPTS TAB ── */}
+        {adOutputTab === 'ugc_scripts' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('ugc_scripts')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'ugc_scripts' ? '⟳ Generating scripts…' : '✦ Generate 4 UGC Scripts — 2 credits'}
+            </button>
+            {s.adTextError && s.adTextType === 'ugc_scripts' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+            )}
+            {(s.adTextResults?.ugc_scripts || []).length > 0 && (
+              <ExportBar items={s.adTextResults.ugc_scripts} filename="promptceo-ugc-scripts" />
+            )}
+            {(s.adTextResults?.ugc_scripts || []).map((scr, i) => (
+              <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>{scr.label || scr.style}</span>
+                    <span style={{ fontSize: 9, color: C.muted }}>{scr.duration} · {scr.wordCount}</span>
+                  </div>
+                  <button onClick={() => doCopyAdText(scr.script, `scr_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `scr_${i}` ? C.green : C.muted }}>
+                    {copiedText === `scr_${i}` ? '✓ Copied' : '⎘ Copy Script'}
+                  </button>
+                </div>
+                <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ padding: '6px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Hook</div>
+                    <div style={{ fontSize: 12, color: C.primary, fontStyle: 'italic' }}>"{scr.hook}"</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{scr.script}</div>
+                  <VariationBar content={scr.script} contentType="script" />
+                  {scr.directorNote && (
+                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <span style={{ fontWeight: 700, color: C.muted }}>Director: </span>{scr.directorNote}
+                    </div>
+                  )}
+                  {scr.visualNote && (
+                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <span style={{ fontWeight: 700, color: C.muted }}>On screen: </span>{scr.visualNote}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* Creative Director Note — UGC */}
+            {(s.adTextResults?.ugc_scripts || []).length > 0 && <DirectorNote noteKey="ugc_scripts" />}
+
+            {/* Continue to Campaign */}
+            {(s.adTextResults?.ugc_scripts || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>UGC scripts ready — build the full 7-stage campaign</div>
+                <button onClick={() => setAdOutputTab('campaign')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Campaign →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.ugc_scripts && !s.adTextGenerating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎤</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 4 UGC creator scripts — natural, emotional, direct response, and testimonial styles.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── CAMPAIGN TAB ── */}
+        {adOutputTab === 'campaign' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              onClick={() => handleGenerateText('campaign')}
+              disabled={!productName.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'campaign' ? '⟳ Building 10-stage campaign…' : '✦ Build Full 10-Stage Campaign — 5 credits'}
+            </button>
+
+            {s.adTextError && s.adTextType === 'campaign' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+            )}
+
+            {(s.adTextResults?.campaign || []).length > 0 && (
+              <ExportBar items={s.adTextResults.campaign} filename="promptceo-campaign-10stage" />
+            )}
+
+            {(s.adTextResults?.campaign || []).map((stage, i) => {
+              const STAGE_COLORS = [
+                '#4a5a8a', // 1 Cold Awareness — deep blue
+                '#4a7a8a', // 2 Problem Aware — teal
+                '#6a7a4a', // 3 Desire — olive
+                '#4a7a6a', // 4 Product Solution — green
+                '#6a5a8a', // 5 UGC Trust — violet
+                '#7a6a4a', // 6 Social Proof — amber
+                '#c8843a', // 7 Offer — orange
+                '#c8a84b', // 8 Final Conv — gold
+                '#8a4a4a', // 9 Retargeting — red
+                '#6a4a7a', // 10 Winback — purple
+              ]
+              const color = STAGE_COLORS[i] || C.muted
+              const num   = String(i + 1).padStart(2, '0')
+              const [expanded, setExpanded] = [true, () => {}] // always expanded
+
+              return (
+                <div key={i} style={{ borderRadius: 6, border: `1px solid ${color}44`, background: C.base, overflow: 'hidden' }}>
+                  {/* Stage header */}
+                  <div style={{ padding: '8px 12px', background: color + '18', borderBottom: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: color, minWidth: 22, fontFamily: 'monospace' }}>{num}</span>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{stage.label || stage.stage}</div>
+                        {stage.audienceDescription && (
+                          <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{stage.audienceDescription}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {stage.angle && (
+                        <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: color + '22', border: `1px solid ${color}44`, color: color, fontWeight: 700 }}>
+                          {stage.angle}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => doCopyAdText(
+                          `STAGE ${num}: ${stage.label}\n\nHook: ${stage.hook}\n\nCaption:\n${stage.caption}\n\nVisual: ${stage.imagePromptDirection}\nVideo: ${stage.videoPromptDirection || ''}\nUGC: ${stage.ugcDirection || ''}\nMusic: ${stage.musicEnergy || ''}\nCTA: ${stage.cta}\n${stage.platformNote ? `Platform: ${stage.platformNote}` : ''}`,
+                          `stage_${i}`
+                        )}
+                        style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `stage_${i}` ? C.green : C.muted }}
+                      >
+                        {copiedText === `stage_${i}` ? '✓' : '⎘ Copy All'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Hook */}
+                  <div style={{ padding: '10px 12px 0', fontSize: 13, color: C.primary, fontStyle: 'italic', fontWeight: 600, lineHeight: 1.5 }}>
+                    "{stage.hook}"
+                  </div>
+
+                  {/* Caption */}
+                  <div style={{ padding: '8px 12px', fontSize: 11, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap', borderBottom: `1px solid ${C.hairline}` }}>
+                    {stage.caption}
+                  </div>
+
+                  {/* 6-cell grid: Visual · Video · UGC · Music · CTA · Platform */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
+                    {[
+                      { label: 'IMAGE',    value: stage.imagePromptDirection, color: '#4a6a9a' },
+                      { label: 'VIDEO',    value: stage.videoPromptDirection,  color: '#6a4a8a' },
+                      { label: 'UGC',      value: stage.ugcDirection,          color: '#4a7a5a' },
+                      { label: 'MUSIC',    value: stage.musicEnergy,           color: '#8a6a4a' },
+                      { label: 'CTA',      value: stage.cta,                   color: color     },
+                      { label: 'PLATFORM', value: stage.platformNote,          color: C.muted   },
+                    ].map((cell, ci) => cell.value ? (
+                      <div key={ci} style={{ padding: '6px 10px', borderTop: `1px solid ${C.hairline}`, borderRight: ci % 3 !== 2 ? `1px solid ${C.hairline}` : 'none' }}>
+                        <div style={{ fontSize: 7, fontWeight: 800, color: cell.color, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>{cell.label}</div>
+                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{cell.value}</div>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Creative Director Note — Campaign */}
+            {(s.adTextResults?.campaign || []).length > 0 && <DirectorNote noteKey="campaign" />}
+
+            {/* Continue to Score */}
+            {(s.adTextResults?.campaign || []).length > 0 && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>10-stage campaign built — score your best copy</div>
+                <button onClick={() => setAdOutputTab('score')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Score →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.campaign && !s.adTextGenerating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📊</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 4 }}>10-Stage Campaign Builder</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>
+                  Builds a complete funnel — Cold Awareness → Problem → Desire → Product → UGC Trust → Social Proof → Offer → Final Conversion → Retargeting → Winback.
+                </div>
+                <div style={{ fontSize: 9, color: C.muted, marginTop: 4 }}>Each stage: hook · caption · image · video · UGC · music · CTA</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── SCORE TAB ── */}
+        {adOutputTab === 'score' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Paste any hook, caption, or ad copy below and score it across 6 dimensions.
+            </div>
+
+            {/* Ad Fatigue Detection */}
+            {s.adTextResults && Object.keys(s.adTextResults).length >= 2 && (
+              <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Ad Fatigue Detection</div>
+                    <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>Scans all outputs for repetition, overuse patterns, and missing angles</div>
+                  </div>
+                  <button
+                    onClick={checkAdFatigue}
+                    disabled={fatigueLoading}
+                    style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: fatigueLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: fatigueLoading ? 0.6 : 1 }}
+                  >
+                    {fatigueLoading ? '⟳ Scanning…' : '✦ Detect Fatigue — 1 credit'}
+                  </button>
+                </div>
+                {fatigueResult && (
+                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ fontSize: 26, fontWeight: 800, color: fatigueResult.fatigueScore >= 80 ? C.green : fatigueResult.fatigueScore >= 60 ? C.gold : '#cf6a6a' }}>
+                        {fatigueResult.fatigueScore}<span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>/100</span>
+                      </div>
+                      <div style={{ flex: 1, fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{fatigueResult.summary}</div>
+                    </div>
+                    {(fatigueResult.patterns || []).map((p, i) => (
+                      <div key={i} style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: '#cf6a6a' }}>⚠ {p.issue}</span>
+                          {p.count && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 999, background: '#2a1010', border: '1px solid #3a1a1a', color: '#cf6a6a' }}>{p.count}×</span>}
+                        </div>
+                        {(p.examples || []).length > 0 && <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, fontStyle: 'italic' }}>{p.examples.slice(0, 2).map(e => `"${e}"`).join(' · ')}</div>}
+                        <div style={{ fontSize: 10, color: C.primary }}><span style={{ color: C.gold, fontWeight: 700 }}>Fix: </span>{p.fix}</div>
+                      </div>
+                    ))}
+                    {(fatigueResult.missingAngles || []).length > 0 && (
+                      <div style={{ padding: '7px 10px', borderRadius: 4, background: '#080c10', border: `1px solid ${C.blueDim}` }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Missing Angles</div>
+                        {fatigueResult.missingAngles.map((a, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, marginBottom: 2 }}>→ {a}</div>)}
+                      </div>
+                    )}
+                    {fatigueResult.recommendation && (
+                      <div style={{ padding: '7px 10px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, color: C.gold, lineHeight: 1.5 }}>
+                        <strong>Director: </strong>{fatigueResult.recommendation}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Project Score Dashboard */}
+            {productName.trim() && (
+              <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Full Campaign Score</div>
+                    <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>8-dimension evaluation of your entire campaign</div>
+                  </div>
+                  <button
+                    onClick={scoreFullProject}
+                    disabled={projectScoreLoading}
+                    style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: projectScoreLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: projectScoreLoading ? 0.6 : 1 }}
+                  >
+                    {projectScoreLoading ? '⟳ Scoring…' : '✦ Score Full Campaign — 2 credits'}
+                  </button>
+                </div>
+                {projectScore && (
+                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* Overall */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 36, fontWeight: 800, color: projectScore.overallScore >= 85 ? C.green : projectScore.overallScore >= 70 ? C.gold : '#cf6a6a', lineHeight: 1 }}>
+                          {projectScore.overallScore}
+                        </div>
+                        <div style={{ fontSize: 10, color: C.muted }}>/100</div>
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: C.secondary }}>{projectScore.grade}</div>
+                      <div style={{ flex: 1, fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{projectScore.summary}</div>
+                    </div>
+                    {/* 8 dimensions */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {Object.entries(projectScore.dimensions || {}).map(([key, dim]) => {
+                        const score = dim.score || 0
+                        const barColor = score >= 8 ? C.green : score >= 6 ? C.gold : score >= 4 ? C.tension : '#cf6a6a'
+                        const labels = { campaignStrength: 'Campaign Strength', hookStrength: 'Hook Strength', emotionalPull: 'Emotional Pull', visualDirection: 'Visual Direction', musicFit: 'Music Fit', ctaStrength: 'CTA Strength', platformFit: 'Platform Fit', conversionPotential: 'Conversion Potential' }
+                        return (
+                          <div key={key} style={{ padding: '7px 9px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: C.secondary }}>{labels[key] || key}</span>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: barColor }}>{score}</span>
+                            </div>
+                            <div style={{ height: 2, background: C.subtle, borderRadius: 1, overflow: 'hidden', marginBottom: 4 }}>
+                              <div style={{ height: '100%', width: `${score * 10}%`, background: barColor, borderRadius: 1 }} />
+                            </div>
+                            <div style={{ fontSize: 8, color: C.muted, lineHeight: 1.3 }}>{dim.reason}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {/* Winner + Fix */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {projectScore.winningElement && (
+                        <div style={{ padding: '7px 9px', borderRadius: 4, background: '#081208', border: '1px solid #1a3a1a' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Winning Element</div>
+                          <div style={{ fontSize: 10, color: C.primary }}>{projectScore.winningElement}</div>
+                        </div>
+                      )}
+                      {projectScore.topFix && (
+                        <div style={{ padding: '7px 9px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Top Fix</div>
+                          <div style={{ fontSize: 10, color: C.primary }}>{projectScore.topFix}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Score individual copy
+            </div>
+
+            <textarea
+              value={scoreInput}
+              onChange={e => setScoreInput(e.target.value)}
+              placeholder="Paste your hook, caption, UGC script, or any ad content here…"
+              rows={5}
+              style={{
+                width: '100%', background: C.deep, color: C.primary,
+                border: `1px solid ${C.subtle}`, borderRadius: 4,
+                padding: '8px 10px', fontSize: 11, outline: 'none',
+                boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical',
+              }}
+              onFocus={e => e.target.style.borderColor = C.goldDim}
+              onBlur={e => e.target.style.borderColor = C.subtle}
+            />
+
+            <button
+              onClick={handleScoreContent}
+              disabled={!scoreInput.trim() || s.adTextGenerating}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: scoreInput.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                border: `1px solid ${scoreInput.trim() ? C.goldDim : C.hairline}`,
+                background: scoreInput.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: scoreInput.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              {s.adTextGenerating && s.adTextType === 'quality_score' ? '⟳ Scoring…' : '✦ Score This Ad — 1 credit'}
+            </button>
+
+            {s.adTextError && s.adTextType === 'quality_score' && (
+              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+            )}
+
+            {/* Score results */}
+            {s.adTextResults?.quality_score && (() => {
+              const sc = s.adTextResults.quality_score
+              const gradeColor = sc.overallScore >= 8.5 ? '#4a9a6a' : sc.overallScore >= 7 ? C.gold : sc.overallScore >= 5 ? C.tension : '#cf6a6a'
+              const dimKeys = ['hookStrength','emotionalPull','clarity','visualStrength','conversionPotential','platformFit']
+              const dimLabels = { hookStrength:'Hook Strength', emotionalPull:'Emotional Pull', clarity:'Clarity', visualStrength:'Visual Strength', conversionPotential:'Conversion Potential', platformFit:'Platform Fit' }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Overall */}
+                  <div style={{ borderRadius: 6, border: `1px solid ${gradeColor}44`, background: gradeColor + '10', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Overall Score</div>
+                      <div style={{ fontSize: 28, fontWeight: 800, color: gradeColor, lineHeight: 1 }}>{sc.overallScore}<span style={{ fontSize: 14, fontWeight: 400, color: C.muted }}>/10</span></div>
+                      <div style={{ fontSize: 11, color: C.secondary, marginTop: 6, lineHeight: 1.5 }}>{sc.summary}</div>
+                    </div>
+                    <div style={{ fontSize: 42, fontWeight: 800, color: gradeColor + 'cc' }}>{sc.grade}</div>
+                  </div>
+
+                  {/* Dimension scores */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {dimKeys.map(dim => {
+                      const d = sc.scores?.[dim]
+                      if (!d) return null
+                      const score = d.score || 0
+                      const barColor = score >= 8 ? '#4a9a6a' : score >= 6 ? C.gold : score >= 4 ? C.tension : '#cf6a6a'
+                      return (
+                        <div key={dim} style={{ padding: '8px 10px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C.secondary }}>{dimLabels[dim]}</span>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: barColor }}>{score}<span style={{ fontSize: 9, color: C.muted }}>/10</span></span>
+                          </div>
+                          <div style={{ height: 3, background: C.raised, borderRadius: 2, overflow: 'hidden', marginBottom: 5 }}>
+                            <div style={{ height: '100%', width: `${score * 10}%`, background: barColor, borderRadius: 2, transition: 'width 0.4s' }} />
+                          </div>
+                          <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.4 }}>{d.reason}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Strengths + Weaknesses */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <div style={{ borderRadius: 4, border: '1px solid #1a3a2a', background: '#081208', padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#4a9a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Strong</div>
+                      {(sc.strengths || []).map((s, i) => (
+                        <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✓ {s}</div>
+                      ))}
+                    </div>
+                    <div style={{ borderRadius: 4, border: '1px solid #2a1010', background: '#110606', padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Weak</div>
+                      {(sc.weaknesses || []).map((w, i) => (
+                        <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✗ {w}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Improvements */}
+                  {(sc.improvements || []).length > 0 && (
+                    <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.base, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>How to Improve</div>
+                      {sc.improvements.map((imp, i) => (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary, marginBottom: 2 }}>{dimLabels[imp.dimension] || imp.dimension}</div>
+                          <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.5 }}>{imp.suggestion}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Improved hook */}
+                  {sc.improvedHook && (
+                    <div style={{ borderRadius: 4, border: `1px solid ${C.goldDim}`, background: C.goldGlow, padding: '8px 10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>Improved Hook</div>
+                        <button onClick={() => doCopyAdText(sc.improvedHook, 'imp_hook')} style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: C.raised, color: copiedText === 'imp_hook' ? C.green : C.gold }}>
+                          {copiedText === 'imp_hook' ? '✓' : '⎘'}
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.6, fontStyle: 'italic' }}>"{sc.improvedHook}"</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Continue to Music */}
+            {s.adTextResults?.quality_score && (
+              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, color: C.secondary }}>Ad scored — add the perfect soundtrack</div>
+                <button onClick={() => setAdOutputTab('soundtrack')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Continue to Music →
+                </button>
+              </div>
+            )}
+
+            {!s.adTextResults?.quality_score && !s.adTextGenerating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '30px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🏆</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Paste any ad copy above to score it across Hook Strength, Emotional Pull, Clarity, Visual Strength, Conversion Potential, and Platform Fit.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── SOUNDTRACK TAB ── */}
+        {adOutputTab === 'soundtrack' && (<>
+          <MusicSelector
+            adConfig={buildAdConfig()}
+            selectedTrack={s.adMusicTrack}
+            credits={s.credits}
+            onLicense={(track, licenseData) => {
+              merge({
+                adMusicTrack:       track,
+                adMusicLicenseId:   licenseData.licenseId,
+                adMusicTimingPlan:  licenseData.timingPlan,
+              })
+              if (typeof licenseData.creditsRemaining === 'number') {
+                set('credits', licenseData.creditsRemaining)
+              }
+            }}
+          />
+        </>)}
+
+        {/* ── INSPIRE TAB ── */}
+        {adOutputTab === 'inspire' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+              Paste a competitor ad, brand description, or any creative reference. The AI will analyse what makes it work and generate inspired original direction for your brand — without copying.
+            </div>
+            <textarea
+              value={competitorText}
+              onChange={e => setCompetitorText(e.target.value)}
+              placeholder={`Paste any competitor ad, hook, caption, landing page copy, or brand description here…\n\nExample: "Stop. If you're still using the same gym clothes from 2019, this is your sign. Our performance hoodie is engineered for women who train hard and want to look like it. Shop now."`}
+              rows={6}
+              style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '8px 10px', fontSize: 11, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+              onFocus={e => e.target.style.borderColor = C.goldDim}
+              onBlur={e => e.target.style.borderColor = C.subtle}
+            />
+            <button
+              onClick={analyseCompetitor}
+              disabled={!competitorText.trim() || competitorLoading}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: competitorText.trim() && !competitorLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${competitorText.trim() ? C.goldDim : C.hairline}`,
+                background: competitorText.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: competitorText.trim() ? C.gold : C.muted,
+              }}
+            >
+              {competitorLoading ? '⟳ Analysing…' : '✦ Analyse & Get Inspired Direction — 2 credits'}
+            </button>
+
+            {competitorResult && (() => {
+              const r = competitorResult
+              const ra = r.referenceAnalysis || {}
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Reference Analysis */}
+                  <div style={{ borderRadius: 6, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                    <div style={{ padding: '8px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Reference Analysis</span>
+                      {ra.strengthScore && <span style={{ fontSize: 10, fontWeight: 800, color: ra.strengthScore >= 8 ? C.green : C.gold }}>{ra.strengthScore}/10</span>}
+                    </div>
+                    <div style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {[
+                        { label: 'Tone',             value: ra.tone            },
+                        { label: 'Hook Pattern',     value: ra.hookPattern     },
+                        { label: 'Emotional Trigger',value: ra.emotionalTrigger},
+                        { label: 'CTA Style',        value: ra.ctaStyle        },
+                        { label: 'Audience Signal',  value: ra.audienceSignal  },
+                        { label: 'Visual Pacing',    value: ra.visualPacing    },
+                      ].filter(i => i.value).map((item, i) => (
+                        <div key={i} style={{ padding: '5px 7px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 7, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>{item.label}</div>
+                          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Director Note */}
+                  {r.directorNote && (
+                    <div style={{ padding: '8px 12px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 11, color: C.gold, fontStyle: 'italic' }}>
+                      "{r.directorNote}"
+                    </div>
+                  )}
+
+                  {/* Inspired Direction */}
+                  {r.inspiredDirection && (
+                    <div style={{ padding: '10px 12px', borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0d0c04' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Inspired Direction for Your Brand</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 4 }}>{r.inspiredDirection.angle}</div>
+                      <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{r.inspiredDirection.whyItWorks}</div>
+                    </div>
+                  )}
+
+                  {/* 5 Inspired Hooks */}
+                  {(r.inspiredHooks || []).length > 0 && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '7px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        5 Inspired Hooks — Original, Not Copied
+                      </div>
+                      {r.inspiredHooks.map((hook, i) => (
+                        <div key={i} style={{ padding: '8px 12px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <span style={{ fontSize: 9, color: C.muted, fontWeight: 700, minWidth: 16, flexShrink: 0 }}>{i + 1}</span>
+                          <div style={{ flex: 1, fontSize: 12, color: C.primary, lineHeight: 1.55 }}>{hook}</div>
+                          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                            <button onClick={() => doCopyAdText(hook, `inspire_${i}`)} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `inspire_${i}` ? C.green : C.muted }}>
+                              {copiedText === `inspire_${i}` ? '✓' : '⎘'}
+                            </button>
+                            <button onClick={() => { setSelectedHook(hook); setAdOutputTab('hooks') }} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                              Use
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inspired Caption + Visual */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {r.inspiredCaption && (
+                      <div style={{ padding: '8px 10px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Inspired Caption</div>
+                        <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6 }}>{r.inspiredCaption}</div>
+                      </div>
+                    )}
+                    {r.visualDirection && (
+                      <div style={{ padding: '8px 10px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Visual Direction</div>
+                        <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{r.visualDirection}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {!competitorResult && !competitorLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '30px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🔍</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>Inspired Analysis</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>
+                  Paste any competitor ad, hook, or brand copy above. The AI extracts what makes it work — hook pattern, emotional trigger, CTA style — then builds original creative in your brand's voice.
+                </div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        </div>
+        {/* ── END TAB CONTENT WRAPPER ── */}
+
       </div>
     </div>
   )
@@ -786,6 +3514,10 @@ const INIT = {
   batchImgRunning:    false,
   batchImgProgress:   0,
   batchVideos:        {},
+  // Music
+  adMusicTrack:       null,
+  adMusicLicenseId:   null,
+  adMusicTimingPlan:  null,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1364,6 +4096,18 @@ export default function PromptCEOPage() {
     checkSession()
   }, [])
 
+  // Read ?view= and ?tab= from URL on mount — used by Dashboard links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const view   = params.get('view')
+    const tab    = params.get('tab')
+    if (view === 'ad_studio') {
+      set('view', 'ad_studio')
+      if (tab) window.__adStudioInitTab = tab
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const [s, setS]   = useState(INIT)
   const set         = useCallback((k, v) => setS(p => ({ ...p, [k]: v })), [])
   const merge       = useCallback(patch  => setS(p => ({ ...p, ...patch })), [])
@@ -1775,6 +4519,36 @@ export default function PromptCEOPage() {
     merge({ batchImgRunning: false })
   }, [batch, s, merge, set])
 
+  // ── Ad text generation (angles / hooks / captions) ───────
+  const generateAdText = useCallback(async ({ type, hookType, adConfig, inspiredStyle, contentToScore, variationContent, variationType, variationContentType }) => {
+    merge({ adTextGenerating: true, adTextError: '', adTextType: type, adTextHookType: hookType || null })
+    try {
+      const res  = await fetch('/api/generate-ad-text', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type, hookType, adConfig,
+          inspiredStyle:       inspiredStyle       || null,
+          contentToScore:      contentToScore      || null,
+          variationContent:    variationContent    || null,
+          variationType:       variationType       || null,
+          variationContentType: variationContentType || null,
+        }),
+      })
+      const data = await res.json()
+      if (data?.status === 'complete') {
+        merge({
+          adTextGenerating: false,
+          adTextResults: { ...(s.adTextResults || {}), [type + (hookType ? `_${hookType}` : '')]: data.data },
+        })
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        merge({ adTextError: data?.message || 'Generation failed', adTextGenerating: false })
+      }
+    } catch (err) {
+      merge({ adTextError: err.message, adTextGenerating: false })
+    }
+  }, [s, merge, set])
+
   // ── Ad Studio generation ──────────────────────────────────
   const generateAdImage = useCallback(async ({ prompt, mode, adConfig }) => {
     merge({ adGenerating: true, adError: '', adGeneratedImage: '', adVideoUrl: '' })
@@ -2056,6 +4830,19 @@ export default function PromptCEOPage() {
             >
               📣 Ad Studio
             </button>
+
+            {/* Dashboard link */}
+            <a
+              href="/prompt-engine-v3/dashboard"
+              style={{
+                padding: '5px 12px', borderRadius: 4,
+                fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${C.subtle}`, background: C.surface,
+                color: C.secondary, textDecoration: 'none', whiteSpace: 'nowrap',
+              }}
+            >
+              📋 Dashboard
+            </a>
           </div>
 
           <div style={{ flex: 1 }} />
@@ -2133,6 +4920,7 @@ export default function PromptCEOPage() {
             merge={merge}
             generateAdImage={generateAdImage}
             generateAdVideo={generateAdVideo}
+            generateAdText={generateAdText}
           />
         )}
 
@@ -2861,4 +5649,4 @@ export default function PromptCEOPage() {
       </div>
     </>
   )
-}
+} 
