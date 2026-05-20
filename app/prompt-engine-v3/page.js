@@ -6,6 +6,10 @@ import { createClient } from '../../lib/supabase/client'
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { buildPromptV3 } from './index.js'
 import MusicSelector from './components/MusicSelector.js'
+import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMusicRecommendationForStage } from './ad-system/musicIntelligence.js'
+import { recommendMusicForAd } from './ad-system/musicRecommendation.js'
+import { buildVoiceInjectionContext } from './ad-system/brandVoiceTrainer.js'
+import { STUDIO_VARIATION_TYPES }     from './studio/studioIntelligence.js'
 
 import {
   WORLD_LOCATIONS,
@@ -184,6 +188,61 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   // Campaign Consistency
   const [consistencyResult, setConsistencyResult] = useState(null)
   const [consistencyLoading, setConsistencyLoading] = useState(false)
+  // Client Sharing
+  const [shareToken,    setShareToken]    = useState(null)
+  const [shareLoading,  setShareLoading]  = useState(false)
+  const [shareCopied,   setShareCopied]   = useState(false)
+  const [myShares,      setMyShares]      = useState([])
+  const [sharesLoaded,  setSharesLoaded]  = useState(false)
+  // Performance Intelligence — stored in localStorage
+  const [perfData,      setPerfData]      = useState(() => {
+    try { return JSON.parse(localStorage.getItem('promptceo_perf_v1') || '{"hooks":{},"angles":{}}') } catch { return { hooks: {}, angles: {} } }
+  })
+  const [logOpen,       setLogOpen]       = useState(null) // hook or angle key being logged
+  // Visual Brand DNA
+  const [visualDNA,     setVisualDNA]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem('promptceo_visual_dna_v1') || '{}') } catch { return {} }
+  })
+  // Brand Voice Fingerprint
+  const [voiceFingerprint, setVoiceFingerprint] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('promptceo_voice_fp_v1') || 'null') } catch { return null }
+  })
+  const [voiceTraining,    setVoiceTraining]    = useState(false)
+  const [voiceAds,         setVoiceAds]         = useState(['', '', ''])
+  // Content Calendar
+  const [calendar,         setCalendar]         = useState(null)
+  const [calendarLoading,  setCalendarLoading]  = useState(false)
+  const [calendarFilter,   setCalendarFilter]   = useState('all')
+  // Market Intelligence
+  const [marketAds,        setMarketAds]        = useState(['', '', ''])
+  const [marketResult,     setMarketResult]     = useState(null)
+  const [marketLoading,    setMarketLoading]    = useState(false)
+  // A/B Tests
+  const [abTests,          setAbTests]          = useState(() => {
+    try { return JSON.parse(localStorage.getItem('promptceo_abtests_v1') || '[]') } catch { return [] }
+  })
+  const [abForm,           setAbForm]           = useState({ name: '', hypothesis: '', hookA: '', hookB: '', duration: '7', budget: '', metric: 'CTR' })
+  const [abCreating,       setAbCreating]       = useState(false)
+  const [abInsightLoading, setAbInsightLoading] = useState(false)
+  const [abInsights,       setAbInsights]       = useState({}) // keyed by test id
+  // ROI Projection
+  const [roi,              setRoi]              = useState({ price: '', margin: '', ctr: '', convRate: '', audience: '', spend: '' })
+  // Webhook
+  const [webhookUrl,       setWebhookUrl]       = useState(() => {
+    try { return localStorage.getItem('promptceo_webhook_v1') || '' } catch { return '' }
+  })
+  const [webhookSending,   setWebhookSending]   = useState(false)
+  const [webhookStatus,    setWebhookStatus]    = useState(null)
+  // Music library — loaded once so it's available everywhere in the studio
+  const [musicTracks,      setMusicTracks]      = useState([])
+  // Launch Sequence
+  const [launchSequence,   setLaunchSequence]   = useState(null)
+  const [launchLoading,    setLaunchLoading]    = useState(false)
+  // Iteration Engine
+  const [iterationResult,  setIterationResult]  = useState(null)
+  const [iterationLoading, setIterationLoading] = useState(false)
+  const [iterationDir,     setIterationDir]     = useState('stronger')
+  const [iterationFeedback, setIterationFeedback] = useState('')
   // Ad Fatigue Detection
   const [fatigueResult,   setFatigueResult]   = useState(null)
   const [fatigueLoading,  setFatigueLoading]  = useState(false)
@@ -218,6 +277,14 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const raw = JSON.parse(localStorage.getItem('promptceo_ad_brand_dna_v1') || '[]')
       setDnaProfiles(raw)
     } catch {}
+  }, [])
+
+  // Load music library once so it's available everywhere
+  useEffect(() => {
+    fetch('/api/music-tracks')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setMusicTracks(d.tracks || []) })
+      .catch(() => {})
   }, [])
 
   // Auto-fetch Creative Director note + track timeline when a generation completes
@@ -309,6 +376,10 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     offer, callToAction, brandVoice, pricePoint, platformGoal,
     selectedAngle, selectedHook,
     lockedAngle, lockedHook, lockedCaption, lockedVisualStyle, lockedMusic, lockedBrandVoice,
+    winners, // Brand Learning — starred hooks and angles feed back into generation
+    topPerformers: getTopPerformers(), // Performance Intelligence
+    visualDNA, // Visual Brand DNA
+    voiceFingerprint, // Brand Voice Fingerprint — trained voice signature
   })
 
   const handleGenerateText = (type, hookType) => {
@@ -433,9 +504,450 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setProjectSaved(true)
-        setProjectsLoaded(false) // force reload next open
+        setProjectsLoaded(false)
+        // Auto-fire webhook if configured
+        if (webhookUrl?.trim()) sendWebhook('campaign.saved')
       }
     } catch {}
+  }
+
+  // ── Client Sharing ────────────────────────────────────────
+  const shareWithClient = async () => {
+    if (shareLoading || !productName.trim()) return
+    setShareLoading(true)
+    try {
+      const res  = await fetch('/api/create-share', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shareName:    productName,
+          productName,
+          platform:     adPlatform,
+          campaignGoal: platformGoal,
+          outputs:      s.adTextResults || {},
+          adconfig:     buildAdConfig(),
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setShareToken(data.token)
+        const shareUrl = `${window.location.origin}/review/${data.token}`
+        await navigator.clipboard.writeText(shareUrl).catch(() => {})
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 3000)
+        addTimelineEvent('Campaign shared with client')
+        setSharesLoaded(false)
+        // Auto-fire webhook if configured
+        if (webhookUrl?.trim()) sendWebhook('campaign.shared')
+      }
+    } catch {}
+    finally { setShareLoading(false) }
+  }
+
+  const loadMyShares = async () => {
+    try {
+      const res  = await fetch('/api/create-share')
+      const data = await res.json()
+      if (data.status === 'success') { setMyShares(data.shares || []); setSharesLoaded(true) }
+    } catch {}
+  }
+
+  // ── Campaign Pack ─────────────────────────────────────────
+  const downloadCampaignPack = () => {
+    const r = s.adTextResults || {}
+    const sections = []
+
+    sections.push(`CAMPAIGN PACK — ${productName}`)
+    sections.push('='.repeat(50))
+    sections.push(`Platform: ${adPlatform} | Goal: ${platformGoal} | Voice: ${brandVoice}`)
+    if (targetCustomer) sections.push(`Target: ${targetCustomer}`)
+    if (offer)          sections.push(`Offer: ${offer}`)
+    if (callToAction)   sections.push(`CTA: ${callToAction}`)
+    sections.push('')
+
+    if (selectedAngle) {
+      sections.push('CAMPAIGN DIRECTION')
+      sections.push('-'.repeat(30))
+      sections.push(`${selectedAngle.title}: "${selectedAngle.hook}"`)
+      sections.push(selectedAngle.adPromise || '')
+      sections.push('')
+    }
+
+    if (selectedHook) {
+      sections.push('SELECTED HOOK')
+      sections.push('-'.repeat(30))
+      sections.push(selectedHook)
+      sections.push('')
+    }
+
+    if (r.angles?.length > 0) {
+      sections.push('AD ANGLES (Top 5)')
+      sections.push('-'.repeat(30))
+      r.angles.slice(0, 5).forEach((a, i) => {
+        sections.push(`${i + 1}. ${a.title}`)
+        sections.push(`   Hook: "${a.hook}"`)
+        sections.push(`   Promise: ${a.adPromise || ''}`)
+        sections.push('')
+      })
+    }
+
+    const allHooks = Object.keys(r).filter(k => k.startsWith('hooks'))
+      .flatMap(k => r[k]?.hooks || [])
+    if (allHooks.length > 0) {
+      sections.push('ALL HOOKS')
+      sections.push('-'.repeat(30))
+      allHooks.slice(0, 20).forEach((h, i) => sections.push(`${i + 1}. ${h}`))
+      sections.push('')
+    }
+
+    if (r.captions?.length > 0) {
+      sections.push('AD CAPTIONS')
+      sections.push('-'.repeat(30))
+      r.captions.forEach(c => {
+        sections.push(`[${c.label || c.type}]`)
+        sections.push(c.fullCaption || c.hook || '')
+        sections.push('')
+      })
+    }
+
+    if (r.ugc_scripts?.length > 0) {
+      sections.push('UGC SCRIPTS')
+      sections.push('-'.repeat(30))
+      r.ugc_scripts.forEach(s => {
+        sections.push(`[${s.label}] — ${s.duration}`)
+        sections.push(`Hook: "${s.hook}"`)
+        sections.push(s.script || '')
+        sections.push('')
+      })
+    }
+
+    if (r.campaign?.length > 0) {
+      sections.push(`${r.campaign.length}-STAGE CAMPAIGN`)
+      sections.push('-'.repeat(30))
+      r.campaign.forEach((stage, i) => {
+        sections.push(`\n[Stage ${i + 1}] ${stage.label}`)
+        sections.push(`Hook: "${stage.hook}"`)
+        sections.push(stage.caption || '')
+        sections.push(`CTA: ${stage.cta}`)
+        if (stage.imagePromptDirection) sections.push(`Visual: ${stage.imagePromptDirection}`)
+      })
+      sections.push('')
+    }
+
+    if (launchSequence?.length > 0) {
+      sections.push('LAUNCH SEQUENCE')
+      sections.push('-'.repeat(30))
+      launchSequence.forEach(stage => {
+        sections.push(`\n[${stage.label}] ${stage.timing}`)
+        sections.push(`Hook: "${stage.hook}"`)
+        sections.push(stage.caption || '')
+        sections.push(`CTA: ${stage.cta}`)
+      })
+      sections.push('')
+    }
+
+    if (s.adMusicTrack) {
+      sections.push('CAMPAIGN SOUNDTRACK')
+      sections.push('-'.repeat(30))
+      sections.push(`Track: ${s.adMusicTrack.title}`)
+      sections.push(`Energy: ${s.adMusicTrack.energy} | Mood: ${s.adMusicTrack.mood} | BPM: ${s.adMusicTrack.bpm}`)
+      sections.push('')
+    }
+
+    sections.push('─'.repeat(50))
+    sections.push(`Generated by Prompt CEO · ${new Date().toLocaleDateString()}`)
+
+    const text = sections.join('\n')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })),
+      download: `campaign-pack-${productName.replace(/\s+/g, '-').toLowerCase()}.txt`,
+    })
+    a.click()
+    addTimelineEvent('Campaign pack downloaded')
+  }
+
+  // ── Performance Intelligence ───────────────────────────────
+  const logPerformance = (type, key, ctr, notes) => {
+    setPerfData(prev => {
+      const updated = {
+        ...prev,
+        [type]: {
+          ...prev[type],
+          [key]: { ctr: parseFloat(ctr) || 0, notes, date: new Date().toISOString().slice(0, 10) }
+        }
+      }
+      try { localStorage.setItem('promptceo_perf_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    setLogOpen(null)
+  }
+
+  const getTopPerformers = () => {
+    const hooks  = Object.entries(perfData.hooks  || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 5)
+    const angles = Object.entries(perfData.angles || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 3)
+    return { hooks: hooks.map(([h, d]) => ({ text: h, ...d })), angles: angles.map(([a, d]) => ({ text: a, ...d })) }
+  }
+
+  // ── Visual Brand DNA ──────────────────────────────────────
+  const saveVisualDNA = (updates) => {
+    setVisualDNA(prev => {
+      const updated = { ...prev, ...updates }
+      try { localStorage.setItem('promptceo_visual_dna_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }
+
+  // ── A/B Tests ─────────────────────────────────────────────
+  const saveAbTests = (tests) => {
+    try { localStorage.setItem('promptceo_abtests_v1', JSON.stringify(tests)) } catch {}
+    setAbTests(tests)
+  }
+
+  const createAbTest = () => {
+    if (!abForm.hookA.trim() || !abForm.hookB.trim()) return
+    const test = {
+      id: Date.now(),
+      ...abForm,
+      product: productName,
+      platform: adPlatform,
+      status: 'running',
+      createdAt: new Date().toISOString(),
+      ctrA: '', ctrB: '', winner: null, insight: null,
+    }
+    saveAbTests([test, ...abTests])
+    setAbForm({ name: '', hypothesis: '', hookA: '', hookB: '', duration: '7', budget: '', metric: 'CTR' })
+    setAbCreating(false)
+    addTimelineEvent('A/B test created', test.name || 'Hook battle')
+  }
+
+  const resolveAbTest = (id, ctrA, ctrB) => {
+    const winner = parseFloat(ctrA) >= parseFloat(ctrB) ? 'A' : 'B'
+    const updated = abTests.map(t => t.id === id ? { ...t, ctrA, ctrB, winner, status: 'completed' } : t)
+    saveAbTests(updated)
+    // Log winner to performance data
+    const test = abTests.find(t => t.id === id)
+    if (test) {
+      const winningHook = winner === 'A' ? test.hookA : test.hookB
+      logPerformance('hooks', winningHook, winner === 'A' ? ctrA : ctrB, `Won A/B test: ${test.name || 'Hook battle'}`)
+    }
+  }
+
+  const getAbTestInsight = async (test) => {
+    if (abInsightLoading || !test.ctrA || !test.ctrB) return
+    setAbInsightLoading(true)
+    try {
+      const res  = await fetch('/api/ab-test-insight', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testName: test.name, hypothesis: test.hypothesis,
+          hookA: test.hookA, hookB: test.hookB,
+          hookACtr: parseFloat(test.ctrA), hookBCtr: parseFloat(test.ctrB),
+          winner: test.winner, adConfig: buildAdConfig(),
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setAbInsights(prev => ({ ...prev, [test.id]: data.insight }))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+        // Save learning rule to performance data comment
+        const updated = abTests.map(t => t.id === test.id ? { ...t, insight: data.insight } : t)
+        saveAbTests(updated)
+      }
+    } catch {}
+    finally { setAbInsightLoading(false) }
+  }
+
+  // ── ROI Calculation ───────────────────────────────────────
+  const calcRoi = () => {
+    const price    = parseFloat(roi.price)    || 0
+    const margin   = parseFloat(roi.margin)   || 0
+    const ctr      = parseFloat(roi.ctr)      || 0
+    const convRate = parseFloat(roi.convRate) || 0
+    const audience = parseFloat(roi.audience) || 0
+    const spend    = parseFloat(roi.spend)    || 0
+    if (!price || !audience || !spend) return null
+
+    const clicks       = audience * (ctr / 100)
+    const purchases    = clicks   * (convRate / 100)
+    const revenue      = purchases * price
+    const grossProfit  = revenue   * (margin / 100)
+    const netProfit    = grossProfit - spend
+    const roas         = spend > 0 ? revenue / spend : 0
+    const breakEven    = spend > 0 && price > 0 && margin > 0
+      ? spend / (price * (margin / 100))
+      : 0
+    const breakEvenConv = audience > 0 && clicks > 0
+      ? (breakEven / clicks) * 100
+      : 0
+
+    return { clicks: Math.round(clicks), purchases: Math.round(purchases), revenue, grossProfit, netProfit, roas, breakEven: Math.ceil(breakEven), breakEvenConv: breakEvenConv.toFixed(2) }
+  }
+
+  // ── Webhook / Export ──────────────────────────────────────
+  const saveWebhookUrl = (url) => {
+    setWebhookUrl(url)
+    try { localStorage.setItem('promptceo_webhook_v1', url) } catch {}
+  }
+
+  const sendWebhook = async (event = 'campaign.saved') => {
+    if (!webhookUrl?.trim() || webhookSending) return
+    setWebhookSending(true)
+    setWebhookStatus(null)
+    try {
+      const payload = {
+        event,
+        campaign: {
+          productName,
+          platform: adPlatform,
+          goal: platformGoal,
+          brandVoice,
+          selectedAngle: selectedAngle || lockedAngle,
+          selectedHook:  selectedHook  || lockedHook,
+          hooks:   Object.keys(s.adTextResults || {}).filter(k => k.startsWith('hooks'))
+            .flatMap(k => s.adTextResults[k]?.hooks || []),
+          captions: (s.adTextResults?.captions || []).map(c => c.fullCaption || c.hook),
+          campaignStages: (s.adTextResults?.campaign || []).map(st => ({ label: st.label, hook: st.hook, cta: st.cta })),
+          music: s.adMusicTrack ? { title: s.adMusicTrack.title, mood: s.adMusicTrack.mood, energy: s.adMusicTrack.energy } : null,
+          shareUrl: shareToken ? `${window.location.origin}/review/${shareToken}` : null,
+        },
+      }
+      const res  = await fetch('/api/send-webhook', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl, payload }),
+      })
+      const data = await res.json()
+      setWebhookStatus(data.status === 'success' ? 'sent' : 'error')
+      if (data.status === 'success') addTimelineEvent('Webhook sent', event)
+    } catch { setWebhookStatus('error') }
+    finally { setWebhookSending(false); setTimeout(() => setWebhookStatus(null), 4000) }
+  }
+
+  const trainBrandVoice = async () => {
+    const validAds = voiceAds.filter(a => a.trim())
+    if (validAds.length === 0 || voiceTraining) return
+    setVoiceTraining(true)
+    try {
+      const res  = await fetch('/api/train-brand-voice', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ads: validAds }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setVoiceFingerprint(data.fingerprint)
+        try { localStorage.setItem('promptceo_voice_fp_v1', JSON.stringify(data.fingerprint)) } catch {}
+        addTimelineEvent('Brand voice fingerprint trained', data.fingerprint.voiceLabel)
+      }
+    } catch {}
+    finally { setVoiceTraining(false) }
+  }
+
+  const generateCalendar = async (days = 30) => {
+    if (calendarLoading || !productName.trim()) return
+    setCalendarLoading(true)
+    try {
+      const res  = await fetch('/api/content-calendar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adConfig: buildAdConfig(), durationDays: days }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setCalendar(data.calendar)
+        addTimelineEvent('Content calendar generated', `${data.calendar.length} days`)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setCalendarLoading(false) }
+  }
+
+  const downloadCalendarCSV = () => {
+    if (!calendar) return
+    const header = 'Day,Type,Hook,Caption Direction,Creative Direction,Music Energy,Posting Time,Objective'
+    const rows = calendar.map(d =>
+      [d.day, d.contentLabel, `"${(d.hook || '').replace(/"/g, '""')}"`, `"${(d.captionDirection || '').replace(/"/g, '""')}"`, `"${(d.creativeDirection || '').replace(/"/g, '""')}"`, d.musicEnergy || '', d.postingTime || '', `"${(d.objective || '').replace(/"/g, '""')}"`].join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+      download: `content-calendar-${productName.replace(/\s+/g, '-').toLowerCase()}.csv`,
+    })
+    a.click()
+  }
+
+  const analyseMarket = async () => {
+    const validAds = marketAds.filter(a => a.trim())
+    if (validAds.length === 0 || marketLoading) return
+    setMarketLoading(true)
+    try {
+      const res  = await fetch('/api/competitor-analysis', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          competitorAds: validAds,
+          brandName: productName,
+          analysisType: 'market',
+          adConfig: buildAdConfig(),
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setMarketResult(data.analysis)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+        addTimelineEvent('Market intelligence analysed', `${validAds.length} competitor ads`)
+      }
+    } catch {}
+    finally { setMarketLoading(false) }
+  }
+
+  const generateLaunchSequence = async () => {
+    if (launchLoading || !productName.trim()) return
+    setLaunchLoading(true)
+    try {
+      const res  = await fetch('/api/launch-sequence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adConfig: buildAdConfig() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setLaunchSequence(data.sequence)
+        addTimelineEvent('Launch sequence generated', '5 stages')
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setLaunchLoading(false) }
+  }
+
+  const iterateCampaign = async () => {
+    if (iterationLoading || !productName.trim()) return
+    setIterationLoading(true)
+    try {
+      const res  = await fetch('/api/iterate-campaign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: buildAdConfig(),
+          currentOutputs: s.adTextResults || {},
+          iterationDirection: iterationDir,
+          feedback: iterationFeedback,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setIterationResult(data.iteration)
+        addTimelineEvent(`Campaign iterated (${iterationDir})`, data.iteration.iterationSummary?.slice(0, 60))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setIterationLoading(false) }
+  }
+
+  const applyIteration = () => {
+    if (!iterationResult) return
+    const r = iterationResult
+    // Merge improved outputs into existing results
+    const merged = { ...(s.adTextResults || {}) }
+    if (r.angles?.length)   merged.angles   = r.angles
+    if (r.hooks?.length)    merged.hooks_pain = { hooks: r.hooks }
+    if (r.captions?.length) merged.captions  = r.captions
+    merge({ adTextResults: merged })
+    addTimelineEvent('Iteration applied to campaign')
+    setIterationResult(null)
   }
 
   const fetchDirectorNote = async (type, data) => {
@@ -951,6 +1463,78 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       <div style={{ borderRight: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
         {/* Brand DNA */}
+        {/* Brand Voice Fingerprinting */}
+        <Panel title="Voice Fingerprint" accent={C.violet} defaultOpen={false}>
+          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
+            Paste 1–3 of your best-performing ads. AI extracts your exact brand voice — not a category, your specific writing patterns. Every future generation sounds like YOU.
+          </div>
+
+          {voiceFingerprint ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}` }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.violet, marginBottom: 6 }}>✦ {voiceFingerprint.voiceLabel}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {[
+                    { label: 'Rhythm',    value: voiceFingerprint.sentenceRhythm    },
+                    { label: 'Hooks',     value: voiceFingerprint.hookPattern       },
+                    { label: 'Core',      value: voiceFingerprint.emotionalCore     },
+                    { label: 'CTA',       value: voiceFingerprint.ctaStyle          },
+                    { label: 'Tone',      value: voiceFingerprint.toneSignature     },
+                  ].filter(f => f.value).map((f, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 6 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, minWidth: 36, flexShrink: 0 }}>{f.label}</span>
+                      <span style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+                {voiceFingerprint.uniquePatterns?.length > 0 && (
+                  <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {voiceFingerprint.uniquePatterns.slice(0, 3).map((p, i) => (
+                      <span key={i} style={{ fontSize: 8, padding: '2px 6px', borderRadius: 999, background: C.violetGlow, border: `1px solid ${C.violetDim}`, color: C.violet }}>{p}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: 9, color: C.green }}>✦ Voice fingerprint active — injected into every generation</div>
+              <button onClick={() => { setVoiceFingerprint(null); localStorage.removeItem('promptceo_voice_fp_v1') }}
+                style={{ padding: '5px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                Retrain voice
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {voiceAds.map((ad, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>Ad {i + 1}{i === 0 ? ' (required)' : ' (optional)'}</div>
+                  <textarea
+                    value={ad}
+                    onChange={e => setVoiceAds(prev => prev.map((a, j) => j === i ? e.target.value : a))}
+                    placeholder={i === 0 ? 'Paste your best-performing hook, caption, or full ad copy here…' : 'Paste another ad to strengthen the analysis…'}
+                    rows={3}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'none' }}
+                    onFocus={e => e.target.style.borderColor = C.violetDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+              ))}
+              <button
+                onClick={trainBrandVoice}
+                disabled={voiceTraining || !voiceAds[0].trim()}
+                style={{
+                  width: '100%', padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                  cursor: voiceTraining || !voiceAds[0].trim() ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${voiceAds[0].trim() ? C.violetDim : C.hairline}`,
+                  background: voiceAds[0].trim() ? '#0e0818' : C.deep,
+                  color: voiceAds[0].trim() ? C.violet : C.muted,
+                  opacity: voiceTraining ? 0.6 : 1,
+                }}
+              >
+                {voiceTraining ? '⟳ Extracting voice fingerprint…' : '✦ Train Brand Voice — Free'}
+              </button>
+            </div>
+          )}
+        </Panel>
+
         <Panel title="Brand DNA" accent={C.violet} defaultOpen={false}>
           {/* Saved profiles */}
           {dnaProfiles.length > 0 && (
@@ -1116,6 +1700,60 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               ))}
             </div>
           )}
+
+          {/* Webhook Integration */}
+          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase' }}>⚡ Webhook / Integrations</div>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Paste your Zapier, Make.com, or any webhook URL. Campaign data will be sent automatically on save.
+            </div>
+            <input
+              value={webhookUrl}
+              onChange={e => saveWebhookUrl(e.target.value)}
+              placeholder="https://hooks.zapier.com/..."
+              style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${webhookUrl ? C.blueDim : C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 9, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              onFocus={e => e.target.style.borderColor = C.blueDim}
+              onBlur={e => e.target.style.borderColor = webhookUrl ? C.blueDim : C.subtle}
+            />
+            {webhookUrl && (
+              <div style={{ display: 'flex', gap: 5 }}>
+                <button onClick={() => sendWebhook('test')} disabled={webhookSending}
+                  style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: webhookSending ? 'not-allowed' : 'pointer', border: `1px solid ${C.blueDim}`, background: '#080c10', color: C.blue, opacity: webhookSending ? 0.6 : 1 }}>
+                  {webhookSending ? '⟳ Sending…' : webhookStatus === 'sent' ? '✓ Sent' : webhookStatus === 'error' ? '✗ Failed' : 'Test Send'}
+                </button>
+                <div style={{ flex: 1, padding: '5px 6px', borderRadius: 3, background: '#080c10', border: `1px solid ${C.blueDim}`, fontSize: 8, color: C.secondary, lineHeight: 1.4 }}>
+                  Fires on: Save, Share, Approve
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Client Shares status */}
+          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase' }}>🔗 Shared Campaigns</span>
+              <button onClick={loadMyShares} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>↺ Load</button>
+            </div>
+            {!sharesLoaded && <div style={{ fontSize: 9, color: C.muted }}>Click ↺ Load to see client feedback</div>}
+            {sharesLoaded && myShares.length === 0 && <div style={{ fontSize: 9, color: C.muted }}>No shares yet — use 🔗 Share in the output bar</div>}
+            {myShares.slice(0, 5).map(share => (
+              <div key={share.id} style={{ padding: '5px 7px', borderRadius: 3, background: C.raised, border: `1px solid ${share.status === 'approved' ? '#2a4a2a' : share.status === 'revision_requested' ? '#2a1010' : C.hairline}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.primary }}>{share.share_name || share.product_name}</div>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: share.status === 'approved' ? C.green : share.status === 'revision_requested' ? C.red : C.muted }}>
+                    {share.status === 'approved' ? '✓ Approved' : share.status === 'revision_requested' ? '↺ Revision' : '● Pending'}
+                  </span>
+                </div>
+                {share.client_comment && <div style={{ fontSize: 8, color: C.secondary, marginTop: 2, lineHeight: 1.4 }}>"{share.client_comment.slice(0, 80)}"</div>}
+                <button
+                  onClick={async () => { await navigator.clipboard.writeText(`${window.location.origin}/review/${share.token}`).catch(() => {}); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000) }}
+                  style={{ marginTop: 4, fontSize: 7, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Copy link
+                </button>
+              </div>
+            ))}
+          </div>
         </Panel>
 
         {/* Ad Mode */}
@@ -1377,6 +2015,82 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             </Panel>
 
             {/* ── INSPIRED STYLE ── */}
+            {/* Visual Brand DNA */}
+            <Panel title="Visual Identity" accent={C.violet} defaultOpen={false}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                  Brand colors and visual style injected into every image generation.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div>
+                    <SLabel>Primary Color</SLabel>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                      <input type="color" value={visualDNA.primaryColor || '#c8a84b'} onChange={e => saveVisualDNA({ primaryColor: e.target.value })}
+                        style={{ width: 32, height: 28, borderRadius: 4, border: `1px solid ${C.subtle}`, background: 'none', cursor: 'pointer', padding: 2 }} />
+                      <span style={{ fontSize: 10, color: C.secondary, fontFamily: 'monospace' }}>{visualDNA.primaryColor || '#c8a84b'}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <SLabel>Secondary Color</SLabel>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                      <input type="color" value={visualDNA.secondaryColor || '#0a0a0a'} onChange={e => saveVisualDNA({ secondaryColor: e.target.value })}
+                        style={{ width: 32, height: 28, borderRadius: 4, border: `1px solid ${C.subtle}`, background: 'none', cursor: 'pointer', padding: 2 }} />
+                      <span style={{ fontSize: 10, color: C.secondary, fontFamily: 'monospace' }}>{visualDNA.secondaryColor || '#0a0a0a'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <SLabel>Image Style</SLabel>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                    {[
+                      { value: 'dark moody cinematic',    label: 'Dark Moody'      },
+                      { value: 'bright airy natural',     label: 'Bright & Airy'  },
+                      { value: 'clean minimal white',     label: 'Clean Minimal'  },
+                      { value: 'warm golden editorial',   label: 'Warm Editorial' },
+                      { value: 'high contrast bold',      label: 'High Contrast'  },
+                      { value: 'soft pastel feminine',    label: 'Soft Pastel'    },
+                    ].map(s => (
+                      <button key={s.value} onClick={() => saveVisualDNA({ imageStyle: s.value })} style={{
+                        padding: '5px 6px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+                        border: `1px solid ${visualDNA.imageStyle === s.value ? C.violet : C.hairline}`,
+                        background: visualDNA.imageStyle === s.value ? '#0e0818' : C.deep,
+                        color: visualDNA.imageStyle === s.value ? C.violet : C.secondary,
+                      }}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <SLabel>Typography Feel</SLabel>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {['Bold & Strong', 'Clean & Minimal', 'Elegant Serif', 'Casual & Friendly', 'Aggressive'].map(f => (
+                      <button key={f} onClick={() => saveVisualDNA({ fontFeel: f.toLowerCase() })} style={{
+                        padding: '4px 8px', borderRadius: 999, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                        border: `1px solid ${visualDNA.fontFeel === f.toLowerCase() ? C.violet : C.hairline}`,
+                        background: visualDNA.fontFeel === f.toLowerCase() ? '#0e0818' : C.deep,
+                        color: visualDNA.fontFeel === f.toLowerCase() ? C.violet : C.secondary,
+                      }}>{f}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <SLabel>Brand Mark Description</SLabel>
+                  <input value={visualDNA.logoDesc || ''} onChange={e => saveVisualDNA({ logoDesc: e.target.value })}
+                    placeholder="e.g. minimalist wordmark, no icon, black text"
+                    style={{ ...inp }}
+                    onFocus={e => e.target.style.borderColor = C.violetDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+                {visualDNA.imageStyle && (
+                  <div style={{ padding: '6px 8px', borderRadius: 4, background: '#0e0818', border: `1px solid ${C.violetDim}`, fontSize: 9, color: C.violet }}>
+                    ✦ Visual DNA active — injected into every image generation
+                  </div>
+                )}
+              </div>
+            </Panel>
+
             <Panel title="Inspired Style" accent={C.gold} defaultOpen={false}>
               <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
                 Apply a brand creative DNA to your output. We translate — not copy.
@@ -1617,10 +2331,29 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </span>
             )}
 
+            {/* Brand Learning indicator */}
+            {(winners.hooks.length > 0 || winners.angles.length > 0) && (
+              <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: C.goldGlow, border: `1px solid ${C.goldDim}`, color: C.gold }}>
+                ⭐ {winners.hooks.length + winners.angles.length} winners active
+              </span>
+            )}
+
             {(selectedAngle || selectedHook || (s.adTextResults && Object.keys(s.adTextResults).length > 0)) && (
-              <button onClick={handleSaveProject} style={{ marginLeft: 'auto', padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${projectSaved ? '#2a4a2a' : C.subtle}`, background: projectSaved ? '#081208' : C.surface, color: projectSaved ? C.green : C.muted }}>
-                {projectSaved ? '✓ Saved' : '↑ Save Project'}
-              </button>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                <button onClick={downloadCampaignPack} style={{ padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}>
+                  📦 Pack
+                </button>
+                <button
+                  onClick={shareWithClient}
+                  disabled={shareLoading}
+                  style={{ padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: shareLoading ? 'not-allowed' : 'pointer', border: `1px solid ${shareCopied ? '#2a4a2a' : C.blueDim}`, background: shareCopied ? '#081208' : '#080c10', color: shareCopied ? C.green : C.blue }}
+                >
+                  {shareLoading ? '⟳' : shareCopied ? '✓ Link Copied' : '🔗 Share'}
+                </button>
+                <button onClick={handleSaveProject} style={{ padding: '2px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${projectSaved ? '#2a4a2a' : C.subtle}`, background: projectSaved ? '#081208' : C.surface, color: projectSaved ? C.green : C.muted }}>
+                  {projectSaved ? '✓ Saved' : '↑ Save'}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1638,7 +2371,11 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             { id: 'campaign',     label: 'Campaign',  count: s.adTextResults?.campaign?.length || 0 },
             { id: 'score',        label: 'Score',     count: (s.adTextResults?.quality_score || projectScore) ? 1 : 0 },
             { id: 'soundtrack',   label: 'Music',     count: s.adMusicTrack ? 1 : 0 },
-            { id: 'inspire',      label: 'Inspire',   count: competitorResult ? 1 : 0 },
+            { id: 'inspire',      label: 'Inspire',   count: (competitorResult || marketResult) ? 1 : 0 },
+            { id: 'launch',       label: 'Launch',    count: launchSequence ? 5 : 0 },
+            { id: 'calendar',     label: 'Calendar',  count: calendar ? calendar.length : 0 },
+            { id: 'abtests',      label: 'A/B Tests', count: abTests.filter(t => t.status === 'completed').length },
+            { id: 'roi',          label: 'ROI',       count: null },
           ].map(tab => (
             <button key={tab.id} onClick={() => setAdOutputTab(tab.id)} style={{
               flex: 1, padding: '8px 3px', fontSize: 9, fontWeight: 700,
@@ -1875,71 +2612,118 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* Licensed music display in Creative tab */}
         {!isGenerating && s.adMusicTrack && (
-          <Panel title="Licensed Soundtrack" accent={C.gold}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                🎵
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.gold }}>{s.adMusicTrack.title}</div>
-                <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>
-                  {[s.adMusicTrack.mood, s.adMusicTrack.bpm && `${s.adMusicTrack.bpm} BPM`, s.adMusicTrack.energy && `${s.adMusicTrack.energy} energy`].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-              <div style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: C.greenDim, border: '1px solid #2a4a2a', color: C.green }}>
-                ✓ Licensed
-              </div>
-            </div>
-
-            {/* Best for */}
-            {(s.adMusicTrack.best_for || []).length > 0 && (
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                {s.adMusicTrack.best_for.map((bf, i) => (
-                  <span key={i} style={{ fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>
-                    {bf}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Timing plan */}
-            {s.adMusicTimingPlan && (
-              <div style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ padding: '6px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                  Ad Timing Plan
-                </div>
-                {s.adMusicTimingPlan.sections.map((sec, i) => (
-                  <div key={i} style={{ padding: '6px 10px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8 }}>
-                    <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, minWidth: 65, fontFamily: 'monospace', flexShrink: 0 }}>
-                      {sec.start}s–{sec.end}s
-                    </span>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: sec.isDropMoment ? C.gold : C.primary }}>{sec.label}</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{sec.description}</div>
+          <Panel title="Campaign Soundtrack" accent={C.gold}>
+            {(() => {
+              const identity = getSoundtrackIdentity(s.adMusicTrack, buildAdConfig())
+              const storyboard = getMusicAdaptedStoryboard(s.adMusicTrack, 30)
+              return (
+                <>
+                  {/* Track header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎵</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: C.gold }}>{s.adMusicTrack.title}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>
+                        {[s.adMusicTrack.mood, s.adMusicTrack.bpm && `${s.adMusicTrack.bpm} BPM`, s.adMusicTrack.energy && `${s.adMusicTrack.energy} energy`].filter(Boolean).join(' · ')}
+                      </div>
                     </div>
+                    <div style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: C.greenDim, border: '1px solid #2a4a2a', color: C.green }}>✓ Licensed</div>
                   </div>
-                ))}
-              </div>
-            )}
 
-            <div style={{ display: 'flex', gap: 5, marginTop: 2 }}>
-              <button onClick={() => setAdOutputTab('soundtrack')} style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary }}>
-                Change Track
-              </button>
-              <button
-                onClick={() => lockedMusic ? setLockedMusic(null) : setLockedMusic(s.adMusicTrack)}
-                style={{
-                  padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                  border: `1px solid ${lockedMusic ? C.gold : C.subtle}`,
-                  background: lockedMusic ? '#1a1c08' : C.surface,
-                  color: lockedMusic ? C.gold : C.muted,
-                }}
-              >
-                {lockedMusic ? '🔒 Locked' : '🔓 Lock Music'}
-              </button>
-            </div>
+                  {/* Soundtrack Identity — personality tags */}
+                  {identity?.tags?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Soundtrack Identity</div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {identity.tags.map((tag, i) => (
+                          <span key={i} style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: C.goldGlow, border: `1px solid ${C.goldDim}`, color: C.gold }}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      {identity.campaignFit && (
+                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginTop: 5, fontStyle: 'italic' }}>{identity.campaignFit}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Best moments */}
+                  {identity?.bestMoments?.length > 0 && (
+                    <div style={{ borderRadius: 4, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+                      <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.goldDim}`, fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        Key Timing Moments
+                      </div>
+                      {identity.bestMoments.map((m, i) => (
+                        <div key={i} style={{ padding: '5px 10px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 9, color: C.gold, fontWeight: 800, minWidth: 52, fontFamily: 'monospace', flexShrink: 0 }}>{m.time}</span>
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: C.primary }}>{m.label}</div>
+                            <div style={{ fontSize: 8, color: C.secondary }}>{m.note}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Ad timing plan */}
+                  {storyboard && (
+                    <div style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{ padding: '5px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        30s Ad Structure
+                      </div>
+                      {Object.entries(storyboard).map(([key, sec], i) => (
+                        <div key={key} style={{ padding: '5px 10px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8 }}>
+                          <span style={{ fontSize: 8, color: C.gold, fontWeight: 700, minWidth: 52, fontFamily: 'monospace', flexShrink: 0 }}>
+                            {sec.start}s–{sec.end}s
+                          </span>
+                          <div style={{ fontSize: 8, color: C.secondary, lineHeight: 1.4 }}>{sec.instruction}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button onClick={() => setAdOutputTab('soundtrack')} style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary }}>
+                      Change Track
+                    </button>
+                    <button
+                      onClick={() => lockedMusic ? setLockedMusic(null) : setLockedMusic(s.adMusicTrack)}
+                      style={{ padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${lockedMusic ? C.gold : C.subtle}`, background: lockedMusic ? '#1a1c08' : C.surface, color: lockedMusic ? C.gold : C.muted }}
+                    >
+                      {lockedMusic ? '🔒 Locked' : '🔓 Lock Music'}
+                    </button>
+                  </div>
+                </>
+              )
+            })()}
           </Panel>
         )}
+
+        {/* "Sounds like" discovery — show when no music selected but tracks are loaded */}
+        {!s.adMusicTrack && musicTracks.length > 0 && (() => {
+          const top = recommendMusicForAd(buildAdConfig(), musicTracks)[0]
+          if (!top) return null
+          return (
+            <div style={{ borderRadius: 6, border: `1px solid ${top.featured ? '#c8a84b44' : '#1a1a1a'}`, background: top.featured ? '#0f0d04' : '#0a0a0a', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 18, flexShrink: 0 }}>🎵</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, color: '#4a4845', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Your campaign sounds like</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: top.featured ? '#c8a84b' : '#e8e4dc', marginBottom: 2 }}>
+                  {top.title}
+                  {top.featured && <span style={{ marginLeft: 6, fontSize: 8, fontWeight: 800, color: '#000', background: '#c8a84b', borderRadius: 3, padding: '1px 5px' }}>FEATURED</span>}
+                </div>
+                <div style={{ fontSize: 9, color: '#8a8680' }}>{top.mood}{top.bpm ? ` · ${top.bpm} BPM` : ''}{top.energy ? ` · ${top.energy}` : ''}</div>
+              </div>
+              <button
+                onClick={() => setAdOutputTab('soundtrack')}
+                style={{ padding: '6px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: '1px solid #7a6428', background: '#1a1408', color: '#c8a84b', flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                Preview & License →
+              </button>
+            </div>
+          )
+        })()}
 
         {/* Empty state */}
         {!isGenerating && !s.adGeneratedImage && !s.adVideoUrl && !s.adError && (
@@ -2312,11 +3096,39 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               <div key={i} style={{ borderRadius: 6, border: `1px solid ${selectedHook === hook ? C.goldDim : C.hairline}`, background: C.base, padding: '10px 11px' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
                   <span style={{ fontSize: 9, color: C.muted, fontWeight: 700, minWidth: 18, paddingTop: 2 }}>{i + 1}</span>
-                  <div style={{ flex: 1, fontSize: 12, color: C.primary, lineHeight: 1.55 }}>{hook}</div>
-                  <button onClick={() => doCopyAdText(hook, `hook_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `hook_${i}` ? C.green : C.muted, flexShrink: 0 }}>
-                    {copiedText === `hook_${i}` ? '✓' : '⎘'}
-                  </button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.55 }}>{hook}</div>
+                    {perfData.hooks?.[hook] && (
+                      <div style={{ fontSize: 8, color: C.green, marginTop: 3 }}>
+                        📊 {perfData.hooks[hook].ctr}% CTR{perfData.hooks[hook].notes ? ` · ${perfData.hooks[hook].notes}` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                    <button onClick={() => setLogOpen(logOpen === `hook_${i}` ? null : `hook_${i}`)}
+                      style={{ padding: '3px 6px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${perfData.hooks?.[hook] ? '#2a4a2a' : C.hairline}`, background: perfData.hooks?.[hook] ? C.greenDim : C.deep, color: perfData.hooks?.[hook] ? C.green : C.muted }}>
+                      📊
+                    </button>
+                    <button onClick={() => doCopyAdText(hook, `hook_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `hook_${i}` ? C.green : C.muted }}>
+                      {copiedText === `hook_${i}` ? '✓' : '⎘'}
+                    </button>
+                  </div>
                 </div>
+                {/* Performance log form */}
+                {logOpen === `hook_${i}` && (() => {
+                  const existing = perfData.hooks?.[hook] || {}
+                  let ctrInput = existing.ctr || ''
+                  let notesInput = existing.notes || ''
+                  return (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.greenDim, border: '1px solid #2a4a2a', marginBottom: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 9, color: C.green, fontWeight: 700, flexShrink: 0 }}>📊 CTR:</span>
+                      <input defaultValue={ctrInput} onChange={e => { ctrInput = e.target.value }} placeholder="3.8" style={{ width: 52, background: C.base, color: C.primary, border: `1px solid #2a4a2a`, borderRadius: 3, padding: '3px 6px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+                      <span style={{ fontSize: 9, color: C.green }}>%</span>
+                      <input defaultValue={notesInput} onChange={e => { notesInput = e.target.value }} placeholder="notes (optional)" style={{ flex: 1, background: C.base, color: C.primary, border: `1px solid #2a4a2a`, borderRadius: 3, padding: '3px 6px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+                      <button onClick={() => logPerformance('hooks', hook, ctrInput, notesInput)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: '1px solid #2a4a2a', background: C.greenDim, color: C.green }}>Save</button>
+                    </div>
+                  )
+                })()}
                 <VariationBar content={hook} contentType="hook" />
                 <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
                   <button
@@ -2852,8 +3664,10 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 '#8a4a4a', // 9 Retargeting — red
                 '#6a4a7a', // 10 Winback — purple
               ]
-              const color = STAGE_COLORS[i] || C.muted
-              const num   = String(i + 1).padStart(2, '0')
+              const color       = STAGE_COLORS[i] || C.muted
+              const num         = String(i + 1).padStart(2, '0')
+              const stageKeys   = ['coldAwareness','problemAware','desireAspiration','productSolution','ugcTrust','socialProof','offerUrgency','finalConversion','retargeting','winback']
+              const stageMusic  = s.adMusicTrack ? getStageMusic(stage.stage || stageKeys[i], s.adMusicTrack) : null
               const [expanded, setExpanded] = [true, () => {}] // always expanded
 
               return (
@@ -2903,7 +3717,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                       { label: 'IMAGE',    value: stage.imagePromptDirection, color: '#4a6a9a' },
                       { label: 'VIDEO',    value: stage.videoPromptDirection,  color: '#6a4a8a' },
                       { label: 'UGC',      value: stage.ugcDirection,          color: '#4a7a5a' },
-                      { label: 'MUSIC',    value: stage.musicEnergy,           color: '#8a6a4a' },
+                      { label: 'MUSIC',    value: stageMusic ? `🎵 ${s.adMusicTrack.title} · ${stageMusic.window} · ${stageMusic.useNote}` : stage.musicEnergy, color: C.gold },
                       { label: 'CTA',      value: stage.cta,                   color: color     },
                       { label: 'PLATFORM', value: stage.platformNote,          color: C.muted   },
                     ].map((cell, ci) => cell.value ? (
@@ -3214,6 +4028,25 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* ── SOUNDTRACK TAB ── */}
         {adOutputTab === 'soundtrack' && (<>
+          {/* Music-first entry — shown when no product details yet */}
+          {!productName.trim() && !s.adMusicTrack && (
+            <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: '#0f0d04', padding: '12px 14px', marginBottom: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 4 }}>Start with a track</div>
+              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.6 }}>
+                Pick a track first — its mood, energy, and vibe will anchor your entire campaign. The AI will use it to shape your hooks, captions, and visuals.
+              </div>
+            </div>
+          )}
+          {/* Upsell strip — shown when product exists but no music yet */}
+          {productName.trim() && !s.adMusicTrack && (
+            <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: '#0f0d04', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <div style={{ fontSize: 16 }}>🎵</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>Add a soundtrack</div>
+                <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>Music locks into every generation — hooks, captions, and video direction adapt to it automatically.</div>
+              </div>
+            </div>
+          )}
           <MusicSelector
             adConfig={buildAdConfig()}
             selectedTrack={s.adMusicTrack}
@@ -3227,6 +4060,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               if (typeof licenseData.creditsRemaining === 'number') {
                 set('credits', licenseData.creditsRemaining)
               }
+              // After licensing, nudge to Creative tab if no product filled
+              if (!productName.trim()) setAdOutputTab('creative')
             }}
           />
         </>)}
@@ -3355,6 +4190,698 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 </div>
               </div>
             )}
+          </div>
+        </>)}
+
+        {/* ── MARKET INTELLIGENCE — inside Inspire tab, added below single competitor analysis ── */}
+        {adOutputTab === 'inspire' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.hairline}` }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Market Intelligence</div>
+              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
+                Paste 2–5 competitor ads found in the wild (Facebook Ad Library, TikTok, Instagram). AI identifies what the whole market is doing — then finds the open gap for you.
+              </div>
+              <div style={{ fontSize: 9, color: C.blue, marginBottom: 8 }}>
+                → Find competitor ads at <span style={{ textDecoration: 'underline' }}>facebook.com/ads/library</span> — search any brand, copy their ad text here.
+              </div>
+            </div>
+
+            {marketAds.map((ad, i) => (
+              <div key={i}>
+                <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>Competitor Ad {i + 1}{i === 0 ? ' (required)' : ' (optional)'}</div>
+                <textarea
+                  value={ad}
+                  onChange={e => setMarketAds(prev => prev.map((a, j) => j === i ? e.target.value : a))}
+                  placeholder={i === 0 ? 'Paste a competitor ad from your niche…' : 'Paste another competitor ad…'}
+                  rows={3}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '7px 10px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'none' }}
+                  onFocus={e => e.target.style.borderColor = C.blueDim}
+                  onBlur={e => e.target.style.borderColor = C.subtle}
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => setMarketAds(prev => [...prev, ''])}
+              style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}
+            >
+              + Add another competitor
+            </button>
+            <button
+              onClick={analyseMarket}
+              disabled={!marketAds[0].trim() || marketLoading}
+              style={{
+                width: '100%', padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 800, letterSpacing: 0.4,
+                cursor: marketAds[0].trim() && !marketLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${marketAds[0].trim() ? C.blueDim : C.hairline}`,
+                background: marketAds[0].trim() ? 'linear-gradient(180deg,#080c18,#04080e)' : C.deep,
+                color: marketAds[0].trim() ? C.blue : C.muted,
+              }}
+            >
+              {marketLoading ? '⟳ Analysing market…' : '🔍 Analyse Market & Find Your Gap — 2 credits'}
+            </button>
+
+            {marketResult && (() => {
+              const ma = marketResult.marketAnalysis || {}
+              const cp = marketResult.counterPositioning || {}
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Verdict */}
+                  {marketResult.directorAdvice && (
+                    <div style={{ padding: '10px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 11, color: C.gold, fontStyle: 'italic' }}>
+                      "{marketResult.directorAdvice}"
+                    </div>
+                  )}
+
+                  {/* What the market is doing */}
+                  <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                    <div style={{ padding: '7px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>What The Market Is Doing</div>
+                    <div style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {[
+                        { label: 'Dominant Angle',  value: ma.dominantAngle,         color: '#cf6a6a' },
+                        { label: 'Visual Pattern',  value: ma.visualPatternEveryone, color: '#cf6a6a' },
+                        { label: 'Saturated Hooks', value: (ma.saturatedHooks || []).join(', '),   color: C.muted },
+                        { label: 'Overused CTAs',   value: (ma.overusedCTAs || []).join(', '),     color: C.muted },
+                      ].filter(f => f.value).map((f, i) => (
+                        <div key={i} style={{ padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 7, fontWeight: 700, color: f.color, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>{f.label}</div>
+                          <div style={{ fontSize: 9, color: C.secondary }}>{f.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {(ma.openOpportunities || []).length > 0 && (
+                      <div style={{ padding: '8px 12px', borderTop: `1px solid ${C.hairline}`, background: C.greenDim + '44' }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Open Opportunities (nobody is here)</div>
+                        {ma.openOpportunities.map((o, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, marginBottom: 2 }}>→ {o}</div>)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Your counter-positioning */}
+                  {cp.angle && (
+                    <div style={{ padding: '12px', borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0d0c04' }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Your Counter-Positioning</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 4 }}>{cp.angle}</div>
+                      <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>{cp.whyItWins}</div>
+                      {cp.differentiation && <div style={{ fontSize: 10, color: C.gold, fontStyle: 'italic' }}>"{cp.differentiation}"</div>}
+                    </div>
+                  )}
+
+                  {/* 5 unique hooks */}
+                  {(marketResult.uniqueHooks || []).length > 0 && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '7px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        5 Hooks Nobody In Your Market Is Using
+                      </div>
+                      {marketResult.uniqueHooks.map((hook, i) => (
+                        <div key={i} style={{ padding: '8px 12px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 9, color: C.muted, fontWeight: 700, minWidth: 16 }}>{i + 1}</span>
+                          <div style={{ flex: 1, fontSize: 12, color: C.primary, lineHeight: 1.55 }}>{hook}</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => doCopyAdText(hook, `mkt_${i}`)} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `mkt_${i}` ? C.green : C.muted }}>
+                              {copiedText === `mkt_${i}` ? '✓' : '⎘'}
+                            </button>
+                            <button onClick={() => { setSelectedHook(hook); setAdOutputTab('hooks') }} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                              Use
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── LAUNCH TAB ── */}
+        {adOutputTab === 'launch' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}`, fontSize: 10, color: C.secondary, lineHeight: 1.6 }}>
+              Generate a complete 5-stage launch sequence — Teaser → Launch Day → Retargeting → Urgency → Final Push. Each stage targets a specific moment in time.
+            </div>
+
+            <button
+              onClick={generateLaunchSequence}
+              disabled={!productName.trim() || launchLoading}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !launchLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+              }}
+            >
+              {launchLoading ? '⟳ Building launch sequence…' : '🚀 Generate 5-Stage Launch Sequence — 5 credits'}
+            </button>
+
+            {launchSequence && (() => {
+              const LAUNCH_COLORS = ['#6a5a8a','#c8a84b','#4a7a8a','#c8843a','#b44a4a']
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {launchSequence.map((stage, i) => {
+                    const color = LAUNCH_COLORS[i] || C.muted
+                    return (
+                      <div key={i} style={{ borderRadius: 6, border: `1px solid ${color}44`, background: C.base, overflow: 'hidden' }}>
+                        {/* Header */}
+                        <div style={{ padding: '8px 12px', background: color + '18', borderBottom: `1px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 9, fontWeight: 800, color: color, fontFamily: 'monospace' }}>0{i + 1}</span>
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{stage.label}</div>
+                              <div style={{ fontSize: 8, color: color, marginTop: 1 }}>{stage.timing}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => doCopyAdText(`${stage.label} (${stage.timing})\n\nHook: ${stage.hook}\n\nCaption:\n${stage.caption}\n\nImage: ${stage.imageDirection}\nVideo: ${stage.videoDirection}\nMusic: ${stage.musicEnergy}\nCTA: ${stage.cta}\n\nTiming: ${stage.timingNote}`, `launch_${i}`)}
+                            style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `launch_${i}` ? C.green : C.muted }}
+                          >
+                            {copiedText === `launch_${i}` ? '✓' : '⎘ Copy'}
+                          </button>
+                        </div>
+
+                        {/* Audience state */}
+                        {stage.audienceState && (
+                          <div style={{ padding: '6px 12px', fontSize: 9, color: C.muted, fontStyle: 'italic', borderBottom: `1px solid ${C.hairline}` }}>
+                            {stage.audienceState}
+                          </div>
+                        )}
+
+                        {/* Hook */}
+                        <div style={{ padding: '10px 12px 4px', fontSize: 13, color: C.primary, fontStyle: 'italic', fontWeight: 700, lineHeight: 1.5 }}>
+                          "{stage.hook}"
+                        </div>
+
+                        {/* Caption */}
+                        <div style={{ padding: '6px 12px 10px', fontSize: 11, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap', borderBottom: `1px solid ${C.hairline}` }}>
+                          {stage.caption}
+                        </div>
+
+                        {/* Grid: Image · Video · Music · CTA · Timing */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
+                          {[
+                            { label: 'IMAGE',   value: stage.imageDirection, color: '#4a6a9a' },
+                            { label: 'VIDEO',   value: stage.videoDirection, color: '#6a4a8a' },
+                            { label: 'MUSIC',   value: (() => { const sm = s.adMusicTrack ? getStageMusic(stage.stage || stage.label?.toLowerCase().replace(/\s+/g,''), s.adMusicTrack) : null; return sm ? `🎵 ${s.adMusicTrack.title} · ${sm.window} · ${sm.useNote}` : stage.musicEnergy })(), color: C.gold },
+                            { label: 'CTA',     value: stage.cta,           color: color      },
+                            { label: 'TIMING',  value: stage.timingNote,    color: C.muted    },
+                          ].filter(c => c.value).map((cell, ci) => (
+                            <div key={ci} style={{ padding: '6px 10px', borderTop: `1px solid ${C.hairline}`, borderRight: ci % 3 !== 2 ? `1px solid ${C.hairline}` : 'none' }}>
+                              <div style={{ fontSize: 7, fontWeight: 800, color: cell.color, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>{cell.label}</div>
+                              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{cell.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Export all */}
+                  <button
+                    onClick={() => {
+                      const text = launchSequence.map(s =>
+                        `${s.label.toUpperCase()} (${s.timing})\n${'─'.repeat(40)}\nHook: ${s.hook}\n\nCaption:\n${s.caption}\n\nImage: ${s.imageDirection}\nVideo: ${s.videoDirection}\nMusic: ${s.musicEnergy}\nCTA: ${s.cta}\nTiming: ${s.timingNote}`
+                      ).join('\n\n\n')
+                      const a = Object.assign(document.createElement('a'), {
+                        href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })),
+                        download: `launch-sequence-${productName.replace(/\s+/g, '-').toLowerCase()}.txt`,
+                      })
+                      a.click()
+                    }}
+                    style={{ padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}
+                  >
+                    ↓ Download Full Launch Sequence
+                  </button>
+                </div>
+              )
+            })()}
+
+            {!launchSequence && !launchLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🚀</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>5-Stage Launch Sequence</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>
+                  Teaser → Launch Day → Retargeting → Urgency → Final Push. Each stage targets a specific moment in the launch with the right hook, caption, visuals, music, and CTA.
+                </div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── ITERATION ENGINE — shown in Creative tab after content exists ── */}
+        {adOutputTab === 'creative' && productName.trim() && s.adTextResults && Object.keys(s.adTextResults).length > 0 && (
+          <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden', marginTop: 4 }}>
+            <div style={{ padding: '8px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Iterate Campaign</div>
+              <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>Improve your campaign in a specific direction without losing locked choices</div>
+            </div>
+            <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Direction selector */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                {[
+                  { id: 'stronger',  label: '💪 Stronger'  },
+                  { id: 'emotional', label: '💛 Emotional' },
+                  { id: 'luxury',    label: '👑 Luxury'    },
+                  { id: 'tiktok',    label: '🔥 TikTok'   },
+                  { id: 'direct',    label: '⚡ Direct'    },
+                  { id: 'simpler',   label: '✂ Simpler'   },
+                ].map(d => (
+                  <button key={d.id} onClick={() => setIterationDir(d.id)} style={{
+                    padding: '6px 4px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                    cursor: 'pointer', textAlign: 'center',
+                    border: `1px solid ${iterationDir === d.id ? C.goldDim : C.hairline}`,
+                    background: iterationDir === d.id ? '#1a1408' : C.deep,
+                    color: iterationDir === d.id ? C.gold : C.secondary,
+                  }}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Optional feedback */}
+              <input
+                value={iterationFeedback}
+                onChange={e => setIterationFeedback(e.target.value)}
+                placeholder="Optional: tell the AI what specifically to improve…"
+                style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '7px 10px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                onFocus={e => e.target.style.borderColor = C.goldDim}
+                onBlur={e => e.target.style.borderColor = C.subtle}
+              />
+
+              <button
+                onClick={iterateCampaign}
+                disabled={iterationLoading}
+                style={{
+                  width: '100%', padding: '9px 0', borderRadius: 4, fontSize: 11, fontWeight: 800,
+                  cursor: iterationLoading ? 'not-allowed' : 'pointer', letterSpacing: 0.4,
+                  border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#0c0a04)',
+                  color: C.gold, opacity: iterationLoading ? 0.6 : 1,
+                }}
+              >
+                {iterationLoading ? '⟳ Iterating campaign…' : `🔄 Iterate Campaign — Make It More ${iterationDir.charAt(0).toUpperCase() + iterationDir.slice(1)} — 3 credits`}
+              </button>
+
+              {/* Iteration result */}
+              {iterationResult && (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8 }}>✦ ITERATION READY</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={applyIteration} style={{ padding: '4px 12px', borderRadius: 3, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: '#1a1408', color: C.gold }}>
+                        ✓ Apply to Campaign
+                      </button>
+                      <button onClick={() => setIterationResult(null)} style={{ padding: '4px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {iterationResult.directorNote && (
+                      <div style={{ fontSize: 10, color: C.gold, fontStyle: 'italic', lineHeight: 1.5, borderLeft: `2px solid ${C.goldDim}`, paddingLeft: 8 }}>
+                        "{iterationResult.directorNote}"
+                      </div>
+                    )}
+                    {iterationResult.iterationSummary && (
+                      <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{iterationResult.iterationSummary}</div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {iterationResult.angles?.length > 0 && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>{iterationResult.angles.length} improved angles</span>}
+                      {iterationResult.hooks?.length > 0 && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>{iterationResult.hooks.length} improved hooks</span>}
+                      {iterationResult.captions?.length > 0 && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: C.surface, border: `1px solid ${C.hairline}`, color: C.secondary }}>{iterationResult.captions.length} improved captions</span>}
+                    </div>
+                    <div style={{ fontSize: 9, color: C.muted }}>Click "Apply" to replace your current outputs with these improved versions.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── CALENDAR TAB ── */}
+        {adOutputTab === 'calendar' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+              Generate a complete 30-day content calendar — each day has a specific hook, caption direction, creative notes, music energy, and best posting time. Exportable as CSV.
+            </div>
+
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[7, 14, 30].map(days => (
+                <button key={days} onClick={() => generateCalendar(days)} disabled={!productName.trim() || calendarLoading}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 800, letterSpacing: 0.3,
+                    cursor: productName.trim() && !calendarLoading ? 'pointer' : 'not-allowed',
+                    border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                    background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                    color: productName.trim() ? C.gold : C.muted,
+                  }}
+                >
+                  {calendarLoading ? '⟳' : `${days} Days`}
+                  {!calendarLoading && <div style={{ fontSize: 8, color: C.goldDim, marginTop: 2 }}>{days === 7 ? '2 cr' : days === 14 ? '3 cr' : '5 cr'}</div>}
+                </button>
+              ))}
+            </div>
+
+            {calendar && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Controls */}
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 4, flex: 1, flexWrap: 'wrap' }}>
+                    {['all', 'teaser', 'ugc', 'social_proof', 'urgency', 'retargeting'].map(f => (
+                      <button key={f} onClick={() => setCalendarFilter(f)} style={{
+                        padding: '3px 8px', borderRadius: 999, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                        border: `1px solid ${calendarFilter === f ? C.goldDim : C.hairline}`,
+                        background: calendarFilter === f ? '#1a1408' : C.deep,
+                        color: calendarFilter === f ? C.gold : C.muted,
+                      }}>
+                        {f === 'all' ? `All ${calendar.length}` : f.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={downloadCalendarCSV} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, flexShrink: 0 }}>
+                    ↓ CSV
+                  </button>
+                </div>
+
+                {/* Calendar days */}
+                {calendar
+                  .filter(d => calendarFilter === 'all' || d.contentType === calendarFilter)
+                  .map((day, i) => {
+                    const TYPE_COLORS = { teaser: C.violet, launch: C.gold, ugc: C.green, social_proof: C.blue, urgency: '#c8843a', retargeting: '#8a4a4a', education: '#4a7a8a', transformation: '#6a7a4a', lifestyle: '#7a6a8a', behind_scenes: '#4a5a6a', hook_test: '#8a6a4a', winback: '#6a4a7a' }
+                    const color = TYPE_COLORS[day.contentType] || C.muted
+                    return (
+                      <div key={i} style={{ borderRadius: 5, border: `1px solid ${color}33`, background: C.base, overflow: 'hidden' }}>
+                        <div style={{ padding: '7px 12px', background: color + '18', borderBottom: `1px solid ${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 9, fontWeight: 800, color: color, fontFamily: 'monospace', minWidth: 38 }}>Day {day.day}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: color + '22', border: `1px solid ${color}44`, color }}>{day.contentLabel}</span>
+                            {day.postingTime && <span style={{ fontSize: 8, color: C.muted }}>{day.postingTime}</span>}
+                          </div>
+                          <button onClick={() => doCopyAdText(`Day ${day.day} — ${day.contentLabel}\nHook: ${day.hook}\n${day.captionDirection}\nCreative: ${day.creativeDirection}`, `cal_${day.day}`)}
+                            style={{ padding: '3px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `cal_${day.day}` ? C.green : C.muted }}>
+                            {copiedText === `cal_${day.day}` ? '✓' : '⎘'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ fontSize: 12, color: C.primary, fontWeight: 600, lineHeight: 1.5 }}>{day.hook}</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                            {day.captionDirection && (
+                              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                                <span style={{ color: C.muted, fontWeight: 700 }}>Caption: </span>{day.captionDirection}
+                              </div>
+                            )}
+                            {day.creativeDirection && (
+                              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                                <span style={{ color: C.muted, fontWeight: 700 }}>Creative: </span>{day.creativeDirection}
+                              </div>
+                            )}
+                          </div>
+                          {day.objective && <div style={{ fontSize: 8, color: C.muted, fontStyle: 'italic' }}>{day.objective}</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
+
+            {!calendar && !calendarLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📅</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>30-Day Content Calendar</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>
+                  Every day has a specific hook, caption direction, creative brief, music energy, and posting time. Exports as CSV for any scheduling tool.
+                </div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── A/B TESTS TAB ── */}
+        {adOutputTab === 'abtests' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+              Structure your creative tests properly. Run hook A vs hook B with a hypothesis. Enter results when done. App learns which patterns win.
+            </div>
+
+            {/* Create new test */}
+            {!abCreating ? (
+              <button onClick={() => setAbCreating(true)} style={{ width: '100%', padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#0c0a04)', color: C.gold }}>
+                + Create New A/B Test
+              </button>
+            ) : (
+              <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>New A/B Test</span>
+                  <button onClick={() => setAbCreating(false)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                </div>
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { key: 'name',       label: 'Test Name',   placeholder: 'e.g. Hoodie Hook Battle' },
+                    { key: 'hypothesis', label: 'Hypothesis',  placeholder: 'e.g. Identity hooks will outperform pain hooks for female fitness buyers' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>{f.label}</div>
+                      <input value={abForm[f.key]} onChange={e => setAbForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        placeholder={f.placeholder}
+                        style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '7px 10px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {[{ key: 'hookA', label: 'Hook A', placeholder: '"Tired of hoodies that swallow your frame?"' }, { key: 'hookB', label: 'Hook B', placeholder: '"The hoodie that matches how you actually train."' }].map(f => (
+                      <div key={f.key}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>{f.label} *</div>
+                        <textarea value={abForm[f.key]} onChange={e => setAbForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          placeholder={f.placeholder} rows={3}
+                          style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '7px 10px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'none' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                    {[
+                      { key: 'duration', label: 'Duration (days)', placeholder: '7' },
+                      { key: 'budget',   label: 'Budget each ($)',  placeholder: '50' },
+                      { key: 'metric',   label: 'Winner metric',    placeholder: 'CTR' },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>{f.label}</div>
+                        <input value={abForm[f.key]} onChange={e => setAbForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          placeholder={f.placeholder}
+                          style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={createAbTest} disabled={!abForm.hookA.trim() || !abForm.hookB.trim()}
+                    style={{ width: '100%', padding: '9px 0', borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: abForm.hookA.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: abForm.hookA.trim() ? 1 : 0.5 }}>
+                    Create Test
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Test list */}
+            {abTests.map(test => {
+              const insight = abInsights[test.id] || test.insight
+              const [ctrInputA, setCtrInputA] = [useState(''), v => {}]
+              return (
+                <div key={test.id} style={{ borderRadius: 6, border: `1px solid ${test.status === 'completed' ? C.goldDim : C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', background: test.status === 'completed' ? '#1a1408' : C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: test.status === 'completed' ? C.gold : C.primary }}>{test.name || 'Hook Battle'}</div>
+                      <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{test.product} · {test.platform} · {test.duration}d · ${test.budget || '—'} each</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: test.status === 'completed' ? C.goldGlow : '#0a100a', border: `1px solid ${test.status === 'completed' ? C.goldDim : '#2a4a2a'}`, color: test.status === 'completed' ? C.gold : C.green }}>
+                        {test.status === 'completed' ? `✓ Winner: ${test.winner}` : '● Running'}
+                      </span>
+                      <button onClick={() => saveAbTests(abTests.filter(t => t.id !== test.id))} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {test.hypothesis && <div style={{ fontSize: 9, color: C.secondary, fontStyle: 'italic' }}>"{test.hypothesis}"</div>}
+
+                    {/* Hook comparison */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {['A', 'B'].map(v => {
+                        const hook = v === 'A' ? test.hookA : test.hookB
+                        const ctr  = v === 'A' ? test.ctrA  : test.ctrB
+                        const isWinner = test.winner === v
+                        return (
+                          <div key={v} style={{ padding: '8px 10px', borderRadius: 4, background: isWinner ? C.goldGlow : C.raised, border: `1px solid ${isWinner ? C.goldDim : C.hairline}` }}>
+                            <div style={{ fontSize: 8, fontWeight: 800, color: isWinner ? C.gold : C.muted, marginBottom: 4 }}>
+                              HOOK {v} {isWinner ? '👑 WINNER' : ''}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.5, marginBottom: 6 }}>{hook}</div>
+                            {ctr ? <div style={{ fontSize: 12, fontWeight: 800, color: isWinner ? C.gold : C.secondary }}>{ctr}% {test.metric}</div> : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Enter results */}
+                    {test.status === 'running' && (() => {
+                      let inputA = '', inputB = ''
+                      return (
+                        <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary, marginBottom: 8 }}>Enter Results</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, alignItems: 'flex-end' }}>
+                            <div>
+                              <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>Hook A {test.metric} %</div>
+                              <input onChange={e => { inputA = e.target.value }} placeholder="e.g. 3.8"
+                                style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 11, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>Hook B {test.metric} %</div>
+                              <input onChange={e => { inputB = e.target.value }} placeholder="e.g. 2.1"
+                                style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 11, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                            </div>
+                            <button onClick={() => { if (inputA && inputB) resolveAbTest(test.id, inputA, inputB) }}
+                              style={{ padding: '6px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                              Log Winner
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Insight */}
+                    {test.status === 'completed' && !insight && (
+                      <button onClick={() => getAbTestInsight(test)} disabled={abInsightLoading}
+                        style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: abInsightLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: abInsightLoading ? 0.6 : 1 }}>
+                        {abInsightLoading ? '⟳ Analysing pattern…' : '✦ Analyse Winning Pattern — 1 credit'}
+                      </button>
+                    )}
+
+                    {insight && (
+                      <div style={{ borderRadius: 4, border: `1px solid ${C.goldDim}`, background: C.goldGlow, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>Pattern Analysis</div>
+                        <div style={{ fontSize: 10, color: C.primary, fontWeight: 600 }}>{insight.winningPattern}</div>
+                        <div style={{ fontSize: 9, color: C.secondary }}>{insight.psychologyExplained}</div>
+                        {insight.learningRule && (
+                          <div style={{ padding: '5px 8px', borderRadius: 3, background: '#1a1408', border: `1px solid ${C.goldDim}`, fontSize: 9, color: C.gold }}>
+                            Rule: {insight.learningRule}
+                          </div>
+                        )}
+                        {(insight.newHooks || []).length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                            <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8 }}>5 New Hooks Using This Pattern</div>
+                            {insight.newHooks.map((h, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <span style={{ fontSize: 9, color: C.muted, minWidth: 14 }}>{i + 1}</span>
+                                <span style={{ flex: 1, fontSize: 10, color: C.primary }}>{h}</span>
+                                <button onClick={() => { setSelectedHook(h); setAdOutputTab('hooks') }} style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, flexShrink: 0 }}>Use</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {abTests.length === 0 && !abCreating && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>⚗️</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>A/B Test Architecture</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>Create your first test. Set a hypothesis, pick two hooks, run it, enter results. The app learns which patterns win for your brand.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── ROI TAB ── */}
+        {adOutputTab === 'roi' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+              Project your campaign revenue before spending. Based on expected CTR, conversion rate, and audience size.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                { key: 'price',    label: 'Product Price ($)',         placeholder: '89' },
+                { key: 'margin',   label: 'Gross Margin (%)',          placeholder: '65' },
+                { key: 'ctr',      label: 'Expected CTR (%)',          placeholder: '2.8' },
+                { key: 'convRate', label: 'Expected Conv. Rate (%)',    placeholder: '1.4' },
+                { key: 'audience', label: 'Audience Size',             placeholder: '80000' },
+                { key: 'spend',    label: 'Total Ad Spend ($)',        placeholder: '300' },
+              ].map(f => (
+                <div key={f.key}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary, marginBottom: 4 }}>{f.label}</div>
+                  <input
+                    type="number"
+                    value={roi[f.key]}
+                    onChange={e => setRoi(p => ({ ...p, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '8px 10px', fontSize: 12, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => e.target.style.borderColor = C.goldDim}
+                    onBlur={e => e.target.style.borderColor = C.subtle}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {(() => {
+              const r = calcRoi()
+              if (!r) return (
+                <div style={{ padding: '14px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}`, fontSize: 10, color: C.muted, textAlign: 'center' }}>
+                  Fill in product price, audience size, and ad spend to see your projection.
+                </div>
+              )
+
+              const profitColor = r.netProfit >= 0 ? C.green : '#cf6a6a'
+              const roasColor   = r.roas >= 3 ? C.green : r.roas >= 1.5 ? C.gold : '#cf6a6a'
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Main metrics */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                    {[
+                      { label: 'Projected Revenue',  value: `$${r.revenue.toLocaleString('en', { maximumFractionDigits: 0 })}`,    color: C.primary },
+                      { label: 'Projected ROAS',      value: `${r.roas.toFixed(1)}×`,                                               color: roasColor  },
+                      { label: 'Net Profit',          value: `${r.netProfit >= 0 ? '+' : ''}$${r.netProfit.toLocaleString('en', { maximumFractionDigits: 0 })}`, color: profitColor },
+                    ].map((m, i) => (
+                      <div key={i} style={{ padding: '12px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: m.color, lineHeight: 1 }}>{m.value}</div>
+                        <div style={{ fontSize: 9, color: C.muted, marginTop: 5 }}>{m.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Detail breakdown */}
+                  <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                    {[
+                      { label: 'Ad reach (impressions)',          value: parseFloat(roi.audience).toLocaleString() },
+                      { label: `Clicks (${roi.ctr}% CTR)`,        value: r.clicks.toLocaleString() },
+                      { label: `Purchases (${roi.convRate}% conv)`,value: r.purchases.toLocaleString() },
+                      { label: 'Gross profit',                    value: `$${r.grossProfit.toLocaleString('en', { maximumFractionDigits: 0 })}` },
+                      { label: 'Ad spend',                        value: `-$${parseFloat(roi.spend).toLocaleString()}` },
+                    ].map((row, i) => (
+                      <div key={i} style={{ padding: '8px 12px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, color: C.secondary }}>{row.label}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Break-even */}
+                  <div style={{ padding: '10px 12px', borderRadius: 4, background: r.netProfit >= 0 ? C.greenDim : '#110606', border: `1px solid ${r.netProfit >= 0 ? '#2a4a2a' : '#2a1010'}` }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: r.netProfit >= 0 ? C.green : C.red, marginBottom: 3 }}>
+                      {r.netProfit >= 0 ? '✓ Profitable' : '⚠ Below break-even'}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.secondary }}>
+                      Break-even: <strong style={{ color: C.primary }}>{r.breakEven} sales</strong> ({r.breakEvenConv}% conversion rate needed)
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5 }}>
+                    These are projections based on your inputs. Actual results vary by audience quality, creative performance, and platform algorithm. Use as a planning guide, not a guarantee.
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </>)}
 
@@ -3518,6 +5045,8 @@ const INIT = {
   adMusicTrack:       null,
   adMusicLicenseId:   null,
   adMusicTimingPlan:  null,
+  // Studio Visual Anchor — character consistency across shots
+  visualAnchor:       null, // { imageUrl, prompt, description }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4112,6 +5641,37 @@ export default function PromptCEOPage() {
   const set         = useCallback((k, v) => setS(p => ({ ...p, [k]: v })), [])
   const merge       = useCallback(patch  => setS(p => ({ ...p, ...patch })), [])
 
+  // ── Studio Intelligence State ─────────────────────────────
+  const [studioCharDNA,        setStudioCharDNA]        = useState(() => { try { return JSON.parse(localStorage.getItem('promptceo_char_dna_v1') || '[]') } catch { return [] } })
+  const [studioDNAName,        setStudioDNAName]        = useState('')
+  const [studioDNASaveOpen,    setStudioDNASaveOpen]    = useState(false)
+  const [shotDirectorNote,     setShotDirectorNote]     = useState(null)
+  const [shotDirectorLoading,  setShotDirectorLoading]  = useState(false)
+  const [studioVariation,      setStudioVariation]      = useState(null)
+  const [studioVarLoading,     setStudioVarLoading]     = useState(false)
+  const [studioVarDir,         setStudioVarDir]         = useState('darker')
+  const [promptLibrary,        setPromptLibrary]        = useState(() => { try { return JSON.parse(localStorage.getItem('promptceo_prompt_lib_v1') || '[]') } catch { return [] } })
+  const [studioTimeline,       setStudioTimeline]       = useState([])
+  const [studioCoherence,      setStudioCoherence]      = useState(null)
+  const [studioCoherenceLoading, setStudioCoherenceLoading] = useState(false)
+  const [studioLockedDir,      setStudioLockedDir]      = useState(false)
+  const [studioLockedWorld,    setStudioLockedWorld]    = useState(false)
+  const [buildingSequence,     setBuildingSequence]     = useState(false)
+  // Feature 4 — Custom World Builder
+  const [customWorlds,         setCustomWorlds]         = useState(() => { try { return JSON.parse(localStorage.getItem('promptceo_custom_worlds_v1') || '[]') } catch { return [] } })
+  const [customWorldForm,      setCustomWorldForm]      = useState({ name: '', location: '', atmosphere: '', lighting: '', mood: '' })
+  const [customWorldOpen,      setCustomWorldOpen]      = useState(false)
+  const [activeCustomWorld,    setActiveCustomWorld]    = useState(null) // id of selected custom world
+  // Feature 5 — Photographer Brief
+  const [photographerBrief,    setPhotographerBrief]    = useState(null)
+  const [briefLoading2,        setBriefLoading2]        = useState(false)
+  // Feature 6 — Creator Revenue System
+  const [creatorCalendar,      setCreatorCalendar]      = useState(null)
+  const [creatorCalLoading,    setCreatorCalLoading]    = useState(false)
+  // Feature 7 — Per-card direct generation (DALL-E)
+  const [cardGenerating,       setCardGenerating]       = useState({}) // keyed by scene index
+  const [cardImages,           setCardImages]           = useState({}) // keyed by scene index — Studio (separate from Ad Studio cardImages)
+  // ─────────────────────────────────────────────────────────
   const [result,       setResult]       = useState(null)
   const [batch,        setBatch]        = useState([])
   const [batchRun,     setBatchRun]     = useState(false)
@@ -4196,7 +5756,16 @@ export default function PromptCEOPage() {
 
   // ── Generate ──────────────────────────────────────────────
   const generate = useCallback(() => {
-    const r = buildPromptV3(buildInput(s))
+    let r = buildPromptV3(buildInput(s))
+    // Inject custom world context
+    const customWorldCtx = getCustomWorldPromptContext()
+    if (customWorldCtx && r.finalPrompt) {
+      r = { ...r, finalPrompt: `${r.finalPrompt}. ${customWorldCtx}` }
+    }
+    // Inject visual anchor for character consistency
+    if (s.visualAnchor?.description && r.finalPrompt) {
+      r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
+    }
     setResult(r)
     setOutputTab('output')
     if (s.continuityLock && r.finalPrompt) {
@@ -4204,6 +5773,24 @@ export default function PromptCEOPage() {
     }
     if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
   }, [s, saveToHistory])
+
+  // Smart batch progression — each shot zone gets specific cinematic direction
+  const SMART_SHOT_DIRECTIONS = [
+    { zone: 'establishing', pct: [0,    0.15], prefix: 'Establishing shot. Wide. Environmental. Character enters the space. Atmosphere first, subject second.' },
+    { zone: 'arrival',      pct: [0.15, 0.30], prefix: 'Character settles in. Medium shot. Relationship between character and environment.' },
+    { zone: 'building',     pct: [0.30, 0.50], prefix: 'Energy rising. Closer composition. Character more present. The space starts to belong to them.' },
+    { zone: 'tension',      pct: [0.50, 0.65], prefix: 'Tension shot. Close. Charged atmosphere. Less comfortable distance. Anticipation.' },
+    { zone: 'peak',         pct: [0.65, 0.80], prefix: 'Peak energy. Direct. Full presence. Maximum intensity of the scene.' },
+    { zone: 'resolution',   pct: [0.80, 0.90], prefix: 'Resolution. Energy settling. Different quality of light. The scene breathes.' },
+    { zone: 'aftermath',    pct: [0.90, 1.00], prefix: 'Aftermath. Abstract or intimate. Emotional residue. The feeling that remains.' },
+  ]
+
+  const getShotDirection = (i, total) => {
+    const pct = i / Math.max(total - 1, 1)
+    const zone = SMART_SHOT_DIRECTIONS.find(d => pct >= d.pct[0] && pct < d.pct[1])
+      || SMART_SHOT_DIRECTIONS[SMART_SHOT_DIRECTIONS.length - 1]
+    return zone
+  }
 
   const runBatch = useCallback(async () => {
     setBatchRun(true)
@@ -4218,6 +5805,19 @@ export default function PromptCEOPage() {
       let r
       try {
         r = buildPromptV3(buildInput({ ...s, progressionIndex: i, totalCount: total }))
+        // Inject smart shot direction into the final prompt
+        const shotDir = getShotDirection(i, total)
+        if (r.finalPrompt && shotDir) {
+          r = {
+            ...r,
+            finalPrompt: `${r.finalPrompt}, ${shotDir.prefix.toLowerCase()}`,
+            _shotZone: shotDir.zone,
+          }
+        }
+        // Inject visual anchor consistency if set
+        if (s.visualAnchor?.description && r.finalPrompt) {
+          r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
+        }
       } catch (err) {
         console.error(`Scene ${i + 1} failed:`, err)
         r = { finalPrompt: `(generation failed: ${err?.message})`, meta: {}, layers: {}, warnings: [String(err)] }
@@ -4231,14 +5831,310 @@ export default function PromptCEOPage() {
     set('view', 'timeline')
   }, [s])
 
+  // ── Studio Intelligence Functions ─────────────────────────
+
+  const addStudioEvent = (event, detail = '') =>
+    setStudioTimeline(prev => [{ ts: Date.now(), event, detail }, ...prev].slice(0, 30))
+
+  const fetchShotDirectorNote = async (prompt) => {
+    if (!prompt?.trim() || shotDirectorLoading) return
+    setShotDirectorNote(null)
+    setShotDirectorLoading(true)
+    try {
+      const progLevel = (() => {
+        const r = s.progressionIndex / Math.max(s.totalCount - 1, 1)
+        return r < 0.33 ? 'tease' : r < 0.66 ? 'tension' : 'payoff'
+      })()
+      const res  = await fetch('/api/shot-director', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          finalPrompt: prompt,
+          context: {
+            worldId: s.worldId || s.storyWorldId,
+            directorPreset: s.directorPreset,
+            progressionLevel: progLevel,
+            characterName: s.identityName || s.traits?.subjectA?.name,
+            ageRange: s.ageRange,
+            progressionIndex: s.progressionIndex,
+            totalCount: s.totalCount,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') setShotDirectorNote(data.note)
+    } catch {}
+    finally { setShotDirectorLoading(false) }
+  }
+
+  const generateStudioVariation = async (prompt) => {
+    if (!prompt?.trim() || studioVarLoading) return
+    setStudioVarLoading(true)
+    try {
+      const res  = await fetch('/api/studio-variation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalPrompt: prompt, variationType: studioVarDir }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setStudioVariation(data.variation)
+        addStudioEvent(`Variation: ${studioVarDir}`, data.variation.changesMade?.slice(0, 60))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setStudioVarLoading(false) }
+  }
+
+  const checkStudioCoherence = async () => {
+    if (studioCoherenceLoading) return
+    setStudioCoherenceLoading(true)
+    try {
+      const progLevel = (() => {
+        const r = s.progressionIndex / Math.max(s.totalCount - 1, 1)
+        return r < 0.33 ? 'tease' : r < 0.66 ? 'tension' : 'payoff'
+      })()
+      const res  = await fetch('/api/studio-coherence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          worldId: s.worldId,
+          storyWorldId: s.storyWorldId,
+          directorPreset: s.directorPreset,
+          progressionLevel: progLevel,
+          characterName: s.identityName,
+          identityName: s.traits?.subjectA?.name,
+          ageRange: s.ageRange,
+          characterMode: s.characterMode,
+          progressionIndex: s.progressionIndex,
+          totalCount: s.totalCount,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setStudioCoherence(data.report)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setStudioCoherenceLoading(false) }
+  }
+
+  const togglePromptLibrary = (prompt, meta) => {
+    setPromptLibrary(prev => {
+      const exists = prev.some(p => p.prompt === prompt)
+      const updated = exists
+        ? prev.filter(p => p.prompt !== prompt)
+        : [{ id: Date.now(), prompt, meta, savedAt: new Date().toISOString() }, ...prev].slice(0, 50)
+      try { localStorage.setItem('promptceo_prompt_lib_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    addStudioEvent(promptLibrary.some(p => p.prompt === prompt) ? 'Removed from library' : 'Starred prompt', prompt.slice(0, 60))
+  }
+
+  const saveCharacterDNA = (name) => {
+    const profile = {
+      id: Date.now(), name: name || s.identityName || `Character ${Date.now()}`,
+      savedAt: new Date().toISOString(),
+      settings: {
+        identityName: s.identityName, useIdentity: s.useIdentity, useTraits: s.useTraits,
+        identityStrength: s.identityStrength, traits: s.traits, ageRange: s.ageRange,
+        characterMode: s.characterMode, subjectGender: s.subjectGender,
+        worldControlMode: s.worldControlMode, worldId: s.worldId,
+        subLocationId: s.subLocationId, sceneGroupId: s.sceneGroupId,
+        storyWorldId: s.storyWorldId, chapterId: s.chapterId, packId: s.packId,
+        directorPreset: s.directorPreset, totalCount: s.totalCount,
+      },
+    }
+    setStudioCharDNA(prev => {
+      const updated = [profile, ...prev.filter(p => p.name !== profile.name)].slice(0, 10)
+      try { localStorage.setItem('promptceo_char_dna_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    setStudioDNAName('')
+    setStudioDNASaveOpen(false)
+    addStudioEvent('Character DNA saved', profile.name)
+  }
+
+  const loadCharacterDNA = (profile) => {
+    merge(profile.settings || {})
+    setShotDirectorNote(null)
+    setStudioVariation(null)
+    setStudioCoherence(null)
+    addStudioEvent('Character DNA loaded', profile.name)
+  }
+
+  // Feature 4 — Custom World Builder
+  const saveCustomWorld = () => {
+    if (!customWorldForm.name.trim()) return
+    const world = { id: Date.now(), ...customWorldForm, savedAt: new Date().toISOString() }
+    setCustomWorlds(prev => {
+      const updated = [world, ...prev.filter(w => w.name !== world.name)].slice(0, 10)
+      try { localStorage.setItem('promptceo_custom_worlds_v1', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    setCustomWorldForm({ name: '', location: '', atmosphere: '', lighting: '', mood: '' })
+    setCustomWorldOpen(false)
+    addStudioEvent('Custom world saved', world.name)
+  }
+
+  const getCustomWorldPromptContext = () => {
+    if (!activeCustomWorld) return ''
+    const world = customWorlds.find(w => w.id === activeCustomWorld)
+    if (!world) return ''
+    return [
+      world.location   && `Location: ${world.location}`,
+      world.atmosphere && `Atmosphere: ${world.atmosphere}`,
+      world.lighting   && `Lighting: ${world.lighting}`,
+      world.mood       && `Mood: ${world.mood}`,
+    ].filter(Boolean).join('. ')
+  }
+
+  // Feature 5 — Photographer Brief
+  const generatePhotographerBrief = async () => {
+    if (!batch.length || briefLoading2) return
+    setBriefLoading2(true)
+    try {
+      const res  = await fetch('/api/photographer-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenes: batch.slice(0, 20),
+          studioContext: {
+            worldId: s.worldId || s.storyWorldId,
+            directorPreset: s.directorPreset,
+            identityName: s.identityName || s.traits?.subjectA?.name,
+            ageRange: s.ageRange,
+            characterMode: s.characterMode,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setPhotographerBrief(data.brief)
+        addStudioEvent('Photographer brief generated', data.brief.briefTitle)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setBriefLoading2(false) }
+  }
+
+  const exportPhotographerBriefTxt = () => {
+    if (!photographerBrief) return
+    const b = photographerBrief
+    const lines = [
+      b.briefTitle,
+      '='.repeat(50),
+      `Duration: ${b.duration} · Crew: ${(b.crew || []).join(', ')}`,
+      '',
+      'CHARACTER',
+      '─'.repeat(20),
+      `Description: ${b.character?.description}`,
+      `Wardrobe: ${(b.character?.wardrobe || []).join(' / ')}`,
+      `Hair: ${b.character?.hair}`,
+      `Makeup: ${b.character?.makeup}`,
+      `Energy: ${b.character?.energy}`,
+      '',
+      'LOCATION',
+      '─'.repeat(20),
+      `Type: ${b.location?.type}`,
+      `Requirements: ${(b.location?.requirements || []).join(', ')}`,
+      '',
+      'LIGHTING',
+      '─'.repeat(20),
+      `Style: ${b.lighting?.style}`,
+      `Key Light: ${b.lighting?.keyLight}`,
+      `Mood: ${b.lighting?.mood}`,
+      '',
+      'SHOT LIST',
+      '─'.repeat(20),
+      ...(b.shotList || []).flatMap(shot => [
+        `Shot ${shot.shotNumber} — ${shot.zone?.toUpperCase()}`,
+        `  ${shot.description}`,
+        `  Angle: ${shot.angle}`,
+        `  Direction: ${shot.direction}`,
+        `  Reference: ${shot.ref}`,
+        '',
+      ]),
+      'DIRECTOR NOTES',
+      '─'.repeat(20),
+      b.directorNotes,
+      '',
+      'DELIVERABLES',
+      '─'.repeat(20),
+      ...(b.deliverables || []).map(d => `• ${d}`),
+    ]
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' })),
+      download: `${b.briefTitle?.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`,
+    })
+    a.click()
+  }
+
+  // Feature 7 — Per-card direct DALL-E generation
+  const generateCardImageDirect = async (prompt, sceneIndex) => {
+    if (cardGenerating[sceneIndex]) return
+    setCardGenerating(prev => ({ ...prev, [sceneIndex]: true }))
+    // Clear any previous error for this card
+    setCardImages(prev => {
+      const n = { ...prev }
+      if (n[`err_${sceneIndex}`]) delete n[`err_${sceneIndex}`]
+      return n
+    })
+    try {
+      const res  = await fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, mode: 'studio_direct' }),
+      })
+      const data = await res.json()
+      if (data.status === 'complete') {
+        setCardImages(prev => ({ ...prev, [sceneIndex]: data.imageUrl }))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+        addStudioEvent(`Scene ${typeof sceneIndex === 'number' ? sceneIndex + 1 : sceneIndex} generated`)
+      } else {
+        // Store error so card can display it
+        setCardImages(prev => ({ ...prev, [`err_${sceneIndex}`]: data.message || 'Generation failed' }))
+      }
+    } catch (err) {
+      setCardImages(prev => ({ ...prev, [`err_${sceneIndex}`]: err.message || 'Network error' }))
+    }
+    finally { setCardGenerating(prev => ({ ...prev, [sceneIndex]: false })) }
+  }
+
+  const buildFullSequence = async () => {
+    if (buildingSequence) return
+    setBuildingSequence(true)
+    addStudioEvent('Building full sequence…', `${s.totalCount} scenes`)
+    await runBatch()
+    setBuildingSequence(false)
+    addStudioEvent('Full sequence complete', `${s.totalCount} scenes`)
+  }
+
+  // Auto-fire Shot Director note when a new scene is generated
+  const prevPrompt = useRef(null)
+  useEffect(() => {
+    if (!result?.finalPrompt) return
+    if (result.finalPrompt === prevPrompt.current) return
+    prevPrompt.current = result.finalPrompt
+    setShotDirectorNote(null)
+    setStudioVariation(null)
+    addStudioEvent('Scene generated', result.meta?.progressionLevel || '')
+    fetchShotDirectorNote(result.finalPrompt)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result?.finalPrompt])
+
+  const [lastRegenLayer, setLastRegenLayer] = useState(null)
+  const [promptChanged,  setPromptChanged]  = useState(false)
+
   const regenLayer = useCallback(layer => {
     setRegenState(p => ({ ...p, [layer]: true }))
+    // Generate a new version and pull only the changed layer + new final prompt
     const r = buildPromptV3(buildInput({ ...s, progressionIndex: s.progressionIndex }))
     setResult(prev => !prev ? r : {
       ...r,
       layers:      { ...prev.layers, [layer]: r.layers[layer] },
       finalPrompt: r.finalPrompt,
     })
+    // Switch to output tab so user sees the updated prompt immediately
+    setOutputTab('output')
+    setLastRegenLayer(layer)
+    setPromptChanged(true)
+    addStudioEvent(`Layer changed: ${layer}`, 'Click Regenerate Image to see the result')
     setTimeout(() => setRegenState(p => ({ ...p, [layer]: false })), 900)
   }, [s])
 
@@ -4463,6 +6359,7 @@ export default function PromptCEOPage() {
   const generateImage = useCallback(async () => {
     if (!result?.finalPrompt) return
     if (!s.imageDataUrl) { merge({ imageError: 'Upload an identity image first.' }); return }
+    setPromptChanged(false) // clear the regenerate banner
     merge({ imageGenerating: true, imageError: '', generatedImage: '' })
     try {
       const res  = await fetch('/api/generate-image', {
@@ -4657,6 +6554,53 @@ export default function PromptCEOPage() {
   }
 
   // ─────────────────────────────────────────────────────────
+  // HELP DRAWER COMPONENTS
+  // ─────────────────────────────────────────────────────────
+
+  const HelpSection = ({ color, icon, title, subtitle, children }) => (
+    <div style={{ border: `1px solid ${color}33`, borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: `${color}18`, padding: '14px 18px', borderBottom: `1px solid ${color}22` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>{icon}</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: color }}>{title}</div>
+            <div style={{ fontSize: 11, color: C.secondary, marginTop: 1 }}>{subtitle}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {children}
+      </div>
+    </div>
+  )
+
+  const HelpBlock = ({ children }) => (
+    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.7, background: '#ffffff08', borderRadius: 8, padding: '10px 14px' }}>
+      {children}
+    </div>
+  )
+
+  const HelpSub = ({ color, children }) => (
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: color, marginTop: 4 }}>
+      {children}
+    </div>
+  )
+
+  const HelpSteps = ({ steps }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {steps.map(([label, desc], i) => (
+        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ minWidth: 20, height: 20, borderRadius: '50%', background: C.gold, color: '#000', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{i + 1}</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.primary }}>{label}</div>
+            <div style={{ fontSize: 11, color: C.secondary, marginTop: 2, lineHeight: 1.6 }}>{desc}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // ─────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────
 
@@ -4665,77 +6609,216 @@ export default function PromptCEOPage() {
       {/* HELP DRAWER */}
       {helpOpen && (
         <>
-          <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.6)' }} />
-          <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0,
-            width: 420, zIndex: 999,
-            background: '#0d0d0d',
-            borderLeft: `1px solid ${C.subtle}`,
-            overflowY: 'auto',
-            display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{
-              padding: '16px 20px',
-              borderBottom: `1px solid ${C.subtle}`,
-              background: '#111',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0, position: 'sticky', top: 0, zIndex: 10,
-            }}>
+          <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.7)' }} />
+          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, zIndex: 999, background: '#0a0a0a', borderLeft: `1px solid ${C.subtle}`, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.subtle}`, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>
-                  PROMPT CEO — DIRECTOR'S STUDIO
-                </div>
-                <div style={{ fontSize: 10, color: '#888', letterSpacing: 1, marginTop: 2 }}>Help & Documentation</div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
+                <div style={{ fontSize: 10, color: C.secondary, marginTop: 2 }}>Complete Feature Guide</div>
               </div>
-              <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: '#aaa', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+              {/* ── AD STUDIO ── */}
+              <HelpSection color={C.violet} icon="📣" title="Ad Studio" subtitle="AI Creative OS for brands and agencies">
+                <HelpBlock>
+                  Enter your product once. Every tab generates from the same brain. Hooks know the angle. Captions know the hook. Music knows the goal. Everything is connected.
+                </HelpBlock>
+
+                <HelpSub color={C.gold}>Quick Start</HelpSub>
+                <HelpSteps steps={[
+                  ['Fill Product Details', 'Product name, description, target customer, problem, desire, benefit, offer, CTA. The more you add, the smarter every generation becomes.'],
+                  ['Pick Brand Voice', 'Luxury, Bold, Emotional, Clean, Aggressive, Feminine, Premium, Friendly. Locks your tone across all outputs.'],
+                  ['Set Platform + Goal', 'Instagram / TikTok / Facebook · Sales / Leads / Awareness / Retargeting.'],
+                  ['Build Full Ad Project', 'One button on the Creative tab. Generates Angles → selects the best → Hooks → selects the best → Captions + UGC. All tabs fill automatically.'],
+                  ['Or go tab by tab', 'Angles → click Use This Angle → Hooks → click Use This Hook → Captions → Images → Video → UGC → Campaign → Music → Score.'],
+                ]} />
+
+                <HelpSub color={C.gold}>The 15 Output Tabs</HelpSub>
+                {[
+                  ['Creative', 'Generate image or video ads. Build Full Ad Project. Campaign Consistency Check. Export Briefs. Iteration Engine.'],
+                  ['Angles', '10 psychological directions. Each angle is a completely different way to sell the same product. Click Use This Angle to set the direction for everything else.'],
+                  ['Hooks', 'Generate all 5 hook types at once — Pain, Desire, Curiosity, Luxury, Offer. 10 hooks each. Click Use This Hook to lock the opening line.'],
+                  ['Captions', '6 caption styles — Short, Story, Problem-Solution, Luxury, Direct, Retargeting. All use the selected angle and hook.'],
+                  ['Images', '6 image ad prompts — Hero, Lifestyle, UGC, Before/After, Minimal, Story. Generate the actual image inside the app per card.'],
+                  ['Video', '4 video prompts — TikTok 15s, Meta 30s, UGC Creator, Luxury Cinematic. Each has a Generate Storyboard button for shot-by-shot direction.'],
+                  ['UGC', '4 creator scripts — Natural, Emotional, Direct Response, Testimonial.'],
+                  ['Campaign', '10-stage full-funnel: Cold Awareness → Problem → Desire → Product → UGC Trust → Social Proof → Offer → Final Conversion → Retargeting → Winback. Each stage: hook, caption, image, video, UGC, music, CTA.'],
+                  ['Score', 'Paste any copy → score across 6 dimensions. Full Campaign Score across 8 dimensions. Ad Fatigue Detection scans all outputs for repetition.'],
+                  ['Music', 'AI recommends the perfect soundtrack for your campaign. Featured tracks surface first. "Sounds like" suggestion appears on every tab — one click to preview and license. Start with a track and let it anchor the whole campaign.'],
+                  ['Launch', '5-stage launch sequence: Teaser → Launch Day → Retargeting → Urgency → Final Push. Download as .txt for your team.'],
+                  ['Calendar', '30-day content plan. Daily hooks, caption direction, creative brief, posting time. Export as CSV.'],
+                  ['A/B Tests', 'Create structured tests with hypothesis. Log CTR results. AI extracts the winning pattern and generates 5 new hooks using it.'],
+                  ['ROI', 'Enter product price, margin, CTR, conversion rate, audience, spend. Live projection of revenue, ROAS, profit, break-even.'],
+                  ['Inspire', 'Paste competitor ads → AI extracts what makes them work → generates 5 original hooks you can use instantly. Market Intelligence shows the open gap in your category.'],
+                ].map(([tab, desc]) => (
+                  <div key={tab} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.violet, minWidth: 64, paddingTop: 2 }}>{tab}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.gold}>Intelligence Layer</HelpSub>
+                {[
+                  ['Creative Director AI', 'Fires automatically after every generation. Shows: why it works, what is weak, exact next action, and a director quote. Free.'],
+                  ['Output Locking', 'Lock any angle, hook, brand voice, visual style, or music. Locked items inject into every future generation. Shown in the context bar at the top.'],
+                  ['Variation Engine', 'Every output has Make It More buttons: 👑 Luxury · ⚡ Direct · 💛 Emotional · 🔥 Viral · ✂ Shorter · 💥 Bolder. Plus 4 more.'],
+                  ['Iteration Engine', 'In Creative tab — pick a direction (Stronger, Emotional, Luxury, TikTok, Direct, Simpler) and iterate the whole campaign. Respects all locks.'],
+                  ['Brand Voice Fingerprint', 'Paste 3 of your best ads. AI extracts your exact writing patterns — not a category label, your actual brand voice. Injected into every generation.'],
+                  ['Brand Brain Winners', 'Star ⭐ your best angles and hooks. They inject into every future generation as proven benchmarks.'],
+                  ['Performance Intelligence', 'Log real CTR on any hook. AI learns which patterns win for your brand. Top performers are referenced in every new generation.'],
+                  ['Visual Brand DNA', 'Set primary/secondary colors, image style, typography feel, brand mark. Injected into every image generation.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.gold}>Music Intelligence</HelpSub>
+                {[
+                  ['Sounds Like', 'On the Creative tab, a passive strip shows the AI\'s top track recommendation for your current campaign — even before you visit the Music tab. One click previews and licenses it.'],
+                  ['Featured Tracks', 'Curated tracks with a gold FEATURED badge surface first in the library. Built by the artist behind this app — matched for campaign quality.'],
+                  ['AI Match Score', 'Every track is scored against your product, platform, goal, mood, and brand voice. Match % shown on every card with a "Why this fits" explanation.'],
+                  ['Campaign Count', 'Each track shows how many campaigns it has been licensed into — real usage data, not guesswork.'],
+                  ['Timing Plan', 'After licensing, the AI maps your track\'s BPM, drop, and energy curve to a 30-second ad structure: hook window, build, drop moment, payoff, CTA.'],
+                  ['Music-first entry', 'Start from the Music tab before filling product details. Pick a track — its mood, energy, and vibe anchor the creative direction for the whole campaign.'],
+                  ['Campaign Stage Music', 'In the 10-stage Campaign tab, each stage shows which section of the track fits that moment — cold awareness, urgency, retargeting — with timing and a use note.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.gold}>Delivery Tools</HelpSub>
+                {[
+                  ['Campaign Pack', '📦 Pack button in context bar. Downloads everything — angles, hooks, captions, UGC, campaign, launch, music — as one .txt file.'],
+                  ['Share with Client', '🔗 Share button → generates a unique link. Client opens a clean review page, approves or requests changes. Agency gets notified. Client never touches the app.'],
+                  ['Export Briefs', 'Campaign Brief, Creator Brief, Media Buyer Brief. AI-generated professional documents, 2 credits each. Download as .txt.'],
+                  ['Webhook Integration', 'In My Projects panel — paste any Zapier or Make.com URL. Campaign data pushes automatically on Save, Share, and client Approve.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.blue, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+              </HelpSection>
+
+              <div style={{ height: 1, background: C.hairline }} />
+
+              {/* ── DIRECTOR'S STUDIO ── */}
+              <HelpSection color={C.green} icon="🎬" title="Director's Studio" subtitle="Cinematic AI scene generation for creators">
+                <HelpBlock>
+                  Build a character once. Pick a world. Apply a director's visual language. Generate scenes that progress through a cinematic arc. Export prompts to Midjourney, Runway, or Kling — or generate images directly inside the Studio.
+                </HelpBlock>
+
+                <HelpSub color={C.green}>Quick Start</HelpSub>
+                <HelpSteps steps={[
+                  ['Upload Identity', 'Click the upload area in the Identity panel. Upload a reference photo. Click Scan Identity — AI extracts age, ethnicity, body, hair, eyes automatically.'],
+                  ['Pick a World', 'Choose a Location World (Dubai, Malibu, Santorini, Tulum, Luxury Hotel Suite) or a Story World (creator lifestyle, lingerie editorial, intimate). Or build your own Custom World.'],
+                  ['Choose a Director', 'Apply a director\'s visual grammar: Kubrick (cold, symmetrical), Wong Kar-wai (saturated longing), Fincher (tension, desaturated), Malick (golden hour), Noé (neon, confrontational), and 6 more.'],
+                  ['Set Progression', 'Drag the slider to position in the arc. Tease (0–33%) → Tension (33–66%) → Payoff (66–100%). The AI adjusts language, proximity, and energy automatically.'],
+                  ['Generate Scene', 'Click ▶ Generate Scene — prompt appears immediately. Or click ⚡ Full Sequence for a complete 30-scene arc.'],
+                  ['Generate Image', 'Click 🎨 Generate Image in the output panel. No identity image required for direct generation.'],
+                ]} />
+
+                <HelpSub color={C.green}>Scene Intelligence</HelpSub>
+                {[
+                  ['Shot Director AI', 'Fires automatically after every scene. Shows: what works cinematically, what to fix, exact direction for the next shot, director quote. Free.'],
+                  ['Layer Swap', 'Click ↺ Wardrobe / Scene / Camera / Mood / Lighting to regenerate that element while keeping everything else. A gold banner appears — click Regenerate Image to see the result.'],
+                  ['Variation Engine', '10 cinematic directions: 🌑 Darker · 🎬 More Cinematic · ⚡ Higher Tension · 🕯 More Intimate · 📸 More Editorial · 🌊 More Abstract · ✨ More Romantic · 🎭 More Dramatic · ◻ More Minimal · 🔮 More Surreal. 1 credit each.'],
+                  ['Visual Anchor', 'After generating a good image, click ⚓ Set as Visual Anchor. All future scenes maintain consistency with that visual reference — same lighting style, character energy, color temperature.'],
+                  ['Scene Coherence', 'Checks if world + director + progression + character are working together or fighting. Returns score, harmony points, friction points, one fix. 1 credit.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.green, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Batch Generation</HelpSub>
+                {[
+                  ['Full Sequence ⚡', 'Generates your total scene count as a smart progression. Each shot gets specific cinematic direction based on its position in the arc (establishing, building, tension, peak, resolution, aftermath).'],
+                  ['Director\'s Timeline', 'After running a batch, the Timeline view shows all scenes. Every card has a 🎨 Generate button. Generate individual scenes or click Generate All Images in the header.'],
+                  ['Generate All Images', 'Header button generates every scene image with grok-imagine-image. No identity upload required. Shows progress as images come in.'],
+                  ['Director\'s Chair', 'Fullscreen cinematic view of all batch results. Navigate shot by shot. Full prompt text visible. Progress indicators for each scene.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.blue, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Memory & Identity</HelpSub>
+                {[
+                  ['Character DNA', 'Save your complete setup — identity, traits, world, director, scene count — as a named profile. Load any profile instantly from the Character DNA panel.'],
+                  ['Custom Worlds', 'Build your own world: name, location, atmosphere, lighting, mood. Saves permanently. Active world injects into every scene prompt.'],
+                  ['Prompt Library', 'Click ⭐ star on any generated scene. Starred prompts persist in the Prompt Library (right panel). Load, copy, or use as style reference in future generations.'],
+                  ['Session Timeline', 'Auto-tracks every creative decision: scenes generated, layers swapped, variations applied, images starred. Right panel.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.violet, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Export</HelpSub>
+                {[
+                  ['MJ / Runway / Kling', 'One-click copy of the prompt formatted for each platform. MJ gets --ar 2:3 --style raw, Kling gets --ratio 9:16 --duration 5.'],
+                  ['Photographer Brief', 'After running a batch — click the Photographer Brief panel (right). AI generates a real-world shoot brief with character, wardrobe, lighting, shot list, director notes. Download as .txt. 2 credits.'],
+                  ['.txt Export', 'Export all batch prompts as a plain text file, one per line, from the Timeline header.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+              </HelpSection>
+
+              <div style={{ height: 1, background: C.hairline }} />
+
+              {/* ── CREDITS ── */}
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e4dc', marginBottom: 6 }}>Director's Studio v3</div>
-                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7 }}>
-                  A cinematic AI directing studio for generating high-quality image and video prompts with consistent identity, world-aware scene building, and director-style visual grammar.
-                </div>
-              </div>
-              <div style={{ height: 1, background: C.subtle }} />
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Credits System</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Credits Guide</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {[
-                    { action: '🎨 Generate Image (Director)', cost: '5 credits' },
-                    { action: '📣 Generate Image (Ad Studio)', cost: '5 credits' },
-                    { action: '🎬 Generate Video', cost: '60 credits' },
-                  ].map(({ action, cost }) => (
-                    <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 5, background: '#111', border: `1px solid ${C.subtle}` }}>
-                      <span style={{ fontSize: 12, color: '#e8e4dc' }}>{action}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>{cost}</span>
+                    ['🎨 Generate Image (any mode)',    '5 cr'],
+                    ['🎬 Generate Video',                '60 cr'],
+                    ['✦ Angles / Captions / Images / UGC', '2 cr'],
+                    ['✦ Hooks',                          '1 cr'],
+                    ['✦ Video Prompts',                  '3 cr'],
+                    ['✦ Full Campaign (10 stages)',       '5 cr'],
+                    ['🚀 Launch Sequence',               '5 cr'],
+                    ['📅 Content Calendar',              '5 cr'],
+                    ['✦ Quality Score (individual)',      '1 cr'],
+                    ['✦ Full Campaign Score',            '2 cr'],
+                    ['🎵 License Music Track',           '2 cr'],
+                    ['🎬 Video Storyboard',              '2 cr'],
+                    ['📋 Export Brief (any type)',        '2 cr'],
+                    ['🔍 Competitor / Market Analysis',  '2 cr'],
+                    ['🔄 Campaign Iteration',            '3 cr'],
+                    ['↺ Studio Variation',               '1 cr'],
+                    ['✦ Scene Coherence Check',          '1 cr'],
+                    ['📸 Photographer Brief',            '2 cr'],
+                    ['✦ Brand Voice Training',           'Free'],
+                    ['✦ Shot Director AI',               'Free'],
+                    ['✦ Creative Director Notes',        'Free'],
+                  ].map(([action, cost]) => (
+                    <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <span style={{ fontSize: 11, color: C.secondary }}>{action}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: cost === 'Free' ? C.green : C.gold }}>{cost}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={{ height: 1, background: C.subtle }} />
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.violet, marginBottom: 12 }}>Ad Creative Studio</div>
-                <div style={{ fontSize: 12, color: '#9a9690', lineHeight: 1.7, marginBottom: 10 }}>
-                  Generate scroll-stopping ad content — product campaigns or personal brand content — using the same AI pipeline as the Director's Studio.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    { title: 'Product Ad', body: 'Configure product name, visual style (lifestyle, minimal, editorial, UGC, cinematic), platform, and mood. No identity image needed.' },
-                    { title: 'Personal Brand Ad', body: 'Uses your identity image to preserve your likeness. Pick your niche, campaign goal, and platform. Perfect for creator and influencer ad content.' },
-                    { title: 'Animate to Video', body: 'After generating an ad image, hit the Animate button to create a 5-second video ad using Runway Gen4 Turbo.' },
-                  ].map(({ title, body }) => (
-                    <div key={title} style={{ display: 'flex', gap: 10 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.violet, flexShrink: 0, marginTop: 5 }} />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#e8e4dc', marginBottom: 2 }}>{title}</div>
-                        <div style={{ fontSize: 11, color: '#9a9690', lineHeight: 1.6 }}>{body}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ fontSize: 10, color: '#444', textAlign: 'center', paddingBottom: 8 }}>
-                Prompt CEO — Director's Studio v3
+
+              <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', paddingBottom: 12 }}>
+                Prompt CEO · AI Creative OS
               </div>
             </div>
           </div>
@@ -4940,6 +7023,99 @@ export default function PromptCEOPage() {
             }}>
 
               {/* IDENTITY */}
+              {/* ── CHARACTER DNA ── */}
+              {/* ── CUSTOM WORLD BUILDER ── */}
+              <Panel title="Custom Worlds" accent={C.blue} defaultOpen={false}>
+                {customWorlds.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                    {customWorlds.map(world => (
+                      <div key={world.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 7px', borderRadius: 4, background: activeCustomWorld === world.id ? '#080c18' : C.raised, border: `1px solid ${activeCustomWorld === world.id ? C.blueDim : C.hairline}` }}>
+                        <button onClick={() => { setActiveCustomWorld(activeCustomWorld === world.id ? null : world.id); addStudioEvent(activeCustomWorld === world.id ? 'Custom world deselected' : 'Custom world selected', world.name) }} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: activeCustomWorld === world.id ? C.blue : C.primary }}>{activeCustomWorld === world.id ? '✓ ' : ''}{world.name}</div>
+                          <div style={{ fontSize: 8, color: C.secondary }}>{world.mood || world.location || '—'}</div>
+                        </button>
+                        <button onClick={() => setCustomWorlds(prev => { const u = prev.filter(w => w.id !== world.id); try { localStorage.setItem('promptceo_custom_worlds_v1', JSON.stringify(u)) } catch {} return u })} style={{ padding: '2px 5px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activeCustomWorld && (
+                  <div style={{ padding: '5px 7px', borderRadius: 4, background: C.blueGlow, border: `1px solid ${C.blueDim}`, fontSize: 9, color: C.blue, marginBottom: 6 }}>
+                    ✦ Custom world active — injected into every scene
+                  </div>
+                )}
+                {!customWorldOpen ? (
+                  <button onClick={() => setCustomWorldOpen(true)} style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: '#080c18', color: C.blue }}>
+                    + Build Custom World
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { key: 'name',        label: 'World Name *',   placeholder: 'My Rooftop at Night' },
+                      { key: 'location',    label: 'Location',       placeholder: 'urban rooftop, city skyline below' },
+                      { key: 'atmosphere',  label: 'Atmosphere',     placeholder: 'late night, summer heat, private' },
+                      { key: 'lighting',    label: 'Lighting',       placeholder: 'tungsten warmth, neon from city' },
+                      { key: 'mood',        label: 'Mood / Energy',  placeholder: 'elevated, slightly dangerous, intimate' },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>{f.label}</div>
+                        <input value={customWorldForm[f.key]} onChange={e => setCustomWorldForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          placeholder={f.placeholder}
+                          style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                          onFocus={e => e.target.style.borderColor = C.blueDim}
+                          onBlur={e => e.target.style.borderColor = C.subtle}
+                        />
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button onClick={saveCustomWorld} disabled={!customWorldForm.name.trim()} style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: customWorldForm.name.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${C.blueDim}`, background: '#080c18', color: C.blue, opacity: customWorldForm.name.trim() ? 1 : 0.5 }}>Save World</button>
+                      <button onClick={() => setCustomWorldOpen(false)} style={{ padding: '7px 10px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                    </div>
+                  </div>
+                )}
+              </Panel>
+
+              <Panel title="Character DNA" accent={C.violet} defaultOpen={false}>
+                {studioCharDNA.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                    {studioCharDNA.map(profile => (
+                      <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <button onClick={() => loadCharacterDNA(profile)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{profile.name}</div>
+                          <div style={{ fontSize: 8, color: C.secondary }}>
+                            {profile.settings?.worldId?.replace(/_/g, ' ') || profile.settings?.storyWorldId?.replace(/_/g, ' ') || '—'}
+                            {profile.settings?.directorPreset && profile.settings.directorPreset !== 'none' ? ` · ${profile.settings.directorPreset}` : ''}
+                          </div>
+                        </button>
+                        <button onClick={() => setStudioCharDNA(prev => { const u = prev.filter(p => p.id !== profile.id); try { localStorage.setItem('promptceo_char_dna_v1', JSON.stringify(u)) } catch {} return u })}
+                          style={{ padding: '2px 6px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!studioDNASaveOpen ? (
+                  <button onClick={() => setStudioDNASaveOpen(true)} style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
+                    + Save Current Setup
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <input value={studioDNAName} onChange={e => setStudioDNAName(e.target.value)}
+                      placeholder={s.identityName || 'Character name…'}
+                      style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.violetDim}`, borderRadius: 4, padding: '6px 8px', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
+                      onKeyDown={e => e.key === 'Enter' && saveCharacterDNA(studioDNAName)}
+                      autoFocus
+                    />
+                    <button onClick={() => saveCharacterDNA(studioDNAName)} style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>Save</button>
+                    <button onClick={() => setStudioDNASaveOpen(false)} style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                  </div>
+                )}
+                {studioCharDNA.length === 0 && !studioDNASaveOpen && (
+                  <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', marginTop: 4, lineHeight: 1.5 }}>
+                    Configure identity + world + director then save a character profile to reload instantly.
+                  </div>
+                )}
+              </Panel>
+
               <Panel title="Identity" accent={C.green}
                 badge={s.useIdentity ? <Chip>🔒 locked</Chip> : <Chip>off</Chip>}
                 right={
@@ -5234,7 +7410,75 @@ export default function PromptCEOPage() {
             </div>
 
             {/* ══ CENTER ══ */}
-            <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, background: '#070707' }}>
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0, background: '#070707' }}>
+
+              {/* ── SCENE CONTEXT BAR ── */}
+              {(s.worldId || s.storyWorldId || s.directorPreset !== 'none' || s.identityName || s.useIdentity) && (() => {
+                const progLevel = (() => { const r = s.progressionIndex / Math.max(s.totalCount - 1, 1); return r < 0.33 ? 'tease' : r < 0.66 ? 'tension' : 'payoff' })()
+                const progColor = { tease: C.tease, tension: C.tension, payoff: C.payoff }[progLevel] || C.muted
+                return (
+                  <div style={{ padding: '5px 12px', borderBottom: `1px solid ${C.hairline}`, background: C.raised, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+                    {(s.identityName || s.traits?.subjectA?.name) && (
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C.green }}>
+                        ◉ {s.identityName || s.traits?.subjectA?.name}
+                        {s.ageRange !== 'auto' ? ` ${s.ageRange}` : ''}
+                      </span>
+                    )}
+                    {(s.worldId || s.storyWorldId) && (
+                      <><span style={{ fontSize: 8, color: C.muted }}>·</span>
+                      <span style={{ fontSize: 9, color: C.blue }}>
+                        {studioLockedWorld ? '🔒 ' : ''}{(s.worldId || s.storyWorldId).replace(/_/g, ' ')}
+                      </span></>
+                    )}
+                    {s.directorPreset && s.directorPreset !== 'none' && (
+                      <><span style={{ fontSize: 8, color: C.muted }}>·</span>
+                      <span style={{ fontSize: 9, color: C.gold }}>
+                        {studioLockedDir ? '🔒 ' : ''}◎ {s.directorPreset}
+                      </span></>
+                    )}
+                    <><span style={{ fontSize: 8, color: C.muted }}>·</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: progColor }}>{progLevel}</span>
+                    <span style={{ fontSize: 8, color: C.muted }}>{s.progressionIndex + 1}/{s.totalCount}</span></>
+
+                    {/* Lock buttons */}
+                    {s.directorPreset !== 'none' && (
+                      <button onClick={() => setStudioLockedDir(p => !p)}
+                        style={{ padding: '1px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${studioLockedDir ? C.goldDim : C.hairline}`, background: studioLockedDir ? '#1a1c08' : 'none', color: studioLockedDir ? C.gold : C.muted }}>
+                        {studioLockedDir ? '🔒 Dir' : '🔓 Dir'}
+                      </button>
+                    )}
+                    {(s.worldId || s.storyWorldId) && (
+                      <button onClick={() => setStudioLockedWorld(p => !p)}
+                        style={{ padding: '1px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${studioLockedWorld ? C.blueDim : C.hairline}`, background: studioLockedWorld ? '#080c18' : 'none', color: studioLockedWorld ? C.blue : C.muted }}>
+                        {studioLockedWorld ? '🔒 World' : '🔓 World'}
+                      </button>
+                    )}
+
+                    {/* Coherence check */}
+                    <button onClick={checkStudioCoherence} disabled={studioCoherenceLoading}
+                      style={{ marginLeft: 'auto', padding: '1px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: studioCoherenceLoading ? 'not-allowed' : 'pointer', border: `1px solid ${studioCoherence ? C.goldDim : C.subtle}`, background: studioCoherence ? '#1a1408' : 'none', color: studioCoherence ? C.gold : C.muted }}>
+                      {studioCoherenceLoading ? '⟳' : studioCoherence ? `✦ ${studioCoherence.coherenceScore}%` : '✦ Check Coherence'}
+                    </button>
+                  </div>
+                )
+              })()}
+
+              {/* Coherence report inline */}
+              {studioCoherence && (
+                <div style={{ padding: '8px 12px', background: '#0d0c04', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: studioCoherence.coherenceScore >= 80 ? C.green : C.gold }}>{studioCoherence.coherenceScore}</span>
+                      <span style={{ fontSize: 10, color: C.secondary }}>{studioCoherence.verdict}</span>
+                    </div>
+                    <button onClick={() => setStudioCoherence(null)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                  {studioCoherence.recommendation && <div style={{ fontSize: 9, color: C.gold, fontStyle: 'italic' }}>→ {studioCoherence.recommendation}</div>}
+                  {studioCoherence.directorNote && <div style={{ fontSize: 9, color: C.primary, fontStyle: 'italic', borderLeft: `2px solid ${C.goldDim}`, paddingLeft: 6 }}>"{studioCoherence.directorNote}"</div>}
+                </div>
+              )}
+
+              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
               {/* PROGRESSION */}
               <Panel title="Progression" accent={pc(progLevel)}
@@ -5289,6 +7533,9 @@ export default function PromptCEOPage() {
                       <>
                         <Btn variant="ghost" onClick={() => doCopy(result.finalPrompt, 'p')}>{copied === 'p' ? '✓' : 'copy'}</Btn>
                         <Btn variant="ghost" onClick={saveResult}>save</Btn>
+                        <button onClick={() => togglePromptLibrary(result.finalPrompt, result.meta)} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${promptLibrary.some(p => p.prompt === result.finalPrompt) ? C.goldDim : C.subtle}`, background: promptLibrary.some(p => p.prompt === result.finalPrompt) ? C.goldGlow : 'none', color: promptLibrary.some(p => p.prompt === result.finalPrompt) ? C.gold : C.muted }}>
+                          {promptLibrary.some(p => p.prompt === result.finalPrompt) ? '⭐' : '☆'}
+                        </button>
                       </>
                     )}
                     <Btn variant="danger" onClick={() => { setResult(null); setBatch([]); setOutputTab('output') }}>reset</Btn>
@@ -5326,26 +7573,129 @@ export default function PromptCEOPage() {
                         Press Generate Scene to build a cinematic prompt.
                       </div>
                     )}
+                    {result?.finalPrompt && (() => {
+                      const directImgState = cardImages['__single__']
+                      const directGenerating = cardGenerating['__single__']
+                      return (
+                        <>
+                          {/* ── DIRECT IMAGE GENERATION — no identity required ── */}
+                          {directImgState ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ borderRadius: 5, overflow: 'hidden', background: C.void }}>
+                                <img src={directImgState} alt="Generated" style={{ width: '100%', height: 'auto', display: 'block' }} onClick={() => window.open(directImgState, '_blank')} />
+                              </div>
+                              <div style={{ display: 'flex', gap: 5 }}>
+                                <a href={`/api/download-image?url=${encodeURIComponent(directImgState)}&name=scene.jpg`}
+                                  style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}>
+                                  ↓ Download
+                                </a>
+                                <button onClick={() => { set('visualAnchor', { imageUrl: directImgState, prompt: result.finalPrompt, description: [s.directorPreset !== 'none' && s.directorPreset, s.worldId?.replace(/_/g,' ')].filter(Boolean).join(', ') }); addStudioEvent('Visual anchor set') }}
+                                  style={{ padding: '7px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                                  ⚓
+                                </button>
+                                <button onClick={() => setCardImages(p => { const n = {...p}; delete n['__single__']; return n })}
+                                  style={{ padding: '7px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => generateCardImageDirect(result.finalPrompt, '__single__')}
+                              disabled={directGenerating}
+                              style={{
+                                width: '100%', padding: '10px 0', borderRadius: 5,
+                                fontSize: 12, fontWeight: 800, letterSpacing: 0.4,
+                                cursor: directGenerating ? 'not-allowed' : 'pointer',
+                                border: `1px solid ${C.goldDim}`,
+                                background: directGenerating ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)',
+                                color: directGenerating ? C.muted : C.gold,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                              }}
+                            >
+                              {directGenerating
+                                ? '⟳ Generating image…'
+                                : '🎨 Generate Image — 5 credits'}
+                            </button>
+                          )}
+
+                          {/* Export to external tools */}
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <span style={{ fontSize: 8, color: C.muted, fontWeight: 700 }}>COPY FOR:</span>
+                            {[
+                              { label: 'MJ',     format: p => `${p} --ar 2:3 --style raw --q 2` },
+                              { label: 'Runway', format: p => p.slice(0, 1000) },
+                              { label: 'Kling',  format: p => `${p} --ratio 9:16 --duration 5` },
+                            ].map(({ label, format }) => (
+                              <Btn key={label} variant="ghost" onClick={() => doCopy(format(result.finalPrompt), `export_${label}`)} sx={{ fontSize: 10, border: `1px solid ${C.subtle}`, color: copied === `export_${label}` ? C.green : C.secondary }}>
+                                {copied === `export_${label}` ? `✓ ${label}` : `⎘ ${label}`}
+                              </Btn>
+                            ))}
+                          </div>
+                        </>
+                      )
+                    })()}
                     {result?.finalPrompt && (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
-                        {[
-                          { label: 'MJ',     format: p => `${p} --ar 2:3 --style raw --q 2` },
-                          { label: 'Runway', format: p => p.slice(0, 1000) },
-                          { label: 'Kling',  format: p => `${p} --ratio 9:16 --duration 5` },
-                        ].map(({ label, format }) => (
-                          <Btn key={label} variant="ghost" onClick={() => doCopy(format(result.finalPrompt), `export_${label}`)} sx={{ fontSize: 10, border: `1px solid ${C.subtle}`, color: copied === `export_${label}` ? C.green : C.secondary }}>
-                            {copied === `export_${label}` ? `✓ ${label}` : `⎘ ${label}`}
-                          </Btn>
-                        ))}
-                      </div>
-                    )}
-                    {result?.finalPrompt && (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {['scene', 'camera', 'wardrobe', 'mood', 'lighting'].map(l => (
-                          <Btn key={l} variant="ghost" onClick={() => regenLayer(l)} sx={{ color: regenState[l] ? C.green : C.muted }}>
-                            {regenState[l] ? `✓ ${l}` : `↺ ${l}`}
-                          </Btn>
-                        ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {/* Layer swap buttons */}
+                        <div>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>
+                            Swap a layer — generates a new version of that element
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {[
+                              { key: 'scene',    label: '↺ Scene',    desc: 'New location / environment'  },
+                              { key: 'camera',   label: '↺ Camera',   desc: 'New angle / shot type'       },
+                              { key: 'wardrobe', label: '↺ Wardrobe', desc: 'New outfit'                  },
+                              { key: 'mood',     label: '↺ Mood',     desc: 'New emotional energy'        },
+                              { key: 'lighting', label: '↺ Lighting', desc: 'New light setup'             },
+                            ].map(({ key, label, desc }) => (
+                              <button key={key}
+                                onClick={() => regenLayer(key)}
+                                title={desc}
+                                style={{
+                                  padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                                  cursor: 'pointer', transition: 'all 0.15s',
+                                  border: `1px solid ${regenState[key] ? C.green : lastRegenLayer === key && promptChanged ? C.goldDim : C.subtle}`,
+                                  background: regenState[key] ? '#081208' : lastRegenLayer === key && promptChanged ? '#1a1408' : C.surface,
+                                  color: regenState[key] ? C.green : lastRegenLayer === key && promptChanged ? C.gold : C.secondary,
+                                }}
+                              >
+                                {regenState[key] ? `✓ ${key} swapped` : label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Regenerate banner — appears after any layer change */}
+                        {promptChanged && lastRegenLayer && (
+                          <div style={{
+                            padding: '8px 10px', borderRadius: 5,
+                            background: C.goldGlow, border: `1px solid ${C.goldDim}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                          }}>
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>
+                                ✦ {lastRegenLayer.charAt(0).toUpperCase() + lastRegenLayer.slice(1)} updated in prompt
+                              </div>
+                              <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>
+                                Generate a new image to see the change
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => { setPromptChanged(false); generateImage() }}
+                              disabled={s.imageGenerating}
+                              style={{
+                                padding: '7px 14px', borderRadius: 4, fontSize: 10, fontWeight: 800,
+                                cursor: s.imageGenerating ? 'not-allowed' : 'pointer',
+                                border: `1px solid ${C.gold}`, background: '#1a1408', color: C.gold,
+                                flexShrink: 0, whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {s.imageGenerating ? '⟳ Generating…' : '🎨 Regenerate Image'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -5406,6 +7756,42 @@ export default function PromptCEOPage() {
                     <Btn variant="green" disabled={s.imageGenerating || !result?.finalPrompt} onClick={generateImage} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
                       {s.imageGenerating ? '⟳ Generating…' : '🎨 Generate Image (5 credits)'}
                     </Btn>
+
+                    {/* Visual Anchor — set this image as consistency reference */}
+                    {s.generatedImage && (
+                      <button
+                        onClick={() => {
+                          const desc = [
+                            result?.meta?.progressionLevel && `${result.meta.progressionLevel} energy`,
+                            s.directorPreset !== 'none' && `${s.directorPreset} director style`,
+                            (s.worldId || s.storyWorldId) && `${(s.worldId || s.storyWorldId).replace(/_/g, ' ')} world`,
+                            s.identityName && `character: ${s.identityName}`,
+                          ].filter(Boolean).join(', ')
+                          set('visualAnchor', { imageUrl: s.generatedImage, prompt: result?.finalPrompt, description: desc })
+                          addStudioEvent('Visual anchor set', desc)
+                        }}
+                        style={{
+                          width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                          cursor: 'pointer',
+                          border: `1px solid ${s.visualAnchor?.imageUrl === s.generatedImage ? C.gold : C.subtle}`,
+                          background: s.visualAnchor?.imageUrl === s.generatedImage ? '#1a1c08' : C.surface,
+                          color: s.visualAnchor?.imageUrl === s.generatedImage ? C.gold : C.muted,
+                        }}
+                      >
+                        {s.visualAnchor?.imageUrl === s.generatedImage ? '🔒 Visual Anchor Active — Locked for Consistency' : '⚓ Set as Visual Anchor (character consistency)'}
+                      </button>
+                    )}
+
+                    {/* Visual anchor status */}
+                    {s.visualAnchor && s.visualAnchor.imageUrl !== s.generatedImage && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.gold }}>⚓ Visual Anchor Active</div>
+                          <div style={{ fontSize: 8, color: C.secondary, marginTop: 1 }}>{s.visualAnchor.description}</div>
+                        </div>
+                        <button onClick={() => set('visualAnchor', null)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>✕</button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -5420,6 +7806,95 @@ export default function PromptCEOPage() {
                 )}
               </Panel>
 
+              {/* ── SHOT DIRECTOR NOTE ── */}
+              {(shotDirectorLoading || shotDirectorNote) && (
+                <div style={{ borderRadius: 6, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ padding: '6px 10px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8 }}>✦ SHOT DIRECTOR</span>
+                    {shotDirectorNote && <button onClick={() => setShotDirectorNote(null)} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
+                  </div>
+                  {shotDirectorLoading && !shotDirectorNote ? (
+                    <div style={{ padding: '8px 10px', fontSize: 9, color: C.gold, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold, animation: 'pulse 1s infinite' }} />
+                      Director is reviewing the scene…
+                    </div>
+                  ) : shotDirectorNote && (
+                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {shotDirectorNote.directorQuote && (
+                        <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic', lineHeight: 1.5, borderLeft: `2px solid ${C.gold}`, paddingLeft: 8 }}>
+                          "{shotDirectorNote.directorQuote}"
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                        {shotDirectorNote.whatWorks && (
+                          <div style={{ padding: '5px 7px', borderRadius: 4, background: '#081208', border: '1px solid #1a3a1a' }}>
+                            <div style={{ fontSize: 7, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Works</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{shotDirectorNote.whatWorks}</div>
+                          </div>
+                        )}
+                        {shotDirectorNote.whatToFix && (
+                          <div style={{ padding: '5px 7px', borderRadius: 4, background: '#110806', border: '1px solid #2a1010' }}>
+                            <div style={{ fontSize: 7, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Fix</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{shotDirectorNote.whatToFix}</div>
+                          </div>
+                        )}
+                      </div>
+                      {shotDirectorNote.nextShot && (
+                        <div style={{ padding: '5px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: C.gold }}>NEXT SHOT: </span>
+                          <span style={{ fontSize: 9, color: C.primary }}>{shotDirectorNote.nextShot}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── VARIATION ENGINE ── */}
+              {result?.finalPrompt && (
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Make It More…</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {Object.entries(STUDIO_VARIATION_TYPES).map(([key, v]) => (
+                      <button key={key}
+                        onClick={() => { setStudioVarDir(key); generateStudioVariation(result.finalPrompt) }}
+                        disabled={studioVarLoading}
+                        style={{
+                          padding: '4px 9px', borderRadius: 999, fontSize: 9, fontWeight: 700,
+                          cursor: studioVarLoading ? 'not-allowed' : 'pointer',
+                          border: `1px solid ${studioVarDir === key && studioVariation ? C.goldDim : C.hairline}`,
+                          background: studioVarDir === key && studioVariation ? '#1a1408' : C.deep,
+                          color: studioVarLoading ? C.muted : studioVarDir === key && studioVariation ? C.gold : C.secondary,
+                          opacity: studioVarLoading ? 0.6 : 1,
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                  {studioVariation && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+                      <div style={{ padding: '6px 10px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.gold }}>✦ Variation — {STUDIO_VARIATION_TYPES[studioVarDir]?.label}</span>
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          <button onClick={() => { setResult(prev => ({ ...prev, finalPrompt: studioVariation.variedPrompt })); setStudioVariation(null); addStudioEvent('Variation applied', studioVarDir) }}
+                            style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: '#1a1408', color: C.gold }}>
+                            Apply
+                          </button>
+                          <button onClick={() => setStudioVariation(null)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ padding: '8px 10px', fontSize: 10, color: C.primary, lineHeight: 1.6, fontFamily: C.mono }}>
+                        {studioVariation.variedPrompt?.slice(0, 300)}{(studioVariation.variedPrompt?.length || 0) > 300 ? '…' : ''}
+                      </div>
+                      {studioVariation.directorNote && (
+                        <div style={{ padding: '5px 10px', borderTop: `1px solid ${C.hairline}`, fontSize: 9, color: C.gold, fontStyle: 'italic' }}>"{studioVariation.directorNote}"</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* GENERATE ACTIONS */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button onClick={generate} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid #1a4a2a', background: 'linear-gradient(180deg, #14381a, #0c2214)', color: C.green, letterSpacing: 0.5 }}>
@@ -5428,8 +7903,8 @@ export default function PromptCEOPage() {
                 <select value={s.totalCount} onChange={e => set('totalCount', Number(e.target.value))} style={{ background: C.deep, color: C.blue, border: `1px solid ${C.blueDim}`, borderRadius: 5, padding: '0 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer', outline: 'none', minWidth: 64 }}>
                   {TOTAL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <button onClick={runBatch} disabled={batchRun} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: batchRun ? 'not-allowed' : 'pointer', border: '1px solid #1a2a4a', background: 'linear-gradient(180deg, #101c30, #080e1c)', color: C.blue, opacity: batchRun ? 0.7 : 1, letterSpacing: 0.5 }}>
-                  {batchRun ? `⟳ ${batchProg} / ${s.totalCount}` : `⚡ Batch ${s.totalCount}`}
+                <button onClick={() => buildFullSequence()} disabled={batchRun || buildingSequence} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 11, fontWeight: 800, cursor: (batchRun || buildingSequence) ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg, #1a1408, #0c0a04)', color: C.gold, opacity: (batchRun || buildingSequence) ? 0.7 : 1, letterSpacing: 0.4 }}>
+                  {buildingSequence ? `⟳ ${batchProg}/${s.totalCount}` : `⚡ Full Sequence`}
                 </button>
                 {batchRun && (
                   <button onClick={() => { stopRef.current = true }} style={{ width: 56, padding: '10px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid #3a1010', background: '#180808', color: '#cf7e7e' }}>
@@ -5460,12 +7935,25 @@ export default function PromptCEOPage() {
                       {s.batchImgRunning && <div style={{ marginBottom: 8 }}><Track value={s.batchImgProgress} max={batch.length} color="#c07ef0" /></div>}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 600, overflowY: 'auto' }}>
                         {s.batchImages.map((item, i) => (
-                          <div key={i} style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                          <div key={i} style={{ background: C.deep, border: `1px solid ${cardImages[item.index] ? '#2a4a2a' : C.hairline}`, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                            {/* Show DALL-E generated card image if exists */}
+                            {cardImages[item.index] && !item.imageUrl && (
+                              <div>
+                                <img src={cardImages[item.index]} alt={`Scene ${item.index + 1}`} style={{ width: '100%', height: 'auto', display: 'block' }} onClick={() => window.open(cardImages[item.index], '_blank')} />
+                                <div style={{ background: 'rgba(0,0,0,0.75)', padding: '3px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <span style={{ fontSize: 7, color: C.green }}>#{item.index + 1} · DALL-E</span>
+                                  <div style={{ display: 'flex', gap: 3 }}>
+                                    <a href={`/api/download-image?url=${encodeURIComponent(cardImages[item.index])}&name=scene-${item.index + 1}.jpg`} style={{ background: C.green, color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 8, fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}>↓</a>
+                                    <button onClick={() => { set('visualAnchor', { imageUrl: cardImages[item.index], prompt: item.finalPrompt, description: `scene ${item.index + 1} visual style` }); addStudioEvent('Visual anchor set from batch') }} style={{ background: C.gold, color: '#000', border: 'none', borderRadius: 3, padding: '2px 5px', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}>⚓</button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             {item.imageUrl ? (
                               <>
                                 <img src={item.imageUrl} alt={`Scene ${item.index + 1}`} style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer', background: '#000' }} onClick={() => window.open(item.imageUrl, '_blank')} />
                                 <div style={{ background: 'rgba(0,0,0,0.75)', padding: '3px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                                  <span style={{ fontSize: 8, color: C.muted }}>#{item.index + 1}</span>
+                                  <span style={{ fontSize: 8, color: C.muted }}>#{item.index + 1}{item._shotZone ? ` · ${item._shotZone}` : ''}</span>
                                   <div style={{ display: 'flex', gap: 3 }}>
                                     <a href={`/api/download-image?url=${encodeURIComponent(item.imageUrl)}&name=scene-${item.index + 1}.jpg`} style={{ background: '#c07ef0', color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 9, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>↓</a>
                                     <button onClick={() => generateVideo(item.prompt, item.imageUrl, item.meta?.progressionLevel, item.index)} disabled={s.batchVideos?.[item.index]?.generating} style={{ background: s.batchVideos?.[item.index]?.generating ? C.goldDim : C.gold, color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 9, fontWeight: 700, cursor: s.batchVideos?.[item.index]?.generating ? 'not-allowed' : 'pointer' }}>
@@ -5482,9 +7970,26 @@ export default function PromptCEOPage() {
                                 {s.batchVideos?.[item.index]?.error && <div style={{ padding: '4px 6px', fontSize: 8, color: '#cf6a6a' }}>{s.batchVideos[item.index].error}</div>}
                               </>
                             ) : (
-                              <div style={{ minHeight: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6 }}>
-                                <span style={{ fontSize: 16 }}>✕</span>
-                                <span style={{ fontSize: 8, color: '#cf6a6a', textAlign: 'center', wordBreak: 'break-word' }}>{item.error || 'failed'}</span>
+                              <div style={{ minHeight: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', background: C.deep }}>
+                                {item.error ? (
+                                  <span style={{ fontSize: 8, color: '#cf6a6a', textAlign: 'center' }}>{item.error}</span>
+                                ) : (
+                                  <>
+                                    <div style={{ fontSize: 8, color: C.muted, textAlign: 'center', lineHeight: 1.4 }}>
+                                      #{item.index + 1} · {item._shotZone || 'scene'}
+                                    </div>
+                                    <div style={{ fontSize: 7, color: C.muted, textAlign: 'center', lineHeight: 1.3, padding: '0 4px' }}>
+                                      {(item.finalPrompt || '').slice(0, 60)}…
+                                    </div>
+                                    <button
+                                      onClick={() => generateCardImageDirect(item.finalPrompt, item.index)}
+                                      disabled={cardGenerating[item.index]}
+                                      style={{ padding: '4px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: cardGenerating[item.index] ? 'not-allowed' : 'pointer', border: '1px solid #1a4a2a', background: '#081208', color: cardGenerating[item.index] ? C.muted : C.green }}
+                                    >
+                                      {cardGenerating[item.index] ? '⟳' : '🎨 Generate'}
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -5502,10 +8007,114 @@ export default function PromptCEOPage() {
                   )}
                 </div>
               )}
-            </div>
+            </div>{/* end inner padding div */}
+            </div>{/* end CENTER outer div */}
 
             {/* ══ RIGHT ══ */}
             <div style={{ borderLeft: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* ── PROMPT LIBRARY ── */}
+              <Panel title="Prompt Library" accent={C.gold} badge={promptLibrary.length > 0 ? <Chip>{promptLibrary.length}</Chip> : null} defaultOpen={false}>
+                {promptLibrary.length === 0 ? (
+                  <div style={{ fontSize: 10, color: C.ghost, fontStyle: 'italic' }}>
+                    Star prompts that generate great images. They inject into future scenes as style references.
+                  </div>
+                ) : promptLibrary.map(item => (
+                  <div key={item.id} style={{ background: C.deep, border: `1px solid ${C.goldDim}`, borderRadius: 5, padding: '7px 9px' }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {item.meta?.progressionLevel && <Pill color={pc(item.meta.progressionLevel)}>{item.meta.progressionLevel}</Pill>}
+                      {item.meta?.primaryWorldId && <Pill color={C.blue}>{item.meta.primaryWorldId.replace(/_/g, ' ')}</Pill>}
+                      <span style={{ fontSize: 8, color: C.muted, marginLeft: 'auto' }}>{item.savedAt?.slice(0, 10)}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: C.secondary, fontFamily: C.mono, lineHeight: 1.5, wordBreak: 'break-word', marginBottom: 5 }}>
+                      {item.prompt.slice(0, 120)}{item.prompt.length > 120 ? '…' : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Btn variant="ghost" onClick={() => { setResult({ finalPrompt: item.prompt, meta: item.meta || {}, layers: {}, warnings: [] }); setOutputTab('output'); set('view', 'studio') }} sx={{ fontSize: 10 }}>load</Btn>
+                      <Btn variant="ghost" onClick={() => doCopy(item.prompt, `lib${item.id}`)} sx={{ fontSize: 10 }}>{copied === `lib${item.id}` ? '✓' : 'copy'}</Btn>
+                      <Btn variant="danger" onClick={() => { setPromptLibrary(prev => { const u = prev.filter(p => p.id !== item.id); try { localStorage.setItem('promptceo_prompt_lib_v1', JSON.stringify(u)) } catch {} return u }) }} sx={{ fontSize: 10 }}>✕</Btn>
+                    </div>
+                  </div>
+                ))}
+              </Panel>
+
+              {/* ── PHOTOGRAPHER BRIEF ── */}
+              {batch.length > 0 && (
+                <Panel title="Photographer Brief" accent={C.violet} defaultOpen={false}>
+                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
+                    Translate your scene batch into a real-world shoot brief — for photographers, stylists, and models.
+                  </div>
+                  <button onClick={generatePhotographerBrief} disabled={briefLoading2}
+                    style={{ width: '100%', padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: briefLoading2 ? 'not-allowed' : 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet, opacity: briefLoading2 ? 0.6 : 1 }}>
+                    {briefLoading2 ? '⟳ Generating brief…' : '✦ Generate Shoot Brief — 2 credits'}
+                  </button>
+                  {photographerBrief && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{photographerBrief.briefTitle}</div>
+                      {[
+                        { label: 'Duration',  value: photographerBrief.duration },
+                        { label: 'Location',  value: photographerBrief.location?.type },
+                        { label: 'Lighting',  value: photographerBrief.lighting?.style },
+                        { label: 'Character', value: photographerBrief.character?.description },
+                        { label: 'Energy',    value: photographerBrief.character?.energy },
+                      ].filter(f => f.value).map((f, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>{f.label}</div>
+                          <div style={{ fontSize: 9, color: C.secondary }}>{f.value}</div>
+                        </div>
+                      ))}
+                      {(photographerBrief.character?.wardrobe || []).length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Wardrobe</div>
+                          {photographerBrief.character.wardrobe.map((w, wi) => <div key={wi} style={{ fontSize: 9, color: C.secondary, marginBottom: 2 }}>• {w}</div>)}
+                        </div>
+                      )}
+                      {photographerBrief.directorNotes && (
+                        <div style={{ padding: '6px 8px', borderRadius: 4, background: C.violetGlow, border: `1px solid ${C.violetDim}`, fontSize: 9, color: C.violet, fontStyle: 'italic', lineHeight: 1.5 }}>
+                          "{photographerBrief.directorNotes}"
+                        </div>
+                      )}
+                      <button onClick={exportPhotographerBriefTxt} style={{ width: '100%', padding: '6px 0', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
+                        ↓ Download Brief TXT
+                      </button>
+                    </div>
+                  )}
+                </Panel>
+              )}
+
+              {/* ── VISUAL ANCHOR STATUS ── */}
+              {s.visualAnchor && (
+                <Panel title="Visual Anchor" accent={C.gold} defaultOpen>
+                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+                    Active. All scenes maintain visual consistency with this reference.
+                  </div>
+                  {s.visualAnchor.imageUrl && (
+                    <img src={s.visualAnchor.imageUrl} alt="anchor" style={{ width: '100%', borderRadius: 4, marginBottom: 6 }} />
+                  )}
+                  <div style={{ fontSize: 9, color: C.gold, fontStyle: 'italic', marginBottom: 6 }}>{s.visualAnchor.description}</div>
+                  <button onClick={() => set('visualAnchor', null)} style={{ width: '100%', padding: '5px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>Clear Anchor</button>
+                </Panel>
+              )}
+
+              {/* ── SESSION TIMELINE ── */}
+              {studioTimeline.length > 0 && (
+                <Panel title="Session Timeline" accent={C.muted} defaultOpen={false} right={<Btn variant="ghost" onClick={() => setStudioTimeline([])} sx={{ fontSize: 9 }}>clear</Btn>}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {studioTimeline.map((evt, i) => (
+                      <div key={i} style={{ padding: '4px 0', display: 'flex', alignItems: 'flex-start', gap: 7, borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: i === 0 ? C.gold : C.hairline, flexShrink: 0, marginTop: 4 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, color: i === 0 ? C.primary : C.secondary }}>{evt.event}</div>
+                          {evt.detail && <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{evt.detail}</div>}
+                        </div>
+                        <div style={{ fontSize: 7, color: C.muted, flexShrink: 0 }}>
+                          {new Date(evt.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
 
               <Panel title="Prompt History" accent={C.blue} badge={history.length > 0 ? <Chip>{history.length}</Chip> : null} defaultOpen={false}
                 right={<Btn variant="ghost" onClick={() => { loadHistory(); setHistoryOpen(true) }} sx={{ fontSize: 10 }}>load</Btn>}
@@ -5547,6 +8156,9 @@ export default function PromptCEOPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <Btn variant="ghost" onClick={() => doCopy(e.prompt, `s${e.id}`)}>{copied === `s${e.id}` ? '✓' : 'copy'}</Btn>
+                      <button onClick={() => togglePromptLibrary(e.prompt, e.meta)} style={{ padding: '3px 7px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${promptLibrary.some(p => p.prompt === e.prompt) ? C.goldDim : C.hairline}`, background: promptLibrary.some(p => p.prompt === e.prompt) ? C.goldGlow : 'none', color: promptLibrary.some(p => p.prompt === e.prompt) ? C.gold : C.muted }}>
+                        {promptLibrary.some(p => p.prompt === e.prompt) ? '⭐' : '☆'}
+                      </button>
                       <Btn variant="danger" onClick={() => setSaved(p => p.filter(x => x.id !== e.id))}>✕</Btn>
                     </div>
                   </div>
@@ -5573,8 +8185,30 @@ export default function PromptCEOPage() {
               {batch.length > 0 && (<><Chip>{batch.length} scenes</Chip><Chip>{activeScene + 1} active</Chip></>)}
               <div style={{ flex: 1 }} />
               {batch.length > 0 && (
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <Btn variant="gold" onClick={() => setDirectorOpen(true)}>🎬 Director's Chair</Btn>
+                  {/* Generate all images directly — DALL-E, no identity needed */}
+                  <button
+                    onClick={async () => {
+                      if (Object.values(cardGenerating).some(Boolean)) return
+                      for (let i = 0; i < batch.length; i++) {
+                        if (batch[i]?.finalPrompt && !cardImages[i]) {
+                          await generateCardImageDirect(batch[i].finalPrompt, i)
+                        }
+                      }
+                    }}
+                    disabled={Object.values(cardGenerating).some(Boolean)}
+                    style={{
+                      padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                      cursor: Object.values(cardGenerating).some(Boolean) ? 'not-allowed' : 'pointer',
+                      border: '1px solid #1a4a2a', background: 'linear-gradient(180deg,#0e2814,#081208)',
+                      color: C.green, opacity: Object.values(cardGenerating).some(Boolean) ? 0.6 : 1,
+                    }}
+                  >
+                    {Object.values(cardGenerating).filter(Boolean).length > 0
+                      ? `⟳ Generating ${Object.values(cardImages).filter(Boolean).length}/${batch.length}…`
+                      : `🎨 Generate All Images (${batch.length} × 5cr)`}
+                  </button>
                   <Btn variant="default" onClick={exportBatch}>⎘ .txt</Btn>
                   <Btn variant="default" onClick={() => exportForTool('midjourney')}>⎘ MJ</Btn>
                   <Btn variant="default" onClick={() => exportForTool('runway')}>⎘ Runway</Btn>
@@ -5616,7 +8250,37 @@ export default function PromptCEOPage() {
                   <Btn variant="gold" onClick={() => set('view', 'studio')}>← Back to Studio</Btn>
                 </div>
               ) : batch.map((r, i) => (
-                <SceneCard key={i} result={r} index={i} total={batch.length} onClick={() => { setActiveScene(i); set('progressionIndex', i) }} isActive={i === activeScene} compact={false} />
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                  <div style={{ flex: 1 }}>
+                    <SceneCard result={r} index={i} total={batch.length} onClick={() => { setActiveScene(i); set('progressionIndex', i) }} isActive={i === activeScene} compact={false} />
+                  </div>
+                  {/* Per-card image — shows thumbnail or generate button */}
+                  <div style={{ width: 64, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    {cardImages[i] ? (
+                      <div style={{ position: 'relative' }}>
+                        <img src={cardImages[i]} alt={`Scene ${i + 1}`}
+                          style={{ width: 64, height: 88, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${C.goldDim}`, display: 'block' }}
+                          onClick={() => window.open(cardImages[i], '_blank')}
+                        />
+                        <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
+                          <a href={`/api/download-image?url=${encodeURIComponent(cardImages[i])}&name=scene-${i+1}.jpg`}
+                            style={{ width: 18, height: 18, borderRadius: 3, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: C.gold, textDecoration: 'none', border: `1px solid ${C.goldDim}` }}>↓</a>
+                        </div>
+                      </div>
+                    ) : cardImages[`err_${i}`] ? (
+                      <div style={{ width: 64, height: 88, borderRadius: 4, border: '1px solid #2a1010', background: '#080404', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: 4 }}>
+                        <span style={{ fontSize: 12 }}>⚠</span>
+                        <span style={{ fontSize: 7, color: '#cf6a6a', textAlign: 'center', lineHeight: 1.3 }}>{String(cardImages[`err_${i}`]).slice(0, 35)}</span>
+                        <button onClick={() => generateCardImageDirect(r.finalPrompt, i)} style={{ fontSize: 7, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>retry</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => generateCardImageDirect(r.finalPrompt, i)} disabled={cardGenerating[i]}
+                        style={{ width: 64, height: 88, borderRadius: 4, fontSize: 8, fontWeight: 700, cursor: cardGenerating[i] ? 'not-allowed' : 'pointer', border: `1px solid ${cardGenerating[i] ? C.hairline : '#1a4a2a'}`, background: '#040804', color: cardGenerating[i] ? C.muted : C.green, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, lineHeight: 1.3, textAlign: 'center' }}>
+                        {cardGenerating[i] ? <span style={{ fontSize: 14 }}>⟳</span> : <><span style={{ fontSize: 16 }}>🎨</span><span>Generate</span></>}
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -5634,8 +8298,36 @@ export default function PromptCEOPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-                  <Btn variant="ghost" onClick={() => doCopy(batch[activeScene].finalPrompt, `t${activeScene}`)}>{copied === `t${activeScene}` ? '✓ copied' : 'copy'}</Btn>
-                  <Btn variant="gold" onClick={() => setDirectorOpen(true)}>🎬 Chair</Btn>
+                  {/* Generate image for active scene */}
+                  {cardImages[activeScene] ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <img src={cardImages[activeScene]} alt={`Scene ${activeScene + 1}`}
+                        style={{ width: 80, height: 110, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: `1px solid ${C.goldDim}` }}
+                        onClick={() => window.open(cardImages[activeScene], '_blank')}
+                      />
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        <a href={`/api/download-image?url=${encodeURIComponent(cardImages[activeScene])}&name=scene-${activeScene + 1}.jpg`}
+                          style={{ flex: 1, padding: '3px 0', borderRadius: 3, fontSize: 8, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}>↓</a>
+                        <button onClick={() => { set('visualAnchor', { imageUrl: cardImages[activeScene], prompt: batch[activeScene]?.finalPrompt, description: `scene ${activeScene + 1}` }) }}
+                          style={{ padding: '3px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>⚓</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => generateCardImageDirect(batch[activeScene].finalPrompt, activeScene)}
+                      disabled={cardGenerating[activeScene]}
+                      style={{
+                        width: 80, padding: '8px 4px', borderRadius: 4, fontSize: 9, fontWeight: 700,
+                        cursor: cardGenerating[activeScene] ? 'not-allowed' : 'pointer',
+                        border: '1px solid #1a4a2a', background: 'linear-gradient(180deg,#0e2814,#081208)',
+                        color: cardGenerating[activeScene] ? C.muted : C.green, textAlign: 'center', lineHeight: 1.4,
+                      }}
+                    >
+                      {cardGenerating[activeScene] ? '⟳' : '🎨 Generate Image'}
+                    </button>
+                  )}
+                  <Btn variant="ghost" onClick={() => doCopy(batch[activeScene].finalPrompt, `t${activeScene}`)}>{copied === `t${activeScene}` ? '✓' : 'copy'}</Btn>
+                  <Btn variant="gold" onClick={() => setDirectorOpen(true)}>🎬</Btn>
                   <div style={{ display: 'flex', gap: 3 }}>
                     <Btn variant="ghost" disabled={activeScene === 0} onClick={() => { const n = activeScene - 1; setActiveScene(n); set('progressionIndex', n) }}>←</Btn>
                     <Btn variant="ghost" disabled={activeScene >= batch.length - 1} onClick={() => { const n = activeScene + 1; setActiveScene(n); set('progressionIndex', n) }}>→</Btn>

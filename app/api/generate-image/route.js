@@ -175,8 +175,9 @@ export async function POST(req) {
     const imageDataUrl = clean(identityImage || body?.imageDataUrl)
     const extractedTraits = body?.extractedTraits || {}
 
-    // Ad mode doesn't require identity image — product ads can be productOnly
-    const requiresIdentity = isAdMode ? (mode === 'personal_brand_ad') : true
+    // Ad mode doesn't require identity — studio_direct doesn't either (generates from prompt only)
+    const requiresIdentity = mode === 'studio_direct' ? false
+      : isAdMode ? (mode === 'personal_brand_ad') : true
 
     if (!prompt && !isAdMode) {
       return NextResponse.json({ status: 'error', message: 'Missing prompt' }, { status: 400 })
@@ -221,6 +222,43 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Not enough credits' }, { status: 402 })
     }
 
+    // ── STUDIO DIRECT MODE — uses grok-imagine-image, no identity required ────
+    if (mode === 'studio_direct') {
+      const directPrompt = clean(body?.prompt) || clean(prompt)
+      if (!directPrompt) {
+        return NextResponse.json({ status: 'error', message: 'Prompt required' }, { status: 400 })
+      }
+
+      const xaiImageRes = await fetch('https://api.x.ai/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
+        body: JSON.stringify({
+          model:        'grok-imagine-image',
+          prompt:       directPrompt.slice(0, 4000),
+          aspect_ratio: '2:3',
+        }),
+      })
+
+      const xaiData = await xaiImageRes.json()
+
+      if (!xaiImageRes.ok) {
+        return NextResponse.json({
+          status: 'error',
+          message: clean(xaiData?.error?.message) || 'Image generation failed',
+        }, { status: xaiImageRes.status })
+      }
+
+      const imageUrl = clean(xaiData?.data?.[0]?.url)
+      if (!imageUrl) {
+        return NextResponse.json({ status: 'error', message: 'No image returned' }, { status: 500 })
+      }
+
+      const newCreds = (userRow.credits || 0) - COST
+      await admin.from('app_users').update({ credits: newCreds }).eq('id', user.id)
+
+      return NextResponse.json({ status: 'complete', imageUrl, creditsRemaining: newCreds })
+    }
+
     // ── Build final prompt based on mode ──────────────────────────────────────
     let finalPrompt = prompt
     let editPrompt = ''
@@ -232,11 +270,23 @@ export async function POST(req) {
 
       // If a pre-built prompt was passed (from Images tab), use it directly
       // and skip buildProductAdPrompt — just refine with Grok
-      const adContext = prebuiltPrompt || buildProductAdPrompt({
+      // Visual Brand DNA — inject if set
+      const vDNA = cfg.visualDNA || {}
+      const visualDNAContext = [
+        vDNA.primaryColor   && `Brand primary color: ${vDNA.primaryColor}`,
+        vDNA.secondaryColor && `Brand secondary color: ${vDNA.secondaryColor}`,
+        vDNA.imageStyle     && `Visual style: ${vDNA.imageStyle}`,
+        vDNA.fontFeel       && `Typography feel: ${vDNA.fontFeel}`,
+        vDNA.logoDesc       && `Brand mark: ${vDNA.logoDesc}`,
+      ].filter(Boolean).join('. ')
+
+      const adContext = prebuiltPrompt
+        ? (visualDNAContext ? `${prebuiltPrompt}. Brand identity: ${visualDNAContext}` : prebuiltPrompt)
+        : buildProductAdPrompt({
         productName:        clean(cfg.productName)        || 'the product',
         productDescription: clean(cfg.productDescription) || '',
         adStyle:            clean(cfg.adStyle)            || 'lifestyle',
-        targetMood:         clean(cfg.targetMood)         || '',
+        targetMood:         clean(cfg.targetMood)         || (visualDNAContext || ''),
         platform:           clean(cfg.platform)           || 'general',
         // Phase 1 strategy fields
         targetCustomer: clean(cfg.targetCustomer),

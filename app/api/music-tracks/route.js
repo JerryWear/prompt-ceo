@@ -22,20 +22,22 @@ export async function GET(req) {
     let query = admin
       .from('music_tracks')
       .select(`
-        id, title, artist, genre, mood, energy, bpm,
+        id, title, artist, artist_name, genre, mood, energy, bpm,
         duration_seconds, tags, best_for, drop_time_seconds,
         intro_start_seconds, build_start_seconds,
         best_hook_start_seconds, best_hook_end_seconds,
         best_payoff_start_seconds, best_payoff_end_seconds,
         best_cta_start_seconds, best_cta_end_seconds,
-        license_credits, is_premium,
+        license_credits, is_premium, featured,
         preview_file_url,
         product_fit, platform_fit, campaign_fit,
         visual_style_fit, mood_fit, start_energy,
         drop_strength, hook_strength, emotional_depth,
-        luxury_score, commercial_score
+        luxury_score, commercial_score,
+        music_licenses(count)
       `)
       .eq('is_active', true)
+      .order('featured', { ascending: false })
       .order('created_at', { ascending: false })
 
     if (mood)   query = query.ilike('mood', `%${mood}%`)
@@ -48,7 +50,13 @@ export async function GET(req) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ status: 'success', tracks: data || [] })
+    const tracks = (data || []).map(t => ({
+      ...t,
+      campaign_count: t.music_licenses?.[0]?.count ?? 0,
+      music_licenses: undefined,
+    }))
+
+    return NextResponse.json({ status: 'success', tracks })
 
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })

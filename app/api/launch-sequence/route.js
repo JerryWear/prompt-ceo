@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { buildCompetitorAnalysisPrompt, buildMarketIntelligencePrompt } from '../../prompt-engine-v3/ad-system/competitorAnalysis.js'
+import { buildLaunchSequencePrompt } from '../../prompt-engine-v3/ad-system/launchSystem.js'
 
-// POST /api/competitor-analysis
-// Analyses a competitor ad and generates inspired creative direction.
-// Cost: 2 credits
+// POST /api/launch-sequence
+// Generates a complete 5-stage product launch sequence.
+// Cost: 5 credits
 
 export async function POST(req) {
   try {
@@ -34,23 +34,19 @@ export async function POST(req) {
     )
 
     const { data: userRow } = await admin.from('app_users').select('credits').eq('id', user.id).single()
-    if (!userRow || userRow.credits < 2) {
-      return NextResponse.json({ status: 'error', message: 'Not enough credits — need 2' }, { status: 402 })
+    if (!userRow || userRow.credits < 5) {
+      return NextResponse.json({ status: 'error', message: 'Not enough credits — need 5' }, { status: 402 })
     }
 
-    const { competitorText, competitorAds, brandName, analysisType = 'single', adConfig } = await req.json()
-
-    const hasContent = competitorText?.trim() || (Array.isArray(competitorAds) && competitorAds.some(a => a?.trim()))
-    if (!hasContent) {
-      return NextResponse.json({ status: 'error', message: 'Competitor content required' }, { status: 400 })
+    const { adConfig } = await req.json()
+    if (!adConfig?.productName) {
+      return NextResponse.json({ status: 'error', message: 'Product name required' }, { status: 400 })
     }
 
     const xaiApiKey = String(process.env.XAI_API_KEY || '')
       .replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim()
 
-    const userPrompt = analysisType === 'market'
-      ? buildMarketIntelligencePrompt(competitorAds || [competitorText], brandName, adConfig || {})
-      : buildCompetitorAnalysisPrompt(competitorText, adConfig || {})
+    const userPrompt = buildLaunchSequencePrompt(adConfig)
 
     const aiRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -58,11 +54,11 @@ export async function POST(req) {
       body: JSON.stringify({
         model:       'grok-3-fast',
         messages: [
-          { role: 'system', content: 'You are a senior creative strategist. Respond with ONLY valid JSON. No markdown. Start with {.' },
+          { role: 'system', content: 'You are a world-class launch strategist. Respond with ONLY valid JSON. No markdown. No preamble. Start with [.' },
           { role: 'user',   content: userPrompt },
         ],
-        temperature: 0.75,
-        max_tokens:  1200,
+        temperature: 0.8,
+        max_tokens:  2500,
       }),
     })
 
@@ -74,18 +70,25 @@ export async function POST(req) {
     const rawText = aiData?.choices?.[0]?.message?.content || ''
     let parsed = null
     const tryParse = (s) => { try { return JSON.parse(s) } catch { return null } }
-    parsed = tryParse(rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim())
+
+    const stripped = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+    parsed = tryParse(stripped)
+
     if (!parsed) {
-      const m = rawText.match(/\{[\s\S]*\}/)
-      if (m) parsed = tryParse(m[0])
-    }
-    if (!parsed) {
-      return NextResponse.json({ status: 'error', message: 'Could not parse analysis' }, { status: 500 })
+      const firstBracket = stripped.indexOf('[')
+      const lastBracket  = stripped.lastIndexOf(']')
+      if (firstBracket !== -1 && lastBracket > firstBracket) {
+        parsed = tryParse(stripped.slice(firstBracket, lastBracket + 1))
+      }
     }
 
-    await admin.from('app_users').update({ credits: userRow.credits - 2 }).eq('id', user.id)
+    if (!parsed) {
+      return NextResponse.json({ status: 'error', message: 'Could not parse launch sequence' }, { status: 500 })
+    }
 
-    return NextResponse.json({ status: 'success', analysis: parsed, creditsRemaining: userRow.credits - 2 })
+    await admin.from('app_users').update({ credits: userRow.credits - 5 }).eq('id', user.id)
+
+    return NextResponse.json({ status: 'success', sequence: parsed, creditsRemaining: userRow.credits - 5 })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
   }

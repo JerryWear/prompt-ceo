@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { buildCompetitorAnalysisPrompt, buildMarketIntelligencePrompt } from '../../prompt-engine-v3/ad-system/competitorAnalysis.js'
+import { buildStudioCoherencePrompt } from '../../prompt-engine-v3/studio/studioIntelligence.js'
 
-// POST /api/competitor-analysis
-// Analyses a competitor ad and generates inspired creative direction.
-// Cost: 2 credits
+// POST /api/studio-coherence
+// Checks if world + director + progression + character work together.
+// Cost: 1 credit
 
 export async function POST(req) {
   try {
@@ -34,35 +34,28 @@ export async function POST(req) {
     )
 
     const { data: userRow } = await admin.from('app_users').select('credits').eq('id', user.id).single()
-    if (!userRow || userRow.credits < 2) {
-      return NextResponse.json({ status: 'error', message: 'Not enough credits — need 2' }, { status: 402 })
+    if (!userRow || userRow.credits < 1) {
+      return NextResponse.json({ status: 'error', message: 'Not enough credits — need 1' }, { status: 402 })
     }
 
-    const { competitorText, competitorAds, brandName, analysisType = 'single', adConfig } = await req.json()
-
-    const hasContent = competitorText?.trim() || (Array.isArray(competitorAds) && competitorAds.some(a => a?.trim()))
-    if (!hasContent) {
-      return NextResponse.json({ status: 'error', message: 'Competitor content required' }, { status: 400 })
-    }
+    const context = await req.json()
 
     const xaiApiKey = String(process.env.XAI_API_KEY || '')
       .replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim()
 
-    const userPrompt = analysisType === 'market'
-      ? buildMarketIntelligencePrompt(competitorAds || [competitorText], brandName, adConfig || {})
-      : buildCompetitorAnalysisPrompt(competitorText, adConfig || {})
+    const userPrompt = buildStudioCoherencePrompt(context)
 
     const aiRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
       body: JSON.stringify({
-        model:       'grok-3-fast',
+        model:      'grok-3-fast',
         messages: [
-          { role: 'system', content: 'You are a senior creative strategist. Respond with ONLY valid JSON. No markdown. Start with {.' },
+          { role: 'system', content: 'You are a creative director auditing scene coherence. Respond with ONLY valid JSON. No markdown. Start with {.' },
           { role: 'user',   content: userPrompt },
         ],
-        temperature: 0.75,
-        max_tokens:  1200,
+        temperature: 0.3,
+        max_tokens:  400,
       }),
     })
 
@@ -80,12 +73,12 @@ export async function POST(req) {
       if (m) parsed = tryParse(m[0])
     }
     if (!parsed) {
-      return NextResponse.json({ status: 'error', message: 'Could not parse analysis' }, { status: 500 })
+      return NextResponse.json({ status: 'error', message: 'Could not parse coherence report' }, { status: 500 })
     }
 
-    await admin.from('app_users').update({ credits: userRow.credits - 2 }).eq('id', user.id)
+    await admin.from('app_users').update({ credits: userRow.credits - 1 }).eq('id', user.id)
 
-    return NextResponse.json({ status: 'success', analysis: parsed, creditsRemaining: userRow.credits - 2 })
+    return NextResponse.json({ status: 'success', report: parsed, creditsRemaining: userRow.credits - 1 })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
   }

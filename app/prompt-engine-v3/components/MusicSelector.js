@@ -18,6 +18,18 @@ const ENERGY_COLORS = {
   low: '#4a8ab4', medium: '#c8a84b', high: '#c8843a', explosive: '#cf6a6a',
 }
 
+const FeaturedBadge = () => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#000', background: C.gold, borderRadius: 3, padding: '2px 6px' }}>
+    ✦ FEATURED
+  </span>
+)
+
+const CampaignCount = ({ count }) => count > 0 ? (
+  <span style={{ fontSize: 8, color: C.secondary }}>
+    {count} campaign{count !== 1 ? 's' : ''}
+  </span>
+) : null
+
 export default function MusicSelector({ adConfig, selectedTrack, onLicense, credits }) {
   const [tracks,       setTracks]       = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -43,9 +55,10 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
   }, [])
 
   // Score all tracks whenever adConfig or tracks change
-  const recommended = recommendMusicForAd(adConfig, tracks)
-  const topTrack    = recommended[0]
+  const recommended  = recommendMusicForAd(adConfig, tracks)
+  const topTrack     = recommended[0]
   const backupTracks = recommended.slice(1, 4)
+  const featuredTracks = tracks.filter(t => t.featured)
 
   const handleAudioEnded = () => setPlayingId(null)
 
@@ -163,7 +176,8 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
       <div style={{ display: 'flex', gap: 4 }}>
         {[
           { id: 'recommended', label: `AI Picks (${recommended.length})` },
-          { id: 'all',         label: `All Tracks (${tracks.length})` },
+          { id: 'featured',    label: `Featured (${featuredTracks.length})` },
+          { id: 'all',         label: `All (${tracks.length})` },
         ].map(v => (
           <button key={v.id} onClick={() => setView(v.id)} style={{
             flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
@@ -172,7 +186,7 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
             color: view === v.id ? C.gold : C.primary,
             transition: 'all 0.12s',
           }}>
-            {v.id === 'recommended' ? `✦ ${v.label}` : v.label}
+            {v.id === 'recommended' ? `✦ ${v.label}` : v.id === 'featured' ? `★ ${v.label}` : v.label}
           </button>
         ))}
       </div>
@@ -198,8 +212,14 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
               <div style={{ borderRadius: 6, border: `1px solid ${isSelected ? C.goldDim : C.subtle}`, background: isSelected ? C.goldGlow : C.surface, overflow: 'hidden' }}>
                 {/* Badge */}
                 <div style={{ padding: '5px 12px', background: grade.color + '22', borderBottom: `1px solid ${grade.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 8, fontWeight: 800, color: grade.color, letterSpacing: 1, textTransform: 'uppercase' }}>✦ Top Pick — {grade.grade}</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: grade.color }}>{topTrack.matchScore}%</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 8, fontWeight: 800, color: grade.color, letterSpacing: 1, textTransform: 'uppercase' }}>✦ Top Pick — {grade.grade}</span>
+                    {topTrack.featured && <FeaturedBadge />}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {topTrack.campaign_count > 0 && <CampaignCount count={topTrack.campaign_count} />}
+                    <span style={{ fontSize: 11, fontWeight: 800, color: grade.color }}>{topTrack.matchScore}%</span>
+                  </div>
                 </div>
 
                 {/* Track row */}
@@ -274,9 +294,11 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
                         {isPlaying ? '■' : '▶'}
                       </button>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? C.gold : C.primary }}>{track.title}</span>
+                          {track.featured && <FeaturedBadge />}
                           <span style={{ fontSize: 9, fontWeight: 700, color: grade.color }}>{track.matchScore}%</span>
+                          <CampaignCount count={track.campaign_count} />
                         </div>
                         <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic', lineHeight: 1.3 }}>{track.whyFits}</div>
                       </div>
@@ -292,6 +314,55 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
         </div>
       )}
 
+      {/* FEATURED view */}
+      {view === 'featured' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {featuredTracks.length === 0 && (
+            <div style={{ padding: '20px', textAlign: 'center', color: C.secondary, fontSize: 11 }}>
+              No featured tracks yet.
+            </div>
+          )}
+          {featuredTracks.map(track => {
+            const isSelected = selectedTrack?.id === track.id
+            const isPlaying  = playingId === track.id
+            const scored     = recommendMusicForAd(adConfig, [track])[0]
+            const matchScore = scored?.matchScore || 0
+            const grade      = getMatchGrade(matchScore)
+            return (
+              <div key={track.id} style={{ borderRadius: 8, border: `1px solid ${isSelected ? C.goldDim : C.gold + '44'}`, background: isSelected ? C.goldGlow : '#0f0d04', overflow: 'hidden' }}>
+                <div style={{ padding: '6px 12px', background: '#1a1408', borderBottom: `1px solid ${C.gold}22`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <FeaturedBadge />
+                    {track.artist_name && <span style={{ fontSize: 9, color: C.secondary }}>{track.artist_name}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CampaignCount count={track.campaign_count} />
+                    {matchScore > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: grade.color }}>{matchScore}% match</span>}
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button onClick={() => playPreview(track)} style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11, border: `1px solid ${isPlaying ? C.gold : C.goldDim}`, background: isPlaying ? '#1a1408' : C.base, color: isPlaying ? C.gold : C.goldDim }}>
+                    {isPlaying ? '■' : '▶'}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: isSelected ? C.gold : C.primary, marginBottom: 3 }}>{track.title}</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {track.mood   && <span style={{ fontSize: 9, color: C.secondary }}>{track.mood}</span>}
+                      {track.bpm    && <span style={{ fontSize: 9, color: C.muted }}>{track.bpm} BPM</span>}
+                      {track.energy && <span style={{ fontSize: 9, color: ENERGY_COLORS[track.energy] || C.muted, fontWeight: 700 }}>{track.energy}</span>}
+                    </div>
+                    {scored?.whyFits && <div style={{ fontSize: 9, color: C.goldDim, fontStyle: 'italic', marginTop: 4, lineHeight: 1.4 }}>"{scored.whyFits}"</div>}
+                  </div>
+                  <button onClick={() => handleLicense(track)} disabled={isSelected || licensing === track.id} style={{ padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: isSelected ? 'default' : 'pointer', flexShrink: 0, border: `1px solid ${isSelected ? C.goldDim : C.goldDim}`, background: isSelected ? C.goldGlow : '#1a1408', color: C.gold, opacity: licensing === track.id ? 0.6 : 1 }}>
+                    {isSelected ? '✓ Licensed' : licensing === track.id ? '…' : `Use — ${track.license_credits || 2}cr`}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* ALL TRACKS view */}
       {view === 'all' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -302,14 +373,16 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
             const matchScore = scored?.matchScore || 0
             const grade      = getMatchGrade(matchScore)
             return (
-              <div key={track.id} style={{ borderRadius: 6, border: `1px solid ${isSelected ? C.goldDim : C.hairline}`, background: isSelected ? C.goldGlow : C.base, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={track.id} style={{ borderRadius: 6, border: `1px solid ${isSelected ? C.goldDim : track.featured ? C.gold + '33' : C.hairline}`, background: isSelected ? C.goldGlow : C.base, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button onClick={() => playPreview(track)} style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, border: `1px solid ${isPlaying ? C.gold : C.hairline}`, background: isPlaying ? '#1a1408' : C.surface, color: isPlaying ? C.gold : C.muted }}>
                   {isPlaying ? '■' : '▶'}
                 </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? C.gold : C.primary }}>{track.title}</span>
+                    {track.featured && <FeaturedBadge />}
                     {matchScore > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: grade.color }}>{matchScore}%</span>}
+                    <CampaignCount count={track.campaign_count} />
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {track.mood   && <span style={{ fontSize: 9, color: C.secondary }}>{track.mood}</span>}

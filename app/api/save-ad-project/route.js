@@ -30,16 +30,28 @@ export async function POST(req) {
       musicTrackId, musicLicenseId,
     } = await req.json()
 
+    // Auto-version — count existing saves for the same product
+    const { count } = await supabase
+      .from('ad_projects')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .ilike('product_name', productName || '')
+
+    const version     = (count || 0) + 1
+    const versionedName = version > 1
+      ? `${campaignName || productName} v${version}`
+      : (campaignName || productName || '')
+
     const { data, error } = await supabase
       .from('ad_projects')
       .insert({
         user_id:                 user.id,
-        product_name:            productName  || '',
-        campaign_name:           campaignName || productName || '',
-        platform:                platform     || null,
-        campaign_goal:           campaignGoal || null,
-        brand_voice:             brandVoice   || null,
-        visual_style:            visualStyle  || null,
+        product_name:            productName    || '',
+        campaign_name:           versionedName,
+        platform:                platform       || null,
+        campaign_goal:           campaignGoal   || null,
+        brand_voice:             brandVoice     || null,
+        visual_style:            visualStyle    || null,
         selected_angle:          selectedAngle  || null,
         selected_hook:           selectedHook   || null,
         full_context:            fullContext    || null,
@@ -54,7 +66,7 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ status: 'success', projectId: data.id })
+    return NextResponse.json({ status: 'success', projectId: data.id, version })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
   }

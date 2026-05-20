@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { buildCompetitorAnalysisPrompt, buildMarketIntelligencePrompt } from '../../prompt-engine-v3/ad-system/competitorAnalysis.js'
+import { buildVoiceTrainingPrompt } from '../../prompt-engine-v3/ad-system/brandVoiceTrainer.js'
 
-// POST /api/competitor-analysis
-// Analyses a competitor ad and generates inspired creative direction.
-// Cost: 2 credits
+// POST /api/train-brand-voice
+// Extracts a brand voice fingerprint from existing ads.
+// Cost: 0 credits — this is part of onboarding/setup.
 
 export async function POST(req) {
   try {
@@ -28,29 +27,15 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Not authenticated' }, { status: 401 })
     }
 
-    const admin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-
-    const { data: userRow } = await admin.from('app_users').select('credits').eq('id', user.id).single()
-    if (!userRow || userRow.credits < 2) {
-      return NextResponse.json({ status: 'error', message: 'Not enough credits — need 2' }, { status: 402 })
-    }
-
-    const { competitorText, competitorAds, brandName, analysisType = 'single', adConfig } = await req.json()
-
-    const hasContent = competitorText?.trim() || (Array.isArray(competitorAds) && competitorAds.some(a => a?.trim()))
-    if (!hasContent) {
-      return NextResponse.json({ status: 'error', message: 'Competitor content required' }, { status: 400 })
+    const { ads } = await req.json()
+    if (!ads || (Array.isArray(ads) ? ads.filter(Boolean).length === 0 : !ads.trim())) {
+      return NextResponse.json({ status: 'error', message: 'At least one ad is required' }, { status: 400 })
     }
 
     const xaiApiKey = String(process.env.XAI_API_KEY || '')
       .replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim()
 
-    const userPrompt = analysisType === 'market'
-      ? buildMarketIntelligencePrompt(competitorAds || [competitorText], brandName, adConfig || {})
-      : buildCompetitorAnalysisPrompt(competitorText, adConfig || {})
+    const userPrompt = buildVoiceTrainingPrompt(ads)
 
     const aiRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -58,11 +43,11 @@ export async function POST(req) {
       body: JSON.stringify({
         model:       'grok-3-fast',
         messages: [
-          { role: 'system', content: 'You are a senior creative strategist. Respond with ONLY valid JSON. No markdown. Start with {.' },
+          { role: 'system', content: 'You are a senior brand strategist analysing voice patterns. Respond with ONLY valid JSON. No markdown. Start with {.' },
           { role: 'user',   content: userPrompt },
         ],
-        temperature: 0.75,
-        max_tokens:  1200,
+        temperature: 0.3,
+        max_tokens:  800,
       }),
     })
 
@@ -80,12 +65,10 @@ export async function POST(req) {
       if (m) parsed = tryParse(m[0])
     }
     if (!parsed) {
-      return NextResponse.json({ status: 'error', message: 'Could not parse analysis' }, { status: 500 })
+      return NextResponse.json({ status: 'error', message: 'Could not extract voice fingerprint' }, { status: 500 })
     }
 
-    await admin.from('app_users').update({ credits: userRow.credits - 2 }).eq('id', user.id)
-
-    return NextResponse.json({ status: 'success', analysis: parsed, creditsRemaining: userRow.credits - 2 })
+    return NextResponse.json({ status: 'success', fingerprint: parsed })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
   }

@@ -14,6 +14,8 @@ import { buildQualityScorePrompt }     from '../../prompt-engine-v3/ad-system/ad
 import { buildPlatformInstruction }    from '../../prompt-engine-v3/ad-system/platformRules.js'
 import { buildStyledGenerationPrompt } from '../../prompt-engine-v3/ad-system/competitorStyleEngine.js'
 import { buildVariationPrompt }        from '../../prompt-engine-v3/ad-system/adVariations.js'
+import { buildMusicAwarePromptContext } from '../../prompt-engine-v3/ad-system/musicIntelligence.js'
+import { buildVoiceInjectionContext }  from '../../prompt-engine-v3/ad-system/brandVoiceTrainer.js'
 
 function clean(v) { return String(v || '').trim() }
 
@@ -159,6 +161,55 @@ export async function POST(req) {
 
       if (locks.length > 0) {
         userPrompt = `LOCKED CREATIVE DECISIONS — these are already decided. Build your output to align with them, not replace them:\n${locks.map(l => `• ${l}`).join('\n')}\n\n` + userPrompt
+      }
+    }
+
+    // ── Inject Brand Voice Fingerprint — trained voice overrides generic labels ──
+    if (type !== 'quality_score' && type !== 'variation' && adConfig.voiceFingerprint) {
+      const voiceContext = buildVoiceInjectionContext(adConfig.voiceFingerprint)
+      if (voiceContext) userPrompt = voiceContext + '\n\n' + userPrompt
+    }
+
+    // ── Inject Music Intelligence — when a track is locked, all content aligns ──
+    if (type !== 'quality_score' && type !== 'variation') {
+      const musicTrack = adConfig.lockedMusic || adConfig.adMusicTrack
+      if (musicTrack?.title) {
+        const musicContext = buildMusicAwarePromptContext(musicTrack)
+        if (musicContext) {
+          userPrompt = musicContext + '\n\n' + userPrompt
+        }
+      }
+    }
+
+    // ── Inject Brand Learning + Performance Intelligence ──────
+    if (type !== 'quality_score' && type !== 'variation') {
+      const winners       = adConfig.winners       || {}
+      const topPerformers = adConfig.topPerformers || {}
+      const lines = []
+
+      // Starred winners (quality benchmark)
+      if (winners.hooks?.length > 0 && ['hooks', 'captions', 'ugc_scripts', 'campaign'].includes(type)) {
+        lines.push('STARRED WINNING HOOKS (quality benchmark — match or exceed):')
+        winners.hooks.slice(0, 5).forEach((h, i) => lines.push(`  ${i + 1}. "${h}"`))
+      }
+      if (winners.angles?.length > 0 && ['angles', 'hooks', 'captions', 'campaign'].includes(type)) {
+        lines.push('WINNING ANGLES (creative reference — build from these directions):')
+        winners.angles.slice(0, 3).forEach(a => lines.push(`  • ${a.title}: "${a.hook}"`))
+      }
+
+      // Performance data (actual CTR results)
+      if (topPerformers.hooks?.length > 0 && ['hooks', 'captions', 'campaign'].includes(type)) {
+        lines.push('HIGHEST CTR HOOKS FROM THIS BRAND (real performance data):')
+        topPerformers.hooks.forEach(h => lines.push(`  • ${h.ctr}% CTR: "${h.text}"${h.notes ? ` (${h.notes})` : ''}`))
+        lines.push('Generate hooks with the same energy and structure as your top performers.')
+      }
+      if (topPerformers.angles?.length > 0 && ['angles', 'hooks'].includes(type)) {
+        lines.push('HIGHEST CTR ANGLES FROM THIS BRAND:')
+        topPerformers.angles.forEach(a => lines.push(`  • ${a.ctr}% CTR: ${a.text}`))
+      }
+
+      if (lines.length > 0) {
+        userPrompt = `BRAND INTELLIGENCE — your brand's proven creative:\n${lines.join('\n')}\nDo NOT copy these. Use them as proven benchmarks.\n\n` + userPrompt
       }
     }
 
