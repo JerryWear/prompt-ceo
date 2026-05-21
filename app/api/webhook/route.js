@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendSubscriptionEmail } from '../../../lib/email.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -55,7 +56,7 @@ export async function POST(req) {
         const sub    = event.data.object
         const userId = sub.metadata?.userId
         const tier   = sub.metadata?.tier || 'creator'
-        const status = sub.status // 'active' | 'trialing' | 'past_due' | 'canceled' etc.
+        const status = sub.status
 
         if (!userId) {
           // Try lookup by customer ID
@@ -67,6 +68,18 @@ export async function POST(req) {
         }
 
         await setSubscription(userId, tier, status, sub.id, sub.current_period_end)
+
+        // Send subscription confirmation email on new active subscription
+        if (status === 'active' && event.type === 'customer.subscription.created') {
+          try {
+            const { data: authUser } = await stripe.customers.retrieve(sub.customer)
+            const email = authUser?.email
+            if (email) {
+              const TIER_LABELS = { creator: 'Creator', studio_pro: 'Studio Pro', pro: 'Pro', agency: 'Agency', music_addon: 'Music Add-on' }
+              sendSubscriptionEmail(email, tier, TIER_LABELS[tier] || tier).catch(() => {})
+            }
+          } catch {}
+        }
 
         // Handle music addon separately
         if (tier === 'music_addon') {

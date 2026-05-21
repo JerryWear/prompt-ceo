@@ -18,10 +18,11 @@ export default function LoginPage() {
     checkSession()
   }, [])
 
-  const [email, setEmail] = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+  const [mode,     setMode]     = useState('login') // 'login' | 'signup'
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -34,13 +35,18 @@ export default function LoginPage() {
       return
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
+    if (mode === 'signup') {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) { setError(error.message); setLoading(false); return }
+      // Send welcome email
+      fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
+      router.replace('/prompt-engine-v3')
+      router.refresh()
       return
     }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError(error.message); setLoading(false); return }
 
     router.replace('/prompt-engine-v3')
     router.refresh()
@@ -50,33 +56,38 @@ export default function LoginPage() {
     <main style={styles.page}>
       <div style={styles.card}>
         <div style={styles.badge}>PROMPT CEO — DIRECTOR'S STUDIO</div>
-        <h1 style={styles.title}>Enter Your Studio</h1>
+        <h1 style={styles.title}>{mode === 'login' ? 'Sign In' : 'Create Account'}</h1>
         <p style={styles.subtitle}>
-          Your account gives you access to all Prompt CEO tools.<br />
-          Credits are shared across Image and Video generation.
+          {mode === 'login' ? 'Welcome back. Your studio is waiting.' : 'Start your 7-day free trial. No credit card required.'}
         </p>
+
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {['login', 'signup'].map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              type="button"
+              style={{ flex: 1, padding: '10px 0', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: mode === m ? '#c8a84b' : 'transparent', color: mode === m ? '#000' : '#8a8680', transition: 'all 0.15s' }}
+            >
+              {m === 'login' ? 'Sign In' : 'Sign Up'}
+            </button>
+          ))}
+        </div>
+
         <form onSubmit={handleLogin} style={styles.form}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-          />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={styles.input} />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={styles.input} />
           {error && <div style={styles.error}>{error}</div>}
           <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Entering...' : 'Enter Studio'}
+            {loading ? '…' : mode === 'login' ? 'Sign In' : 'Create Account — Free'}
           </button>
         </form>
         <div style={styles.note}>
-          Same account works across all Prompt CEO tools.
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <span style={{ color: '#c8a84b', cursor: 'pointer' }} onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+            {mode === 'login' ? 'Sign up free →' : 'Sign in →'}
+          </span>
         </div>
       </div>
     </main>

@@ -25,15 +25,37 @@ const TIER_COLORS = {
 }
 
 function AdminPanel() {
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [stats,      setStats]      = useState(null)
+  const [affiliates, setAffiliates] = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [acting,     setActing]     = useState(null)
+  const [showAll,    setShowAll]    = useState(false)
 
-  useEffect(() => {
+  const loadData = () => {
     fetch('/api/admin/stats')
       .then(r => r.json())
       .then(d => { if (d.status === 'success') setStats(d.stats) })
       .finally(() => setLoading(false))
-  }, [])
+    fetch('/api/admin/affiliates')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setAffiliates(d.affiliates || []) })
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const handleAffiliate = async (id, action) => {
+    setActing(id)
+    try {
+      const res  = await fetch('/api/admin/affiliates', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') loadData()
+    } finally {
+      setActing(null)
+    }
+  }
 
   if (loading) return (
     <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, padding: '20px 24px', color: C.muted, fontSize: 12 }}>
@@ -123,6 +145,69 @@ function AdminPanel() {
             ))}
           </div>
         </div>
+
+        {/* Affiliate management */}
+        {affiliates.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Affiliate Applications</div>
+              <button onClick={() => setShowAll(v => !v)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 11, cursor: 'pointer' }}>
+                {showAll ? 'Show pending only' : `Show all (${affiliates.length})`}
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {affiliates
+                .filter(a => showAll || a.status === 'pending')
+                .map(a => (
+                  <div key={a.id} style={{ borderRadius: 8, border: `1px solid ${a.status === 'pending' ? C.goldDim : C.hairline}`, background: a.status === 'pending' ? '#0f0d04' : C.base, padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{a.full_name}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                            background: a.status === 'pending' ? '#1a1408' : a.status === 'approved' || a.status === 'active' ? C.greenGlow : C.surface,
+                            border: `1px solid ${a.status === 'pending' ? C.goldDim : a.status === 'approved' || a.status === 'active' ? C.greenDim : C.hairline}`,
+                            color: a.status === 'pending' ? C.gold : a.status === 'approved' || a.status === 'active' ? C.green : C.muted,
+                          }}>
+                            {a.status}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: C.secondary }}>{a.email}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{a.platform}{a.audience_size ? ` · ${a.audience_size}` : ''}</div>
+                        {a.message && <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic', lineHeight: 1.5 }}>"{a.message}"</div>}
+                      </div>
+                      {a.status === 'pending' && (
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleAffiliate(a.id, 'approve')}
+                            disabled={acting === a.id}
+                            style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green, opacity: acting === a.id ? 0.6 : 1 }}
+                          >
+                            {acting === a.id ? '…' : '✓ Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleAffiliate(a.id, 'reject')}
+                            disabled={acting === a.id}
+                            style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.muted, opacity: acting === a.id ? 0.6 : 1 }}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                      {(a.status === 'approved' || a.status === 'active') && (
+                        <div style={{ fontSize: 10, color: C.muted }}>
+                          {a.total_clicks} clicks · {a.total_signups} signups · ${Number(a.total_earned || 0).toFixed(2)} earned
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              {!showAll && affiliates.filter(a => a.status === 'pending').length === 0 && (
+                <div style={{ fontSize: 12, color: C.muted, padding: '8px 0' }}>No pending applications.</div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

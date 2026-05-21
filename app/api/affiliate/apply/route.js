@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { sendAffiliateApplicationEmail } from '../../../../lib/email.js'
 
 // POST /api/affiliate/apply
 
@@ -58,6 +59,9 @@ export async function POST(req) {
     })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Send confirmation email (non-blocking)
+    sendAffiliateApplicationEmail(email, name).catch(() => {})
 
     return NextResponse.json({ status: 'success', message: 'Application received. You will hear back within 48 hours.' })
   } catch (err) {
