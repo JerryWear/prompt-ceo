@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '../../lib/supabase/client'
 
 const C = {
   void:      '#040404', deep:     '#070707', base:     '#0a0a0a',
@@ -123,9 +124,15 @@ const MUSIC_ADDON = {
 }
 
 export default function PricingPage() {
-  const router   = useRouter()
+  const router    = useRouter()
+  const supabase  = createClient()
+  const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(null)
   const [error,   setError]   = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
+  }, [])
 
   const handleSubscribe = async (tierId) => {
     setLoading(tierId)
@@ -155,8 +162,34 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.primary, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
+      {/* NAV */}
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, borderBottom: `1px solid ${C.hairline}`, background: `${C.void}ee`, backdropFilter: 'blur(12px)', padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, cursor: 'pointer' }}>
+          PROMPT CEO
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <button onClick={() => router.push('/partner')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Partner</button>
+          <button onClick={() => router.push('/about')}   style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>About</button>
+          {user ? (
+            <>
+              <button onClick={() => router.push('/account')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>My Account</button>
+              <button onClick={() => router.push('/prompt-engine-v3')} style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                Open App
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => router.push('/prompt-engine-v3/login')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sign In</button>
+              <button onClick={() => router.push('/prompt-engine-v3/login')} style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                Start Free Trial
+              </button>
+            </>
+          )}
+        </div>
+      </nav>
+
       {/* Header */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 24px 0' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '116px 24px 0' }}>
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>
             PROMPT CEO

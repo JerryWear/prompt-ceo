@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { createClient } from '../lib/supabase/client'
 
 const C = {
   void:      '#040404',
@@ -63,8 +64,14 @@ const PLANS = [
 
 
 export default function HomePage() {
-  const router = useRouter()
+  const router  = useRouter()
+  const supabase = createClient()
   const [worldIndex, setWorldIndex] = useState(0)
+  const [user,       setUser]       = useState(undefined) // undefined = loading, null = not logged in
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
+  }, [])
 
   useEffect(() => {
     const t = setInterval(() => setWorldIndex(i => (i + 1) % WORLDS.length), 1800)
@@ -98,13 +105,24 @@ export default function HomePage() {
           PROMPT CEO
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <button onClick={goToPricing}                        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Pricing</button>
-          <button onClick={() => router.push('/partner')}      style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Partner</button>
-          <button onClick={() => router.push('/about')}        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>About</button>
-          <button onClick={goToLogin}                          style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sign In</button>
-          <button onClick={goToLogin} style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
-            Start Free Trial
-          </button>
+          <button onClick={goToPricing}                   style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Pricing</button>
+          <button onClick={() => router.push('/partner')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Partner</button>
+          <button onClick={() => router.push('/about')}   style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>About</button>
+          {user ? (
+            <>
+              <button onClick={() => router.push('/account')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>My Account</button>
+              <button onClick={goToApp} style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                Open App
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={goToLogin} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sign In</button>
+              <button onClick={goToLogin} style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                Start Free Trial
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
