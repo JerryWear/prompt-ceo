@@ -21,6 +21,12 @@ import { WORLD_DUBAI } from './dubai'
 import { WORLD_MALIBU } from './malibu'
 import { WORLD_TULUM } from './tulum'
 import { WORLD_LUXURY_HOTEL_SUITE } from './luxuryHotelSuite'
+import { WORLD_TOKYO } from './tokyo'
+import { WORLD_MYKONOS } from './mykonos'
+import { WORLD_NEW_YORK } from './newYork'
+import { WORLD_MARRAKECH } from './marrakech'
+import { WORLD_SWISS_ALPS } from './swissAlps'
+import { WORLD_CAPRI } from './capri'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -33,9 +39,15 @@ export const WORLD_LOCATIONS = [
   WORLD_LUXURY_YACHT_RIVIERA,
   WORLD_FITNESS_GLOBAL_ELITE,
   WORLD_SANTORINI,
+  WORLD_MYKONOS,
+  WORLD_CAPRI,
   WORLD_DUBAI,
   WORLD_MALIBU,
   WORLD_TULUM,
+  WORLD_TOKYO,
+  WORLD_NEW_YORK,
+  WORLD_MARRAKECH,
+  WORLD_SWISS_ALPS,
   WORLD_LUXURY_HOTEL_SUITE,
 ]
 

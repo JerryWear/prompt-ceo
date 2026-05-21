@@ -83,7 +83,7 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Missing XAI_API_KEY on server' }, { status: 500 })
     }
 
-    // ── Credits ─────────────────────────────────────────────
+    // ── Subscription check ───────────────────────────────────
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -91,20 +91,20 @@ export async function POST(req) {
 
     let { data: userRow } = await admin
       .from('app_users')
-      .select('*')
+      .select('subscription_tier, subscription_status, credits')
       .eq('id', user.id)
       .single()
 
     if (!userRow) {
-      await admin.from('app_users').insert({ id: user.id, credits: 50, plan: 'trial', daily_limit: 20 })
-      const { data: newUser } = await admin.from('app_users').select('*').eq('id', user.id).single()
+      await admin.from('app_users').insert({ id: user.id, credits: 0, plan: 'free' })
+      const { data: newUser } = await admin.from('app_users').select('subscription_tier, subscription_status, credits').eq('id', user.id).single()
       userRow = newUser
     }
 
-    const COST = COSTS[type]
-    if (!userRow || userRow.credits < COST) {
+    const { canGenerateText } = await import('../../../lib/subscription.js')
+    if (!canGenerateText(userRow)) {
       return NextResponse.json(
-        { status: 'error', message: `Not enough credits — need ${COST}, have ${userRow?.credits ?? 0}` },
+        { status: 'error', message: 'Subscribe to generate ad content.', upgradeRequired: true },
         { status: 402 }
       )
     }
@@ -286,18 +286,12 @@ export async function POST(req) {
       )
     }
 
-    // ── Deduct credits ───────────────────────────────────────
-    const newCredits = (userRow.credits || 0) - COST
-    await admin.from('app_users').update({ credits: newCredits }).eq('id', user.id)
-
     return NextResponse.json({
-      status:           'complete',
+      status:        'complete',
       type,
-      hookType:         hookType || null,
-      inspiredStyle:    inspiredStyle || null,
-      data:             parsed,
-      creditsUsed:      COST,
-      creditsRemaining: newCredits,
+      hookType:      hookType || null,
+      inspiredStyle: inspiredStyle || null,
+      data:          parsed,
     })
 
   } catch (err) {

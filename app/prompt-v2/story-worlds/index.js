@@ -5,6 +5,10 @@ import { STORY_WORLD_FANVUE_CREATOR_LIFE } from './fanvue-creator-life'
 import { STORY_WORLD_ONLYFANS_CREATOR_LIFE } from './onlyfans-creator-life'
 import { STORY_WORLD_GYM_INFLUENCER_LIFE } from './gym-influencer-life'
 import { STORY_WORLD_HIGH_SOCIETY_LIFE } from './high-society-life'
+import { STORY_WORLD_SUPERMODEL_LIFE } from './supermodel-life'
+import { STORY_WORLD_WILD_NATURE } from './wild-nature'
+import { STORY_WORLD_DESERT_QUEEN } from './desert-queen'
+import { STORY_WORLD_NEON_CITY } from './neon-city'
 
 export const STORY_WORLDS = [
   STORY_WORLD_LUXURY_LIFE,
@@ -14,4 +18,8 @@ export const STORY_WORLDS = [
   STORY_WORLD_FANVUE_CREATOR_LIFE,
   STORY_WORLD_ONLYFANS_CREATOR_LIFE,
   STORY_WORLD_GYM_INFLUENCER_LIFE,
+  STORY_WORLD_SUPERMODEL_LIFE,
+  STORY_WORLD_WILD_NATURE,
+  STORY_WORLD_DESERT_QUEEN,
+  STORY_WORLD_NEON_CITY,
 ]

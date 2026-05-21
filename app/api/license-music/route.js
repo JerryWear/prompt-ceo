@@ -59,30 +59,33 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Track not found' }, { status: 404 })
     }
 
-    // ── Get user credits ────────────────────────────────────
+    // ── Subscription music check ─────────────────────────────
     let { data: userRow } = await admin
       .from('app_users')
-      .select('*')
+      .select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon')
       .eq('id', user.id)
       .single()
 
     if (!userRow) {
-      await admin.from('app_users').insert({ id: user.id, credits: 50, plan: 'trial' })
-      const { data: newUser } = await admin.from('app_users').select('*').eq('id', user.id).single()
+      await admin.from('app_users').insert({ id: user.id, credits: 0, plan: 'free' })
+      const { data: newUser } = await admin.from('app_users').select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon').eq('id', user.id).single()
       userRow = newUser
     }
 
-    const cost = track.license_credits || LICENSE_COST
-    if ((userRow?.credits || 0) < cost) {
+    const { canLicenseMusic } = await import('../../../lib/subscription.js')
+    if (!canLicenseMusic(userRow)) {
       return NextResponse.json(
-        { status: 'error', message: `Not enough credits — need ${cost}, have ${userRow?.credits ?? 0}` },
+        { status: 'error', message: 'Music license limit reached. Upgrade to Pro or Agency for more licenses.', upgradeRequired: true },
         { status: 402 }
       )
     }
 
-    // ── Deduct credits ───────────────────────────────────────
-    const newCredits = (userRow.credits || 0) - cost
-    await admin.from('app_users').update({ credits: newCredits }).eq('id', user.id)
+    // ── Increment music usage ────────────────────────────────
+    if (!userRow.music_addon) {
+      await admin.from('app_users').update({
+        music_licenses_used_this_period: (userRow.music_licenses_used_this_period || 0) + 1,
+      }).eq('id', user.id)
+    }
 
     // ── Insert license row ───────────────────────────────────
     const { data: license, error: licenseError } = await admin
@@ -125,8 +128,6 @@ export async function POST(req) {
         best_cta_end_seconds:      track.best_cta_end_seconds,
         license_credits:           track.license_credits,
       },
-      creditsCharged:   cost,
-      creditsRemaining: newCredits,
     })
 
   } catch (err) {

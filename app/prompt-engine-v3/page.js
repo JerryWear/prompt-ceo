@@ -1338,7 +1338,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   }
 
   const cost = adOutputType === 'video' ? 60 : 5
-  const hasEnoughCredits = (s.credits || 0) >= cost
+  const hasEnoughCredits = true // subscription model — no credit gate on generation
   const hasIdentity = !!s.imageDataUrl
   const isGenerating = s.adGenerating
   const canGenerate = hasEnoughCredits && !isGenerating && (adMode !== 'product_ad' || productName.trim())
@@ -2422,16 +2422,9 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         }}>
           {isGenerating
             ? '⟳ Generating…'
-            : `▶  Generate ${adOutputType === 'video' ? 'Video Ad' : 'Image Ad'}  —  ${cost} credits`
+            : `▶  Generate ${adOutputType === 'video' ? 'Video Ad' : 'Image Ad'}`
           }
         </button>
-
-        {/* Hints */}
-        {!hasEnoughCredits && (
-          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010', textAlign: 'center' }}>
-            Not enough credits — need {cost}, have {s.credits || 0}
-          </div>
-        )}
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
           <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.secondary, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
             ← Enter a product name to generate
@@ -2586,7 +2579,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             {/* Animate button */}
             {!s.adVideoUrl && (
               <Btn variant="gold" disabled={s.adVideoGenerating} onClick={handleAnimate} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
-                {s.adVideoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Animate to Video Ad — 60 credits'}
+                {s.adVideoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Animate to Video Ad'}
               </Btn>
             )}
           </Panel>
@@ -2872,7 +2865,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'angles' ? '⟳ Generating angles…' : '✦ Generate 10 Ad Angles — 2 credits'}
+              {s.adTextGenerating && s.adTextType === 'angles' ? '⟳ Generating angles…' : '✦ Generate 10 Ad Angles'}
             </button>
 
             {!productName.trim() && (
@@ -3019,7 +3012,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             >
               {s.adTextGenerating && s.adTextType === 'hooks'
                 ? `⟳ Generating ${activeHookType} hooks…`
-                : '⚡ Generate All 5 Hook Types — 5 credits'}
+                : '⚡ Generate All 5 Hook Types'}
             </button>
 
             {/* Hook type selector with fill indicators */}
@@ -3211,7 +3204,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'captions' ? '⟳ Generating captions…' : '✦ Generate 6 Ad Captions — 2 credits'}
+              {s.adTextGenerating && s.adTextType === 'captions' ? '⟳ Generating captions…' : '✦ Generate 6 Ad Captions'}
             </button>
 
             {s.adTextError && s.adTextType === 'captions' && (
@@ -3296,7 +3289,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'image_prompt' ? '⟳ Generating prompts…' : '✦ Generate 6 Image Ad Prompts — 2 credits'}
+              {s.adTextGenerating && s.adTextType === 'image_prompt' ? '⟳ Generating prompts…' : '✦ Generate 6 Image Ad Prompts'}
             </button>
             {s.adTextError && s.adTextType === 'image_prompt' && (
               <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
@@ -3339,7 +3332,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                           opacity: cardState.generating ? 0.7 : 1, transition: 'opacity 0.15s',
                         }}
                       >
-                        {cardState.generating ? '⟳ Generating image…' : '🖼 Generate This Image — 5 credits'}
+                        {cardState.generating ? '⟳ Generating image…' : '🖼 Generate This Image'}
                       </button>
                     )}
 
@@ -3420,7 +3413,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'video_prompt' ? '⟳ Generating prompts…' : '✦ Generate 4 Video Ad Prompts — 3 credits'}
+              {s.adTextGenerating && s.adTextType === 'video_prompt' ? '⟳ Generating prompts…' : '✦ Generate 4 Video Ad Prompts'}
             </button>
             {s.adTextError && s.adTextType === 'video_prompt' && (
               <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
@@ -3480,7 +3473,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                               color: C.violet, opacity: loading ? 0.6 : 1,
                             }}
                           >
-                            {loading ? '⟳ Generating storyboard…' : '🎬 Generate Shot-by-Shot Storyboard — 2 credits'}
+                            {loading ? '⟳ Generating storyboard…' : '🎬 Generate Shot-by-Shot Storyboard'}
                           </button>
                         )}
                         {sb && (
@@ -3564,7 +3557,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'ugc_scripts' ? '⟳ Generating scripts…' : '✦ Generate 4 UGC Scripts — 2 credits'}
+              {s.adTextGenerating && s.adTextType === 'ugc_scripts' ? '⟳ Generating scripts…' : '✦ Generate 4 UGC Scripts'}
             </button>
             {s.adTextError && s.adTextType === 'ugc_scripts' && (
               <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
@@ -3640,7 +3633,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'campaign' ? '⟳ Building 10-stage campaign…' : '✦ Build Full 10-Stage Campaign — 5 credits'}
+              {s.adTextGenerating && s.adTextType === 'campaign' ? '⟳ Building 10-stage campaign…' : '✦ Build Full 10-Stage Campaign'}
             </button>
 
             {s.adTextError && s.adTextType === 'campaign' && (
@@ -3827,7 +3820,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     disabled={projectScoreLoading}
                     style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: projectScoreLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: projectScoreLoading ? 0.6 : 1 }}
                   >
-                    {projectScoreLoading ? '⟳ Scoring…' : '✦ Score Full Campaign — 2 credits'}
+                    {projectScoreLoading ? '⟳ Scoring…' : '✦ Score Full Campaign'}
                   </button>
                 </div>
                 {projectScore && (
@@ -5687,7 +5680,15 @@ export default function PromptCEOPage() {
   const [history,      setHistory]      = useState([])
   const [historyOpen,  setHistoryOpen]  = useState(false)
   const stopRef = useRef(false)
-  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpOpen,      setHelpOpen]      = useState(false)
+  const [subscription,  setSubscription]  = useState(null)
+
+  useEffect(() => {
+    fetch('/api/subscription')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setSubscription(d) })
+      .catch(() => {})
+  }, [])
 
   // ── Derived ───────────────────────────────────────────────
   const worldObj    = useMemo(() => s.worldId ? getWorldById(s.worldId) : null, [s.worldId])
@@ -6952,35 +6953,36 @@ export default function PromptCEOPage() {
             </div>
           )}
 
-          <div style={{
-            padding: '3px 10px', borderRadius: 3, fontSize: 10, fontWeight: 700,
-            background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue,
-          }}>
-            {s.creditsLoading ? '…' : s.credits === null ? '—' : `⚡ ${s.credits}`}
-          </div>
-
-          <select
-            onChange={e => {
-              if (!e.target.value) return
-              fetch('/api/create-checkout', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product: e.target.value, returnPath: 'prompt-engine-v3' }),
-              }).then(r => r.json()).then(d => { if (d?.url) window.location.href = d.url }).catch(() => {})
-            }}
-            style={{
-              background: '#080e18', color: C.blue,
-              border: `1px solid ${C.blueDim}`, borderRadius: 4,
-              padding: '4px 8px', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer', outline: 'none',
-            }}
-            value=""
-          >
-            <option value="" disabled>+ Credits</option>
-            <option value="50">50 credits</option>
-            <option value="100">100 credits</option>
-            <option value="250">250 credits</option>
-            <option value="500">500 credits</option>
-          </select>
+          {/* Subscription badge */}
+          {subscription ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{
+                padding: '3px 8px', borderRadius: 3, fontSize: 10, fontWeight: 700,
+                background: subscription.isAdmin ? '#1a0a2a' : subscription.active ? C.goldGlow : '#111',
+                border: `1px solid ${subscription.isAdmin ? C.violet : subscription.active ? C.goldDim : C.subtle}`,
+                color: subscription.isAdmin ? C.violet : subscription.active ? C.gold : C.muted,
+              }}>
+                {subscription.isAdmin ? '⚡ Admin' : subscription.active ? subscription.tierLabel : 'Free'}
+              </div>
+              {!subscription.isAdmin && (
+                <div style={{ padding: '3px 8px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue }}>
+                  🎨 {subscription.imagesRemaining}/{subscription.imagesLimit}
+                </div>
+              )}
+              {!subscription.active && !subscription.isAdmin && (
+                <button
+                  onClick={() => window.location.href = '/pricing'}
+                  style={{ padding: '3px 10px', borderRadius: 3, fontSize: 10, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}
+                >
+                  Upgrade
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: '3px 10px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue }}>
+              …
+            </div>
+          )}
 
           <button
             onClick={() => setHelpOpen(true)}

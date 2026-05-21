@@ -199,7 +199,7 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Missing XAI_API_KEY on server' }, { status: 500 })
     }
 
-    // 🔑 ADMIN CLIENT + CREDITS
+    // 🔑 ADMIN CLIENT + SUBSCRIPTION CHECK
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -212,14 +212,19 @@ export async function POST(req) {
       .single()
 
     if (!userRow) {
-      await admin.from('app_users').insert({ id: user.id, credits: 50, plan: 'trial', daily_limit: 20 })
+      await admin.from('app_users').insert({ id: user.id, credits: 0, plan: 'free', daily_limit: 3 })
       const { data: newUser } = await admin.from('app_users').select('*').eq('id', user.id).single()
       userRow = newUser
     }
 
-    const COST = 5
-    if (!userRow || userRow.credits < COST) {
-      return NextResponse.json({ status: 'error', message: 'Not enough credits' }, { status: 402 })
+    // Subscription check — determine image limit from tier
+    const { canGenerateImage } = await import('../../../lib/subscription.js')
+    if (!canGenerateImage(userRow)) {
+      return NextResponse.json({
+        status: 'error',
+        message: 'Image limit reached for this billing period. Upgrade your plan to generate more.',
+        upgradeRequired: true,
+      }, { status: 402 })
     }
 
     // ── STUDIO DIRECT MODE — uses grok-imagine-image, no identity required ────
@@ -253,10 +258,11 @@ export async function POST(req) {
         return NextResponse.json({ status: 'error', message: 'No image returned' }, { status: 500 })
       }
 
-      const newCreds = (userRow.credits || 0) - COST
-      await admin.from('app_users').update({ credits: newCreds }).eq('id', user.id)
+      await admin.from('app_users').update({
+        images_used_this_period: (userRow.images_used_this_period || 0) + 1,
+      }).eq('id', user.id)
 
-      return NextResponse.json({ status: 'complete', imageUrl, creditsRemaining: newCreds })
+      return NextResponse.json({ status: 'complete', imageUrl })
     }
 
     // ── Build final prompt based on mode ──────────────────────────────────────
@@ -498,11 +504,10 @@ If anything conflicts with identity, preserve identity first.
       )
     }
 
-    // 💰 DEDUCT CREDITS
-    await admin
-      .from('app_users')
-      .update({ credits: userRow.credits - COST })
-      .eq('id', user.id)
+    // 📈 INCREMENT IMAGE USAGE
+    await admin.from('app_users').update({
+      images_used_this_period: (userRow.images_used_this_period || 0) + 1,
+    }).eq('id', user.id)
 
     // 📝 LOG TO generation_logs
     try {
@@ -512,19 +517,13 @@ If anything conflicts with identity, preserve identity first.
         mode,
         prompt: finalPrompt.slice(0, 500),
         image_url: imageUrl,
-        credits_used: COST,
         created_at: new Date().toISOString(),
       })
     } catch {
-      // Non-fatal — don't block the response
+      // Non-fatal
     }
 
-    return NextResponse.json({
-      status: 'complete',
-      imageUrl,
-      creditsRemaining: userRow.credits - COST,
-      mode,
-    })
+    return NextResponse.json({ status: 'complete', imageUrl, mode })
 
   } catch (err) {
     console.error('GENERATE_IMAGE_FATAL:', err)
