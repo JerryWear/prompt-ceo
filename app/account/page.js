@@ -284,15 +284,32 @@ export default function AccountPage() {
         {/* Affiliate dashboard link */}
         <AffiliateLink router={router} email={user?.email} />
 
+        {/* Become a Partner banner — only shown if not already an affiliate */}
+        {!sub?.isAdmin && (
+          <div style={{ borderRadius: 10, border: `1px solid ${C.green}33`, background: C.greenGlow, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.green, marginBottom: 6 }}>💰 Earn with Prompt CEO</div>
+              <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6, maxWidth: 440 }}>
+                Share your referral link. Earn 30–40% recurring commission every month — for life — on every subscriber you refer. Join the Creator Partner program.
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/partner')}
+              style={{ padding: '10px 20px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green, whiteSpace: 'nowrap' }}
+            >
+              Become a Partner →
+            </button>
+          </div>
+        )}
+
         {/* Quick links */}
         <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, padding: '20px 24px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 16 }}>Quick Links</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
             {[
-              { label: '🎬 Open App',          action: () => router.push('/prompt-engine-v3') },
-              { label: '💰 Become a Partner',  action: () => router.push('/partner') },
-              { label: '📋 View Pricing',       action: () => router.push('/pricing') },
-              { label: '❓ Help & Tutorials',   action: () => router.push('/tutorials') },
+              { label: '🎬 Open App',        action: () => router.push('/prompt-engine-v3') },
+              { label: '📋 View Pricing',     action: () => router.push('/pricing') },
+              { label: '❓ Help & Tutorials', action: () => router.push('/tutorials') },
             ].map(link => (
               <button key={link.label} onClick={link.action} style={{ padding: '10px 14px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, color: C.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
                 {link.label}
