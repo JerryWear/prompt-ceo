@@ -24,6 +24,50 @@ const TIER_COLORS = {
   admin:      C.violet,
 }
 
+function AffiliateLink({ router, email }) {
+  const [affiliate, setAffiliate] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/affiliate/dashboard')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setAffiliate(d.affiliate) })
+      .catch(() => {})
+  }, [])
+
+  if (!affiliate) return null
+
+  const isApproved = affiliate.affiliateStatus === 'approved' || affiliate.affiliateStatus === 'active'
+
+  return (
+    <div style={{
+      borderRadius: 10,
+      border: `1px solid ${isApproved ? C.goldDim : C.hairline}`,
+      background: isApproved ? C.goldGlow : C.surface,
+      padding: '20px 24px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+    }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: isApproved ? C.gold : C.secondary, marginBottom: 4 }}>
+          💰 {isApproved ? 'Partner Program' : 'Application Pending'}
+        </div>
+        <div style={{ fontSize: 12, color: C.secondary }}>
+          {isApproved
+            ? `Your referral link is active — ${affiliate.commissionRate}% commission on every subscriber`
+            : 'Your application is under review. You will hear back within 48 hours.'}
+        </div>
+      </div>
+      {isApproved && (
+        <button
+          onClick={() => router.push('/affiliate/dashboard')}
+          style={{ padding: '8px 18px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.gold, color: '#000', whiteSpace: 'nowrap' }}
+        >
+          View Dashboard →
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function AccountPage() {
   const router  = useRouter()
   const supabase = createClient()
@@ -236,6 +280,9 @@ export default function AccountPage() {
             </button>
           </div>
         )}
+
+        {/* Affiliate dashboard link */}
+        <AffiliateLink router={router} email={user?.email} />
 
         {/* Quick links */}
         <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, padding: '20px 24px' }}>
