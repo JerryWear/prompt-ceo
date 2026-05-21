@@ -31,6 +31,7 @@ import { WORLD_SINGAPORE } from './singapore'
 import { WORLD_ST_TROPEZ } from './stTropez'
 import { WORLD_IBIZA } from './ibiza'
 import { WORLD_LAKE_COMO } from './lakeComo'
+import { STORY_WORLDS as _STORY_WORLDS } from '../story-worlds/index.js'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -80,9 +81,13 @@ export const WORLD_LOCATION_OPTIONS = WORLD_LOCATIONS.map((w) => ({
   region: w.region || '',
 }))
 
+// New story worlds (simpler format — used in Studio dropdown)
+export const CREATIVE_STORY_WORLDS = _STORY_WORLDS
+
 const ALL_WORLDS = [
   ...WORLD_LOCATIONS,
   ...STORY_STYLE_WORLDS,
+  ..._STORY_WORLDS,
 ]
 
 // helper (very important later)

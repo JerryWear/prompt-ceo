@@ -14,6 +14,7 @@ import { STUDIO_VARIATION_TYPES }     from './studio/studioIntelligence.js'
 import {
   WORLD_LOCATIONS,
   STORY_STYLE_WORLDS,
+  CREATIVE_STORY_WORLDS,
   getWorldById,
 } from '../prompt-v2/worlds/index.js'
 
@@ -7368,6 +7369,9 @@ export default function PromptCEOPage() {
                     <optgroup label="Style Worlds">
                       {STORY_STYLE_WORLDS.map(w => <option key={w.id} value={w.id}>🎭 {w.name}</option>)}
                     </optgroup>
+                    <optgroup label="Creative Worlds">
+                      {CREATIVE_STORY_WORLDS.map(w => <option key={w.id} value={w.id}>✨ {w.name}</option>)}
+                    </optgroup>
                   </select>
                 </div>
                 {worldObj && subLocOpts.length > 0 && (
@@ -8183,7 +8187,9 @@ export default function PromptCEOPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, fontFamily: C.display }}>{worldObj.name}</div>
                   {worldObj.description && <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>{worldObj.description.slice(0, 180)}{worldObj.description.length > 180 ? '…' : ''}</div>}
                   {worldObj.identity?.vibe?.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>{worldObj.identity.vibe.slice(0, 5).map((v, i) => <Chip key={i}>{v}</Chip>)}</div>}
-                  <div style={{ fontSize: 9, color: C.ghost }}>{Object.keys(worldObj.subLocations || {}).length} sub-locations · {worldObj.phaseOrder?.length || 0} phases</div>
+                  {worldObj.moodSignature && <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic', lineHeight: 1.5 }}>{worldObj.moodSignature}</div>}
+                  {worldObj.pillars?.length > 0 && !worldObj.identity && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>{worldObj.pillars.slice(0, 4).map((p, i) => <Chip key={i}>{p.slice(0, 30)}</Chip>)}</div>}
+                  <div style={{ fontSize: 9, color: C.ghost }}>{worldObj.phaseOrder ? `${Object.keys(worldObj.subLocations || {}).length} sub-locations · ${worldObj.phaseOrder?.length || 0} phases` : `✨ Creative world · ${worldObj.chapters?.length || 0} chapters`}</div>
                 </Panel>
               )}
             </div>

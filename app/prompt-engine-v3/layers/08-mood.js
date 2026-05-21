@@ -565,7 +565,16 @@ export function resolveMoodLayer(input, context = {}) {
     )
   }
 
-  const moodPhrase = rawMoodPhrase ? integrateTone(rawMoodPhrase, narrativeTone) : ''
+  // For simpler story worlds — prepend the mood signature if no moodPools
+  const storyMoodPrefix = (!worldObject?.moodPools && worldObject?.moodSignature)
+    ? worldObject.moodSignature + '. '
+    : ''
+
+  const moodPhrase = rawMoodPhrase
+    ? integrateTone(storyMoodPrefix + rawMoodPhrase, narrativeTone)
+    : storyMoodPrefix
+      ? integrateTone(storyMoodPrefix.trim(), narrativeTone)
+      : ''
 
   const worldUsed = !!(worldObject?.moodPools?.[resolvedPhaseKey])
   const source    = moodPhrase

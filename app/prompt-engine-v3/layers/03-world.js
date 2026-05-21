@@ -39,6 +39,11 @@ if (subLocationPool.length) {
     return worldObject.locations[idx % worldObject.locations.length]
   }
 
+  // Priority 4: recurringLocations (simpler story world format)
+  if (Array.isArray(worldObject?.recurringLocations) && worldObject.recurringLocations.length) {
+    return worldObject.recurringLocations[idx % worldObject.recurringLocations.length]
+  }
+
   warnings.push(`worldLayer: no location data found for phase '${resolvedPhaseKey}'`)
   return ''
 }
@@ -85,6 +90,16 @@ export function resolveWorldLayer(input, context = {}) {
     ? (resolvedSubLocation ? `sub-location:${resolvedSubLocationId}` : `env-pool:${resolvedPhaseKey}`)
     : 'empty'
 
+  // For simpler story world format (no phases/pools) — inject descriptive context
+  const storyWorldContext = worldObject && !worldObject.phaseOrder ? {
+    storyWorldTheme:        worldObject.world?.theme        || '',
+    storyWorldMood:         worldObject.moodSignature       || worldObject.world?.energy   || '',
+    storyWorldVisual:       worldObject.visualSignature     || '',
+    storyWorldColor:        worldObject.colorSignature      || '',
+    storyWorldPillars:      (worldObject.pillars || []).slice(0, 5).join(', '),
+    storyWorldWardrobe:     (worldObject.wardrobeWorld || []).slice(0, 4).join(', '),
+  } : {}
+
   const contextAdditions = {
     primaryWorldId,
     lockedWorldId,
@@ -103,6 +118,7 @@ export function resolveWorldLayer(input, context = {}) {
     progressionIndex,
     totalCount,
     timeOfDay,
+    ...storyWorldContext,
   }
 
   return {
