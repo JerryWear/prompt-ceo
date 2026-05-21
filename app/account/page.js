@@ -24,6 +24,111 @@ const TIER_COLORS = {
   admin:      C.violet,
 }
 
+function AdminPanel() {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/stats')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setStats(d.stats) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, padding: '20px 24px', color: C.muted, fontSize: 12 }}>
+      Loading admin stats…
+    </div>
+  )
+
+  if (!stats) return null
+
+  const TIER_LABELS = { creator: 'Creator ($29)', studio_pro: 'Studio Pro ($49)', pro: 'Pro ($79)', agency: 'Agency ($179)' }
+
+  return (
+    <div style={{ borderRadius: 10, border: `1px solid ${C.violetDim}`, background: C.violetGlow, overflow: 'hidden' }}>
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.violet }}>⚡ Admin Overview</span>
+      </div>
+
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Key metrics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+          {[
+            { label: 'Total Members',      value: stats.totalUsers,      color: C.primary },
+            { label: 'Active Subscribers', value: stats.totalActive,     color: C.green   },
+            { label: 'Monthly Revenue',    value: `$${stats.monthlyRevenue.toLocaleString()}`, color: C.gold },
+            { label: 'Music Add-ons',      value: stats.musicAddonCount, color: C.gold    },
+          ].map(m => (
+            <div key={m.label} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'center' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: m.color, letterSpacing: -1 }}>{m.value}</div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 0.3 }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Subscribers by tier */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Subscribers by Tier</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {Object.entries(stats.tiers).map(([tier, count]) => (
+              <div key={tier} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
+                <span style={{ fontSize: 12, color: C.secondary }}>{TIER_LABELS[tier]}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: count > 0 ? C.primary : C.muted }}>{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Affiliate stats */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Affiliate Program</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { label: 'Pending Applications', value: stats.affiliates.pending, color: C.gold   },
+              { label: 'Active Partners',      value: stats.affiliates.active,  color: C.green  },
+              { label: 'Total Commissions',    value: `$${stats.affiliates.totalCommissions}`, color: C.primary },
+              { label: 'Paid Out',             value: `$${stats.affiliates.paidCommissions}`,  color: C.muted   },
+            ].map(m => (
+              <div key={m.label} style={{ padding: '10px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: m.color }}>{m.value}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+          {stats.affiliates.pending > 0 && (
+            <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: '#1a1408', border: `1px solid ${C.goldDim}`, fontSize: 11, color: C.gold }}>
+              ⚠ {stats.affiliates.pending} affiliate application{stats.affiliates.pending !== 1 ? 's' : ''} waiting for review in Supabase → affiliates table
+            </div>
+          )}
+        </div>
+
+        {/* Recent signups */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Recent Signups</div>
+          <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+            {(stats.recentUsers || []).map((u, i) => (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', background: i % 2 === 0 ? C.base : C.void }}>
+                <span style={{ fontSize: 12, color: C.secondary }}>{u.email}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {u.subscription_status === 'active' && (
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: C.greenGlow, border: `1px solid ${C.greenDim}`, color: C.green }}>
+                      {u.subscription_tier}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 10, color: C.muted }}>{new Date(u.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 function AffiliateLink({ router, email }) {
   const [affiliate, setAffiliate] = useState(null)
 
@@ -280,6 +385,9 @@ export default function AccountPage() {
             </button>
           </div>
         )}
+
+        {/* Admin panel — only for admins */}
+        {sub?.isAdmin && <AdminPanel />}
 
         {/* Affiliate dashboard link */}
         <AffiliateLink router={router} email={user?.email} />
