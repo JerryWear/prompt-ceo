@@ -1,0 +1,246 @@
+export const WORLD_ST_TROPEZ = {
+  id: 'st-tropez',
+  name: 'St. Tropez',
+  description:
+    'A cinematic St. Tropez world of French Riviera peak luxury — Villa Bella Vita villa mornings above the bay, Pampelonne Beach club afternoons at Club 55 or Nikki Beach, port promenade and Old Town rosé at golden hour, and the exclusive after-dark world of Le Byblos and the harbour at night.',
+
+  geography: {
+    country: 'France',
+    region: 'Pampelonne Beach, Club 55, Nikki Beach, Old Town port, Place des Lices, Villa Bella Vita, Cap de Saint-Tropez coastline, Le Byblos hotel, and the harbour at night',
+  },
+
+  identity: {
+    archetype: 'high-status St. Tropez woman',
+    vibe: ['French Riviera summer luxury at its most iconic', 'rosé and yachts and golden sand', 'European glamour without trying', 'the original luxury beach destination — nothing has replaced it', 'Bardot energy updated for the present'],
+    tone: ['effortless', 'French', 'golden', 'social', 'sensual', 'warm', 'glamorous', 'quietly competitive'],
+    persona: ['completely at ease in the most glamorous beach village in France', 'wearing linen and gold in the strongest Riviera sun', 'effortlessly more beautiful than everyone around her', 'French-elegant without being cold'],
+  },
+
+  phaseOrder: ['wake', 'morning_refresh', 'getting_dressed', 'breakfast', 'late_morning', 'lunch', 'afternoon', 'reset', 'golden_hour', 'dinner', 'evening', 'night'],
+
+  phases: {
+    wake: { label: 'Wake', timeWindows: ['villa morning above the St. Tropez bay', 'pale Riviera dawn in a private villa bedroom', 'first Mediterranean light in a Cap de Saint-Tropez villa'], pacing: 'slow', subLocations: ['villa', 'le_byblos'] },
+    morning_refresh: { label: 'Morning Refresh', timeWindows: ['villa bathroom in warm French Riviera morning', 'pool villa self-care before the beach day', 'fresh Tropézienne morning in a private villa'], pacing: 'slow', subLocations: ['villa', 'le_byblos'] },
+    getting_dressed: { label: 'Getting Dressed', timeWindows: ['beach-ready dressing in a St. Tropez villa', 'Riviera fashion in warm morning sun', 'choosing between beach and village styling'], pacing: 'slow', subLocations: ['villa', 'le_byblos'] },
+    breakfast: { label: 'Breakfast', timeWindows: ['villa terrace breakfast above the Riviera', 'slow French morning before Pampelonne opens', 'café breakfast in the old town in early sun'], pacing: 'slow', subLocations: ['villa', 'old_town'] },
+    late_morning: { label: 'Late Morning', timeWindows: ['Place des Lices market or village exploration', 'old town port walk in late morning Riviera sun', 'boutique movement through Saint-Tropez village'], pacing: 'medium', subLocations: ['old_town', 'port'] },
+    lunch: { label: 'Lunch', timeWindows: ['Club 55 or Nikki Beach lunch at peak Pampelonne', 'long rosé lunch at a Pampelonne beach club table', 'port restaurant lunch with yachts beyond'], pacing: 'slow', subLocations: ['pampelonne', 'port'] },
+    afternoon: { label: 'Afternoon', timeWindows: ['Pampelonne Beach at peak heat on a luxury daybed', 'beach club pool between ocean swims', 'sun-drenched French Riviera afternoon at Club 55'], pacing: 'medium', subLocations: ['pampelonne'] },
+    reset: { label: 'Reset', timeWindows: ['villa pool cool-down after Pampelonne', 'pre-evening villa shower and wardrobe change', 'private villa terrace before the evening'], pacing: 'slow', subLocations: ['villa', 'le_byblos'] },
+    golden_hour: { label: 'Golden Hour', timeWindows: ['St. Tropez port at golden hour with yachts and warm light', 'villa terrace as the Riviera turns gold', 'Pampelonne beach walking in the last warm light'], pacing: 'slow', subLocations: ['port', 'villa'] },
+    dinner: { label: 'Dinner', timeWindows: ['port-side candlelit dinner with yachts beyond', 'old town restaurant in warm Tropézienne evening', 'villa terrace dinner above the bay at night'], pacing: 'slow', subLocations: ['port', 'old_town', 'villa'] },
+    evening: { label: 'Evening', timeWindows: ['Le Byblos bar energy after dinner', 'port social scene in warm after-dark St. Tropez', 'old town lantern-lit after-dinner walk'], pacing: 'slow', subLocations: ['le_byblos', 'port'] },
+    night: { label: 'Night', timeWindows: ['villa return above the quiet bay', 'Le Byblos nightclub energy', 'port at night with yacht lights on the water'], pacing: 'slow', subLocations: ['villa', 'le_byblos'] },
+  },
+
+  locations: [
+    'private villa terrace above the St. Tropez bay', 'Pampelonne Beach Club 55 luxury daybed', 'St. Tropez old town port with yachts', 'Place des Lices village square', 'Le Byblos hotel pool and bar', 'Nikki Beach club on Pampelonne', 'port-side candlelit dinner table', 'Cap de Saint-Tropez coastal villa',
+  ],
+
+  subLocations: {
+    villa: {
+      label: 'St. Tropez Villa',
+      realPlace: 'Cap de Saint-Tropez / Private Villas',
+      locations: ['villa terrace above the Riviera bay', 'villa pool in morning or evening light', 'villa bedroom with Riviera morning', 'villa outdoor shower with bay view'],
+      sceneGroups: {
+        wake: ['waking in a St. Tropez villa above the bay', 'pale Riviera morning in a private villa bedroom'],
+        morning_refresh: ['villa bathroom in warm French morning', 'outdoor shower with the bay below'],
+        getting_dressed: ['beach-ready dressing in a Tropézienne villa', 'choosing the Pampelonne look in warm sun'],
+        breakfast: ['villa terrace breakfast with Riviera view', 'slow French morning above the bay'],
+        reset: ['villa pool after Pampelonne beach', 'pre-evening villa change before the port'],
+        golden_hour: ['villa terrace as the Riviera turns liquid gold', 'the bay below turning amber at sunset'],
+        dinner: ['villa terrace candlelit dinner above the St. Tropez bay', 'private Riviera evening above the water'],
+        night: ['villa return after the St. Tropez evening', 'private above the quiet bay'],
+      },
+    },
+    pampelonne: {
+      label: 'Pampelonne Beach',
+      realPlace: 'Pampelonne Beach, St. Tropez',
+      locations: ['Club 55 luxury daybed on Pampelonne', 'Nikki Beach pool and daybed', 'Pampelonne sandy beach walk', 'beach club table for rosé lunch'],
+      sceneGroups: {
+        lunch: ['Club 55 rosé lunch on Pampelonne in peak Riviera sun', 'long beach club table lunch with the Mediterranean beyond'],
+        afternoon: ['Pampelonne luxury daybed at peak French Riviera heat', 'Club 55 or Nikki Beach afternoon in strong sun', 'beach club pool between swims at Pampelonne'],
+      },
+    },
+    old_town: {
+      label: 'Old Town',
+      realPlace: 'St. Tropez Old Town',
+      locations: ['Saint-Tropez old town village lane', 'Place des Lices market square', 'old town boutique street', 'port-adjacent café terrace'],
+      sceneGroups: {
+        late_morning: ['Old Town village exploration in late morning Riviera sun', 'Place des Lices market in warm French morning'],
+        dinner: ['old town restaurant in warm candlelit Tropézienne evening', 'port-adjacent dinner in the village'],
+        evening: ['old town lantern-lit after-dinner walk', 'village social energy after dinner'],
+      },
+    },
+    port: {
+      label: 'St. Tropez Port',
+      realPlace: 'Vieux-Port, St. Tropez',
+      locations: ['St. Tropez port with mega-yachts beyond', 'port-side café table in golden hour', 'quay walk with boats on one side', 'port candlelit dinner table with yachts'],
+      sceneGroups: {
+        late_morning: ['port walk in late morning with yacht views', 'quayside café stop with boats beyond'],
+        golden_hour: ['St. Tropez port at golden hour — the most social moment of the Tropézienne day', 'yachts in warm amber light on the water'],
+        dinner: ['port-side candlelit dinner with mega-yachts as backdrop', 'quayside restaurant in warm evening light'],
+        evening: ['port social scene after dinner in warm French night', 'quayside walk with boat lights on the water'],
+      },
+    },
+    le_byblos: {
+      label: 'Le Byblos',
+      realPlace: 'Hôtel Byblos, St. Tropez',
+      locations: ['Byblos pool deck in afternoon sun', 'Byblos bar in warm evening', 'Byblos suite above the old town', 'Caves du Roy nightclub interior'],
+      sceneGroups: {
+        wake: ['Byblos suite morning in the heart of Saint-Tropez'],
+        afternoon: ['Byblos pool afternoon in strong Riviera sun'],
+        evening: ['Byblos bar energy after dinner — the social heart of St. Tropez night'],
+        night: ['Caves du Roy — the most famous nightclub in St. Tropez'],
+      },
+    },
+  },
+
+  sceneVariants: {
+    wake: ['villa bedroom above the St. Tropez bay at dawn', 'Byblos suite in the old town at first Riviera light'],
+    morning_refresh: ['villa bathroom with bay view in warm morning', 'outdoor shower in private villa garden'],
+    getting_dressed: ['Pampelonne-ready dressing in a villa', 'Tropézienne morning fashion in warm sun'],
+    breakfast: ['villa terrace above the Riviera', 'old town café in early morning sun'],
+    late_morning: ['Place des Lices village exploration', 'port walk with yacht views in late morning'],
+    lunch: ['Club 55 rosé and seafood on Pampelonne', 'port restaurant with yachts beyond'],
+    afternoon: ['Club 55 or Nikki Beach luxury daybed', 'Pampelonne swimming and sun at peak heat'],
+    reset: ['villa pool after the beach', 'Byblos spa before the evening'],
+    golden_hour: ['port at golden hour with yachts in amber light', 'villa terrace above the bay turning gold'],
+    dinner: ['port-side candlelit dinner with mega-yachts', 'old town restaurant in Tropézienne evening'],
+    evening: ['Byblos bar social energy', 'port after-dinner walk in warm French night'],
+    night: ['Caves du Roy nightclub', 'villa above the quiet bay after midnight'],
+  },
+
+  actionPools: {
+    wake: ['slow Riviera villa morning', 'first view of the St. Tropez bay at dawn'],
+    morning_refresh: ['villa bathroom ritual before the beach day', 'outdoor shower in warm morning light'],
+    getting_dressed: ['Tropézienne beach styling in a villa wardrobe', 'choosing linen or silk for the day'],
+    breakfast: ['villa terrace breakfast with Riviera morning', 'café croissant in the old town'],
+    late_morning: ['Place des Lices market exploration', 'port walk and boutique movement'],
+    lunch: ['Club 55 long rosé lunch on Pampelonne', 'port-side table with yachts beyond'],
+    afternoon: ['luxury daybed at Pampelonne in peak heat', 'swimming between beach and club pool'],
+    reset: ['villa pool after the beach', 'pre-evening shower and wardrobe change'],
+    golden_hour: ['port at golden hour — the defining St. Tropez moment', 'villa terrace above the amber bay'],
+    dinner: ['port-side dinner with mega-yachts as backdrop', 'old town candlelit restaurant'],
+    evening: ['Byblos bar social scene', 'port after-dinner warmth'],
+    night: ['Caves du Roy', 'villa above the quiet Tropézienne bay'],
+  },
+
+  environmentPools: {
+    wake: ['villa bedroom with shuttered Riviera light', 'Byblos suite in the village heart at dawn'],
+    morning_refresh: ['villa bathroom with bay visible below', 'outdoor villa shower in warm garden morning'],
+    getting_dressed: ['villa wardrobe in Riviera morning light', 'Byblos suite dressing area'],
+    breakfast: ['villa terrace with the bay below in morning gold', 'old town café with village waking outside'],
+    late_morning: ['Place des Lices plane trees and morning market', 'port with yachts in late morning sun'],
+    lunch: ['Club 55 sandy-floor restaurant in peak sun', 'port-side restaurant with boats beyond'],
+    afternoon: ['Pampelonne luxury daybed zone in direct Riviera heat', 'Nikki Beach pool deck in strong afternoon sun'],
+    reset: ['villa pool in late afternoon shade', 'Byblos spa interior'],
+    golden_hour: ['St. Tropez port in amber light with mega-yachts', 'villa terrace above the golden bay'],
+    dinner: ['port quayside candlelit table with boats glowing', 'old town cobblestone restaurant terrace'],
+    evening: ['Byblos pool bar in warm after-dark Riviera', 'port social scene in evening warmth'],
+    night: ['Caves du Roy — coloured light, social energy', 'villa above the dark quiet bay'],
+  },
+
+  moodPools: {
+    wake: ['slow French Riviera luxury above the bay', 'the particular ease of a St. Tropez villa morning'],
+    morning_refresh: ['fresh Tropézienne morning before the beach', 'private pre-beach self-care in Riviera warmth'],
+    getting_dressed: ['effortless French beach fashion preparation', 'the anticipation of a full Pampelonne day'],
+    breakfast: ['slow French pleasure before the beach opens', 'easy villa morning above the Riviera'],
+    late_morning: ['St. Tropez village social elegance', 'Tropézienne movement through a beautiful old town'],
+    lunch: ['Club 55 — the best beach lunch in the world', 'long rosé and seafood in the French sun'],
+    afternoon: ['peak Pampelonne glamour — the most social beach in France', 'French Riviera summer at its fullest'],
+    reset: ['villa cooldown before the golden hour', 'the particular pleasure of pre-evening Tropézienne preparation'],
+    golden_hour: ['the port at golden hour — the most beautiful and social moment in St. Tropez', 'French Riviera light at its most cinematic'],
+    dinner: ['Tropézienne dining elegance — warm, social, effortlessly beautiful', 'the port at night with yachts as the backdrop'],
+    evening: ['St. Tropez after-dark social energy — still elegant, slightly reckless', 'Byblos warmth and the village alive'],
+    night: ['Caves du Roy energy or villa private quiet — the two extremes of St. Tropez night'],
+  },
+
+  cameraPools: {
+    wake: ['85mm villa bedroom close, bay soft behind', '35mm wide villa, Riviera morning panorama'],
+    morning_refresh: ['85mm outdoor shower, garden and bay behind', '50mm villa bathroom, morning light through shutter'],
+    getting_dressed: ['85mm villa wardrobe, Riviera light behind', '50mm mirror, open terrace door and bay'],
+    breakfast: ['35mm wide villa terrace, bay filling background', '85mm table close, Riviera morning compressed behind'],
+    late_morning: ['50mm Place des Lices, village architecture behind', '85mm port walk, yachts in background'],
+    lunch: ['85mm Club 55 table, Pampelonne sand and sea behind', '35mm wide beach club, Mediterranean filling background'],
+    afternoon: ['24mm wide Pampelonne daybed, sea to horizon behind', '50mm pool edge, beach club and ocean behind'],
+    reset: ['85mm villa pool close, bay in late afternoon behind', '50mm Byblos interior, warm ambient behind'],
+    golden_hour: ['24mm wide port, yachts and golden bay filling background', '85mm golden hour close, warm Riviera light'],
+    dinner: ['85mm port dinner, yacht lights in warm bokeh behind', '50mm old town terrace, lantern glow behind'],
+    evening: ['85mm Byblos bar, warm social depth behind', '35mm port evening, boats and warm light'],
+    night: ['35mm Caves du Roy, coloured light filling background', '135mm villa suite, bay dark below'],
+  },
+
+  lightingPools: {
+    wake: ['pale 5200K Riviera dawn through wooden shutters, bay faint below', 'soft warm French Mediterranean morning in a villa bedroom'],
+    morning_refresh: ['bright 5500K outdoor shower in morning Riviera sun', 'warm natural villa bathroom light in French morning'],
+    getting_dressed: ['strong 5000K Riviera morning, linen and silk textures sharp', 'villa dressing area in rich warm morning Mediterranean fill'],
+    breakfast: ['brilliant terrace morning, bay reflecting below at 5500K', 'old town café in direct French morning sun'],
+    late_morning: ['hard 5000K Riviera midday on white and gold village surfaces', 'port in strong French summer sun, yacht hulls as secondary reflectors'],
+    lunch: ['Club 55 overhead shade at noon, sea as backlight source', 'port-side lunch in direct Mediterranean overhead'],
+    afternoon: ['peak Pampelonne 4800K — the strongest French Riviera beach heat', 'sea surface as moving warm reflector in Pampelonne afternoon'],
+    reset: ['warm late-afternoon villa shade at 4200K, bay still bright beyond', 'Byblos spa warm amber 3000K interior'],
+    golden_hour: ['rich 2800K Riviera golden hour — white village walls and yachts turning amber', 'port at golden hour — warm flat light across the water surface'],
+    dinner: ['port candlelit at 1800K, yacht lights as warm ambient on water', 'old town restaurant at 2500K warm candle and lamp'],
+    evening: ['Byblos warm 2700K social ambient, pool and garden glow', 'port after-dark mixed warm ambient'],
+    night: ['Caves du Roy mixed coloured light', 'villa bedroom single lamp at 2200K, bay dark outside'],
+  },
+
+  stylingPools: {
+    wardrobe: {
+      wake: ['linen villa morning robe or slip', 'French Riviera morning ease', 'silk morning cover-up'],
+      morning_refresh: ['outdoor shower natural', 'villa robe post-shower', 'fresh Tropézienne morning minimal'],
+      getting_dressed: ['Pampelonne-ready linen or luxury bikini', 'Saint-Tropez village summer chic', 'French Riviera effortless fashion'],
+      breakfast: ['villa terrace morning look', 'Tropézienne easy elegance', 'French morning casual luxury'],
+      late_morning: ['village boutique styling', 'Place des Lices market fashion', 'Tropézienne street chic'],
+      lunch: ['Club 55 beach luxury — swimwear or midi dress', 'Riviera beach club chic', 'French beach lunch elegance'],
+      afternoon: ['luxury swimwear on Pampelonne daybed', 'beach cover-up and accessories', 'Riviera peak-heat styling'],
+      reset: ['villa robe or fresh pre-evening look', 'Byblos spa robe or lounge', 'Tropézienne pre-dinner transition'],
+      golden_hour: ['port golden hour look — effortlessly glamorous', 'French Riviera pre-dinner summer dress', 'Tropézienne evening ease'],
+      dinner: ['Saint-Tropez dinner dress — French, elegant, warm', 'port-side evening styling', 'Riviera summer night glamour'],
+      evening: ['Byblos bar look — still glamorous', 'French Riviera after-dark ease', 'Caves du Roy night look'],
+      night: ['Tropézienne night energy or villa private ease', 'late summer French Riviera intimacy'],
+    },
+    details: {
+      wake: ['morning hair loose in Riviera light', 'bare natural French skin', 'barefoot villa ease'],
+      morning_refresh: ['wet hair post-outdoor shower', 'sun-kissed natural skin', 'minimal French morning detail'],
+      getting_dressed: ['French jewelry — effortless gold', 'espadrilles and linen detail', 'Riviera summer accessory'],
+      breakfast: ['villa morning ease detail', 'French breakfast prop — coffee, croissant', 'light morning Riviera accessory'],
+      late_morning: ['designer sunglasses in Riviera sun', 'French boutique accessory', 'effortless village styling detail'],
+      lunch: ['rosé glass on beach club table', 'French Riviera lunch accessory', 'Pampelonne styling precision'],
+      afternoon: ['wet hair or sun-bleached texture on daybed', 'beach club luxury accessory', 'French sun-drenched detail'],
+      reset: ['post-beach natural skin', 'pre-evening French preparation', 'villa cool-down styling touch'],
+      golden_hour: ['port golden hour French accessory', 'warm Riviera light on gold jewelry', 'Tropézienne golden ease'],
+      dinner: ['French dinner jewelry', 'port-side evening styling detail', 'Riviera summer dinner precision'],
+      evening: ['Byblos social accessory', 'French after-dark glamour touch', 'Tropézienne night detail'],
+      night: ['late Riviera night ease', 'villa private natural', 'French midnight intimacy'],
+    },
+  },
+
+  sensoryPools: {
+    wake: ['warm Riviera air through wooden shutters in the first morning', 'the sound of the sea from a villa above the Saint-Tropez bay', 'French lavender and warm stone in a Riviera morning'],
+    lunch: ['Club 55 — cold rosé, warm sand underfoot, the sea just steps away, the sound of France in summer', 'the most glamorous lunch on earth — effortless, expensive, utterly French'],
+    afternoon: ['Pampelonne in peak heat — the strongest French summer sun, the best people, the bluest sea', 'beach club electricity — the sound of a summer that belongs entirely to the wealthy'],
+    golden_hour: ['the St. Tropez port at golden hour — yachts, warm light, the whole village gathered, France at its most beautiful', 'the warm evening air of the Riviera in summer — nothing else smells or feels like it'],
+    night: ['Caves du Roy — the most famous nightclub in France, and the most exclusive', 'villa above the quiet bay after midnight — the Riviera entirely yours'],
+  },
+
+  exclusions: {
+    premium: ['budget tourist feeling', 'generic Mediterranean without St. Tropez specificity', 'non-glamorous beach energy'],
+    hard: ['cold weather', 'winter Saint-Tropez — this is summer only', 'non-Riviera architecture', 'crowded ferry tourist energy'],
+  },
+
+  routeRules: {
+    worldIdentity: ['St. Tropez is the original luxury beach village — Bardot, Club 55, yachts, rosé, effortless French glamour', 'the defining contrast is the old cobblestone village and the ultra-modern mega-yacht harbour', 'Pampelonne and the port are the twin poles of the Tropézienne day'],
+    humanFlow: ['mornings are villa private', 'lunch and afternoon are Pampelonne beach club', 'golden hour belongs to the port', 'evenings are old town dinner then Byblos'],
+    styling: ['French Riviera is the most effortless fashion world — linen, gold, minimal effort, maximum effect', 'never overdressed at any point — the French do not try'],
+  },
+
+  realPlaces: [
+    { id: 'club-55', name: 'Club 55', type: 'legendary beach restaurant', vibe: 'the most famous beach club on earth — where Bardot lunched in 1956, where the world\'s most glamorous people still lunch every summer' },
+    { id: 'nikki-beach', name: 'Nikki Beach St. Tropez', type: 'luxury beach club', vibe: 'the glamorous, younger, more electric version of Pampelonne — pool, DJ, champagne towers' },
+    { id: 'le-byblos', name: 'Hôtel Byblos', type: 'legendary luxury hotel', vibe: 'the most famous hotel in St. Tropez — Caves du Roy nightclub, pool, the social center of the village since 1967' },
+    { id: 'caves-du-roy', name: 'Caves du Roy', type: 'legendary nightclub', vibe: 'the most famous nightclub in France — inside Le Byblos, where every celebrity has danced' },
+    { id: 'place-des-lices', name: 'Place des Lices', type: 'village square', vibe: 'the most beautiful square in Saint-Tropez — plane trees, pétanque, Tuesday and Saturday market, Sénéquier café nearby' },
+  ],
+}

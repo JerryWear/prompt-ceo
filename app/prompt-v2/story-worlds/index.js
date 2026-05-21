@@ -16,6 +16,11 @@ import { STORY_WORLD_FORBIDDEN } from './forbidden'
 import { STORY_WORLD_POWER_CEO } from './power-ceo'
 import { STORY_WORLD_SWIM_MODEL } from './swim-model'
 import { STORY_WORLD_VICTORIAS_ANGEL } from './victorias-angel'
+import { STORY_WORLD_MEGA_YACHT } from './mega-yacht'
+import { STORY_WORLD_PILATES_PRINCESS } from './pilates-princess'
+import { STORY_WORLD_ROCKSTAR } from './rockstar'
+import { STORY_WORLD_LATEX_QUEEN } from './latex-queen'
+import { STORY_WORLD_FINE_ART_NUDE } from './fine-art-nude'
 
 export const STORY_WORLDS = [
   STORY_WORLD_LUXURY_LIFE,
@@ -36,4 +41,9 @@ export const STORY_WORLDS = [
   STORY_WORLD_POWER_CEO,
   STORY_WORLD_SWIM_MODEL,
   STORY_WORLD_VICTORIAS_ANGEL,
+  STORY_WORLD_MEGA_YACHT,
+  STORY_WORLD_PILATES_PRINCESS,
+  STORY_WORLD_ROCKSTAR,
+  STORY_WORLD_LATEX_QUEEN,
+  STORY_WORLD_FINE_ART_NUDE,
 ]

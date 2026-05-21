@@ -28,6 +28,9 @@ import { WORLD_MARRAKECH } from './marrakech'
 import { WORLD_SWISS_ALPS } from './swissAlps'
 import { WORLD_CAPRI } from './capri'
 import { WORLD_SINGAPORE } from './singapore'
+import { WORLD_ST_TROPEZ } from './stTropez'
+import { WORLD_IBIZA } from './ibiza'
+import { WORLD_LAKE_COMO } from './lakeComo'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -50,6 +53,9 @@ export const WORLD_LOCATIONS = [
   WORLD_MARRAKECH,
   WORLD_SWISS_ALPS,
   WORLD_SINGAPORE,
+  WORLD_ST_TROPEZ,
+  WORLD_IBIZA,
+  WORLD_LAKE_COMO,
   WORLD_LUXURY_HOTEL_SUITE,
 ]
 
