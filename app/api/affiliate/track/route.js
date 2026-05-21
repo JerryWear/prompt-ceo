@@ -17,7 +17,7 @@ export async function POST(req) {
       .from('affiliates')
       .select('id, total_clicks, total_signups, status')
       .eq('affiliate_code', code)
-      .eq('status', 'approved')
+      .in('status', ['approved', 'active'])
       .single()
 
     if (!affiliate) return NextResponse.json({ ok: false })

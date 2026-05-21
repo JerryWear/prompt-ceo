@@ -25,8 +25,9 @@ export async function POST(req) {
     // Check if already applied
     const { data: existing } = await admin.from('affiliates').select('id, status').eq('email', email).single()
     if (existing) {
+      const isApproved = existing.status === 'approved' || existing.status === 'active'
       return NextResponse.json({
-        error: existing.status === 'approved'
+        error: isApproved
           ? 'You are already an approved partner. Log in to view your dashboard.'
           : 'An application with this email already exists. We will be in touch within 48 hours.',
       }, { status: 409 })

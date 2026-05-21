@@ -39,6 +39,12 @@ export async function GET() {
 
     if (!affiliate) return NextResponse.json({ status: 'not_found' })
 
+    // Treat 'active' same as 'approved'
+    if (affiliate.status === 'active' && !affiliate.approved_at) {
+      await admin.from('affiliates').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', affiliate.id)
+      affiliate.status = 'approved'
+    }
+
     // Link user_id if not already linked
     if (!affiliate.user_id) {
       await admin.from('affiliates').update({ user_id: user.id }).eq('id', affiliate.id)

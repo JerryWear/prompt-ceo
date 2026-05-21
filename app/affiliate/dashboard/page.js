@@ -80,7 +80,7 @@ export default function AffiliateDashboard() {
   const aff  = data?.affiliate
   const tier = TIER_LABELS[aff?.tier] || TIER_LABELS.partner
 
-  if (aff?.affiliateStatus === 'pending') return (
+  if (aff?.affiliateStatus === 'pending' || aff?.affiliateStatus === 'rejected') return (
     <div style={{ minHeight: '100vh', background: C.void, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', padding: 24, textAlign: 'center' }}>
       <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: C.primary, marginBottom: 8 }}>Application under review</div>
