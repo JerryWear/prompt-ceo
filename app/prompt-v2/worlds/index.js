@@ -27,6 +27,7 @@ import { WORLD_NEW_YORK } from './newYork'
 import { WORLD_MARRAKECH } from './marrakech'
 import { WORLD_SWISS_ALPS } from './swissAlps'
 import { WORLD_CAPRI } from './capri'
+import { WORLD_SINGAPORE } from './singapore'
 
 export const WORLD_LOCATIONS = [
   WORLD_BALI,
@@ -48,6 +49,7 @@ export const WORLD_LOCATIONS = [
   WORLD_NEW_YORK,
   WORLD_MARRAKECH,
   WORLD_SWISS_ALPS,
+  WORLD_SINGAPORE,
   WORLD_LUXURY_HOTEL_SUITE,
 ]
 
