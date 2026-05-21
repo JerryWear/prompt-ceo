@@ -131,10 +131,11 @@ export default function PricingPage() {
     setLoading(tierId)
     setError('')
     try {
+      const refCode = typeof window !== 'undefined' ? localStorage.getItem('ref_code') : null
       const res  = await fetch('/api/checkout', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ tier: tierId }),
+        body:    JSON.stringify({ tier: tierId, refCode }),
       })
       const data = await res.json()
       if (data?.url) {

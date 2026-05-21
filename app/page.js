@@ -71,6 +71,20 @@ export default function HomePage() {
     return () => clearInterval(t)
   }, [])
 
+  // Store referral code from ?ref= param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      localStorage.setItem('ref_code', ref)
+      // Track the click
+      fetch('/api/affiliate/track', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: ref, eventType: 'click' }),
+      }).catch(() => {})
+    }
+  }, [])
+
   const goToApp   = () => router.push('/prompt-engine-v3')
   const goToLogin = () => router.push('/prompt-engine-v3/login')
   const goToPricing = () => router.push('/pricing')

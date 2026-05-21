@@ -39,8 +39,9 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const tier = body?.tier // 'creator' | 'pro' | 'agency' | 'music_addon'
+    const body    = await req.json()
+    const tier    = body?.tier
+    const refCode = body?.refCode || null
     const priceId = TIER_PRICES[tier]
 
     if (!tier || !priceId) {
@@ -75,12 +76,13 @@ export async function POST(req) {
       success_url: `${origin}/prompt-engine-v3?subscribed=${tier}`,
       cancel_url:  `${origin}/prompt-engine-v3?canceled=true`,
       metadata: {
-        userId: user.id,
+        userId:  user.id,
         tier,
-        type: tier === 'music_addon' ? 'music_addon' : 'subscription',
+        refCode: refCode || '',
+        type:    tier === 'music_addon' ? 'music_addon' : 'subscription',
       },
       subscription_data: {
-        metadata: { userId: user.id, tier },
+        metadata: { userId: user.id, tier, refCode: refCode || '' },
       },
     })
 

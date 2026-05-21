@@ -72,6 +72,27 @@ export async function POST(req) {
         if (tier === 'music_addon') {
           await supabase.from('app_users').update({ music_addon: status === 'active' }).eq('id', userId)
         }
+
+        // Link referral affiliate if refCode provided
+        const refCode = sub.metadata?.refCode
+        if (userId && refCode && status === 'active') {
+          const { data: aff } = await supabase
+            .from('affiliates')
+            .select('id')
+            .eq('affiliate_code', refCode)
+            .eq('status', 'approved')
+            .single()
+
+          if (aff) {
+            const { data: uRow } = await supabase.from('app_users').select('referred_by_affiliate_id').eq('id', userId).single()
+            if (!uRow?.referred_by_affiliate_id) {
+              await supabase.from('app_users').update({
+                referred_by_code:         refCode,
+                referred_by_affiliate_id: aff.id,
+              }).eq('id', userId)
+            }
+          }
+        }
         break
       }
 
@@ -103,23 +124,87 @@ export async function POST(req) {
         break
       }
 
-      // ── Invoice paid — reset monthly usage ────────────────────
+      // ── Invoice paid — reset monthly usage + calculate commission ─
       case 'invoice.paid': {
         const invoice = event.data.object
-        // Only reset on subscription invoices (not one-off)
         if (invoice.subscription) {
           const sub    = await stripe.subscriptions.retrieve(invoice.subscription)
           const userId = sub.metadata?.userId
-          if (userId) {
-            await resetUsage(userId)
-            // Also update period end
+          const resolvedUserId = userId || (await getUserByCustomer(sub.customer))?.id
+
+          if (resolvedUserId) {
+            await resetUsage(resolvedUserId)
             await supabase.from('app_users').update({
               subscription_status:     'active',
               subscription_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-            }).eq('id', userId)
-          } else {
-            const user = await getUserByCustomer(sub.customer)
-            if (user) await resetUsage(user.id)
+            }).eq('id', resolvedUserId)
+
+            // ── Affiliate commission ──────────────────────────────
+            const { data: userRow } = await supabase
+              .from('app_users')
+              .select('referred_by_affiliate_id')
+              .eq('id', resolvedUserId)
+              .single()
+
+            if (userRow?.referred_by_affiliate_id) {
+              const { data: affiliate } = await supabase
+                .from('affiliates')
+                .select('id, commission_percent, total_earned, total_active')
+                .eq('id', userRow.referred_by_affiliate_id)
+                .single()
+
+              if (affiliate) {
+                const amountCharged  = (invoice.amount_paid || 0) / 100
+                const commissionAmt  = (amountCharged * ((affiliate.commission_percent || 30) / 100))
+
+                // Avoid duplicate commission for same invoice
+                const { data: existing } = await supabase
+                  .from('affiliate_commissions')
+                  .select('id')
+                  .eq('stripe_invoice_id', invoice.id)
+                  .single()
+
+                if (!existing) {
+                  await supabase.from('affiliate_commissions').insert({
+                    affiliate_id:      affiliate.id,
+                    referred_user_id:  resolvedUserId,
+                    stripe_invoice_id: invoice.id,
+                    amount_charged:    amountCharged,
+                    commission_rate:   affiliate.commission_percent || 30,
+                    commission_amount: commissionAmt,
+                    status:            'approved',
+                    period_start:      new Date(sub.current_period_start * 1000).toISOString(),
+                    period_end:        new Date(sub.current_period_end * 1000).toISOString(),
+                  })
+
+                  // Update affiliate totals
+                  await supabase.from('affiliates').update({
+                    total_earned: (Number(affiliate.total_earned) + commissionAmt).toFixed(2),
+                  }).eq('id', affiliate.id)
+
+                  // Auto-upgrade commission tier
+                  const { count: activeCount } = await supabase
+                    .from('affiliate_commissions')
+                    .select('referred_user_id', { count: 'exact', head: true })
+                    .eq('affiliate_id', affiliate.id)
+                    .eq('status', 'approved')
+
+                  const newTier = activeCount >= 50 ? 'elite_partner'
+                    : activeCount >= 10 ? 'pro_partner'
+                    : 'partner'
+
+                  const newRate = newTier === 'elite_partner' ? 40
+                    : newTier === 'pro_partner' ? 35
+                    : 30
+
+                  await supabase.from('affiliates').update({
+                    tier:            newTier,
+                    commission_rate: newRate,
+                    total_active:    activeCount || 0,
+                  }).eq('id', affiliate.id)
+                }
+              }
+            }
           }
         }
         break

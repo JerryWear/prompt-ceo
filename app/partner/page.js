@@ -90,11 +90,19 @@ export default function PartnerPage() {
     setSub(true)
     setError('')
     try {
-      // For now, send to a simple email or webhook — wire up later
-      await new Promise(r => setTimeout(r, 1000))
-      setDone(true)
+      const res  = await fetch('/api/affiliate/apply', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: form.name, email: form.email, platform: form.platform, audience: form.audience, message: form.message }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setDone(true)
+      } else {
+        setError(data?.error || 'Something went wrong. Please email partners@promptceo.io')
+      }
     } catch {
-      setError('Something went wrong. Please email us directly at partners@promptceo.io')
+      setError('Connection error. Please email partners@promptceo.io')
     } finally {
       setSub(false)
     }
@@ -279,7 +287,10 @@ export default function PartnerPage() {
             <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: 12, border: `1px solid ${C.green}`, background: C.greenGlow }}>
               <div style={{ fontSize: 32, marginBottom: 16 }}>✓</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.green, marginBottom: 8 }}>Application received</div>
-              <div style={{ fontSize: 14, color: C.secondary }}>We'll review your application and get back to you within 48 hours.</div>
+              <div style={{ fontSize: 14, color: C.secondary, marginBottom: 20 }}>We'll review your application and get back to you within 48 hours.</div>
+              <button onClick={() => router.push('/affiliate/dashboard')} style={{ padding: '10px 24px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green }}>
+                View My Dashboard →
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
