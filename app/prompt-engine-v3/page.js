@@ -6861,7 +6861,11 @@ export default function PromptCEOPage() {
             }}>
               🎬
             </div>
-            <div>
+            <div
+              onClick={() => window.location.href = '/'}
+              style={{ cursor: 'pointer' }}
+              title="Back to home"
+            >
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, fontFamily: C.display }}>
                 PROMPT CEO
               </div>
