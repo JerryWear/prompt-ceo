@@ -2626,46 +2626,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     setTimeline(prev => [{ ts: Date.now(), event, detail }, ...prev].slice(0, 30))
   }
 
-  // ── Onboarding ────────────────────────────────────────────
-  const onboardGenerateHooks = async () => {
-    if (!onboardProduct.trim() || onboardLoading) return
-    setOnboardLoading(true)
-    try {
-      const res = await fetch('/api/generate-ad-text', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'hooks',
-          hookType: 'pain',
-          adConfig: {
-            productName:    onboardProduct,
-            targetCustomer: onboardUserType === 'creator' ? 'content creators and influencers' : onboardUserType === 'agency' ? 'brands and businesses' : 'potential customers',
-            brandVoice:     'authentic, direct',
-            platformGoal:   onboardGoal || 'sales',
-            platform:       'instagram',
-          },
-        }),
-      })
-      const data = await res.json()
-      const hooks = data?.data?.hooks || []
-      setOnboardHooks(hooks.slice(0, 3))
-      setOnboardStep(4)
-    } catch {
-      setOnboardHooks(['Could not generate hooks — but the app is ready. Jump in and try yourself!'])
-      setOnboardStep(4)
-    }
-    finally { setOnboardLoading(false) }
-  }
-
-  const completeOnboarding = () => {
-    try { localStorage.setItem('promptceo_onboarded_v1', '1') } catch {}
-    setOnboardingOpen(false)
-    // Pre-fill Ad Studio with their product
-    if (onboardProduct.trim()) {
-      // Switch to Ad Studio view with their product pre-filled
-      // The AdStudioView will pick up productName from its state
-    }
-  }
-
   const toggleWinner = (type, item) => {
     setWinners(prev => {
       const key = type === 'angle' ? 'angles' : 'hooks'
@@ -11508,6 +11468,40 @@ export default function PromptCEOPage() {
   const [onboardHooks,      setOnboardHooks]      = useState([])
   const [onboardLoading,    setOnboardLoading]    = useState(false)
 
+  const onboardGenerateHooks = async () => {
+    if (!onboardProduct.trim() || onboardLoading) return
+    setOnboardLoading(true)
+    try {
+      const res = await fetch('/api/generate-ad-text', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'hooks',
+          hookType: 'pain',
+          adConfig: {
+            productName:    onboardProduct,
+            targetCustomer: onboardUserType === 'creator' ? 'content creators and influencers' : onboardUserType === 'agency' ? 'brands and businesses' : 'potential customers',
+            brandVoice:     'authentic, direct',
+            platformGoal:   onboardGoal || 'sales',
+            platform:       'instagram',
+          },
+        }),
+      })
+      const data = await res.json()
+      const hooks = data?.data?.hooks || []
+      setOnboardHooks(hooks.slice(0, 3))
+      setOnboardStep(4)
+    } catch {
+      setOnboardHooks(['Could not generate hooks — but the app is ready. Jump in and try yourself!'])
+      setOnboardStep(4)
+    }
+    finally { setOnboardLoading(false) }
+  }
+
+  const completeOnboarding = () => {
+    try { localStorage.setItem('promptceo_onboarded_v1', '1') } catch {}
+    setOnboardingOpen(false)
+  }
+
   // App Guide
   const [guideOpen,     setGuideOpen]     = useState(false)
   const [guideMessages, setGuideMessages] = useState([
@@ -14802,7 +14796,7 @@ export default function PromptCEOPage() {
                       </button>
                     ))}
                   </div>
-                  <button onClick={() => completeOnboarding()} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', padding: '4px' }}>
+                  <button onClick={completeOnboarding} style={{ fontSize: 12, color: C.secondary, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, cursor: 'pointer', textAlign: 'center', padding: '8px 16px', marginTop: 4 }}>
                     Skip for now →
                   </button>
                 </div>
