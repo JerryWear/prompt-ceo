@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(for f *)",
+      "Read(//c/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/**)",
+      "Bash(grep -c '' c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/__TRACKED_VAR__.js)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
