@@ -410,6 +410,40 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [heygenPollTimer,   setHeygenPollTimer]    = useState(null)
   const [heygenError,       setHeygenError]        = useState(null)
 
+  // HeyGen Photo Avatar
+  const [photoAvatarCreating, setPhotoAvatarCreating] = useState(false)
+  const [photoAvatarId,       setPhotoAvatarId]       = useState(null)
+  const [photoAvatarError,    setPhotoAvatarError]    = useState(null)
+
+  // Synthesia
+  const [synthesiaMode,       setSynthesiaMode]     = useState(false) // show synthesia section
+  const [synthesiaKey,        setSynthesiaKey]      = useState('')
+  const [synthesiaKeyMasked,  setSynthesiaKeyMasked]= useState('')
+  const [synthesiaConnected,  setSynthesiaConnected]= useState(false)
+  const [synthesiaConnecting, setSynthesiaConnecting] = useState(false)
+  const [synthesiaAvatars,    setSynthesiaAvatars]  = useState([])
+  const [synthesiaVoices,     setSynthesiaVoices]   = useState([])
+  const [synthesiaAvatarsLoading, setSynthesiaAvatarsLoading] = useState(false)
+  const [synthSelectedAvatar, setSynthSelectedAvatar] = useState('')
+  const [synthSelectedVoice,  setSynthSelectedVoice]  = useState('')
+  const [synthesiaTestMode,   setSynthesiaTestMode] = useState(true)
+  const [synthesiaVideoId,    setSynthesiaVideoId]  = useState(null)
+  const [synthesiaVideoStatus,setSynthesiaVideoStatus] = useState(null)
+  const [synthesiaVideoUrl,   setSynthesiaVideoUrl] = useState(null)
+  const [synthesiaGenerating, setSynthesiaGenerating] = useState(false)
+  const [synthesiaError,      setSynthesiaError]    = useState(null)
+
+  // Runway
+  const [runwayKey,           setRunwayKey]         = useState('')
+  const [runwayKeyMasked,     setRunwayKeyMasked]   = useState('')
+  const [runwayConnected,     setRunwayConnected]   = useState(false)
+  const [runwayConnecting,    setRunwayConnecting]  = useState(false)
+  const [runwayError,         setRunwayError]       = useState(null)
+  const [runwayJobs,          setRunwayJobs]        = useState({}) // sceneIndex → { taskId, status, videoUrl }
+  const [runwayModel,         setRunwayModel]       = useState('gen4_turbo')
+  const [runwayDuration,      setRunwayDuration]    = useState(5)
+  const [runwayRatio,         setRunwayRatio]       = useState('1280:768')
+
   // Launch Package
   const [launchPkg,         setLaunchPkg]          = useState(null)
   const [launchPkgLoading,  setLaunchPkgLoading]   = useState(false)
@@ -2247,6 +2281,185 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       setHeygenError('Something went wrong')
       setHeygenGenerating(false)
       setHeygenVideoStatus(null)
+    }
+  }
+
+  // ── HeyGen Photo Avatar ───────────────────────────────────
+  const createPhotoAvatar = async () => {
+    if (!s.imageDataUrl || photoAvatarCreating) return
+    setPhotoAvatarCreating(true)
+    setPhotoAvatarError(null)
+    try {
+      const res = await fetch('/api/heygen/photo-avatar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: s.imageDataUrl, name: s.identityName || 'My Avatar' }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setPhotoAvatarId(data.avatarId)
+        // Add to avatars list so it appears in the selector
+        setHeygenAvatars(prev => [{ avatar_id: data.avatarId, avatar_name: data.name || 'My Photo Avatar', preview_image_url: s.imageDataUrl }, ...prev])
+        setSelectedAvatarId(data.avatarId)
+        addTimelineEvent('Photo avatar created', data.avatarId)
+      } else { setPhotoAvatarError(data.message || 'Failed to create avatar') }
+    } catch { setPhotoAvatarError('Something went wrong') }
+    finally { setPhotoAvatarCreating(false) }
+  }
+
+  // ── Synthesia ─────────────────────────────────────────────
+  const connectSynthesia = async () => {
+    if (!synthesiaKey.trim() || synthesiaConnecting) return
+    setSynthesiaConnecting(true)
+    setSynthesiaError(null)
+    try {
+      const res = await fetch('/api/synthesia/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: synthesiaKey.trim() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSynthesiaConnected(true)
+        setSynthesiaKeyMasked(data.masked)
+        setSynthesiaKey('')
+        loadSynthesiaAvatars()
+      } else { setSynthesiaError(data.message || 'Connection failed') }
+    } catch { setSynthesiaError('Something went wrong') }
+    finally { setSynthesiaConnecting(false) }
+  }
+
+  const loadSynthesiaAvatars = async () => {
+    setSynthesiaAvatarsLoading(true)
+    try {
+      const res = await fetch('/api/synthesia/avatars')
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSynthesiaAvatars(data.avatars || [])
+        setSynthesiaVoices(data.voices || [])
+      }
+    } catch {}
+    finally { setSynthesiaAvatarsLoading(false) }
+  }
+
+  const checkSynthesiaConnection = async () => {
+    try {
+      const res = await fetch('/api/synthesia/settings')
+      const data = await res.json()
+      if (data.hasKey) { setSynthesiaConnected(true); setSynthesiaKeyMasked(data.masked) }
+    } catch {}
+  }
+
+  const generateSynthesiaVideo = async () => {
+    if (!synthSelectedAvatar || !avatarScript.trim() || synthesiaGenerating) return
+    setSynthesiaGenerating(true)
+    setSynthesiaVideoId(null)
+    setSynthesiaVideoUrl(null)
+    setSynthesiaVideoStatus('submitting')
+    setSynthesiaError(null)
+    try {
+      const res = await fetch('/api/synthesia/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avatarId:  synthSelectedAvatar,
+          voiceId:   synthSelectedVoice || undefined,
+          script:    avatarScript,
+          title:     productName ? `${productName} — Synthesia Video` : 'Prompt CEO Video',
+          testMode:  synthesiaTestMode,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSynthesiaVideoId(data.videoId)
+        setSynthesiaVideoStatus('processing')
+        addTimelineEvent('Synthesia video submitted')
+        const timer = setInterval(async () => {
+          try {
+            const sr = await fetch(`/api/synthesia/status?video_id=${data.videoId}`)
+            const sd = await sr.json()
+            if (sd.status === 'success') {
+              setSynthesiaVideoStatus(sd.videoStatus)
+              if (sd.videoStatus === 'completed') {
+                setSynthesiaVideoUrl(sd.videoUrl)
+                setSynthesiaGenerating(false)
+                clearInterval(timer)
+                addTimelineEvent('Synthesia video ready')
+              } else if (sd.videoStatus === 'failed') {
+                setSynthesiaError('Video generation failed in Synthesia')
+                setSynthesiaGenerating(false)
+                clearInterval(timer)
+              }
+            }
+          } catch {}
+        }, 15000) // Synthesia is slower — poll every 15s
+      } else { setSynthesiaError(data.message || 'Generation failed'); setSynthesiaGenerating(false); setSynthesiaVideoStatus(null) }
+    } catch { setSynthesiaError('Something went wrong'); setSynthesiaGenerating(false); setSynthesiaVideoStatus(null) }
+  }
+
+  // ── Runway ────────────────────────────────────────────────
+  const connectRunway = async () => {
+    if (!runwayKey.trim() || runwayConnecting) return
+    setRunwayConnecting(true)
+    setRunwayError(null)
+    try {
+      const res = await fetch('/api/runway/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: runwayKey.trim() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setRunwayConnected(true)
+        setRunwayKeyMasked(data.masked)
+        setRunwayKey('')
+        addTimelineEvent('Runway connected')
+      } else { setRunwayError(data.message || 'Connection failed') }
+    } catch { setRunwayError('Something went wrong') }
+    finally { setRunwayConnecting(false) }
+  }
+
+  const checkRunwayConnection = async () => {
+    try {
+      const res = await fetch('/api/runway/settings')
+      const data = await res.json()
+      if (data.hasKey) { setRunwayConnected(true); setRunwayKeyMasked(data.masked) }
+    } catch {}
+  }
+
+  const generateRunwayScene = async (sceneIndex, promptText, imageUrl = null) => {
+    if (runwayJobs[sceneIndex]?.status === 'processing') return
+    setRunwayJobs(prev => ({ ...prev, [sceneIndex]: { status: 'submitting', taskId: null, videoUrl: null } }))
+    try {
+      const res = await fetch('/api/runway/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          promptText,
+          promptImageUrl: imageUrl || null,
+          model:          runwayModel,
+          duration:       runwayDuration,
+          ratio:          runwayRatio,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        const taskId = data.taskId
+        setRunwayJobs(prev => ({ ...prev, [sceneIndex]: { status: 'processing', taskId, videoUrl: null } }))
+        addTimelineEvent('Runway scene submitted', `Scene ${sceneIndex + 1}`)
+        const timer = setInterval(async () => {
+          try {
+            const sr = await fetch(`/api/runway/status?task_id=${taskId}`)
+            const sd = await sr.json()
+            if (sd.status === 'success') {
+              setRunwayJobs(prev => ({ ...prev, [sceneIndex]: { ...prev[sceneIndex], status: sd.videoStatus, videoUrl: sd.videoUrl, progress: sd.progress } }))
+              if (sd.videoStatus === 'completed' || sd.videoStatus === 'failed') {
+                clearInterval(timer)
+                if (sd.videoStatus === 'completed') addTimelineEvent('Runway scene ready', `Scene ${sceneIndex + 1}`)
+              }
+            }
+          } catch {}
+        }, 6000) // Runway is fast — poll every 6s
+      } else {
+        setRunwayJobs(prev => ({ ...prev, [sceneIndex]: { status: 'failed', error: data.message } }))
+      }
+    } catch {
+      setRunwayJobs(prev => ({ ...prev, [sceneIndex]: { status: 'failed', error: 'Something went wrong' } }))
     }
   }
 
@@ -6363,6 +6576,126 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 </div>
               )}
 
+              {/* Photo Avatar — create from Identity photo */}
+              {heygenConnected && s.imageDataUrl && (
+                <div style={{ padding: '10px 12px', borderRadius: 6, border: `1px solid ${C.goldDim}`, background: C.goldGlow }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <img src={s.imageDataUrl} alt="identity" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>Create Photo Avatar from Identity</div>
+                      <div style={{ fontSize: 8, color: C.secondary }}>Turn your uploaded identity photo into a HeyGen instant avatar</div>
+                    </div>
+                  </div>
+                  {photoAvatarId ? (
+                    <div style={{ fontSize: 9, color: C.green }}>✓ Photo avatar created — select it from the grid above</div>
+                  ) : (
+                    <button onClick={createPhotoAvatar} disabled={photoAvatarCreating}
+                      style={{ width: '100%', padding: '6px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: photoAvatarCreating ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: C.deep, color: photoAvatarCreating ? C.muted : C.gold }}>
+                      {photoAvatarCreating ? '⟳ Creating avatar…' : '✦ Create My Photo Avatar'}
+                    </button>
+                  )}
+                  {photoAvatarError && <div style={{ fontSize: 8, color: '#cf6a6a', marginTop: 4 }}>{photoAvatarError}</div>}
+                </div>
+              )}
+
+            </>)}
+
+            {/* ── SYNTHESIA SECTION ── */}
+            {heygenMode === 'generate' && (<>
+              <div style={{ height: 1, background: C.hairline, margin: '4px 0' }} />
+              <button onClick={() => { setSynthesiaMode(!synthesiaMode); if (!synthesiaConnected) checkSynthesiaConnection(); else if (synthesiaAvatars.length === 0) loadSynthesiaAvatars() }}
+                style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${synthesiaMode ? '#4a8a5a' : C.hairline}`, background: synthesiaMode ? C.greenDim : C.raised, color: synthesiaMode ? C.green : C.muted }}>
+                {synthesiaMode ? '▲ Hide Synthesia' : '+ Also generate with Synthesia (stock avatars)'}
+              </button>
+
+              {synthesiaMode && (<>
+                {!synthesiaConnected ? (
+                  <div style={{ padding: '12px', borderRadius: 6, border: `1px solid ${C.greenDim}`, background: '#060e08', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>Connect Synthesia</div>
+                    <div style={{ fontSize: 9, color: C.secondary }}>Get your API key from synthesia.io → Settings → API Access</div>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <input value={synthesiaKey} onChange={e => setSynthesiaKey(e.target.value)} placeholder="Paste Synthesia API key…" type="password"
+                        style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.greenDim}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+                      <button onClick={connectSynthesia} disabled={!synthesiaKey.trim() || synthesiaConnecting}
+                        style={{ padding: '6px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.greenDim}`, background: C.greenGlow, color: synthesiaConnecting ? C.muted : C.green }}>
+                        {synthesiaConnecting ? '⟳' : 'Connect'}
+                      </button>
+                    </div>
+                    {synthesiaError && <div style={{ fontSize: 9, color: '#cf6a6a' }}>{synthesiaError}</div>}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ padding: '6px 10px', borderRadius: 4, background: C.greenDim, border: `1px solid #2a4a2a`, fontSize: 9, color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>✓ Synthesia Connected · {synthesiaKeyMasked}</span>
+                      <button onClick={loadSynthesiaAvatars} style={{ fontSize: 8, color: C.green, background: 'none', border: 'none', cursor: 'pointer' }}>↺</button>
+                    </div>
+
+                    {/* Avatar selector */}
+                    {synthesiaAvatarsLoading ? (
+                      <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', padding: 8 }}>⟳ Loading avatars…</div>
+                    ) : synthesiaAvatars.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 8, color: C.secondary, fontWeight: 700, marginBottom: 4 }}>Select Avatar</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(75px, 1fr))', gap: 5, maxHeight: 160, overflowY: 'auto' }}>
+                          {synthesiaAvatars.map(av => {
+                            const id = av.id || av.avatarId
+                            return (
+                              <button key={id} onClick={() => setSynthSelectedAvatar(id)}
+                                style={{ padding: 4, borderRadius: 5, cursor: 'pointer', border: `2px solid ${synthSelectedAvatar === id ? C.green : C.hairline}`, background: synthSelectedAvatar === id ? C.greenDim : C.surface, textAlign: 'center' }}>
+                                {av.thumbnail ? (
+                                  <img src={av.thumbnail} alt={av.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 3, display: 'block', marginBottom: 2 }} />
+                                ) : (
+                                  <div style={{ width: '100%', aspectRatio: '1', background: C.raised, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👤</div>
+                                )}
+                                <div style={{ fontSize: 7, color: synthSelectedAvatar === id ? C.green : C.muted, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{av.name}</div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {synthesiaVoices.length > 0 && (
+                      <select value={synthSelectedVoice} onChange={e => setSynthSelectedVoice(e.target.value)}
+                        style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                        <option value="">Default voice…</option>
+                        {synthesiaVoices.map(v => <option key={v.id || v.voiceId} value={v.id || v.voiceId}>{v.name}</option>)}
+                      </select>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button onClick={() => setSynthesiaTestMode(!synthesiaTestMode)}
+                        style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${synthesiaTestMode ? C.goldDim : '#2a4a2a'}`, background: synthesiaTestMode ? C.goldGlow : C.greenDim, color: synthesiaTestMode ? C.gold : C.green }}>
+                        {synthesiaTestMode ? '🧪 Test' : '🟢 Production'}
+                      </button>
+                      <button onClick={generateSynthesiaVideo} disabled={!synthSelectedAvatar || !avatarScript.trim() || synthesiaGenerating}
+                        style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: synthSelectedAvatar && avatarScript.trim() && !synthesiaGenerating ? 'pointer' : 'not-allowed', border: `1px solid ${synthSelectedAvatar && avatarScript.trim() ? C.greenDim : C.hairline}`, background: synthSelectedAvatar && avatarScript.trim() ? C.greenDim : C.deep, color: synthSelectedAvatar && avatarScript.trim() ? C.green : C.muted }}>
+                        {synthesiaGenerating ? '⟳ Generating…' : '🎬 Generate Synthesia Video'}
+                      </button>
+                    </div>
+
+                    {synthesiaError && <div style={{ fontSize: 9, color: '#cf6a6a' }}>{synthesiaError}</div>}
+
+                    {synthesiaVideoStatus && (
+                      <div style={{ padding: '8px 10px', borderRadius: 5, border: `1px solid ${synthesiaVideoStatus === 'completed' ? '#2a4a2a' : synthesiaVideoStatus === 'failed' ? '#3a1a1a' : C.greenDim}`, background: synthesiaVideoStatus === 'completed' ? C.greenDim : '#060e08' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: synthesiaVideoStatus === 'completed' ? C.green : synthesiaVideoStatus === 'failed' ? '#cf6a6a' : C.green, marginBottom: 4 }}>
+                          {synthesiaVideoStatus === 'completed' ? '✅ Synthesia video ready!' : synthesiaVideoStatus === 'failed' ? '❌ Failed' : '⟳ Rendering… (3-10 minutes)'}
+                        </div>
+                        {synthesiaVideoUrl && (
+                          <div style={{ display: 'flex', gap: 5 }}>
+                            <a href={synthesiaVideoUrl} target="_blank" rel="noreferrer" style={{ flex: 1, padding: '6px 0', borderRadius: 4, fontSize: 9, fontWeight: 700, border: `1px solid ${C.green}`, background: C.greenDim, color: C.green, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                              ▶ Watch Video
+                            </a>
+                            <a href={synthesiaVideoUrl} download target="_blank" rel="noreferrer" style={{ padding: '6px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid #2a4a2a`, background: 'none', color: C.green, textDecoration: 'none', display: 'block' }}>
+                              ⬇
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>)}
             </>)}
 
           </div>
@@ -7531,6 +7864,52 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {adOutputTab === 'storyboard' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
 
+            {/* Runway connection banner */}
+            {!runwayConnected ? (
+              <div style={{ padding: '8px 10px', borderRadius: 5, border: `1px solid #8a4ab4`, background: '#0e0618', display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#c47ad4' }}>Connect Runway to generate videos from each scene</div>
+                  <div style={{ fontSize: 8, color: C.secondary }}>Get API key at app.runwayml.com → Settings → API Keys</div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <input value={runwayKey} onChange={e => setRunwayKey(e.target.value)} placeholder="Runway API key…" type="password"
+                    style={{ width: 140, background: C.deep, color: C.primary, border: `1px solid #8a4ab4`, borderRadius: 4, padding: '5px 7px', fontSize: 9, outline: 'none', fontFamily: 'inherit' }}
+                    onKeyDown={e => e.key === 'Enter' && connectRunway()} />
+                  <button onClick={connectRunway} disabled={!runwayKey.trim() || runwayConnecting}
+                    style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid #8a4ab4`, background: '#0e0618', color: runwayConnecting ? C.muted : '#c47ad4' }}>
+                    {runwayConnecting ? '⟳' : 'Connect'}
+                  </button>
+                </div>
+                {runwayError && <div style={{ fontSize: 8, color: '#cf6a6a', position: 'absolute' }}>{runwayError}</div>}
+              </div>
+            ) : (
+              <div style={{ padding: '6px 10px', borderRadius: 4, background: '#0e0618', border: `1px solid #8a4ab4`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#c47ad4' }}>✓ Runway Connected</span>
+                  <span style={{ fontSize: 8, color: C.muted, marginLeft: 8 }}>{runwayKeyMasked}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <select value={runwayModel} onChange={e => setRunwayModel(e.target.value)}
+                    style={{ background: C.deep, color: C.primary, border: `1px solid #8a4ab4`, borderRadius: 3, padding: '3px 5px', fontSize: 8, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="gen4_turbo">Gen-4 Turbo</option>
+                    <option value="gen3a_turbo">Gen-3 Alpha Turbo</option>
+                  </select>
+                  <select value={runwayDuration} onChange={e => setRunwayDuration(Number(e.target.value))}
+                    style={{ background: C.deep, color: C.primary, border: `1px solid #8a4ab4`, borderRadius: 3, padding: '3px 5px', fontSize: 8, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value={5}>5s</option>
+                    <option value={10}>10s</option>
+                  </select>
+                  <select value={runwayRatio} onChange={e => setRunwayRatio(e.target.value)}
+                    style={{ background: C.deep, color: C.primary, border: `1px solid #8a4ab4`, borderRadius: 3, padding: '3px 5px', fontSize: 8, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="1280:768">16:9</option>
+                    <option value="768:1280">9:16</option>
+                    <option value="1104:832">4:3</option>
+                    <option value="960:960">1:1</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* Format selector */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
               <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Video Format</div>
@@ -7631,6 +8010,36 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                                   </button>
                                 </div>
                                 <div style={{ padding: '7px 8px', fontSize: 9, color: C.primary, lineHeight: 1.6, fontFamily: C.mono }}>{sc.aiVideoPrompt}</div>
+                                {/* Runway Generate Button */}
+                                {runwayConnected && (() => {
+                                  const job = runwayJobs[i]
+                                  return (
+                                    <div style={{ padding: '5px 8px', borderTop: `1px solid ${C.blueDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      {!job || job.status === 'failed' ? (
+                                        <button onClick={() => generateRunwayScene(i, sc.aiVideoPrompt)}
+                                          style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid #8a4ab4`, background: '#0e0618', color: '#c47ad4' }}>
+                                          ▶ Generate with Runway
+                                        </button>
+                                      ) : job.status === 'submitting' || job.status === 'processing' ? (
+                                        <div style={{ flex: 1, fontSize: 9, color: '#c47ad4' }}>
+                                          ⟳ {job.progress ? `${Math.round(job.progress * 100)}%` : 'Rendering…'}
+                                        </div>
+                                      ) : job.status === 'completed' && job.videoUrl ? (
+                                        <div style={{ flex: 1, display: 'flex', gap: 5 }}>
+                                          <a href={job.videoUrl} target="_blank" rel="noreferrer"
+                                            style={{ flex: 1, padding: '4px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, border: `1px solid ${C.green}`, background: C.greenDim, color: C.green, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                                            ▶ Watch
+                                          </a>
+                                          <a href={job.videoUrl} download target="_blank" rel="noreferrer"
+                                            style={{ padding: '4px 8px', borderRadius: 3, fontSize: 9, border: `1px solid #2a4a2a`, background: 'none', color: C.green, textDecoration: 'none', display: 'block' }}>⬇</a>
+                                          <button onClick={() => generateRunwayScene(i, sc.aiVideoPrompt)}
+                                            style={{ padding: '4px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>↺</button>
+                                        </div>
+                                      ) : null}
+                                      {job?.status === 'failed' && <span style={{ fontSize: 8, color: '#cf6a6a' }}>{job.error || 'Failed'}</span>}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             )}
                             {sc.transition && (
@@ -11040,6 +11449,13 @@ export default function PromptCEOPage() {
       })
       .catch(() => {})
       .finally(() => setBrandDNALoading(false))
+  }, [])
+
+  // Check integration connections on mount
+  useEffect(() => {
+    checkHeyGenConnection()
+    checkSynthesiaConnection()
+    checkRunwayConnection()
   }, [])
 
   // ── Derived ───────────────────────────────────────────────
