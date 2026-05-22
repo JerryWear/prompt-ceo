@@ -2626,6 +2626,46 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     setTimeline(prev => [{ ts: Date.now(), event, detail }, ...prev].slice(0, 30))
   }
 
+  // ── Onboarding ────────────────────────────────────────────
+  const onboardGenerateHooks = async () => {
+    if (!onboardProduct.trim() || onboardLoading) return
+    setOnboardLoading(true)
+    try {
+      const res = await fetch('/api/generate-ad-text', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'hooks',
+          hookType: 'pain',
+          adConfig: {
+            productName:    onboardProduct,
+            targetCustomer: onboardUserType === 'creator' ? 'content creators and influencers' : onboardUserType === 'agency' ? 'brands and businesses' : 'potential customers',
+            brandVoice:     'authentic, direct',
+            platformGoal:   onboardGoal || 'sales',
+            platform:       'instagram',
+          },
+        }),
+      })
+      const data = await res.json()
+      const hooks = data?.data?.hooks || []
+      setOnboardHooks(hooks.slice(0, 3))
+      setOnboardStep(4)
+    } catch {
+      setOnboardHooks(['Could not generate hooks — but the app is ready. Jump in and try yourself!'])
+      setOnboardStep(4)
+    }
+    finally { setOnboardLoading(false) }
+  }
+
+  const completeOnboarding = () => {
+    try { localStorage.setItem('promptceo_onboarded_v1', '1') } catch {}
+    setOnboardingOpen(false)
+    // Pre-fill Ad Studio with their product
+    if (onboardProduct.trim()) {
+      // Switch to Ad Studio view with their product pre-filled
+      // The AdStudioView will pick up productName from its state
+    }
+  }
+
   const toggleWinner = (type, item) => {
     setWinners(prev => {
       const key = type === 'angle' ? 'angles' : 'hooks'
@@ -11459,6 +11499,15 @@ export default function PromptCEOPage() {
   // Studio Paywall
   const [studioPaywallOpen, setStudioPaywallOpen] = useState(false)
 
+  // Onboarding
+  const [onboardingOpen,    setOnboardingOpen]    = useState(false)
+  const [onboardStep,       setOnboardStep]       = useState(1)
+  const [onboardUserType,   setOnboardUserType]   = useState('')
+  const [onboardProduct,    setOnboardProduct]    = useState('')
+  const [onboardGoal,       setOnboardGoal]       = useState('')
+  const [onboardHooks,      setOnboardHooks]      = useState([])
+  const [onboardLoading,    setOnboardLoading]    = useState(false)
+
   // App Guide
   const [guideOpen,     setGuideOpen]     = useState(false)
   const [guideMessages, setGuideMessages] = useState([
@@ -11532,6 +11581,21 @@ export default function PromptCEOPage() {
       .then(d => { if (d.status === 'success') setSubscription(d) })
       .catch(() => {})
   }, [])
+
+  // Show onboarding for first-time users
+  useEffect(() => {
+    try {
+      const done = localStorage.getItem('promptceo_onboarded_v1')
+      if (!done) setTimeout(() => setOnboardingOpen(true), 800)
+    } catch {}
+  }, [])
+
+  // Auto-trigger hook generation when step hits 3.5
+  useEffect(() => {
+    if (onboardStep === 3.5 && !onboardLoading && onboardHooks.length === 0) {
+      onboardGenerateHooks()
+    }
+  }, [onboardStep])
 
   // Load Brand DNA profiles from cloud on mount
   useEffect(() => {
@@ -14696,6 +14760,188 @@ export default function PromptCEOPage() {
         )}
 
       </div>
+
+      {/* ── ONBOARDING MODAL ── */}
+      {onboardingOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(4,4,4,0.97)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ background: C.base, borderRadius: 20, border: `1px solid ${C.hairline}`, maxWidth: 520, width: '100%', overflow: 'hidden', boxShadow: '0 0 80px rgba(200,168,75,0.15)' }}>
+
+            {/* Progress bar */}
+            <div style={{ height: 3, background: C.hairline }}>
+              <div style={{ height: '100%', background: C.gold, transition: 'width 0.4s', width: `${(onboardStep / 4) * 100}%` }} />
+            </div>
+
+            <div style={{ padding: '32px 36px' }}>
+
+              {/* Step 1 — Who are you? */}
+              {onboardStep === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>Welcome to Prompt CEO ✦</div>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: C.primary, letterSpacing: -1, margin: '0 0 8px', lineHeight: 1.2 }}>
+                      Who are you building for?
+                    </h2>
+                    <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                      We'll set up the app for exactly how you'll use it.
+                    </p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { id: 'creator',  icon: '📱', label: 'Creator & Influencer', desc: 'Content, personal brand, UGC' },
+                      { id: 'brand',    icon: '🏢', label: 'Brand & DTC',          desc: 'Ads, campaigns, product launches' },
+                      { id: 'buyer',    icon: '📊', label: 'Media Buyer',          desc: 'Ad accounts, performance, ROAS' },
+                      { id: 'agency',   icon: '⚡', label: 'Agency',               desc: 'Multiple clients, delivery packages' },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => { setOnboardUserType(t.id); setOnboardStep(2) }}
+                        style={{ padding: '16px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', border: `1px solid ${onboardUserType === t.id ? C.goldDim : C.hairline}`, background: onboardUserType === t.id ? C.goldGlow : C.surface, transition: 'all 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = C.goldDim}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = onboardUserType === t.id ? C.goldDim : C.hairline}>
+                        <div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{t.label}</div>
+                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{t.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => completeOnboarding()} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', padding: '4px' }}>
+                    Skip for now →
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2 — What's your product? */}
+              {onboardStep === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>Step 2 of 4</div>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: C.primary, letterSpacing: -1, margin: '0 0 8px', lineHeight: 1.2 }}>
+                      What are you selling or creating?
+                    </h2>
+                    <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                      One sentence is enough. This becomes the brain behind everything we generate.
+                    </p>
+                  </div>
+                  <div>
+                    <textarea
+                      value={onboardProduct}
+                      onChange={e => setOnboardProduct(e.target.value)}
+                      placeholder={
+                        onboardUserType === 'creator' ? 'e.g. Lifestyle content for women who love fitness and travel...' :
+                        onboardUserType === 'agency'  ? 'e.g. My client sells vitamin C serum for women 25-45...' :
+                        onboardUserType === 'buyer'   ? 'e.g. Performance supplements for men who train 5 days a week...' :
+                        'e.g. Vitamin C serum for women 25-45 who want clearer skin...'
+                      }
+                      rows={3}
+                      autoFocus
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.goldDim}`, borderRadius: 10, padding: '14px 16px', fontSize: 14, outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => setOnboardStep(1)} style={{ padding: '12px 20px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.secondary }}>← Back</button>
+                    <button onClick={() => onboardProduct.trim() && setOnboardStep(3)} disabled={!onboardProduct.trim()}
+                      style={{ flex: 1, padding: '12px 0', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: onboardProduct.trim() ? 'pointer' : 'not-allowed', border: 'none', background: onboardProduct.trim() ? C.gold : C.subtle, color: onboardProduct.trim() ? '#000' : C.muted }}>
+                      Continue →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 — What's your goal? */}
+              {onboardStep === 3 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>Step 3 of 4</div>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: C.primary, letterSpacing: -1, margin: '0 0 8px', lineHeight: 1.2 }}>
+                      What's your main goal right now?
+                    </h2>
+                    <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                      We'll generate content that matches exactly what you're trying to achieve.
+                    </p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { id: 'sales',     icon: '💰', label: 'Drive Sales',      desc: 'Convert cold traffic into buyers' },
+                      { id: 'content',   icon: '🎬', label: 'Create Content',   desc: 'Fill my content calendar fast' },
+                      { id: 'leads',     icon: '📋', label: 'Generate Leads',   desc: 'Build my list and audience' },
+                      { id: 'awareness', icon: '📣', label: 'Grow Awareness',   desc: 'Get my brand in front of more people' },
+                    ].map(g => (
+                      <button key={g.id} onClick={() => { setOnboardGoal(g.id); setOnboardStep(3.5) }}
+                        style={{ padding: '16px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', border: `1px solid ${onboardGoal === g.id ? C.goldDim : C.hairline}`, background: onboardGoal === g.id ? C.goldGlow : C.surface, transition: 'all 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = C.goldDim}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = onboardGoal === g.id ? C.goldDim : C.hairline}>
+                        <div style={{ fontSize: 22, marginBottom: 8 }}>{g.icon}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{g.label}</div>
+                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{g.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setOnboardStep(2)} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', padding: '4px' }}>← Back</button>
+                </div>
+              )}
+
+              {/* Step 3.5 — Generating */}
+              {onboardStep === 3.5 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ fontSize: 48 }}>⟳</div>
+                  <div>
+                    <h2 style={{ fontSize: 24, fontWeight: 800, color: C.primary, letterSpacing: -1, margin: '0 0 8px' }}>
+                      Generating your first hooks…
+                    </h2>
+                    <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                      We're creating 3 hooks for <strong style={{ color: C.gold }}>{onboardProduct.slice(0, 40)}{onboardProduct.length > 40 ? '…' : ''}</strong>
+                    </p>
+                  </div>
+                  {/* Generation triggered via useEffect */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[0,1,2].map(i => (
+                      <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, opacity: 0.4, animation: `pulse ${0.8 + i * 0.2}s ease-in-out infinite alternate` }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4 — Hooks result */}
+              {onboardStep === 4 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.green, marginBottom: 10 }}>✓ Done — Your first hooks</div>
+                    <h2 style={{ fontSize: 24, fontWeight: 800, color: C.primary, letterSpacing: -1, margin: '0 0 8px', lineHeight: 1.2 }}>
+                      Look what we made.
+                    </h2>
+                    <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                      These are live hooks for your product — generated in seconds. The app is ready.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {onboardHooks.map((hook, i) => (
+                      <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.goldDim}`, background: C.goldGlow, fontSize: 13, color: C.primary, lineHeight: 1.6, fontStyle: 'italic' }}>
+                        "{hook}"
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '12px 14px', borderRadius: 8, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 6 }}>What's next inside the app:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {[
+                        '→ Ad Studio — generate captions, images, email sequences, SMS',
+                        '→ Director\'s Studio — cinematic scenes in 20+ worlds',
+                        '→ Funnel — landing page, offer builder, retargeting packs',
+                        '→ Intel — score hooks, audit your ad account, track trends',
+                      ].map((tip, i) => (
+                        <div key={i} style={{ fontSize: 11, color: C.muted }}>{tip}</div>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={completeOnboarding}
+                    style={{ width: '100%', padding: '14px 0', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#000', letterSpacing: 0.3 }}>
+                    Open the App — Let's Go ✦
+                  </button>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── STUDIO PAYWALL MODAL ── */}
       {studioPaywallOpen && (
