@@ -149,9 +149,10 @@ export function resolveScene(input, resolvedWorld) {
     }
   }
 
-  // ── Priority 3: World actionPools[phaseKey] ─────────────
+  // ── Priority 3: World actionPools[phaseKey] — also accepts pools[phaseKey] alias ──
   if (worldObject && resolvedPhaseKey) {
     const actionPool = worldObject?.actionPools?.[resolvedPhaseKey]
+                    || worldObject?.pools?.[resolvedPhaseKey]
     if (Array.isArray(actionPool) && actionPool.length) {
       return {
         actionPhrase:   actionPool[progressionIndex % actionPool.length],

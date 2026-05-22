@@ -511,6 +511,7 @@ function integrateTone(moodPhrase, narrativeTone) {
 function pickFromWorldMood(worldObject, resolvedPhaseKey, progressionIndex) {
   if (!worldObject || !resolvedPhaseKey) return ''
   const pool = worldObject?.moodPools?.[resolvedPhaseKey]
+            || worldObject?.moodPool
   if (!Array.isArray(pool) || !pool.length) return ''
   const idx = Math.abs(Number(progressionIndex) || 0)
   return pool[idx % pool.length] || ''

@@ -255,10 +255,11 @@ function cleanLightingPhrase(value) {
 function pickLightingPhrase(timeOfDay, envFamily, progressionIndex, lockedWorldId, worldObject, resolvedPhaseKey) {
   const idx = Math.abs(Number(progressionIndex) || 0)
 
-  // Priority 1: real world lightingPools[phaseKey]
+  // Priority 1: real world lightingPools[phaseKey] — also accepts flat lightingPool[]
   const worldLightingPool = worldObject?.lightingPools?.[resolvedPhaseKey]
+                         || worldObject?.lightingPool
   if (Array.isArray(worldLightingPool) && worldLightingPool.length) {
-  return cleanLightingPhrase(worldLightingPool[idx % worldLightingPool.length])
+    return cleanLightingPhrase(worldLightingPool[idx % worldLightingPool.length])
   }
 
   // Priority 2: world-specific override for timeOfDay + envFamily

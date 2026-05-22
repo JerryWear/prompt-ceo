@@ -28,8 +28,9 @@ if (subLocationPool.length) {
   return subLocationPool[idx % subLocationPool.length]
 }
 
-  // Priority 2: world environmentPools[phaseKey]
+  // Priority 2: world environmentPools[phaseKey] — also accepts pools[phaseKey] alias
   const envPool = worldObject?.environmentPools?.[resolvedPhaseKey]
+               || worldObject?.pools?.[resolvedPhaseKey]
   if (Array.isArray(envPool) && envPool.length) {
     return envPool[idx % envPool.length]
   }

@@ -361,6 +361,7 @@ function pickFromWorldStyling(worldObject, resolvedPhaseKey, progressionIndex, p
   if (!worldObject || !resolvedPhaseKey) return ''
 
   const wardrobePool = worldObject?.stylingPools?.wardrobe?.[resolvedPhaseKey]
+                    || worldObject?.wardrobePool
   if (!Array.isArray(wardrobePool) || !wardrobePool.length) return ''
 
   const idx = Math.abs(Number(progressionIndex) || 0)
