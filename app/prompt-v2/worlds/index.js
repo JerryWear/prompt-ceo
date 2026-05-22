@@ -31,6 +31,7 @@ import { WORLD_SINGAPORE } from './singapore'
 import { WORLD_ST_TROPEZ } from './stTropez'
 import { WORLD_IBIZA } from './ibiza'
 import { WORLD_LAKE_COMO } from './lakeComo'
+import { WORLD_RIO_DE_JANEIRO } from './rioDeJaneiro'
 import { STORY_WORLDS as _STORY_WORLDS } from '../story-worlds/index.js'
 
 export const WORLD_LOCATIONS = [
@@ -57,6 +58,7 @@ export const WORLD_LOCATIONS = [
   WORLD_ST_TROPEZ,
   WORLD_IBIZA,
   WORLD_LAKE_COMO,
+  WORLD_RIO_DE_JANEIRO,
   WORLD_LUXURY_HOTEL_SUITE,
 ]
 
