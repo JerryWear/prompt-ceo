@@ -11783,7 +11783,10 @@ export default function PromptCEOPage() {
                 )}
               </Panel>
 
-              <Panel title="Character DNA" accent={C.violet} defaultOpen={false}>
+              <Panel title="Scene Presets" accent={C.violet} defaultOpen={false}>
+                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+                  Save your complete studio setup — world, director, identity, and traits — as a named preset for instant recall.
+                </div>
                 {studioCharDNA.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                     {studioCharDNA.map(profile => (
@@ -11803,23 +11806,18 @@ export default function PromptCEOPage() {
                 )}
                 {!studioDNASaveOpen ? (
                   <button onClick={() => setStudioDNASaveOpen(true)} style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
-                    + Save Current Setup
+                    + Save Current Setup as Preset
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: 5 }}>
                     <input value={studioDNAName} onChange={e => setStudioDNAName(e.target.value)}
-                      placeholder={s.identityName || 'Character name…'}
+                      placeholder={s.identityName || 'Preset name…'}
                       style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.violetDim}`, borderRadius: 4, padding: '6px 8px', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
                       onKeyDown={e => e.key === 'Enter' && saveCharacterDNA(studioDNAName)}
                       autoFocus
                     />
                     <button onClick={() => saveCharacterDNA(studioDNAName)} style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>Save</button>
                     <button onClick={() => setStudioDNASaveOpen(false)} style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
-                  </div>
-                )}
-                {studioCharDNA.length === 0 && !studioDNASaveOpen && (
-                  <div style={{ fontSize: 9, color: C.secondary, textAlign: 'center', marginTop: 4, lineHeight: 1.5 }}>
-                    Configure identity + world + director then save a character profile to reload instantly.
                   </div>
                 )}
               </Panel>
@@ -11960,10 +11958,13 @@ export default function PromptCEOPage() {
                 )}
               </Panel>
 
-              {/* CHARACTER DNA */}
+              {/* CHARACTER DNA — main character setup */}
               <Panel title="Character DNA" accent="#c8a84b" defaultOpen={false}
                 badge={dnaProfiles.length > 0 ? <Chip>{dnaProfiles.length} saved</Chip> : null}
               >
+                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+                  Set up your character — mode, physical traits, and appearance. Save as a cloud profile for instant reload across sessions.
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <Label>Character Mode</Label>
                   <div style={{ display: 'flex', gap: 3 }}>

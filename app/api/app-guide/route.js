@@ -23,6 +23,53 @@ Prompt CEO has two main sections:
 1. AD STUDIO — The complete marketing platform (click "Ad Studio" in the top nav)
 2. DIRECTOR'S STUDIO — The cinematic prompt engine (click "Studio" in the top nav)
 
+━━━ DIRECTOR'S STUDIO LEFT PANEL — DETAILED ━━━
+
+The left sidebar has these panels (click any to expand):
+
+1. CUSTOM WORLDS — Build your own location with name, atmosphere, lighting, and mood. Saved locally. Click to activate.
+
+2. SCENE PRESETS (purple panel) — Save your COMPLETE studio setup as a named preset. This saves everything: which world, which director, identity settings, and all traits. Click "+ Save Current Setup as Preset", name it, and it appears in the list. Click any preset to reload the full setup instantly. Great for switching between different character/world combinations.
+
+3. IDENTITY (green panel) — Upload a photo and click "Scan Identity" to extract age, ethnicity, hair, eyes etc automatically. Or type manually. Toggle "Use Identity" on to inject it into every generation. The reset button clears all identity settings.
+
+4. CHARACTER DNA (gold panel) — This is where you set up WHO the character is:
+   - CHARACTER MODE: Three buttons — Female, Male, or Couple. Click to switch.
+     · Female: generates prompts with a female subject
+     · Male: generates prompts with a male subject
+     · Couple: generates prompts with both a female and male subject (Subject A + Subject B)
+   - PHYSICAL TRAITS: Fill in ethnicity, age, body type, hair, eyes. Lock individual traits (🔒) to keep them fixed across generations.
+   - COUPLE MODE: When "couple" is selected, a second set of traits appears for Subject B (male).
+   - MY CHARACTERS: Your cloud-saved character profiles appear here. Click "Load" to restore a saved character. Click "+ Save Character" to save the current setup to the cloud — accessible from any device.
+   - The cloud sync indicator shows "☁ cloud-saved" when synced.
+
+5. BRAND DNA LOCK — Create a brand profile with visual mood, color palette, lighting signature, and forbidden elements. Lock it and those constraints inject into every prompt automatically.
+
+6. WORLD SYSTEM — Auto or Manual mode. Auto picks the world from the Story World. Manual lets you override with a specific physical location.
+
+7. DIRECTOR — Choose from 11 director styles that change how every prompt is composed and lit.
+
+━━━ HOW TO SET UP A CHARACTER (step by step) ━━━
+
+1. Open the CHARACTER DNA panel (gold, in left sidebar)
+2. Click Female, Male, or Couple — this sets who the subject is
+3. Fill in traits: ethnicity, age/range, body type, hair colour/style, eye colour
+4. For Couple mode: fill in Subject A (female) AND Subject B (male) traits
+5. Lock any traits you want fixed (click the 🔒 next to each field)
+6. Click "+ Save Character" at the bottom to cloud-save this character
+7. Your saved characters appear in "My Characters" — click Load to restore any time
+
+TO SAVE YOUR WHOLE SETUP (world + director + character):
+1. Configure everything first — world, director, identity, traits
+2. Open the SCENE PRESETS panel (purple/violet panel near the top)
+3. Click "+ Save Current Setup as Preset"
+4. Name it and save
+5. Next time click the preset name to restore everything at once
+
+Prompt CEO has two main sections:
+1. AD STUDIO — The complete marketing platform (click "Ad Studio" in the top nav)
+2. DIRECTOR'S STUDIO — The cinematic prompt engine (click "Studio" in the top nav)
+
 ━━━ AD STUDIO — 6 TAB GROUPS ━━━
 
 The Ad Studio has 6 groups in a two-row navigation. Row 1 = groups. Row 2 = sub-tabs for the active group.
