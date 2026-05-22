@@ -526,6 +526,19 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       .catch(() => {})
   }, [])
 
+  // Check video platform connections on mount
+  useEffect(() => {
+    fetch('/api/heygen/settings').then(r => r.json()).then(d => {
+      if (d.hasKey) { setHeygenConnected(true); setHeygenKeyMasked(d.masked) }
+    }).catch(() => {})
+    fetch('/api/synthesia/settings').then(r => r.json()).then(d => {
+      if (d.hasKey) { setSynthesiaConnected(true); setSynthesiaKeyMasked(d.masked) }
+    }).catch(() => {})
+    fetch('/api/runway/settings').then(r => r.json()).then(d => {
+      if (d.hasKey) { setRunwayConnected(true); setRunwayKeyMasked(d.masked) }
+    }).catch(() => {})
+  }, [])
+
   // Auto-fetch Creative Director note + track timeline when a generation completes
   const prevGenerating = useRef(false)
   useEffect(() => {
@@ -11451,12 +11464,6 @@ export default function PromptCEOPage() {
       .finally(() => setBrandDNALoading(false))
   }, [])
 
-  // Check integration connections on mount
-  useEffect(() => {
-    checkHeyGenConnection()
-    checkSynthesiaConnection()
-    checkRunwayConnection()
-  }, [])
 
   // ── Derived ───────────────────────────────────────────────
   const worldObj    = useMemo(() => s.worldId ? getWorldById(s.worldId) : null, [s.worldId])
