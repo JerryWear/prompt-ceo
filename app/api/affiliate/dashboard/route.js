@@ -50,18 +50,60 @@ export async function GET() {
       await admin.from('affiliates').update({ user_id: user.id }).eq('id', affiliate.id)
     }
 
-    // Get recent commissions
+    // Get commissions with subscriber info
     const { data: commissions } = await admin
       .from('affiliate_commissions')
       .select('*')
       .eq('affiliate_id', affiliate.id)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(100)
 
-    // Pending payout
-    const pending = (commissions || [])
+    // Enrich with subscriber email from app_users
+    const referredIds = [...new Set((commissions || []).map(c => c.referred_user_id).filter(Boolean))]
+    let subscriberMap = {}
+    if (referredIds.length > 0) {
+      const { data: users } = await admin
+        .from('app_users')
+        .select('id, email, subscription_tier, created_at')
+        .in('id', referredIds)
+      ;(users || []).forEach(u => { subscriberMap[u.id] = u })
+    }
+
+    const enrichedCommissions = (commissions || []).map(c => ({
+      ...c,
+      subscriber_email: subscriberMap[c.referred_user_id]?.email || null,
+      subscriber_tier:  subscriberMap[c.referred_user_id]?.subscription_tier || null,
+      subscriber_since: subscriberMap[c.referred_user_id]?.created_at || null,
+    }))
+
+    // Build unique referrals list (one entry per subscriber)
+    const referralMap = {}
+    enrichedCommissions.forEach(c => {
+      if (!c.referred_user_id) return
+      if (!referralMap[c.referred_user_id]) {
+        referralMap[c.referred_user_id] = {
+          user_id:         c.referred_user_id,
+          email:           c.subscriber_email,
+          tier:            c.subscriber_tier,
+          joined:          c.subscriber_since || c.created_at,
+          total_paid:      0,
+          payments:        0,
+          status:          'active',
+        }
+      }
+      referralMap[c.referred_user_id].total_paid += Number(c.commission_amount)
+      referralMap[c.referred_user_id].payments   += 1
+    })
+    const referrals = Object.values(referralMap).sort((a, b) => new Date(b.joined) - new Date(a.joined))
+
+    // Pending payout (approved but not paid)
+    const pending = enrichedCommissions
       .filter(c => c.status === 'approved')
       .reduce((sum, c) => sum + Number(c.commission_amount), 0)
+
+    // Next payout date — 1st of next month
+    const now = new Date()
+    const nextPayout = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
     const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://promptceo.io'
 
@@ -82,8 +124,10 @@ export async function GET() {
         totalEarned:     affiliate.total_earned || 0,
         totalPaid:       affiliate.total_paid || 0,
         pendingPayout:   pending.toFixed(2),
+        nextPayoutDate:  nextPayout.toISOString(),
       },
-      commissions: commissions || [],
+      commissions: enrichedCommissions,
+      referrals,
     })
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
