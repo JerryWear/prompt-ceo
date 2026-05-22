@@ -38,9 +38,9 @@ const C = {
   subtle:   '#222222',
   mid:      '#2a2a2a',
   primary:  '#e8e4dc',
-  secondary:'#8a8680',
-  muted:    '#4a4845',
-  ghost:    '#2a2825',
+  secondary:'#b0aba4',
+  muted:    '#6e6a66',
+  ghost:    '#3a3835',
   gold:     '#c8a84b',
   goldDim:  '#7a6428',
   goldGlow: '#c8a84b22',
@@ -3026,8 +3026,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   // Reusable section label
   const SLabel = ({ children, hint }) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
-      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.secondary }}>{children}</span>
-      {hint && <span style={{ fontSize: 9, color: C.goldDim }}>{hint}</span>}
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.secondary }}>{children}</span>
+      {hint && <span style={{ fontSize: 10, color: C.gold }}>{hint}</span>}
     </div>
   )
 
@@ -3045,8 +3045,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* Brand DNA */}
         {/* Brand Voice Fingerprinting */}
-        <Panel title="Voice Fingerprint" accent={C.violet} defaultOpen={false}>
-          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
+        <Panel title="Voice Fingerprint" hint="Train AI to write in your exact style" accent={C.violet} defaultOpen={false}>
+          <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
             Paste 1–3 of your best-performing ads. AI extracts your exact brand voice — not a category, your specific writing patterns. Every future generation sounds like YOU.
           </div>
 
@@ -3116,7 +3116,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           )}
         </Panel>
 
-        <Panel title="Brand DNA" accent={C.violet} defaultOpen={false}>
+        <Panel title="Brand DNA" hint="Save & lock your brand identity profile" accent={C.violet} defaultOpen={false}>
           {/* Saved profiles */}
           {dnaProfiles.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
@@ -3187,7 +3187,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         </Panel>
 
         {/* My Projects */}
-        <Panel title="My Projects" accent={C.blue} defaultOpen={false}>
+        <Panel title="My Projects" hint="Save, load & continue past campaigns" accent={C.blue} defaultOpen={false}>
 
           {/* Save current project — always visible */}
           <button
@@ -3285,7 +3285,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           {/* Webhook Integration */}
           <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase' }}>⚡ Webhook / Integrations</div>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Paste your Zapier, Make.com, or any webhook URL. Campaign data will be sent automatically on save.
             </div>
             <input
@@ -3338,7 +3338,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         </Panel>
 
         {/* Ad Mode */}
-        <Panel title="Ad Mode" accent={C.gold}>
+        <Panel title="Ad Mode" hint="Pick what type of content to generate" accent={C.gold}>
           <div style={{ display: 'flex', gap: 5 }}>
             {[
               { value: 'product_ad',        icon: '📦', title: 'Product Ad',     desc: 'Ecommerce & brand' },
@@ -3357,7 +3357,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         </Panel>
 
         {/* Output + Format */}
-        <Panel title="Output" accent={C.gold}>
+        <Panel title="Output" hint="Tone, length, language & format" accent={C.gold}>
           <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
             {[{ value: 'image', icon: '🖼️', label: 'Image', cost: 5 }, { value: 'video', icon: '🎬', label: 'Video', cost: 60 }].map(t => (
               <button key={t.value} onClick={() => setAdOutputType(t.value)} style={{
@@ -3418,7 +3418,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── PRODUCT AD FORM ── */}
         {adMode === 'product_ad' && (
           <>
-            <Panel title="Product Details" accent={C.gold}>
+            <Panel title="Product Details" hint="Your product, audience & platform — fill this first" accent={C.gold} badge={<span style={{ fontSize: 8, fontWeight: 700, background: C.gold, color: '#000', borderRadius: 3, padding: '1px 5px', letterSpacing: 0.5 }}>START HERE</span>}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div>
                   <SLabel hint={suggesting ? '✦ reading…' : suggested ? '✓ style auto-set' : ''}>Product name *</SLabel>
@@ -3451,7 +3451,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             </Panel>
 
             {/* ── AD STRATEGY ── */}
-            <Panel title="Ad Strategy" accent={C.gold} defaultOpen={false}>
+            <Panel title="Ad Strategy" hint="Campaign goal, angle & messaging approach" accent={C.gold} defaultOpen={false}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div>
                   <SLabel>Target Customer</SLabel>
@@ -3520,7 +3520,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             </Panel>
 
             {/* ── BRAND VOICE ── */}
-            <Panel title="Brand Voice" accent={C.gold} defaultOpen={false}>
+            <Panel title="Brand Voice" hint="Tone, writing style & personality" accent={C.gold} defaultOpen={false}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4, marginBottom: 8 }}>
                 {[
                   { value: 'luxury',     label: 'Luxury',     desc: 'Premium, exclusive' },
@@ -3597,9 +3597,9 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
             {/* ── INSPIRED STYLE ── */}
             {/* Visual Brand DNA */}
-            <Panel title="Visual Identity" accent={C.violet} defaultOpen={false}>
+            <Panel title="Visual Identity" hint="Colors, aesthetics & visual direction" accent={C.violet} defaultOpen={false}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
                   Brand colors and visual style injected into every image generation.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -3672,8 +3672,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </div>
             </Panel>
 
-            <Panel title="Inspired Style" accent={C.gold} defaultOpen={false}>
-              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
+            <Panel title="Inspired Style" hint="Competitor or inspiration reference" accent={C.gold} defaultOpen={false}>
+              <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
                 Apply a brand creative DNA to your output. We translate — not copy.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
@@ -3704,7 +3704,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               )}
             </Panel>
 
-            <Panel title="Visual Style" accent={C.gold}>
+            <Panel title="Visual Style" hint="Photo style for AI image generation" accent={C.gold}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                 {[
                   { value: 'lifestyle',  label: 'Lifestyle',  icon: '🌅', desc: 'Real-world scene' },
@@ -4325,7 +4325,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                         ))}
                       </div>
                       {identity.campaignFit && (
-                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginTop: 5, fontStyle: 'italic' }}>{identity.campaignFit}</div>
+                        <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginTop: 5, fontStyle: 'italic' }}>{identity.campaignFit}</div>
                       )}
                     </div>
                   )}
@@ -4410,12 +4410,39 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* Empty state */}
         {!isGenerating && !s.adGeneratedImage && !s.adVideoUrl && !s.adError && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 14, padding: '40px 20px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36 }}>📣</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, letterSpacing: 0.5 }}>Ad Creative Studio</div>
-            <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.7 }}>
-              Configure your ad on the left and press <span style={{ color: C.gold }}>Generate</span> to create professional ad content.
-            </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '40px 24px', textAlign: 'center' }}>
+
+            {/* How to start — 3 steps */}
+            {!productName.trim() ? (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.primary, letterSpacing: -0.3 }}>How to get your first ad</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 340 }}>
+                  {[
+                    { n: '1', label: 'Fill in Product Details', desc: 'Product name + who it\'s for — on the left sidebar', done: false },
+                    { n: '2', label: 'Pick a tab above', desc: 'Hooks, Angles, Captions, Images — or build all at once', done: false },
+                    { n: '3', label: 'Hit Generate', desc: 'AI creates scroll-stopping content in seconds', done: false },
+                  ].map(step => (
+                    <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 8, background: C.raised, border: `1px solid ${C.hairline}`, textAlign: 'left' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, fontWeight: 800, color: C.gold }}>{step.n}</div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{step.label}</div>
+                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{step.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 10, color: C.muted }}>✦ Or use <span style={{ color: C.gold }}>Build Full Project</span> to generate everything at once</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.primary }}>Ready — pick a tab to generate</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 360 }}>
+                  {['Hooks', 'Angles', 'Captions', 'Images', 'Video', 'UGC'].map(tab => (
+                    <div key={tab} style={{ padding: '6px 12px', borderRadius: 5, background: C.surface, border: `1px solid ${C.hairline}`, fontSize: 11, color: C.secondary }}>{tab}</div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Build Full Ad Project */}
             {productName.trim() && (
@@ -4423,12 +4450,12 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 onClick={handleBuildFullProject}
                 disabled={buildingProject || s.adTextGenerating}
                 style={{
-                  padding: '12px 24px', borderRadius: 5, fontSize: 12, fontWeight: 800,
+                  padding: '13px 28px', borderRadius: 8, fontSize: 13, fontWeight: 800,
                   cursor: buildingProject || s.adTextGenerating ? 'not-allowed' : 'pointer',
                   border: `1px solid ${buildingProject ? C.subtle : C.gold}`,
                   background: buildingProject ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)',
                   color: buildingProject ? C.muted : C.gold,
-                  letterSpacing: 0.5, opacity: buildingProject || s.adTextGenerating ? 0.7 : 1,
+                  letterSpacing: 0.3, opacity: buildingProject || s.adTextGenerating ? 0.7 : 1,
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
@@ -4438,20 +4465,11 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </button>
             )}
             {buildingProject && (
-              <div style={{ fontSize: 9, color: C.gold, maxWidth: 260, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 10, color: C.gold, maxWidth: 280, lineHeight: 1.6 }}>
                 Generating angles → selecting best → hooks → captions + UGC. Results appear in each tab.
               </div>
             )}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              {[{ icon: '📦', label: 'Products' }, { icon: '⭐', label: 'Brands' }, { icon: '🎬', label: 'Video' }].map(i => (
-                <div key={i.label} style={{ padding: '10px 12px', borderRadius: 4, background: C.base, border: `1px solid ${C.hairline}`, textAlign: 'center', minWidth: 64 }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{i.icon}</div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.5 }}>{i.label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 9, color: C.ghost, marginTop: 4 }}>✦ AI auto-suggests style from your product name</div>
+            <div style={{ fontSize: 10, color: C.muted }}>✦ AI auto-suggests style from your product name</div>
           </div>
         )}
 
@@ -5210,7 +5228,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                               </div>
                             ))}
                             {sb.productionNotes && (
-                              <div style={{ padding: '7px 10px', borderTop: `1px solid ${C.violetDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.5, background: '#0e0818' }}>
+                              <div style={{ padding: '7px 10px', borderTop: `1px solid ${C.violetDim}`, fontSize: 11, color: C.secondary, lineHeight: 1.5, background: '#0e0818' }}>
                                 <span style={{ fontWeight: 700, color: C.muted }}>Production: </span>{sb.productionNotes}
                               </div>
                             )}
@@ -5595,7 +5613,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     {b.brandNotes && (
                       <div style={{ padding: '7px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
                         <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Brand Notes</div>
-                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{b.brandNotes}</div>
+                        <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{b.brandNotes}</div>
                       </div>
                     )}
 
@@ -5893,7 +5911,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </div>
             </div>
 
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Full campaign evaluation below — fatigue detection and 8-dimension score.
             </div>
 
@@ -6016,7 +6034,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </div>
             )}
 
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Score individual copy
             </div>
 
@@ -6100,13 +6118,13 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     <div style={{ borderRadius: 4, border: '1px solid #1a3a2a', background: '#081208', padding: '8px 10px' }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: '#4a9a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Strong</div>
                       {(sc.strengths || []).map((s, i) => (
-                        <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✓ {s}</div>
+                        <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✓ {s}</div>
                       ))}
                     </div>
                     <div style={{ borderRadius: 4, border: '1px solid #2a1010', background: '#110606', padding: '8px 10px' }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Weak</div>
                       {(sc.weaknesses || []).map((w, i) => (
-                        <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✗ {w}</div>
+                        <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>✗ {w}</div>
                       ))}
                     </div>
                   </div>
@@ -6248,7 +6266,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
             {/* ── BRIEF MODE ── */}
             {heygenMode === 'brief' && (<>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Turn your talking head script into a complete production brief for AI avatar tools — HeyGen, Synthesia, D-ID, or Arcads. Everything formatted for the platform you use.
             </div>
 
@@ -6313,7 +6331,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {/* Avatar setup */}
                   {av.avatarSetup && (
                     <Sec title="Avatar Setup" color={C.violet}>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Type: </span>{av.avatarSetup.avatarType}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Type: </span>{av.avatarSetup.avatarType}</div>
                       <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, marginBottom: 4 }}>{av.avatarSetup.avatarDescription}</div>
                       {av.avatarSetup.photoAvatarInstructions && (
                         <div style={{ padding: '5px 7px', borderRadius: 4, background: C.violetGlow, border: `1px solid ${C.violetDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
@@ -6373,7 +6391,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {av.platformSpecificInstructions && (
                     <div style={{ padding: '8px 10px', borderRadius: 4, background: C.violetGlow, border: `1px solid ${C.violetDim}` }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>{avatarPlatform} Step-by-Step</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{av.platformSpecificInstructions}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{av.platformSpecificInstructions}</div>
                     </div>
                   )}
 
@@ -6401,7 +6419,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               {!heygenConnected ? (
                 <div style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.violetDim}`, background: '#0e0818', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>Connect your HeyGen account</div>
-                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
                     Get your API key from <span style={{ color: C.violet }}>app.heygen.com → Settings → API</span>. Your key is stored securely and never shared.
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -6558,7 +6576,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     </div>
 
                     {heygenVideoStatus === 'processing' && (
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
                         HeyGen is rendering your video. The page will update automatically when it's done — no need to refresh.
                         {heygenTestMode && <span style={{ color: C.gold }}> (Test mode — watermark included)</span>}
                       </div>
@@ -6857,7 +6875,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                         <div style={{ borderRadius: 4, border: `1px solid #1a3a1a`, background: '#060e06', padding: '7px 8px' }}>
                           <div style={{ fontSize: 8, fontWeight: 700, color: C.green, marginBottom: 4 }}>✓ What They Did</div>
                           {r.whatTheyDid.map((item, i) => (
-                            <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
+                            <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
                           ))}
                         </div>
                       )}
@@ -6865,7 +6883,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                         <div style={{ borderRadius: 4, border: `1px solid #3a1a1a`, background: '#0e0606', padding: '7px 8px' }}>
                           <div style={{ fontSize: 8, fontWeight: 700, color: '#cf7e7e', marginBottom: 4 }}>✗ What They Missed</div>
                           {r.whatTheyMissed.map((item, i) => (
-                            <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
+                            <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
                           ))}
                         </div>
                       )}
@@ -6918,7 +6936,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
           {/* ── TEXT ANALYSIS (existing) ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>
               Paste a competitor ad, brand description, or any creative reference. The AI will analyse what makes it work and generate inspired original direction for your brand — without copying.
             </div>
             <textarea
@@ -7048,7 +7066,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.hairline}` }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Market Intelligence</div>
-              <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>
                 Paste 2–5 competitor ads found in the wild (Facebook Ad Library, TikTok, Instagram). AI identifies what the whole market is doing — then finds the open gap for you.
               </div>
               <div style={{ fontSize: 9, color: C.blue, marginBottom: 8 }}>
@@ -7475,7 +7493,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                         <Sec title="Problem" color={C.tension}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{p.problemSection.heading}</div>
-                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{p.problemSection.body}</div>
+                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{p.problemSection.body}</div>
                             {p.problemSection.agitator && <div style={{ fontSize: 9, color: C.tension, fontStyle: 'italic', fontWeight: 600 }}>{p.problemSection.agitator}</div>}
                           </div>
                         </Sec>
@@ -7484,7 +7502,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                         <Sec title="Solution" color={C.green}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{p.solutionSection.heading}</div>
-                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{p.solutionSection.body}</div>
+                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{p.solutionSection.body}</div>
                           </div>
                         </Sec>
                       )}
@@ -7552,7 +7570,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                                 <span style={{ fontSize: 10, color: C.primary, fontWeight: 600 }}>{faq.question}</span>
                                 <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
                               </button>
-                              {isOpen && <div style={{ padding: '6px 9px', fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{faq.answer}</div>}
+                              {isOpen && <div style={{ padding: '6px 9px', fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{faq.answer}</div>}
                             </div>
                           )
                         })}
@@ -7587,7 +7605,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── CALENDAR TAB ── */}
         {adOutputTab === 'calendar' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>
               Generate a complete 30-day content calendar — each day has a specific hook, caption direction, creative notes, music energy, and best posting time. Exportable as CSV.
             </div>
 
@@ -7685,7 +7703,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── CAMPAIGN SEQUENCER TAB ── */}
         {adOutputTab === 'sequencer' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>
               Map your campaign to a cinematic story arc. Each day gets an engine phase, emotional energy, hook, caption, and image direction — so your whole campaign tells one coherent story.
             </div>
 
@@ -7832,7 +7850,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                             {day.imageDirection && (
                               <div style={{ background: C.raised, borderRadius: 3, padding: '5px 8px', borderLeft: `2px solid ${C.violet}` }}>
                                 <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, marginBottom: 2 }}>🎬 Generate This</div>
-                                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{day.imageDirection}</div>
+                                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{day.imageDirection}</div>
                               </div>
                             )}
 
@@ -7978,7 +7996,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {sb.overallVisualTone && (
                     <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Visual Tone</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sb.overallVisualTone}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{sb.overallVisualTone}</div>
                       {sb.musicDirection && <div style={{ fontSize: 9, color: C.violet, marginTop: 3 }}>♪ {sb.musicDirection}</div>}
                     </div>
                   )}
@@ -8097,7 +8115,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {sb.aiGenerationTips && (
                     <div style={{ padding: '7px 10px', borderRadius: 4, background: C.blueDim, border: `1px solid ${C.blueGlow}` }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>AI Generation Tips</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sb.aiGenerationTips}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{sb.aiGenerationTips}</div>
                     </div>
                   )}
                 </div>
@@ -8184,7 +8202,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   </div>
 
                   {seq.sequenceArc && (
-                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, padding: '5px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                    <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, padding: '5px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
                       {seq.sequenceArc}
                     </div>
                   )}
@@ -8278,7 +8296,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── DEPLOY / LAUNCH PACKAGE TAB ── */}
         {adOutputTab === 'deploy' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Format your campaign for Meta Ads Manager and TikTok Ads — campaign structure, ad copy within character limits, targeting, UTMs, asset checklist, and a 7-day launch plan. Ready to upload.
             </div>
 
@@ -8470,7 +8488,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {/* A/B testing plan */}
                   {pkg.abTestingPlan && (
                     <Section title="A/B Testing Plan" color={C.gold}>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
                         <div style={{ marginBottom: 4 }}><span style={{ color: C.gold, fontWeight: 700 }}>First test: </span>{pkg.abTestingPlan.firstTest}</div>
                         <div style={{ marginBottom: 4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Budget: </span>{pkg.abTestingPlan.budgetAllocation}</div>
                         <div><span style={{ color: C.green, fontWeight: 700 }}>Win condition: </span>{pkg.abTestingPlan.winnerCriteria}</div>
@@ -8493,7 +8511,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── TRENDS TAB ── */}
         {adOutputTab === 'trends' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Get a real-time intelligence brief on what hook formats, visual styles, and emotional triggers are dominating your platform right now.
             </div>
 
@@ -8652,7 +8670,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {/* Algorithm + timing notes */}
                   {tr.platformAlgorithmNotes?.length > 0 && (
                     <Sec title="Algorithm Notes" color={C.secondary}>
-                      {tr.platformAlgorithmNotes.map((n, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>· {n}</div>)}
+                      {tr.platformAlgorithmNotes.map((n, i) => <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>· {n}</div>)}
                     </Sec>
                   )}
 
@@ -8688,7 +8706,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── VOICE OF CUSTOMER / TESTIMONIAL MINER TAB ── */}
         {adOutputTab === 'voice' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Paste customer reviews from Amazon, Trustpilot, Google, or anywhere. AI extracts the best hooks, pain language, desire phrases, and proof statements hiding inside them.
             </div>
 
@@ -9005,7 +9023,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {o.guarantee && (
                     <div style={{ padding: '8px 12px', borderRadius: 5, background: C.greenDim, border: `1px solid #2a4a2a` }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 3 }}>{o.guarantee.headline}</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{o.guarantee.copy}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{o.guarantee.copy}</div>
                     </div>
                   )}
 
@@ -9013,7 +9031,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {o.urgencyScarcity && (
                     <div style={{ padding: '8px 12px', borderRadius: 5, background: '#100808', border: `1px solid #3a1a1a` }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#cf6a6a', marginBottom: 3 }}>{o.urgencyScarcity.headline}</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{o.urgencyScarcity.copy}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{o.urgencyScarcity.copy}</div>
                     </div>
                   )}
 
@@ -9068,7 +9086,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── RETARGETING ADS TAB ── */}
         {adOutputTab === 'retarget' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Warm traffic is different from cold. Generate dedicated hooks, captions, and strategy for people who've already seen your brand.
             </div>
 
@@ -9212,7 +9230,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── AD ACCOUNT AUDIT TAB ── */}
         {adOutputTab === 'audit' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Paste your ad performance data from Meta or TikTok Ads Manager. AI turns numbers into a creative action plan.
             </div>
 
@@ -9267,7 +9285,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     </div>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{a.accountHealth?.headline}</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{a.accountHealth?.summary}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{a.accountHealth?.summary}</div>
                     </div>
                   </div>
 
@@ -9426,7 +9444,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   {sc.deliveryBrief && (
                     <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Delivery Brief</div>
-                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sc.deliveryBrief}</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{sc.deliveryBrief}</div>
                     </div>
                   )}
 
@@ -9618,7 +9636,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                               <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Description</span>
                               <CopyBtn text={pd.amazon.productDescription} id="amz_desc" />
                             </div>
-                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{pd.amazon.productDescription}</div>
+                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{pd.amazon.productDescription}</div>
                           </div>
                         )}
                         {pd.amazon.backendKeywords && (
@@ -9934,7 +9952,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── NAMING CONVENTION TAB ── */}
         {adOutputTab === 'naming' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>Generate a clean, consistent naming system for your campaigns, ad sets, ads, and UTM parameters.</div>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>Generate a clean, consistent naming system for your campaigns, ad sets, ads, and UTM parameters.</div>
             <div style={{ display: 'flex', gap: 5 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Platform</div>
@@ -10154,7 +10172,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── SWIPE FILE / HOOKS LIBRARY TAB ── */}
         {adOutputTab === 'swipe' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
               Your personal hook library. Every hook you save appears here — searchable, filterable, and ready to reuse.
             </div>
 
@@ -10218,7 +10236,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── A/B TESTS TAB ── */}
         {adOutputTab === 'abtests' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>
               Structure your creative tests properly. Run hook A vs hook B with a hypothesis. Enter results when done. App learns which patterns win.
             </div>
 
@@ -10397,7 +10415,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── ROI TAB ── */}
         {adOutputTab === 'roi' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>
               Project your campaign revenue before spending. Based on expected CTR, conversion rate, and audience size.
             </div>
 
@@ -10603,7 +10621,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
                     These are projections based on your inputs. Actual results vary by audience quality, creative performance, and platform algorithm. Use as a planning guide, not a guarantee.
                   </div>
                 </div>
@@ -10861,8 +10879,8 @@ const INIT = {
 function Label({ children }) {
   return (
     <div style={{
-      fontSize: 9, fontWeight: 700, letterSpacing: 1.2,
-      textTransform: 'uppercase', color: C.muted, marginBottom: 4,
+      fontSize: 10, fontWeight: 700, letterSpacing: 1,
+      textTransform: 'uppercase', color: C.secondary, marginBottom: 4,
     }}>
       {children}
     </div>
@@ -10970,7 +10988,7 @@ function Btn({ children, onClick, disabled, variant = 'default', style: sx }) {
   )
 }
 
-function Panel({ title, badge, right, accent, defaultOpen = true, children }) {
+function Panel({ title, hint, badge, right, accent, defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div style={{
@@ -10984,29 +11002,36 @@ function Panel({ title, badge, right, accent, defaultOpen = true, children }) {
       <div
         onClick={() => setOpen(o => !o)}
         style={{
-          padding: '8px 11px', background: C.raised,
+          padding: '10px 12px', background: C.raised,
           borderBottom: open ? `1px solid ${C.hairline}` : 'none',
           display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', cursor: 'pointer',
-          userSelect: 'none',
+          userSelect: 'none', gap: 8,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: 1.1,
-            textTransform: 'uppercase',
-            color: accent ? accent + 'cc' : C.muted,
-          }}>
-            {title}
-          </span>
-          {badge}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.8,
+              textTransform: 'uppercase',
+              color: accent ? accent : C.secondary,
+            }}>
+              {title}
+            </span>
+            {badge}
+          </div>
+          {hint && !open && (
+            <span style={{ fontSize: 10, color: C.muted, letterSpacing: 0, textTransform: 'none', fontWeight: 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {hint}
+            </span>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           {right}
-          <span style={{ fontSize: 8, color: C.ghost }}>{open ? '▲' : '▼'}</span>
+          <span style={{ fontSize: 9, color: C.muted }}>{open ? '▲' : '▼'}</span>
         </div>
       </div>
-      {open && <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>}
+      {open && <div style={{ padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>}
     </div>
   )
 }
@@ -13155,7 +13180,7 @@ export default function PromptCEOPage() {
               {/* IDENTITY */}
               {/* ── CHARACTER DNA ── */}
               {/* ── CUSTOM WORLD BUILDER ── */}
-              <Panel title="Custom Worlds" accent={C.blue} defaultOpen={false}>
+              <Panel title="Custom Worlds" hint="Build your own location with custom atmosphere" accent={C.blue} defaultOpen={false}>
                 {customWorlds.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                     {customWorlds.map(world => (
@@ -13205,8 +13230,8 @@ export default function PromptCEOPage() {
                 )}
               </Panel>
 
-              <Panel title="Scene Presets" accent={C.violet} defaultOpen={false}>
-                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+              <Panel title="Scene Presets" hint="Save & restore complete studio setups" accent={C.violet} defaultOpen={false}>
+                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
                   Save your complete studio setup — world, director, identity, and traits — as a named preset for instant recall.
                 </div>
                 {studioCharDNA.length > 0 && (
@@ -13244,7 +13269,7 @@ export default function PromptCEOPage() {
                 )}
               </Panel>
 
-              <Panel title="Identity" accent={C.green}
+              <Panel title="Identity" hint="Upload a photo to lock a real face into scenes" accent={C.green}
                 badge={s.useIdentity ? <Chip>🔒 locked</Chip> : <Chip>off</Chip>}
                 right={
                   <Btn variant="danger" onClick={() => merge({
@@ -13381,10 +13406,10 @@ export default function PromptCEOPage() {
               </Panel>
 
               {/* CHARACTER DNA — main character setup */}
-              <Panel title="Character DNA" accent="#c8a84b" defaultOpen={false}
+              <Panel title="Character DNA" hint="Set character mode, physical traits & save profiles" accent="#c8a84b" defaultOpen={false}
                 badge={dnaProfiles.length > 0 ? <Chip>{dnaProfiles.length} saved</Chip> : null}
               >
-                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
                   Set up your character — mode, physical traits, and appearance. Save as a cloud profile for instant reload across sessions.
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -13507,6 +13532,7 @@ export default function PromptCEOPage() {
               {/* ── BRAND DNA LOCK ── */}
               <Panel
                 title="Brand DNA Lock"
+                hint="Lock brand colors, mood & forbidden elements"
                 accent={activeBrandDNA?.is_locked ? C.gold : C.muted}
                 badge={activeBrandDNA?.is_locked
                   ? <Chip style={{ background: C.goldGlow, color: C.gold, border: `1px solid ${C.goldDim}` }}>🔒 {activeBrandDNA.name}</Chip>
@@ -13514,7 +13540,7 @@ export default function PromptCEOPage() {
                 defaultOpen={false}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>
                     Lock a brand identity. Every generation will automatically inject the visual and tonal constraints — perfect for agencies managing multiple brands.
                   </div>
 
@@ -13602,7 +13628,7 @@ export default function PromptCEOPage() {
               </Panel>
 
               {/* WORLD */}
-              <Panel title="World System" accent={C.blue}
+              <Panel title="World System" hint="Choose the location & scene your character is in" accent={C.blue}
                 badge={s.worldId ? <Chip>{worldObj?.name || s.worldId}</Chip> : <Chip>auto</Chip>}
                 right={<Btn variant="danger" onClick={() => merge({ worldControlMode: 'auto', worldId: '', subLocationId: '', sceneGroupId: '', phaseKey: '' })}>reset</Btn>}
               >
@@ -13647,7 +13673,7 @@ export default function PromptCEOPage() {
               </Panel>
 
               {/* DIRECTOR */}
-              <Panel title="Director" accent={C.gold}
+              <Panel title="Director" hint="11 cinematic styles — changes composition & lighting" accent={C.gold}
                 badge={s.directorPreset !== 'none' ? <Pill color={C.gold}>{activeDirectorPreset.label}</Pill> : null}
               >
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
@@ -14454,7 +14480,7 @@ export default function PromptCEOPage() {
               {/* ── PHOTOGRAPHER BRIEF ── */}
               {batch.length > 0 && (
                 <Panel title="Photographer Brief" accent={C.violet} defaultOpen={false}>
-                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
                     Translate your scene batch into a real-world shoot brief — for photographers, stylists, and models.
                   </div>
                   <button onClick={generatePhotographerBrief} disabled={photographerBriefLoading}
@@ -14498,7 +14524,7 @@ export default function PromptCEOPage() {
               {/* ── VISUAL ANCHOR STATUS ── */}
               {s.visualAnchor && (
                 <Panel title="Visual Anchor" accent={C.gold} defaultOpen>
-                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, marginBottom: 6 }}>
                     Active. All scenes maintain visual consistency with this reference.
                   </div>
                   {s.visualAnchor.imageUrl && (
