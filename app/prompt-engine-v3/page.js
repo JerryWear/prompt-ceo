@@ -389,6 +389,27 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [avatarPlatform,    setAvatarPlatform]     = useState('HeyGen')
   const [avatarScript,      setAvatarScript]       = useState('')
 
+  // HeyGen Direct Integration
+  const [heygenMode,        setHeygenMode]         = useState('brief')  // 'brief' | 'generate'
+  const [heygenKey,         setHeygenKey]          = useState('')
+  const [heygenKeyMasked,   setHeygenKeyMasked]    = useState('')
+  const [heygenConnected,   setHeygenConnected]    = useState(false)
+  const [heygenConnecting,  setHeygenConnecting]   = useState(false)
+  const [heygenAvatars,     setHeygenAvatars]      = useState([])
+  const [heygenVoices,      setHeygenVoices]       = useState([])
+  const [heygenAvatarsLoading, setHeygenAvatarsLoading] = useState(false)
+  const [selectedAvatarId,  setSelectedAvatarId]   = useState('')
+  const [selectedVoiceId,   setSelectedVoiceId]    = useState('')
+  const [heygenAspectRatio, setHeygenAspectRatio]  = useState('9:16')
+  const [heygenBgColor,     setHeygenBgColor]      = useState('#0a0a0a')
+  const [heygenTestMode,    setHeygenTestMode]      = useState(true)
+  const [heygenVideoId,     setHeygenVideoId]      = useState(null)
+  const [heygenVideoStatus, setHeygenVideoStatus]  = useState(null)  // processing | completed | failed
+  const [heygenVideoUrl,    setHeygenVideoUrl]     = useState(null)
+  const [heygenGenerating,  setHeygenGenerating]   = useState(false)
+  const [heygenPollTimer,   setHeygenPollTimer]    = useState(null)
+  const [heygenError,       setHeygenError]        = useState(null)
+
   // Launch Package
   const [launchPkg,         setLaunchPkg]          = useState(null)
   const [launchPkgLoading,  setLaunchPkgLoading]   = useState(false)
@@ -2108,6 +2129,125 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       } else { setAvatarError(data.message || 'Generation failed') }
     } catch { setAvatarError('Something went wrong') }
     finally { setAvatarLoading(false) }
+  }
+
+  // ── HeyGen Direct Integration ─────────────────────────────
+  const connectHeyGen = async () => {
+    if (!heygenKey.trim() || heygenConnecting) return
+    setHeygenConnecting(true)
+    setHeygenError(null)
+    try {
+      const res = await fetch('/api/heygen/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: heygenKey.trim() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setHeygenConnected(true)
+        setHeygenKeyMasked(data.masked)
+        setHeygenKey('')
+        addTimelineEvent('HeyGen connected')
+        loadHeyGenAvatars()
+      } else {
+        setHeygenError(data.message || 'Connection failed')
+      }
+    } catch { setHeygenError('Something went wrong') }
+    finally { setHeygenConnecting(false) }
+  }
+
+  const disconnectHeyGen = async () => {
+    try {
+      await fetch('/api/heygen/settings', { method: 'DELETE' })
+      setHeygenConnected(false)
+      setHeygenKeyMasked('')
+      setHeygenAvatars([])
+      setHeygenVoices([])
+      setSelectedAvatarId('')
+      setSelectedVoiceId('')
+    } catch {}
+  }
+
+  const checkHeyGenConnection = async () => {
+    try {
+      const res  = await fetch('/api/heygen/settings')
+      const data = await res.json()
+      if (data.status === 'success' && data.hasKey) {
+        setHeygenConnected(true)
+        setHeygenKeyMasked(data.masked)
+      }
+    } catch {}
+  }
+
+  const loadHeyGenAvatars = async () => {
+    setHeygenAvatarsLoading(true)
+    try {
+      const [avRes, voRes] = await Promise.all([
+        fetch('/api/heygen/avatars'),
+        fetch('/api/heygen/voices'),
+      ])
+      const [avData, voData] = await Promise.all([avRes.json(), voRes.json()])
+      if (avData.status === 'success') setHeygenAvatars(avData.avatars || [])
+      if (voData.status === 'success') setHeygenVoices(voData.voices || [])
+    } catch {}
+    finally { setHeygenAvatarsLoading(false) }
+  }
+
+  const generateHeyGenVideo = async () => {
+    if (!selectedAvatarId || !selectedVoiceId || !avatarScript.trim() || heygenGenerating) return
+    setHeygenGenerating(true)
+    setHeygenVideoId(null)
+    setHeygenVideoUrl(null)
+    setHeygenVideoStatus('submitting')
+    setHeygenError(null)
+
+    try {
+      const res = await fetch('/api/heygen/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avatarId:    selectedAvatarId,
+          voiceId:     selectedVoiceId,
+          script:      avatarScript,
+          aspectRatio: heygenAspectRatio,
+          background:  { type: 'color', value: heygenBgColor },
+          testMode:    heygenTestMode,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setHeygenVideoId(data.videoId)
+        setHeygenVideoStatus('processing')
+        addTimelineEvent('HeyGen video submitted', data.videoId)
+        // Start polling
+        const timer = setInterval(async () => {
+          try {
+            const sr = await fetch(`/api/heygen/status?video_id=${data.videoId}`)
+            const sd = await sr.json()
+            if (sd.status === 'success') {
+              setHeygenVideoStatus(sd.videoStatus)
+              if (sd.videoStatus === 'completed') {
+                setHeygenVideoUrl(sd.videoUrl)
+                setHeygenGenerating(false)
+                clearInterval(timer)
+                addTimelineEvent('HeyGen video ready')
+              } else if (sd.videoStatus === 'failed') {
+                setHeygenError(sd.error || 'Video generation failed in HeyGen')
+                setHeygenGenerating(false)
+                clearInterval(timer)
+              }
+            }
+          } catch {}
+        }, 8000) // poll every 8 seconds
+        setHeygenPollTimer(timer)
+      } else {
+        setHeygenError(data.message || 'Generation failed')
+        setHeygenGenerating(false)
+        setHeygenVideoStatus(null)
+      }
+    } catch (err) {
+      setHeygenError('Something went wrong')
+      setHeygenGenerating(false)
+      setHeygenVideoStatus(null)
+    }
   }
 
   // ── Launch Package ────────────────────────────────────────
@@ -5855,9 +5995,28 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           </div>
         </>)}
 
-        {/* ── AVATAR BRIEF TAB ── */}
+        {/* ── AVATAR TAB — Brief + HeyGen Direct ── */}
         {adOutputTab === 'avatar' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Mode toggle */}
+            <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: `1px solid ${C.hairline}` }}>
+              <button onClick={() => setHeygenMode('brief')}
+                style={{ flex: 1, padding: '8px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none', borderRight: `1px solid ${C.hairline}`,
+                  background: heygenMode === 'brief' ? C.raised : 'transparent',
+                  color: heygenMode === 'brief' ? C.gold : C.muted }}>
+                📋 Platform Brief
+              </button>
+              <button onClick={() => { setHeygenMode('generate'); if (!heygenConnected) checkHeyGenConnection(); else if (heygenAvatars.length === 0) loadHeyGenAvatars() }}
+                style={{ flex: 1, padding: '8px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
+                  background: heygenMode === 'generate' ? '#0e0818' : 'transparent',
+                  color: heygenMode === 'generate' ? C.violet : C.muted }}>
+                🎬 Generate with HeyGen
+              </button>
+            </div>
+
+            {/* ── BRIEF MODE ── */}
+            {heygenMode === 'brief' && (<>
             <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
               Turn your talking head script into a complete production brief for AI avatar tools — HeyGen, Synthesia, D-ID, or Arcads. Everything formatted for the platform you use.
             </div>
@@ -6002,6 +6161,210 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a production brief for {avatarPlatform} — avatar setup, script formatted for input, background direction, voice settings, and step-by-step platform instructions.</div>
               </div>
             )}
+            </>)}
+
+            {/* ── HEYGEN GENERATE MODE ── */}
+            {heygenMode === 'generate' && (<>
+
+              {/* Connection panel */}
+              {!heygenConnected ? (
+                <div style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.violetDim}`, background: '#0e0818', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>Connect your HeyGen account</div>
+                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                    Get your API key from <span style={{ color: C.violet }}>app.heygen.com → Settings → API</span>. Your key is stored securely and never shared.
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      value={heygenKey}
+                      onChange={e => setHeygenKey(e.target.value)}
+                      placeholder="Paste your HeyGen API key…"
+                      type="password"
+                      onKeyDown={e => e.key === 'Enter' && connectHeyGen()}
+                      style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.violetDim}`, borderRadius: 4, padding: '7px 10px', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
+                    />
+                    <button onClick={connectHeyGen} disabled={!heygenKey.trim() || heygenConnecting}
+                      style={{ padding: '7px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: heygenKey.trim() && !heygenConnecting ? 'pointer' : 'not-allowed', border: `1px solid ${C.violetDim}`, background: C.violetGlow, color: heygenConnecting ? C.muted : C.violet }}>
+                      {heygenConnecting ? '⟳' : 'Connect'}
+                    </button>
+                  </div>
+                  {heygenError && <div style={{ fontSize: 9, color: '#cf6a6a' }}>{heygenError}</div>}
+                </div>
+              ) : (
+                <div style={{ padding: '8px 12px', borderRadius: 6, background: C.greenDim, border: `1px solid #2a4a2a`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>✓ HeyGen Connected</div>
+                    <div style={{ fontSize: 8, color: C.muted }}>{heygenKeyMasked}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button onClick={loadHeyGenAvatars} disabled={heygenAvatarsLoading}
+                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid #2a4a2a`, background: 'none', color: C.green }}>
+                      {heygenAvatarsLoading ? '⟳' : '↺ Reload'}
+                    </button>
+                    <button onClick={disconnectHeyGen}
+                      style={{ padding: '4px 7px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {heygenConnected && (<>
+
+                {/* Script */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ fontSize: 8, color: C.secondary, fontWeight: 700 }}>Script</div>
+                    {scriptResult?.fullScriptForTeleprompter && (
+                      <button onClick={() => setAvatarScript(scriptResult.fullScriptForTeleprompter)}
+                        style={{ fontSize: 8, color: C.violet, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        ← Auto-fill from Script tab
+                      </button>
+                    )}
+                  </div>
+                  <textarea value={avatarScript} onChange={e => setAvatarScript(e.target.value)}
+                    placeholder="Paste your script or auto-fill from the Script tab…"
+                    rows={4}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '7px 10px', fontSize: 10, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {/* Avatar selector */}
+                {heygenAvatarsLoading ? (
+                  <div style={{ padding: '16px', textAlign: 'center', fontSize: 11, color: C.muted }}>⟳ Loading your avatars…</div>
+                ) : heygenAvatars.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: 8, color: C.secondary, fontWeight: 700, marginBottom: 6 }}>Select Avatar</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                      {heygenAvatars.map(av => (
+                        <button key={av.avatar_id} onClick={() => setSelectedAvatarId(av.avatar_id)}
+                          style={{ padding: 4, borderRadius: 6, cursor: 'pointer', border: `2px solid ${selectedAvatarId === av.avatar_id ? C.violet : C.hairline}`, background: selectedAvatarId === av.avatar_id ? C.violetGlow : C.surface, textAlign: 'center', overflow: 'hidden' }}>
+                          {av.preview_image_url ? (
+                            <img src={av.preview_image_url} alt={av.avatar_name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 4, display: 'block', marginBottom: 3 }} />
+                          ) : (
+                            <div style={{ width: '100%', aspectRatio: '1', background: C.raised, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, marginBottom: 3 }}>👤</div>
+                          )}
+                          <div style={{ fontSize: 8, color: selectedAvatarId === av.avatar_id ? C.violet : C.muted, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{av.avatar_name}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '12px', textAlign: 'center', fontSize: 10, color: C.muted }}>
+                    No avatars found. <button onClick={loadHeyGenAvatars} style={{ color: C.violet, background: 'none', border: 'none', cursor: 'pointer', fontSize: 10 }}>Reload avatars</button>
+                  </div>
+                )}
+
+                {/* Voice selector */}
+                {heygenVoices.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 8, color: C.secondary, fontWeight: 700, marginBottom: 4 }}>Voice</div>
+                    <select value={selectedVoiceId} onChange={e => setSelectedVoiceId(e.target.value)}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="">Select a voice…</option>
+                      {heygenVoices.map(v => (
+                        <option key={v.voice_id} value={v.voice_id}>{v.display_name || v.name} {v.preview_audio ? '' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Settings row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Aspect Ratio</div>
+                    <select value={heygenAspectRatio} onChange={e => setHeygenAspectRatio(e.target.value)}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="9:16">9:16 Vertical</option>
+                      <option value="16:9">16:9 Landscape</option>
+                      <option value="1:1">1:1 Square</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Background</div>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <input type="color" value={heygenBgColor} onChange={e => setHeygenBgColor(e.target.value)}
+                        style={{ width: 32, height: 32, border: `1px solid ${C.hairline}`, borderRadius: 4, cursor: 'pointer', background: 'none', padding: 2 }} />
+                      <input value={heygenBgColor} onChange={e => setHeygenBgColor(e.target.value)}
+                        style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'monospace' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Mode</div>
+                    <button onClick={() => setHeygenTestMode(!heygenTestMode)}
+                      style={{ width: '100%', padding: '6px 0', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${heygenTestMode ? C.goldDim : '#2a4a2a'}`, background: heygenTestMode ? C.goldGlow : C.greenDim, color: heygenTestMode ? C.gold : C.green }}>
+                      {heygenTestMode ? '🧪 Test' : '🟢 Production'}
+                    </button>
+                    <div style={{ fontSize: 7, color: C.muted, marginTop: 2, textAlign: 'center' }}>{heygenTestMode ? 'Watermarked, free' : 'Uses HeyGen credits'}</div>
+                  </div>
+                </div>
+
+                {/* Generate button */}
+                <button
+                  onClick={generateHeyGenVideo}
+                  disabled={!selectedAvatarId || !selectedVoiceId || !avatarScript.trim() || heygenGenerating}
+                  style={{ width: '100%', padding: '12px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                    cursor: selectedAvatarId && selectedVoiceId && avatarScript.trim() && !heygenGenerating ? 'pointer' : 'not-allowed',
+                    border: `1px solid ${selectedAvatarId && selectedVoiceId && avatarScript.trim() ? C.violetDim : C.hairline}`,
+                    background: selectedAvatarId && selectedVoiceId && avatarScript.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                    color: selectedAvatarId && selectedVoiceId && avatarScript.trim() ? C.violet : C.muted,
+                  }}>
+                  {heygenGenerating ? '⟳ Generating video…' : '🎬 Generate Avatar Video'}
+                </button>
+
+                {heygenError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{heygenError}</div>}
+
+                {/* Status + Video */}
+                {heygenVideoStatus && (
+                  <div style={{ borderRadius: 8, border: `1px solid ${heygenVideoStatus === 'completed' ? '#2a4a2a' : heygenVideoStatus === 'failed' ? '#3a1a1a' : C.violetDim}`, background: heygenVideoStatus === 'completed' ? C.greenDim : heygenVideoStatus === 'failed' ? '#110606' : '#0e0818', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>{heygenVideoStatus === 'completed' ? '✅' : heygenVideoStatus === 'failed' ? '❌' : '⟳'}</span>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: heygenVideoStatus === 'completed' ? C.green : heygenVideoStatus === 'failed' ? '#cf6a6a' : C.violet }}>
+                          {heygenVideoStatus === 'completed' ? 'Video ready!' : heygenVideoStatus === 'failed' ? 'Generation failed' : 'Generating… this takes 1-3 minutes'}
+                        </div>
+                        {heygenVideoId && <div style={{ fontSize: 8, color: C.muted }}>ID: {heygenVideoId}</div>}
+                      </div>
+                    </div>
+
+                    {heygenVideoStatus === 'processing' && (
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                        HeyGen is rendering your video. The page will update automatically when it's done — no need to refresh.
+                        {heygenTestMode && <span style={{ color: C.gold }}> (Test mode — watermark included)</span>}
+                      </div>
+                    )}
+
+                    {heygenVideoUrl && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <video
+                          src={heygenVideoUrl}
+                          controls
+                          style={{ width: '100%', borderRadius: 6, border: `1px solid #2a4a2a`, maxHeight: 300, background: '#000' }}
+                        />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <a href={heygenVideoUrl} download target="_blank" rel="noreferrer"
+                            style={{ flex: 1, padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenDim, color: C.green, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                            ⬇ Download Video
+                          </a>
+                          <button onClick={() => navigator.clipboard.writeText(heygenVideoUrl).catch(() => {})}
+                            style={{ padding: '8px 14px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                            ⎘ Copy URL
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </>)}
+
+              {heygenConnected && !heygenAvatarsLoading && heygenAvatars.length === 0 && (
+                <div style={{ padding: '16px', textAlign: 'center', fontSize: 10, color: C.muted }}>
+                  Click ↺ Reload to load your HeyGen avatars.
+                </div>
+              )}
+
+            </>)}
+
           </div>
         </>)}
 
