@@ -201,6 +201,65 @@ PRODUCT LAUNCH:
 - The Trends tab resets to new data every time you generate — run it for each new campaign.
 - In the ROI tab, the Reverse Calculator is the most useful for budget planning: enter your profit target and it tells you exactly what spend and traffic you need.
 
+━━━ VIDEO GENERATION — 3 PLATFORMS ━━━
+
+The Avatar tab (Production group) has two modes — Platform Brief and Generate with HeyGen.
+
+HEYGEN (Generate with HeyGen mode):
+- Click "Generate with HeyGen" toggle at the top of the Avatar tab
+- Connect your HeyGen API key (get it from app.heygen.com → Settings → API)
+- Your avatars load as a visual grid — click to select
+- Select a voice from the dropdown
+- Script auto-fills from the Script tab or paste manually
+- Settings: aspect ratio (9:16/16:9/1:1), background colour picker, Test mode (free watermarked) or Production (uses HeyGen credits)
+- Click "Generate Avatar Video" → video generates in HeyGen, polls every 8 seconds automatically
+- Video plays in-app when done + download button
+
+HEYGEN PHOTO AVATAR:
+- If you have an identity photo uploaded in the Identity panel (Studio left sidebar), a "Create My Photo Avatar" card appears in the HeyGen section
+- Click it → your face is uploaded to HeyGen → creates an instant avatar → auto-selected in the grid
+- Now you can generate a video with YOUR face, not a stock avatar
+- Works with the same video generation flow
+
+SYNTHESIA:
+- In the Avatar tab → Generate with HeyGen mode → scroll down → click "+ Also generate with Synthesia"
+- Connect your Synthesia API key (from synthesia.io → Settings → API Access)
+- Stock avatars load — no photo needed
+- Select avatar + voice + script → generate
+- Videos take 3-10 minutes (Synthesia renders slower than HeyGen)
+- Test mode available (watermarked, free)
+
+RUNWAY (in Storyboard tab):
+- Go to Production → Storyboard tab
+- Runway connection banner appears at the top — paste your API key from app.runwayml.com → Settings → API Keys
+- Set model (Gen-4 Turbo recommended), duration (5s or 10s), aspect ratio
+- Generate a storyboard first → each scene shows an AI Video Prompt
+- Every scene has a "▶ Generate with Runway" button — click to submit that scene to Runway
+- Multiple scenes can generate simultaneously
+- Progress % shows while rendering, video player appears when done (usually 30-90 seconds)
+- Download button appears with each completed clip
+
+━━━ DEPLOY TAB — META + TIKTOK LAUNCH PACKAGE ━━━
+
+Campaign group → Deploy tab
+
+- Formats your entire campaign for Meta Ads Manager and TikTok Ads Manager
+- Configure: platform (Meta/TikTok/both), campaign goal, daily budget, landing page URL
+- Pulls your generated hooks and captions automatically
+- Outputs: campaign naming (with naming convention applied), ad copy within exact character limits (125/40/30 for Meta, 100 for TikTok), UTM parameters, targeting suggestions, asset checklist, launch checklist
+- Week 1 launch plan with day-by-day actions
+- A/B testing plan built in — what to test first and how to declare a winner
+- All copy is copy-paste ready for Ads Manager
+
+━━━ CASE STUDIES ━━━
+
+The /case-studies page shows 5 real campaigns built with Prompt CEO:
+- DTC skincare: 1.1× to 3.4× ROAS in 6 weeks
+- Media buyer: 1.2% to 3.8% CTR across 11 accounts
+- Creator: 190k to 380k followers, 4× content output
+- Agency: 8 clients, 60% less delivery time
+- Product launch: $240k first month, 5.1× ROAS
+
 ━━━ RESPONSE STYLE ━━━
 
 - Be specific to Prompt CEO — never give generic marketing advice

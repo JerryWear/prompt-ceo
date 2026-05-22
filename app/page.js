@@ -15,6 +15,106 @@ const C = {
   tension:   '#b4944a',
 }
 
+// ── Live output showcase — what the app actually generates ───
+const SHOWCASE_CARDS = [
+  {
+    id:       'hook',
+    label:    'Hook',
+    group:    'Creative → Hooks',
+    color:    '#c8a84b',
+    badge:    '4.8% CTR predicted',
+    badgeColor: '#4a9a6a',
+    output:   '"I\'ve tried every skincare brand. Nothing worked until this."',
+    subtext:  'Pain hook — 5 types generated, CTR-scored before you spend',
+    detail:   'The Hooks tab generates 50+ hooks across 5 emotional types — Pain, Desire, Curiosity, Luxury, Direct Offer. Every hook runs through the Pre-Launch Scorer to predict CTR before you spend a dollar. Save winners to your Swipe File.',
+    cta:      'Generate hooks free →',
+  },
+  {
+    id:       'landing',
+    label:    'Landing Page',
+    group:    'Funnel → Landing',
+    color:    '#9b6fd4',
+    badge:    'Complete page, 4 styles',
+    badgeColor: '#9b6fd4',
+    output:   '"One serum. 14 days. Your skin finally works."',
+    subtext:  'Hero headline — auto-matched to your ad voice and hook',
+    detail:   'The Landing Page tab generates a full conversion page — hero, subheadline, benefits, testimonials, FAQ, and final CTA — in the same voice as your ads. 4 styles: Direct Response, Luxury, Storytelling, Minimal. Copy any section individually or export all at once.',
+    cta:      'Generate your landing page →',
+  },
+  {
+    id:       'email',
+    label:    'Email Subject',
+    group:    'Campaign → Email',
+    color:    '#4a8ab4',
+    badge:    '38% open rate predicted',
+    badgeColor: '#4a8ab4',
+    output:   '"This is going to sound crazy…"',
+    subtext:  'Email 1 of 5 — launch sequence, curiosity hook',
+    detail:   'The Email Sequence tab generates 3, 5, or 7-email sequences for Sales, Launch, Nurture, Abandoned Cart, Win-Back, or VIP flows. Every email has a subject line, preview text, full body, and CTA — in your brand voice. Predicted open and click rates included.',
+    cta:      'Generate email sequences →',
+  },
+  {
+    id:       'offer',
+    label:    'Offer Stack',
+    group:    'Funnel → Offer',
+    color:    '#4a9a6a',
+    badge:    'Value stack + guarantee',
+    badgeColor: '#4a9a6a',
+    output:   '"Total value: $394. You pay today: $97."',
+    subtext:  'Price anchor with 3 bonuses, 60-day guarantee, urgency block',
+    detail:   'The Offer Builder structures your complete offer — price anchoring, bonus stack with 3 named items and perceived values, guarantee copy, urgency/scarcity block. Formatted separately for your ad, landing page, and email so the offer is consistent everywhere.',
+    cta:      'Build your offer →',
+  },
+  {
+    id:       'retarget',
+    label:    'Retargeting Ad',
+    group:    'Funnel → Retarget',
+    color:    '#b4944a',
+    badge:    'Hot audience — add-to-cart',
+    badgeColor: '#b4944a',
+    output:   '"You left something behind. It\'s still waiting for you — and today only, free shipping."',
+    subtext:  'Add-to-cart retargeting — warm traffic, different angle from cold',
+    detail:   'The Retargeting tab generates 4 ad variations for 6 warm audience segments — Site Visitors, Video Viewers, Add-to-Cart, Past Purchasers, Post Engagers, Email List. Each set is tuned to exactly where that person is in their journey, plus a 14-day sequencing strategy.',
+    cta:      'Generate retargeting packs →',
+  },
+  {
+    id:       'script',
+    label:    'Talking Head Script',
+    group:    'Production → Script',
+    color:    '#9b6fd4',
+    badge:    '60s founder style',
+    badgeColor: '#9b6fd4',
+    output:   '"I tried to fix this problem for three years.\n\nI tried every solution I could find.\n\nNothing worked until I built my own."',
+    subtext:  'Teleprompter-ready — short lines, natural breathing, no jargon',
+    detail:   'The Script tab generates teleprompter-ready talking head scripts in 5 styles — Founder Story, Expert Authority, Testimonial, Direct Sell, Problem Solver. Switch to Teleprompter mode for full-screen centered text when filming. Then generate the video directly through HeyGen, Synthesia, or Runway without leaving the app.',
+    cta:      'Generate your script →',
+  },
+  {
+    id:       'sms',
+    label:    'SMS Message',
+    group:    'Campaign → SMS',
+    color:    '#4a9a6a',
+    badge:    '142 characters',
+    badgeColor: '#4a9a6a',
+    output:   '"Hey {first_name} — last call. Your cart closes in 2 hours and the bonus is gone at midnight. [LINK]"',
+    subtext:  'Abandoned cart SMS #3 — urgency close, under 160 chars',
+    detail:   'The SMS tab generates complete sequences — Sales, Launch, Abandoned Cart, Win-Back, VIP, Event. Every message is under 160 characters, timed with send scheduling, and paired with push notification versions. Compliance note included.',
+    cta:      'Generate SMS sequences →',
+  },
+  {
+    id:       'audit',
+    label:    'Ad Account Audit',
+    group:    'Intel → Audit',
+    color:    '#cf6a6a',
+    badge:    'Creative action plan',
+    badgeColor: '#cf6a6a',
+    output:   '"Campaign A is showing fatigue — CTR dropped from 3.8% to 1.1% in 14 days. Kill it. Scale Campaign C at 2x budget. Test a curiosity hook against current pain hook."',
+    subtext:  'Paste your Meta/TikTok data — get a 7-day action plan',
+    detail:   'The Audit tab takes your raw performance data from Meta or TikTok Ads Manager and turns it into a complete creative action plan — account health score, critical issues with exact fixes, winners to scale, creative tests to run with hypothesis, and a 7-day prioritised action plan.',
+    cta:      'Audit your ad account →',
+  },
+]
+
 // ── Feature categories — the full marketing OS ──────────────
 const FEATURE_GROUPS = [
   {
@@ -145,6 +245,8 @@ export default function HomePage() {
   const [user,           setUser]           = useState(undefined)
   const [activeGroup,    setActiveGroup]    = useState('creative')
   const [activeAudience, setActiveAudience] = useState(0)
+  const [activeCard,     setActiveCard]     = useState(null)
+  const [showcaseHover,  setShowcaseHover]  = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
@@ -248,6 +350,86 @@ export default function HomePage() {
               <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{o.label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── LIVE OUTPUT SHOWCASE ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px', background: C.void }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>What It Actually Creates</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 12px' }}>
+              Real outputs. Real copy. Right now.
+            </h2>
+            <p style={{ fontSize: 15, color: C.secondary, maxWidth: 480, margin: '0 auto' }}>
+              Click any card to see exactly what the app generates and where to find it.
+            </p>
+          </div>
+
+          {/* Card grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12, marginBottom: activeCard ? 24 : 0 }}>
+            {SHOWCASE_CARDS.map(card => {
+              const isActive = activeCard === card.id
+              const isHover  = showcaseHover === card.id
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => setActiveCard(isActive ? null : card.id)}
+                  onMouseEnter={() => setShowcaseHover(card.id)}
+                  onMouseLeave={() => setShowcaseHover(null)}
+                  style={{
+                    borderRadius: 10, padding: '18px', cursor: 'pointer',
+                    border: `1px solid ${isActive ? card.color + '66' : isHover ? card.color + '33' : C.hairline}`,
+                    background: isActive ? card.color + '10' : isHover ? card.color + '06' : C.surface,
+                    transition: 'all 0.18s',
+                    transform: isHover && !isActive ? 'translateY(-2px)' : 'none',
+                  }}
+                >
+                  {/* Label + group */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: card.color }}>{card.label}</span>
+                    <span style={{ fontSize: 8, color: C.muted, background: C.raised, padding: '2px 7px', borderRadius: 999 }}>{card.group}</span>
+                  </div>
+                  {/* Output quote */}
+                  <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.6, fontStyle: 'italic', marginBottom: 10, whiteSpace: 'pre-wrap' }}>
+                    {card.output}
+                  </div>
+                  {/* Subtext + badge */}
+                  <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.4, marginBottom: 10 }}>{card.subtext}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: card.badgeColor, background: card.badgeColor + '18', padding: '2px 8px', borderRadius: 999, border: `1px solid ${card.badgeColor}33` }}>
+                      {card.badge}
+                    </span>
+                    <span style={{ fontSize: 10, color: isActive ? card.color : C.muted, fontWeight: 700 }}>
+                      {isActive ? '▲ Less' : '▼ More'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Expanded detail panel */}
+          {activeCard && (() => {
+            const card = SHOWCASE_CARDS.find(c => c.id === activeCard)
+            if (!card) return null
+            return (
+              <div style={{ borderRadius: 12, border: `1px solid ${card.color}44`, background: card.color + '08', padding: 'clamp(24px, 4vw, 40px)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'start' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: card.color, marginBottom: 10 }}>{card.label} — {card.group}</div>
+                  <p style={{ fontSize: 15, color: C.primary, lineHeight: 1.8, margin: '0 0 20px' }}>{card.detail}</p>
+                  <button onClick={goToLogin}
+                    style={{ padding: '10px 24px', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${card.color}`, background: card.color + '18', color: card.color }}>
+                    {card.cta}
+                  </button>
+                </div>
+                <button onClick={() => setActiveCard(null)}
+                  style={{ padding: '6px 10px', borderRadius: 5, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted, flexShrink: 0 }}>
+                  ✕ Close
+                </button>
+              </div>
+            )
+          })()}
         </div>
       </section>
 
