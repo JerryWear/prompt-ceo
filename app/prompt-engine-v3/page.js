@@ -242,6 +242,10 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [ugcBriefType,      setUgcBriefType]      = useState('ugc_only')
   const [ugcBriefExpanded,  setUgcBriefExpanded]  = useState(null)
 
+  // Upgrade / Paywall Modal
+  const [paywallOpen,    setPaywallOpen]    = useState(false)
+  const [paywallFeature, setPaywallFeature] = useState('')
+
   // Landing Page
   const [landingPage,       setLandingPage]       = useState(null)
   const [landingLoading,    setLandingLoading]     = useState(false)
@@ -3033,6 +3037,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     : { border: `1px solid ${C.hairline}`, background: C.deep }
 
   return (
+    <>
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '280px 1fr', overflow: 'hidden' }}>
 
       {/* ══ LEFT — Config ════════════════════════════════ */}
@@ -10612,6 +10617,84 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
       </div>
     </div>
+
+    {/* ── UPGRADE / PAYWALL MODAL ── */}
+    {paywallOpen && (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(4,4,4,0.92)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px',
+      }}
+        onClick={e => { if (e.target === e.currentTarget) setPaywallOpen(false) }}
+      >
+        <div style={{
+          background: C.base, borderRadius: 16, border: `1px solid ${C.goldDim}`,
+          maxWidth: 560, width: '100%', overflow: 'hidden',
+          boxShadow: `0 0 60px ${C.gold}22`,
+        }}>
+          {/* Header */}
+          <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${C.hairline}`, position: 'relative' }}>
+            <button onClick={() => setPaywallOpen(false)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: C.muted, fontSize: 16, cursor: 'pointer', padding: '4px 8px' }}>
+              ✕
+            </button>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>
+              Upgrade to Continue
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>
+              You've used your free credits
+            </h2>
+            <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+              {paywallFeature ? `${paywallFeature} requires` : 'Generating requires'} an active plan. Start your 7-day free trial — no credit card needed.
+            </p>
+          </div>
+
+          {/* Plans */}
+          <div style={{ padding: '20px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[
+              { name: 'Creator',    price: '$29', color: C.blue,   features: ['Director\'s Studio', 'Story Worlds', '20 image generations', 'Character DNA'], id: 'creator' },
+              { name: 'Studio Pro', price: '$49', color: C.green,  features: ['Everything in Creator', 'Full Ad Studio', 'Hooks + Captions + UGC', 'Campaign Builder'], id: 'studio_pro', popular: true },
+              { name: 'Pro',        price: '$79', color: C.gold,   features: ['Everything in Studio Pro', 'Landing Page + Offer Builder', 'Email + SMS sequences', 'Retargeting + Audit'], id: 'pro' },
+              { name: 'Agency',     price: '$179', color: C.violet, features: ['Everything in Pro', 'HeyGen + Synthesia + Runway', 'Unlimited image gen', 'Client Workspace'], id: 'agency' },
+            ].map(plan => (
+              <div key={plan.id}
+                style={{ padding: '14px', borderRadius: 10, border: `1px solid ${plan.popular ? plan.color : C.hairline}`, background: plan.popular ? plan.color + '10' : C.surface, position: 'relative' }}>
+                {plan.popular && (
+                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#000', fontSize: 8, fontWeight: 800, padding: '2px 10px', borderRadius: 999, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+                    MOST POPULAR
+                  </div>
+                )}
+                <div style={{ fontSize: 12, fontWeight: 800, color: plan.color, marginBottom: 2 }}>{plan.name}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, letterSpacing: -1, marginBottom: 10 }}>{plan.price}<span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>/mo</span></div>
+                {plan.features.map((f, i) => (
+                  <div key={i} style={{ fontSize: 10, color: C.secondary, marginBottom: 3, display: 'flex', gap: 5 }}>
+                    <span style={{ color: plan.color, flexShrink: 0 }}>✓</span>{f}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div style={{ padding: '0 28px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={() => { setPaywallOpen(false); window.location.href = '/pricing' }}
+              style={{ width: '100%', padding: '14px 0', borderRadius: 8, fontSize: 15, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#000', letterSpacing: 0.3 }}>
+              Start 7-Day Free Trial — No Card Needed
+            </button>
+            <button onClick={() => setPaywallOpen(false)}
+              style={{ width: '100%', padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+              Maybe later
+            </button>
+            <div style={{ textAlign: 'center', fontSize: 11, color: C.muted }}>
+              7-day free trial · Cancel anytime · No credit card required
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -11372,6 +11455,9 @@ export default function PromptCEOPage() {
   const [creativeBrief,        setCreativeBrief]        = useState(null)
   const [creativeBriefLoading, setCreativeBriefLoading] = useState(false)
   const [briefProductHint,     setBriefProductHint]     = useState('')
+
+  // Studio Paywall
+  const [studioPaywallOpen, setStudioPaywallOpen] = useState(false)
 
   // App Guide
   const [guideOpen,     setGuideOpen]     = useState(false)
@@ -12295,6 +12381,11 @@ export default function PromptCEOPage() {
   const generateImage = useCallback(async () => {
     if (!result?.finalPrompt) return
     if (!s.imageDataUrl) { merge({ imageError: 'Upload an identity image first.' }); return }
+    // Gate: check image limit
+    if (subscription && !subscription.isAdmin && subscription.imagesRemaining === 0) {
+      setStudioPaywallOpen(true)
+      return
+    }
     setPromptChanged(false) // clear the regenerate banner
     merge({ imageGenerating: true, imageError: '', generatedImage: '' })
     try {
@@ -12311,12 +12402,18 @@ export default function PromptCEOPage() {
         merge({ generatedImage: data.imageUrl, imageGenerating: false })
         if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
-        merge({ imageError: data?.message || 'Generation failed', imageGenerating: false })
+        const msg = data?.message || ''
+        if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough') || msg.toLowerCase().includes('limit')) {
+          merge({ imageGenerating: false })
+          setStudioPaywallOpen(true)
+        } else {
+          merge({ imageError: msg || 'Generation failed', imageGenerating: false })
+        }
       }
     } catch (err) {
       merge({ imageError: err.message, imageGenerating: false })
     }
-  }, [result, s, merge, set])
+  }, [result, s, merge, set, subscription])
 
   const generateBatchImages = useCallback(async () => {
     if (!batch.length || !s.imageDataUrl) return
@@ -12353,7 +12450,17 @@ export default function PromptCEOPage() {
   }, [batch, s, merge, set])
 
   // ── Ad text generation (angles / hooks / captions) ───────
+  const triggerPaywall = (feature = '') => {
+    setPaywallFeature(feature)
+    setPaywallOpen(true)
+  }
+
   const generateAdText = useCallback(async ({ type, hookType, adConfig, inspiredStyle, contentToScore, variationContent, variationType, variationContentType }) => {
+    // Gate: no credits and no active subscription
+    if (typeof s.credits === 'number' && s.credits <= 0) {
+      triggerPaywall(type || 'Ad generation')
+      return
+    }
     merge({ adTextGenerating: true, adTextError: '', adTextType: type, adTextHookType: hookType || null })
     try {
       const res  = await fetch('/api/generate-ad-text', {
@@ -12375,7 +12482,14 @@ export default function PromptCEOPage() {
         })
         if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
-        merge({ adTextError: data?.message || 'Generation failed', adTextGenerating: false })
+        // Show upgrade modal instead of error for credit/subscription issues
+        const msg = data?.message || ''
+        if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('subscription') || msg.toLowerCase().includes('not enough')) {
+          merge({ adTextGenerating: false })
+          triggerPaywall(type || 'Ad generation')
+        } else {
+          merge({ adTextError: msg || 'Generation failed', adTextGenerating: false })
+        }
       }
     } catch (err) {
       merge({ adTextError: err.message, adTextGenerating: false })
@@ -12384,6 +12498,10 @@ export default function PromptCEOPage() {
 
   // ── Ad Studio generation ──────────────────────────────────
   const generateAdImage = useCallback(async ({ prompt, mode, adConfig }) => {
+    if (typeof s.credits === 'number' && s.credits <= 0) {
+      triggerPaywall('Image generation')
+      return
+    }
     merge({ adGenerating: true, adError: '', adGeneratedImage: '', adVideoUrl: '' })
     try {
       const res = await fetch('/api/generate-image', {
@@ -12405,7 +12523,13 @@ export default function PromptCEOPage() {
         merge({ adGeneratedImage: data.imageUrl, adGenerating: false })
         if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
-        merge({ adError: data?.message || 'Generation failed', adGenerating: false })
+        const msg = data?.message || ''
+        if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough')) {
+          merge({ adGenerating: false })
+          triggerPaywall('Image generation')
+        } else {
+          merge({ adError: msg || 'Generation failed', adGenerating: false })
+        }
       }
     } catch (err) {
       merge({ adError: err.message, adGenerating: false })
@@ -14572,6 +14696,49 @@ export default function PromptCEOPage() {
         )}
 
       </div>
+
+      {/* ── STUDIO PAYWALL MODAL ── */}
+      {studioPaywallOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(4,4,4,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+          onClick={e => { if (e.target === e.currentTarget) setStudioPaywallOpen(false) }}>
+          <div style={{ background: C.base, borderRadius: 16, border: `1px solid ${C.goldDim}`, maxWidth: 560, width: '100%', overflow: 'hidden', boxShadow: `0 0 60px ${C.gold}22` }}>
+            <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${C.hairline}`, position: 'relative' }}>
+              <button onClick={() => setStudioPaywallOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: C.muted, fontSize: 16, cursor: 'pointer', padding: '4px 8px' }}>✕</button>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Upgrade to Continue</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>You've used your free image generations</h2>
+              <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
+                Free accounts include 3 image generations. Upgrade to keep creating — 7-day free trial, no credit card needed.
+              </p>
+            </div>
+            <div style={{ padding: '20px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { name: 'Creator', price: '$29', color: C.blue, features: ['20 image generations/mo', 'All worlds + directors', 'Story Worlds', 'Character DNA cloud saves'], id: 'creator' },
+                { name: 'Studio Pro', price: '$49', color: C.green, features: ['150 image generations/mo', 'Full Ad Studio', 'Full Sequence — 30 scenes', '3 music licenses/mo'], id: 'studio_pro', popular: true },
+                { name: 'Pro', price: '$79', color: C.gold, features: ['300 image generations/mo', 'Landing Page + Email + SMS', 'Retargeting + Ad Audit', 'Client Workspace'], id: 'pro' },
+                { name: 'Agency', price: '$179', color: C.violet, features: ['Unlimited generations', 'HeyGen + Runway + Synthesia', 'Video generation in-app', 'Full video stack'], id: 'agency' },
+              ].map(plan => (
+                <div key={plan.id} style={{ padding: '14px', borderRadius: 10, border: `1px solid ${plan.popular ? plan.color : C.hairline}`, background: plan.popular ? plan.color + '10' : C.surface, position: 'relative' }}>
+                  {plan.popular && <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#000', fontSize: 8, fontWeight: 800, padding: '2px 10px', borderRadius: 999, letterSpacing: 1, whiteSpace: 'nowrap' }}>MOST POPULAR</div>}
+                  <div style={{ fontSize: 12, fontWeight: 800, color: plan.color, marginBottom: 2 }}>{plan.name}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, letterSpacing: -1, marginBottom: 10 }}>{plan.price}<span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>/mo</span></div>
+                  {plan.features.map((f, i) => <div key={i} style={{ fontSize: 10, color: C.secondary, marginBottom: 3, display: 'flex', gap: 5 }}><span style={{ color: plan.color, flexShrink: 0 }}>✓</span>{f}</div>)}
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '0 28px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button onClick={() => { setStudioPaywallOpen(false); window.location.href = '/pricing' }}
+                style={{ width: '100%', padding: '14px 0', borderRadius: 8, fontSize: 15, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#000' }}>
+                Start 7-Day Free Trial — No Card Needed
+              </button>
+              <button onClick={() => setStudioPaywallOpen(false)}
+                style={{ width: '100%', padding: '10px 0', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                Maybe later
+              </button>
+              <div style={{ textAlign: 'center', fontSize: 11, color: C.muted }}>7-day free trial · Cancel anytime · No credit card required</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FLOATING APP GUIDE ── */}
       {(() => {
