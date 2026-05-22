@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#040404"/>
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="128" x2="512" y2="128" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="0" y1="256" x2="512" y2="256" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="0" y1="384" x2="512" y2="384" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="128" y1="0" x2="128" y2="512" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="256" y1="0" x2="256" y2="512" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="384" y1="0" x2="384" y2="512" stroke="#1a1a1a" stroke-width="1"/>
+  <!-- Gold glow -->
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#c8a84b" stop-opacity="0.12"/>
+    <stop offset="100%" stop-color="#c8a84b" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="512" height="512" rx="96" fill="url(#glow)"/>
+  <!-- P lettermark -->
+  <text x="256" y="340" font-family="Georgia, serif" font-size="280" font-weight="800" fill="#c8a84b" text-anchor="middle" letter-spacing="-8">P</text>
+  <!-- CEO text -->
+  <text x="256" y="430" font-family="system-ui, sans-serif" font-size="72" font-weight="700" fill="#7a6428" text-anchor="middle" letter-spacing="16">CEO</text>
+</svg>

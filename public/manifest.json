@@ -1,0 +1,63 @@
+{
+  "name": "Prompt CEO — Creative Marketing OS",
+  "short_name": "Prompt CEO",
+  "description": "One brief. Your entire marketing stack. Hooks, landing pages, email sequences, SMS, retargeting, video storyboards, avatar videos, and the world's most advanced cinematic prompt engine.",
+  "start_url": "/prompt-engine-v3",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#040404",
+  "background_color": "#040404",
+  "categories": ["productivity", "business", "utilities"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/studio.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Director's Studio"
+    },
+    {
+      "src": "/screenshots/ad-studio.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Ad Studio"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ad Studio",
+      "short_name": "Ad Studio",
+      "description": "Open the complete marketing platform",
+      "url": "/prompt-engine-v3?tab=ad",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Director's Studio",
+      "short_name": "Studio",
+      "description": "Open the cinematic prompt engine",
+      "url": "/prompt-engine-v3",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
