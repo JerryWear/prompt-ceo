@@ -8,90 +8,150 @@ const C = {
   void:      '#040404', deep:     '#070707', base:     '#0a0a0a',
   surface:   '#111111', hairline: '#1a1a1a', subtle:   '#222222',
   primary:   '#e8e4dc', secondary:'#8a8680', muted:    '#4a4845',
-  gold:      '#c8a84b', goldDim:  '#7a6428', goldGlow: '#c8a84b18',
-  green:     '#4a9a6a', greenDim: '#1a3a2a', greenGlow:'#4a9a6a18',
-  violet:    '#9b6fd4', violetDim:'#4a2a7a', violetGlow:'#9b6fd418',
-  blue:      '#4a8ab4', blueDim:  '#1a3a5a', blueGlow: '#4a8ab418',
+  gold:      '#c8a84b', goldDim:  '#7a6428', goldGlow: '#c8a84b12',
+  green:     '#4a9a6a', greenDim: '#1a3a2a', greenGlow:'#4a9a6a12',
+  violet:    '#9b6fd4', violetDim:'#4a2a7a', violetGlow:'#9b6fd412',
+  blue:      '#4a8ab4', blueDim:  '#1a3a5a', blueGlow: '#4a8ab412',
+  tension:   '#b4944a',
 }
 
-const EXAMPLES = [
+// ── Feature categories — the full marketing OS ──────────────
+const FEATURE_GROUPS = [
   {
-    world:    'Capri',
-    director: 'Malick',
-    phase:    'Golden Hour',
-    color:    C.gold,
-    prompt:   'Villa terrace above the Tyrrhenian as it turns liquid gold. Lemon tree shadow across white linen. She holds a glass, not looking at the camera — just present in the most beautiful light in Italy. Warm backlight separating her from the sea below. The whole frame is warm, still, inevitable.',
+    id:    'creative',
+    icon:  '✦',
+    label: 'Creative',
+    color: C.gold,
+    tagline: 'Ad creative at scale',
+    features: ['Angles', 'Hooks (5 types)', 'Captions', 'Image Ads', 'Video Ads', 'UGC Scripts', 'Creator Brief'],
   },
   {
-    world:    'Tokyo',
-    director: 'Fincher',
-    phase:    'Neon Night',
-    color:    C.violet,
-    prompt:   'Shinjuku neon corridor at 11pm. She moves through the electric light with complete ownership — dark structured coat, measured stride, the city bending around her. Mixed pink and blue light on skin. Every frame controlled. The chaos outside the frame makes the stillness inside it magnetic.',
+    id:    'campaign',
+    icon:  '◈',
+    label: 'Campaign',
+    color: C.violet,
+    tagline: 'Full-funnel sequences',
+    features: ['Campaign Sequencer', 'Email Sequence', 'SMS + Push', 'Content Calendar', 'Launch Sequence'],
   },
   {
-    world:    'Mykonos',
-    director: 'Wong Kar-wai',
-    phase:    'Afternoon',
-    color:    C.blue,
-    prompt:   'Nammos luxury daybed, peak Mediterranean heat. Saturated. Slow. She exists in the frame like she has nowhere else to be and no reason to prove it. Time-blurred edges. The Aegean behind her is almost too blue to be real. Everything feels like a memory already.',
+    id:    'funnel',
+    icon:  '▽',
+    label: 'Funnel',
+    color: C.green,
+    tagline: 'Convert cold to paid',
+    features: ['Landing Page Copy', 'Offer Builder', 'Retargeting Packs', 'Testimonial Mining', 'Objection Crusher'],
+  },
+  {
+    id:    'intel',
+    icon:  '◎',
+    label: 'Intelligence',
+    color: C.blue,
+    tagline: 'Data-driven creative',
+    features: ['Trend Intelligence', 'Hook Pre-Score', 'Ad Account Audit', 'Competitor Deconstruct', 'A/B Tests'],
+  },
+  {
+    id:    'production',
+    icon:  '▶',
+    label: 'Production',
+    color: C.tension,
+    tagline: 'Production-ready assets',
+    features: ['Talking Head Script', 'Video Storyboard + AI Prompts', 'Product Descriptions', 'Influencer Brief', 'Music Intelligence'],
+  },
+  {
+    id:    'studio',
+    icon:  '◇',
+    label: 'Director\'s Studio',
+    color: C.gold,
+    tagline: '20 worlds. 12-layer engine.',
+    features: ['20+ Cinematic Worlds', '11 Director Styles', 'Story Worlds & Characters', 'Shot Director AI', 'Brand DNA Lock'],
   },
 ]
 
-const WORLDS = [
-  { name: 'Tokyo',       desc: 'Neon · Aman suites · Ginza · Golden Gai',    color: C.violet },
-  { name: 'Capri',       desc: 'Villa terrace · Faraglioni · La Piazzetta',   color: C.gold   },
-  { name: 'Mykonos',     desc: 'Nammos · Little Venice · Windmills',          color: C.blue   },
-  { name: 'Marrakech',   desc: 'Riad · Hammam · Djemaa el-Fna · La Mamounia', color: C.gold   },
-  { name: 'Swiss Alps',  desc: 'Chalet fireplace · Ski slopes · Alpenglow',   color: C.blue   },
-  { name: 'New York',    desc: 'Tribeca loft · Central Park · Rooftop bars',  color: C.green  },
-  { name: 'Santorini',   desc: 'Cave suites · Caldera · Oia sunset',          color: C.gold   },
-  { name: 'Dubai',       desc: 'Desert · Downtown · Luxury towers',           color: C.violet },
-  { name: 'Malibu',      desc: 'Pacific coast · Beach house · Golden cliffs', color: C.blue   },
-  { name: 'Paris',       desc: 'Haussmann · Rooftops · Seine · Le Marais',    color: C.gold   },
-  { name: 'Bali',        desc: 'Rice terraces · Temple pools · Jungle villas',color: C.green  },
-  { name: 'Amalfi',      desc: 'Cliffside · Positano · Lemon groves',         color: C.gold   },
+// ── What one brief generates ─────────────────────────────────
+const OUTPUT_COUNT = [
+  { n: '50+',  label: 'Hook variations',        color: C.gold   },
+  { n: '30+',  label: 'Ad copy pieces',          color: C.violet },
+  { n: '10+',  label: 'Campaign assets',         color: C.green  },
+  { n: '1',    label: 'Brief — all connected',   color: C.blue   },
 ]
 
+// ── Who it's for ─────────────────────────────────────────────
+const AUDIENCES = [
+  {
+    icon:  '📱',
+    label: 'Creators & Influencers',
+    color: C.gold,
+    desc:  'Generate your entire content calendar, ad campaigns, UGC scripts, and hook library in one afternoon. Stop switching between 10 tools.',
+    proof: '30-day content calendar in 1 session',
+  },
+  {
+    icon:  '🏢',
+    label: 'Brands & DTC',
+    color: C.violet,
+    desc:  'Enter your product once. Get angles, hooks, landing page copy, email sequences, SMS campaigns, retargeting packs, and an offer structure — all connected to one brief.',
+    proof: 'Full campaign stack from a single product brief',
+  },
+  {
+    icon:  '⚡',
+    label: 'Media Buyers',
+    color: C.blue,
+    desc:  'Score hooks before you spend, audit your ad account, generate retargeting creatives for every warm audience stage, and get a naming convention system that keeps your data clean.',
+    proof: 'Pre-launch CTR prediction on every hook',
+  },
+  {
+    icon:  '🎯',
+    label: 'Agencies',
+    color: C.green,
+    desc:  'Manage multiple client brands in one workspace. Generate a full delivery package per client. Trend intelligence, influencer briefs, and product descriptions all in one tool.',
+    proof: 'Client workspace with 1-click delivery export',
+  },
+]
+
+// ── Tools this replaces ───────────────────────────────────────
+const REPLACES = [
+  { tool: 'Jasper / Copy.ai',     use: 'Ad copy & hooks',       price: '$49+/mo' },
+  { tool: 'Foreplay',             use: 'Competitor research',   price: '$49+/mo' },
+  { tool: 'Klaviyo templates',    use: 'Email sequences',       price: 'Manual'  },
+  { tool: 'Canva + ChatGPT',      use: 'Briefs & scripts',      price: '$20+/mo' },
+  { tool: 'Postscript / Attentive', use: 'SMS copy',            price: '$100+/mo'},
+  { tool: 'TubeBuddy',            use: 'Product descriptions',  price: '$20+/mo' },
+]
+
+// ── Testimonials ──────────────────────────────────────────────
 const TESTIMONIALS = [
   {
-    quote: "I generated my entire October content calendar in one afternoon. 30 cinematic scenes for the Studio, full ad campaign for my skincare brand. I haven't opened another AI tool since.",
-    name:  'Sofia M.',
-    role:  'Creator · 280k Instagram',
+    quote: "I built my entire launch — landing page, email sequence, SMS, UGC brief, offer stack, and retargeting creatives — in one session. Nothing else I've used does this.",
+    name:  'Alex R.',
+    role:  'DTC Brand Founder',
     color: C.gold,
   },
   {
-    quote: "The music matching is genuinely insane. It picked the exact track for my luxury campaign without me saying a word. My client thought I had a whole creative team behind me.",
-    name:  'James K.',
-    role:  'Brand Strategist · Agency',
-    color: C.violet,
-  },
-  {
-    quote: "As a model, the Director's Studio changed everything. Tokyo with Fincher? Capri with Malick? I can shoot anywhere in the world from my apartment. My content has never looked this good.",
-    name:  'Aria V.',
-    role:  'Model & Creator · 190k TikTok',
+    quote: "The Hook Scorer alone is worth it. I stopped guessing and started knowing which hooks would convert before spending a dollar. My CTR went up 40% in 3 weeks.",
+    name:  'Marcus T.',
+    role:  'Media Buyer · $200k/month ad spend',
     color: C.blue,
   },
-]
-
-const STEPS = [
-  { n: '01', title: 'Upload your face or your product', desc: 'One photo. One brief. The app learns everything it needs about you or your brand.' },
-  { n: '02', title: 'Pick a world, director, and mood', desc: '20+ locations. 11 cinematic directors. Every combination generates something you haven\'t seen before.' },
-  { n: '03', title: 'Generate everything at once', desc: 'Scenes, hooks, captions, images, campaign, music — all connected to the same brain. In minutes.' },
+  {
+    quote: "I manage 6 client brands. The client workspace and delivery package feature saves me 8 hours a week. And the cinematic studio content still makes my clients think I have a film crew.",
+    name:  'Priya L.',
+    role:  'Creative Agency · 6 Clients',
+    color: C.violet,
+  },
 ]
 
 export default function HomePage() {
-  const router   = useRouter()
-  const supabase = createClient()
-  const [user,         setUser]         = useState(undefined)
-  const [activeExample, setActiveExample] = useState(0)
+  const router    = useRouter()
+  const supabase  = createClient()
+  const [user,           setUser]           = useState(undefined)
+  const [activeGroup,    setActiveGroup]    = useState('creative')
+  const [activeAudience, setActiveAudience] = useState(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
   }, [])
 
   useEffect(() => {
-    const t = setInterval(() => setActiveExample(i => (i + 1) % EXAMPLES.length), 4000)
+    const t = setInterval(() => setActiveAudience(i => (i + 1) % AUDIENCES.length), 5000)
     return () => clearInterval(t)
   }, [])
 
@@ -107,11 +167,12 @@ export default function HomePage() {
     }
   }, [])
 
-  const goToApp    = () => router.push('/prompt-engine-v3')
-  const goToLogin  = () => router.push('/prompt-engine-v3/login')
+  const goToApp     = () => router.push('/prompt-engine-v3')
+  const goToLogin   = () => router.push('/prompt-engine-v3/login')
   const goToPricing = () => router.push('/pricing')
 
-  const ex = EXAMPLES[activeExample]
+  const currentGroup = FEATURE_GROUPS.find(g => g.id === activeGroup) || FEATURE_GROUPS[0]
+  const currentAud   = AUDIENCES[activeAudience]
 
   return (
     <div style={{ background: C.void, color: C.primary, fontFamily: 'system-ui, -apple-system, sans-serif', overflowX: 'hidden' }}>
@@ -120,9 +181,9 @@ export default function HomePage() {
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, borderBottom: `1px solid ${C.hairline}`, background: `${C.void}ee`, backdropFilter: 'blur(12px)', padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <button onClick={goToPricing}                        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Pricing</button>
-          <button onClick={() => router.push('/partner')}      style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Partner</button>
-          <button onClick={() => router.push('/about')}        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>About</button>
+          <button onClick={goToPricing}                          style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Pricing</button>
+          <button onClick={() => router.push('/partner')}        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Partner</button>
+          <button onClick={() => router.push('/about')}          style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>About</button>
           {user ? (
             <>
               <button onClick={() => router.push('/account')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>My Account</button>
@@ -139,22 +200,25 @@ export default function HomePage() {
 
       {/* ── HERO ── */}
       <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 80px', position: 'relative', textAlign: 'center' }}>
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `linear-gradient(${C.hairline} 1px, transparent 1px), linear-gradient(90deg, ${C.hairline} 1px, transparent 1px)`, backgroundSize: '60px 60px', opacity: 0.25 }} />
-        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 90% 60% at 50% 20%, ${C.gold}0a 0%, transparent 65%)` }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `linear-gradient(${C.hairline} 1px, transparent 1px), linear-gradient(90deg, ${C.hairline} 1px, transparent 1px)`, backgroundSize: '60px 60px', opacity: 0.2 }} />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 80% 55% at 50% 20%, ${C.gold}09 0%, transparent 65%)` }} />
 
-        <div style={{ position: 'relative', maxWidth: 820, margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 16px', borderRadius: 999, border: `1px solid ${C.goldDim}`, background: C.goldGlow, marginBottom: 28 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>AI Creative Operating System</span>
+        <div style={{ position: 'relative', maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 16px', borderRadius: 999, border: `1px solid ${C.goldDim}`, background: C.goldGlow, marginBottom: 32 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>Complete Marketing Operating System</span>
           </div>
 
-          <h1 style={{ fontSize: 'clamp(40px, 8vw, 80px)', fontWeight: 800, lineHeight: 1.0, letterSpacing: -3, margin: '0 0 28px', color: C.primary }}>
-            Your face.<br />
-            <span style={{ color: C.gold }}>20 worlds.</span><br />
-            One afternoon.
+          <h1 style={{ fontSize: 'clamp(38px, 7.5vw, 78px)', fontWeight: 800, lineHeight: 1.0, letterSpacing: -3, margin: '0 0 28px', color: C.primary }}>
+            One brief.<br />
+            <span style={{ color: C.gold }}>Your entire marketing stack.</span>
           </h1>
 
-          <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: C.secondary, lineHeight: 1.8, maxWidth: 540, margin: '0 auto 44px' }}>
-            Upload your photo. Pick Tokyo, Capri, or Marrakech. Choose a director. Generate cinematic scenes, ad campaigns, and music — all connected, all in minutes.
+          <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: C.secondary, lineHeight: 1.8, maxWidth: 580, margin: '0 auto 20px' }}>
+            Hooks. Captions. Landing pages. Email sequences. SMS campaigns. UGC briefs. Retargeting packs. Video storyboards. Offer structures. Ad audits. All from a single product brief. All connected.
+          </p>
+
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 44 }}>
+            Plus the world's most advanced cinematic prompt engine — 20 worlds, 12-layer AI, 11 director styles.
           </p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 56 }}>
@@ -166,8 +230,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Social proof micro */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 12, color: C.muted }}>✓ 7-day free trial</div>
             <div style={{ fontSize: 12, color: C.muted }}>✓ No credit card required</div>
             <div style={{ fontSize: 12, color: C.muted }}>✓ Cancel anytime</div>
@@ -175,165 +238,206 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── LIVE EXAMPLE OUTPUT ── */}
-      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>This is what it creates</div>
-            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: 0 }}>
-              Real prompts. Generated in seconds.
-            </h2>
-          </div>
-
-          {/* Example card */}
-          <div style={{ borderRadius: 12, border: `1px solid ${ex.color}44`, background: ex.color + '06', overflow: 'hidden', transition: 'all 0.4s' }}>
-            <div style={{ padding: '16px 24px', borderBottom: `1px solid ${ex.color}22`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: ex.color }}>🌍 {ex.world}</span>
-              <span style={{ fontSize: 11, color: C.muted }}>·</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>🎬 Director: {ex.director}</span>
-              <span style={{ fontSize: 11, color: C.muted }}>·</span>
-              <span style={{ fontSize: 11, color: C.secondary }}>⏱ {ex.phase}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.muted }}>Generated in ~3 seconds</span>
-            </div>
-            <div style={{ padding: '28px 24px' }}>
-              <p style={{ fontSize: 15, color: C.primary, lineHeight: 1.9, margin: 0, fontStyle: 'italic' }}>
-                "{ex.prompt}"
-              </p>
-            </div>
-          </div>
-
-          {/* Example selector */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20 }}>
-            {EXAMPLES.map((e, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveExample(i)}
-                style={{ padding: '6px 16px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${activeExample === i ? e.color : C.hairline}`, background: activeExample === i ? e.color + '22' : 'transparent', color: activeExample === i ? e.color : C.muted, transition: 'all 0.2s' }}
-              >
-                {e.world} · {e.director}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: 36 }}>
-            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
-              Generate yours free →
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(60px, 8vw, 100px) 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>How It Works</div>
-          <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: 0 }}>Three steps. Done.</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
-          {STEPS.map((step, i) => (
-            <div key={i} style={{ padding: '28px 24px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, position: 'relative' }}>
-              <div style={{ fontSize: 36, fontWeight: 800, color: C.goldDim, letterSpacing: -2, marginBottom: 16, fontFamily: 'monospace' }}>{step.n}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.primary, marginBottom: 10 }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7 }}>{step.desc}</div>
+      {/* ── OUTPUT NUMBERS ── */}
+      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: '40px 24px' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
+          {OUTPUT_COUNT.map((o, i) => (
+            <div key={i} style={{ textAlign: 'center', padding: '16px', borderRight: i < 3 ? `1px solid ${C.hairline}` : 'none' }}>
+              <div style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: o.color, lineHeight: 1, letterSpacing: -1 }}>{o.n}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{o.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── WORLDS GRID ── */}
-      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+      {/* ── FEATURE EXPLORER ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>20+ Cinematic Worlds</div>
-            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 12px' }}>
-              Travel anywhere. Shoot everything.
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Everything You Need</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 12px' }}>
+              6 systems. One platform.
             </h2>
             <p style={{ fontSize: 15, color: C.secondary, maxWidth: 480, margin: '0 auto' }}>
-              Every world has phases — wake, morning, golden hour, night. Every phase has locations, lighting, camera angles, and mood. You just pick the world.
+              Every tool talks to the same brief. Change your product name — everything updates. That's the OS difference.
             </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-            {WORLDS.map(w => (
-              <div key={w.name} style={{ padding: '16px 18px', borderRadius: 8, border: `1px solid ${w.color}33`, background: w.color + '06', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = w.color + '88'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = w.color + '33'}
-              >
-                <div style={{ fontSize: 14, fontWeight: 700, color: w.color, marginBottom: 5 }}>{w.name}</div>
-                <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{w.desc}</div>
+
+          {/* Group selector */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
+            {FEATURE_GROUPS.map(g => (
+              <button key={g.id} onClick={() => setActiveGroup(g.id)}
+                style={{ padding: '8px 18px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+                  border: `1px solid ${activeGroup === g.id ? g.color : C.hairline}`,
+                  background: activeGroup === g.id ? g.color + '15' : 'transparent',
+                  color: activeGroup === g.id ? g.color : C.secondary,
+                }}>
+                <span style={{ marginRight: 6, fontSize: 10 }}>{g.icon}</span>{g.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Active group detail */}
+          <div style={{ borderRadius: 12, border: `1px solid ${currentGroup.color}33`, background: currentGroup.color + '06', padding: 'clamp(28px, 4vw, 48px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center', transition: 'all 0.3s' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: currentGroup.color, marginBottom: 12 }}>{currentGroup.label}</div>
+              <h3 style={{ fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 16px', color: C.primary }}>{currentGroup.tagline}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {currentGroup.features.map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: currentGroup.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, color: C.secondary }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: '16px 20px', borderRadius: 8, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: currentGroup.color, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>How it works</div>
+                <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7 }}>
+                  {currentGroup.id === 'creative' && 'Enter your product once. Generate 10 psychological angles, 50+ hooks across 5 emotional types, 6 caption styles, image prompts, video prompts, and 4 UGC scripts — all from the same brief.'}
+                  {currentGroup.id === 'campaign' && 'Map your product to a complete funnel. 7/14/30/60-day campaign arc, matching email sequence, SMS sequence, content calendar, and launch sequence — all timed and emotionally connected.'}
+                  {currentGroup.id === 'funnel' && 'Convert the traffic your ads bring. Landing page with hero, benefits, testimonials, and FAQ. Offer builder with value stack and guarantee. Retargeting creatives for 6 warm audience stages.'}
+                  {currentGroup.id === 'intel' && 'Know before you spend. Score any hook and get a CTR prediction. Get a real-time trend report. Paste your ad account data and get a creative action plan. Deconstruct any competitor ad visually.'}
+                  {currentGroup.id === 'production' && 'Generate content that actually gets filmed. Teleprompter-ready talking head scripts. Scene-by-scene video storyboards with Runway/Kling prompts. Amazon + Shopify product descriptions. Influencer briefs ready to send.'}
+                  {currentGroup.id === 'studio' && '20+ cinematic worlds — Tokyo, Capri, Marrakech, Swiss Alps and more. 12-layer prompt engine. 11 director styles from Kubrick to Wong Kar-wai. Story worlds with character persistence. Every prompt is a film scene.'}
+                </div>
+              </div>
+              <button onClick={goToLogin} style={{ padding: '12px 0', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${currentGroup.color}`, background: currentGroup.color + '12', color: currentGroup.color }}>
+                Try {currentGroup.label} Free →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHO IT'S FOR ── */}
+      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Built For</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: 0 }}>
+              One tool. Every type of marketer.
+            </h2>
+          </div>
+
+          {/* Audience tabs */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
+            {AUDIENCES.map((a, i) => (
+              <button key={i} onClick={() => setActiveAudience(i)}
+                style={{ padding: '8px 18px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  border: `1px solid ${activeAudience === i ? a.color : C.hairline}`,
+                  background: activeAudience === i ? a.color + '15' : 'transparent',
+                  color: activeAudience === i ? a.color : C.secondary, transition: 'all 0.15s',
+                }}>
+                {a.icon} {a.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ borderRadius: 12, border: `1px solid ${currentAud.color}33`, background: currentAud.color + '06', padding: 'clamp(28px, 4vw, 44px)', maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>{currentAud.icon}</div>
+            <h3 style={{ fontSize: 'clamp(18px, 2.5vw, 24px)', fontWeight: 800, color: C.primary, margin: '0 0 16px' }}>{currentAud.label}</h3>
+            <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.8, margin: '0 0 20px' }}>{currentAud.desc}</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 999, border: `1px solid ${currentAud.color}44`, background: currentAud.color + '12' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: currentAud.color }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: currentAud.color }}>{currentAud.proof}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── REPLACES ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Replaces</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 12px' }}>
+              6 tools. $300+/month.<br />
+              <span style={{ color: C.gold }}>Now one.</span>
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+            {REPLACES.map((r, i) => (
+              <div key={i} style={{ padding: '16px 20px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 2, textDecoration: 'line-through', textDecorationColor: C.muted }}>{r.tool}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{r.use}</div>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#cf6a6a', flexShrink: 0 }}>{r.price}</div>
               </div>
             ))}
-            <div style={{ padding: '16px 18px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 12, color: C.muted, textAlign: 'center', lineHeight: 1.5 }}>+ Desert Queen, Wild Nature, Neon City, Supermodel Life & more</span>
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <div style={{ fontSize: 13, color: C.secondary }}>
+              Prompt CEO starts at <span style={{ color: C.gold, fontWeight: 700 }}>$29/month</span> — and does all of this in one place.
             </div>
           </div>
         </div>
       </section>
 
       {/* ── TESTIMONIALS ── */}
-      <section style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(60px, 8vw, 100px) 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>What Creators Say</div>
-          <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: 0 }}>
-            They tried it once. They never left.
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} style={{ padding: '24px', borderRadius: 10, border: `1px solid ${t.color}33`, background: t.color + '06' }}>
-              <div style={{ fontSize: 24, color: t.color, marginBottom: 12, lineHeight: 1 }}>"</div>
-              <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.8, margin: '0 0 20px', fontStyle: 'italic' }}>{t.quote}</p>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{t.name}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{t.role}</div>
+      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Results</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: 0 }}>
+              They tried it once. They never left.
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} style={{ padding: '28px 24px', borderRadius: 10, border: `1px solid ${t.color}33`, background: t.color + '06' }}>
+                <div style={{ fontSize: 28, color: t.color, marginBottom: 14, lineHeight: 1, fontFamily: 'Georgia, serif' }}>"</div>
+                <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.8, margin: '0 0 20px', fontStyle: 'italic' }}>{t.quote}</p>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{t.name}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{t.role}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── FOR BRANDS ── */}
-      <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+      {/* ── THE STUDIO (secondary positioning) ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.violet, marginBottom: 16 }}>For Brands & Agencies</div>
-            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
-              Your competitor is running 3 ads.<br />
-              <span style={{ color: C.violet }}>You're about to run 300.</span>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>The Director's Studio</div>
+            <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
+              Your face.<br />
+              <span style={{ color: C.gold }}>20 worlds.</span><br />
+              One afternoon.
             </h2>
-            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 28 }}>
-              Enter your product once. Generate angles, hooks, captions, images, video scripts, UGC, 10-stage campaigns, content calendars, and launch sequences — all from the same brief. All connected.
+            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
+              The original Prompt CEO magic is still here. 12-layer cinematic prompt engine. 20+ worlds from Tokyo to Capri to Marrakech. 11 director styles. Story worlds with full character persistence. Every prompt is a film scene — not an AI output.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-              {[
-                '15 output types — all connected to one product brief',
-                'Brand Voice Fingerprint — your exact tone, not a category',
-                'Client sharing — they approve, they never touch the app',
-                'Music Intelligence — 400+ tracks matched to your campaign',
-              ].map((f, i) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+              {['20+ cinematic worlds — location, sub-location, and phase pools', '11 director styles: Kubrick, Malick, Wong Kar-wai and more', 'Story worlds: Boudoir, Rockstar, Power CEO, After Dark', 'Shot Director AI — cinematographer brief per scene', 'Brand DNA Lock — visual consistency across every generation'].map((f, i) => (
                 <div key={i} style={{ display: 'flex', gap: 10 }}>
-                  <span style={{ color: C.violet, fontSize: 12, flexShrink: 0, marginTop: 2 }}>✓</span>
+                  <span style={{ color: C.gold, fontSize: 11, flexShrink: 0, marginTop: 2 }}>✦</span>
                   <span style={{ fontSize: 13, color: C.secondary }}>{f}</span>
                 </div>
               ))}
             </div>
-            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violet}`, background: C.violetGlow, color: C.violet }}>
-              Try Ad Studio Free →
+            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+              Try the Studio Free →
             </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
-              ['🎯', 'Angles', '10 psychological directions'],
-              ['🪝', 'Hooks', '50 hooks, 5 types'],
-              ['✍️', 'Captions', '6 caption styles'],
-              ['🖼', 'Image Ads', 'Generate directly in app'],
-              ['🎬', 'Video Ads', 'With shot-by-shot storyboard'],
-              ['📣', 'UGC Scripts', '4 creator styles'],
-              ['📅', 'Calendar', '30-day content plan'],
-              ['🏆', 'Campaign Score', '8-dimension rating'],
-            ].map(([icon, label, desc]) => (
-              <div key={label} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface }}>
-                <div style={{ fontSize: 18, marginBottom: 6 }}>{icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{label}</div>
+              ['Tokyo',      'Neon · Aman suites · Shinjuku',     C.violet],
+              ['Capri',      'Villa terrace · Faraglioni · Sea',  C.gold],
+              ['Marrakech',  'Riad · Hammam · La Mamounia',       C.tension],
+              ['Swiss Alps', 'Chalet · Slopes · Alpenglow',       C.blue],
+              ['Boudoir',    'Silk · Candlelight · Private',      C.violet],
+              ['Rockstar',   'Stage · Tour hotel · 4am',          C.gold],
+              ['Power CEO',  'Boardroom · Private jet · Glass',   C.blue],
+              ['Mega Yacht', 'Mediterranean · Deck · Sunset',     C.green],
+            ].map(([name, desc, color]) => (
+              <div key={name} style={{ padding: '13px 15px', borderRadius: 8, border: `1px solid ${color}33`, background: color + '06' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 3 }}>{name}</div>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.4 }}>{desc}</div>
               </div>
             ))}
@@ -341,28 +445,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── MUSIC ── */}
-      <section style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(60px, 8vw, 100px) 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>Music Intelligence</div>
-        <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 16px' }}>
-          400+ original tracks.<br />
-          <span style={{ color: C.gold }}>The AI picks the right one every time.</span>
-        </h2>
-        <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.75, maxWidth: 520, margin: '0 auto 32px' }}>
-          Every track scored against your campaign mood, platform, and brand voice. Lock it and every hook, caption, and video direction adapts to the music automatically.
-        </p>
-        <div style={{ display: 'inline-flex', gap: 8, padding: '12px 20px', borderRadius: 8, border: `1px solid ${C.goldDim}`, background: C.goldGlow }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>🎵 Music Add-on</span>
-          <span style={{ fontSize: 13, color: C.secondary }}>—</span>
-          <span style={{ fontSize: 13, color: C.secondary }}>Unlimited access to all 400+ tracks for $9/month</span>
-        </div>
-      </section>
-
       {/* ── PRICING PREVIEW ── */}
       <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 80px) 24px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Simple Pricing</div>
-          <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 8px' }}>Replaces $270+/month of separate tools.</h2>
+          <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 8px' }}>Replaces $300+/month of separate tools.</h2>
           <p style={{ fontSize: 14, color: C.secondary, marginBottom: 36 }}>Starting at $29/month. 7-day free trial on all plans.</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 32 }}>
             {[
@@ -388,13 +475,13 @@ export default function HomePage() {
       {/* ── FINAL CTA ── */}
       <section style={{ padding: 'clamp(80px, 10vw, 140px) 24px', textAlign: 'center', position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 80% 60% at 50% 100%, ${C.gold}07 0%, transparent 70%)` }} />
-        <div style={{ position: 'relative', maxWidth: 600, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 'clamp(32px, 6vw, 60px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.05, margin: '0 0 24px' }}>
-            This is not a prompt generator.<br />
-            <span style={{ color: C.gold }}>This is your creative OS.</span>
+        <div style={{ position: 'relative', maxWidth: 640, margin: '0 auto' }}>
+          <h2 style={{ fontSize: 'clamp(30px, 5.5vw, 56px)', fontWeight: 800, letterSpacing: -2, lineHeight: 1.05, margin: '0 0 24px' }}>
+            Stop switching between<br />10 different tools.<br />
+            <span style={{ color: C.gold }}>Do it all here.</span>
           </h2>
-          <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.75, marginBottom: 40 }}>
-            Join creators and brands who stopped switching between 10 tools and started doing everything in one place.
+          <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.75, marginBottom: 40, maxWidth: 500, margin: '0 auto 40px' }}>
+            Hooks, landing pages, email sequences, SMS campaigns, retargeting packs, video storyboards, ad audits, influencer briefs, product descriptions — and the most advanced cinematic prompt engine ever built.
           </p>
           <button onClick={goToLogin} style={{ padding: '16px 48px', borderRadius: 6, fontSize: 16, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#000', letterSpacing: 0.3, marginBottom: 16 }}>
             Start Free — No Card Needed
@@ -407,10 +494,10 @@ export default function HomePage() {
       <footer style={{ borderTop: `1px solid ${C.hairline}`, padding: '32px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
         <div style={{ display: 'flex', gap: 24 }}>
-          <button onClick={goToPricing}                   style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Pricing</button>
-          <button onClick={() => router.push('/partner')} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Partner</button>
-          <button onClick={() => router.push('/about')}   style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>About</button>
-          <button onClick={() => router.push('/tutorials')} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Tutorials</button>
+          <button onClick={goToPricing}                      style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Pricing</button>
+          <button onClick={() => router.push('/partner')}    style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Partner</button>
+          <button onClick={() => router.push('/about')}      style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>About</button>
+          <button onClick={() => router.push('/tutorials')}  style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Tutorials</button>
         </div>
         <div style={{ fontSize: 11, color: C.muted }}>© 2026 Prompt CEO. All rights reserved.</div>
       </footer>

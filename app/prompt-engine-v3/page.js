@@ -10,6 +10,7 @@ import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMus
 import { recommendMusicForAd } from './ad-system/musicRecommendation.js'
 import { buildVoiceInjectionContext } from './ad-system/brandVoiceTrainer.js'
 import { STUDIO_VARIATION_TYPES }     from './studio/studioIntelligence.js'
+import { buildBrandDNAConstraints, buildBrandDNAAdContext, validatePromptAgainstDNA } from './ad-system/brandDNALock.js'
 
 import {
   WORLD_LOCATIONS,
@@ -214,10 +215,175 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [calendar,         setCalendar]         = useState(null)
   const [calendarLoading,  setCalendarLoading]  = useState(false)
   const [calendarFilter,   setCalendarFilter]   = useState('all')
+  // Campaign Sequencer
+  const [sequence,           setSequence]           = useState(null)
+  const [sequenceLoading,    setSequenceLoading]    = useState(false)
+  const [sequenceDuration,   setSequenceDuration]   = useState(30)
+  const [sequenceGoal,       setSequenceGoal]       = useState('sales')
+  const [sequenceFilter,     setSequenceFilter]     = useState('all')
+  const [sequenceExpanded,   setSequenceExpanded]   = useState(null)
   // Market Intelligence
   const [marketAds,        setMarketAds]        = useState(['', '', ''])
   const [marketResult,     setMarketResult]     = useState(null)
   const [marketLoading,    setMarketLoading]    = useState(false)
+  // Competitor Visual Deconstruction
+  const [deconstructImage,   setDeconstructImage]   = useState('')
+  const [deconstructContext, setDeconstructContext] = useState('')
+  const [deconstructResult,  setDeconstructResult]  = useState(null)
+  const [deconstructLoading, setDeconstructLoading] = useState(false)
+
+  // UGC Creator Brief
+  const [ugcBriefResult,    setUgcBriefResult]    = useState(null)
+  const [ugcBriefLoading,   setUgcBriefLoading]   = useState(false)
+  const [ugcBriefError,     setUgcBriefError]     = useState(null)
+  const [ugcBriefMode,      setUgcBriefMode]      = useState('scripts') // 'scripts' | 'brief'
+  const [ugcBriefPlatform,  setUgcBriefPlatform]  = useState('tiktok')
+  const [ugcBriefDuration,  setUgcBriefDuration]  = useState('30')
+  const [ugcBriefType,      setUgcBriefType]      = useState('ugc_only')
+  const [ugcBriefExpanded,  setUgcBriefExpanded]  = useState(null)
+
+  // Landing Page
+  const [landingPage,       setLandingPage]       = useState(null)
+  const [landingLoading,    setLandingLoading]     = useState(false)
+  const [landingError,      setLandingError]       = useState(null)
+  const [landingStyle,      setLandingStyle]       = useState('direct_response')
+  const [landingExpanded,   setLandingExpanded]    = useState(null)
+
+  // Video Ad Storyboard (upgraded)
+  const [videoStoryboard2,      setVideoStoryboard2]      = useState(null)
+  const [videoStoryboard2Loading, setVideoStoryboard2Loading] = useState(false)
+  const [videoStoryboard2Error,   setVideoStoryboard2Error]   = useState(null)
+  const [videoFormat,           setVideoFormat]           = useState('tiktok_30')
+  const [videoStoryboard2Expanded, setVideoStoryboard2Expanded] = useState(null)
+
+  // Hooks Library
+  const [hooksLibrary,      setHooksLibrary]      = useState([])
+  const [hooksLibLoading,   setHooksLibLoading]   = useState(false)
+  const [hooksLibFilter,    setHooksLibFilter]     = useState('all')
+  const [hooksLibSearch,    setHooksLibSearch]     = useState('')
+  const [hooksSaving,       setHooksSaving]        = useState(null)
+  const [hooksLibOpen,      setHooksLibOpen]       = useState(false)
+
+  // Hook Pre-Launch Scorer
+  const [hookScoreInput,    setHookScoreInput]     = useState('')
+  const [hookScorePlatform, setHookScorePlatform]  = useState('tiktok')
+  const [hookScoreResult,   setHookScoreResult]    = useState(null)
+  const [hookScoreLoading,  setHookScoreLoading]   = useState(false)
+  const [hookScoreError,    setHookScoreError]     = useState(null)
+
+  // Email Sequence
+  const [emailSequence,     setEmailSequence]      = useState(null)
+  const [emailSeqLoading,   setEmailSeqLoading]    = useState(false)
+  const [emailSeqError,     setEmailSeqError]      = useState(null)
+  const [emailSeqType,      setEmailSeqType]       = useState('sales')
+  const [emailSeqLength,    setEmailSeqLength]     = useState('medium')
+  const [emailSeqCount,     setEmailSeqCount]      = useState(5)
+  const [emailExpanded,     setEmailExpanded]      = useState(null)
+
+  // ROI Scaling
+  const [roiShowScaling,    setRoiShowScaling]     = useState(false)
+  const [roiTargetProfit,   setRoiTargetProfit]    = useState('')
+
+  // Trend Intelligence
+  const [trendReport,       setTrendReport]        = useState(null)
+  const [trendLoading,      setTrendLoading]       = useState(false)
+  const [trendError,        setTrendError]         = useState(null)
+  const [trendPlatform,     setTrendPlatform]      = useState('tiktok')
+  const [trendNiche,        setTrendNiche]         = useState('')
+  const [trendExpanded,     setTrendExpanded]      = useState(null)
+
+  // Client Workspace
+  const [clientBrands,      setClientBrands]       = useState([])
+  const [clientLoading,     setClientLoading]      = useState(false)
+  const [clientSaving,      setClientSaving]       = useState(false)
+  const [activeClient,      setActiveClient]       = useState(null)
+  const [clientFormOpen,    setClientFormOpen]     = useState(false)
+  const [clientForm,        setClientForm]         = useState({ name: '', industry: '', brandVoice: '', productName: '', targetCustomer: '', brandNotes: '' })
+
+  // Performance Learning
+  const [perfLogs,          setPerfLogs]           = useState([])
+  const [perfSummary,       setPerfSummary]        = useState(null)
+  const [perfLogsLoading,   setPerfLogsLoading]    = useState(false)
+  const [perfLogSaving,     setPerfLogSaving]      = useState(false)
+
+  // Testimonial Miner
+  const [testimonialsInput, setTestimonialsInput]  = useState('')
+  const [testimonialResult, setTestimonialResult]  = useState(null)
+  const [testimonialLoading,setTestimonialLoading] = useState(false)
+  const [testimonialError,  setTestimonialError]   = useState(null)
+
+  // Offer Builder
+  const [offerResult,       setOfferResult]        = useState(null)
+  const [offerLoading,      setOfferLoading]       = useState(false)
+  const [offerError,        setOfferError]         = useState(null)
+  const [offerType,         setOfferType]          = useState('value_stack')
+  const [offerGuarantee,    setOfferGuarantee]     = useState('money_back_30')
+  const [offerPrice,        setOfferPrice]         = useState('')
+  const [offerComparePrice, setOfferComparePrice]  = useState('')
+  const [offerIncluded,     setOfferIncluded]      = useState('')
+  const [offerUrgency,      setOfferUrgency]       = useState('')
+  const [offerExpanded,     setOfferExpanded]      = useState(null)
+
+  // Retargeting
+  const [retargetResult,    setRetargetResult]     = useState(null)
+  const [retargetLoading,   setRetargetLoading]    = useState(false)
+  const [retargetError,     setRetargetError]      = useState(null)
+  const [retargetStage,     setRetargetStage]      = useState('site_visitor')
+  const [retargetExpanded,  setRetargetExpanded]   = useState(null)
+
+  // Ad Account Audit
+  const [auditData,         setAuditData]          = useState('')
+  const [auditPlatform,     setAuditPlatform]      = useState('meta')
+  const [auditTimeframe,    setAuditTimeframe]     = useState('30 days')
+  const [auditSpend,        setAuditSpend]         = useState('')
+  const [auditResult,       setAuditResult]        = useState(null)
+  const [auditLoading,      setAuditLoading]       = useState(false)
+  const [auditError,        setAuditError]         = useState(null)
+  const [auditExpanded,     setAuditExpanded]      = useState(null)
+
+  // Talking Head Script
+  const [scriptResult,      setScriptResult]       = useState(null)
+  const [scriptLoading,     setScriptLoading]      = useState(false)
+  const [scriptError,       setScriptError]        = useState(null)
+  const [scriptDuration,    setScriptDuration]     = useState('60')
+  const [scriptStyle,       setScriptStyle]        = useState('founder')
+  const [scriptStoryHint,   setScriptStoryHint]    = useState('')
+  const [scriptTeleprompter,setScriptTeleprompter] = useState(false)
+
+  // Product Description
+  const [prodDescResult,    setProdDescResult]     = useState(null)
+  const [prodDescLoading,   setProdDescLoading]    = useState(false)
+  const [prodDescError,     setProdDescError]      = useState(null)
+  const [prodDescPlatform,  setProdDescPlatform]   = useState('both')
+  const [prodDescCategory,  setProdDescCategory]   = useState('')
+  const [prodDescFeatures,  setProdDescFeatures]   = useState('')
+  const [prodDescKeywords,  setProdDescKeywords]   = useState('')
+
+  // SMS + Push
+  const [smsResult,         setSmsResult]          = useState(null)
+  const [smsLoading,        setSmsLoading]         = useState(false)
+  const [smsError,          setSmsError]           = useState(null)
+  const [smsSeqType,        setSmsSeqType]         = useState('sales')
+  const [smsLink,           setSmsLink]            = useState('[LINK]')
+
+  // Influencer Brief
+  const [influencerResult,  setInfluencerResult]   = useState(null)
+  const [influencerLoading, setInfluencerLoading]  = useState(false)
+  const [influencerError,   setInfluencerError]    = useState(null)
+  const [influencerType,    setInfluencerType]     = useState('micro')
+  const [influencerPlatform,setInfluencerPlatform] = useState('instagram')
+  const [influencerOffer,   setInfluencerOffer]    = useState('')
+  const [influencerCode,    setInfluencerCode]     = useState('')
+  const [influencerPosts,   setInfluencerPosts]    = useState('1')
+  const [influencerDeadline,setInfluencerDeadline] = useState('')
+
+  // Naming Convention
+  const [namingResult,      setNamingResult]       = useState(null)
+  const [namingLoading,     setNamingLoading]      = useState(false)
+  const [namingError,       setNamingError]        = useState(null)
+  const [namingPlatform,    setNamingPlatform]     = useState('meta')
+  const [namingGoals,       setNamingGoals]        = useState(['conversions', 'retargeting'])
+
   // A/B Tests
   const [abTests,          setAbTests]          = useState(() => {
     try { return JSON.parse(localStorage.getItem('promptceo_abtests_v1') || '[]') } catch { return [] }
@@ -361,6 +527,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     }
     return 'creative'
   })
+  const [adTabGroup,     setAdTabGroup]     = useState('creative')
   const [activeHookType, setActiveHookType] = useState('pain')
   const [inspiredStyle,  setInspiredStyle]  = useState('none')
   const [scoreInput,     setScoreInput]     = useState('')
@@ -859,6 +1026,62 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     finally { setCalendarLoading(false) }
   }
 
+  // ── Campaign Sequencer ───────────────────────────────────
+  const generateSequence = async (duration) => {
+    const dur = duration || sequenceDuration
+    if (sequenceLoading || (!productName.trim() && !s.identityName?.trim())) return
+    setSequenceLoading(true)
+    setSequence(null)
+    try {
+      const worldObj = s.worldId ? getWorldById(s.worldId) : null
+      const res = await fetch('/api/campaign-sequencer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand:          productName.trim() || s.identityName?.trim() || '',
+          product:        productName.trim() || '',
+          targetCustomer: targetCustomer.trim() || '',
+          goal:           sequenceGoal,
+          duration:       dur,
+          worldHint:      worldObj?.name || s.worldId || s.storyWorldId || '',
+          characterHint:  s.identityName || s.traits?.subjectA?.name || '',
+          mainDesire:     mainDesire.trim() || '',
+          offer:          offer.trim() || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSequence(data.sequence)
+        setSequenceDuration(dur)
+        addTimelineEvent('Campaign sequence built', `${data.sequence.length} days`)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        console.error('Sequencer error:', data.error)
+      }
+    } catch (err) {
+      console.error('Sequencer fetch error:', err)
+    }
+    finally { setSequenceLoading(false) }
+  }
+
+  const downloadSequenceCSV = () => {
+    if (!sequence) return
+    const header = 'Day,Phase,Arc,Campaign Role,Hook,Caption,CTA,Image Direction,Posting Time'
+    const rows = sequence.map(d =>
+      [d.day, d.phaseLabel || d.phase, d.arc, d.campaignRole,
+       `"${(d.hook || '').replace(/"/g, '""')}"`,
+       `"${(d.caption || '').replace(/"/g, '""')}"`,
+       `"${(d.cta || '').replace(/"/g, '""')}"`,
+       `"${(d.imageDirection || '').replace(/"/g, '""')}"`,
+       d.postingTime || ''].join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+      download: `campaign-sequence-${(productName || 'campaign').replace(/\s+/g, '-').toLowerCase()}.csv`,
+    })
+    a.click()
+  }
+
   const downloadCalendarCSV = () => {
     if (!calendar) return
     const header = 'Day,Type,Hook,Caption Direction,Creative Direction,Music Energy,Posting Time,Objective'
@@ -1041,6 +1264,905 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       }
     } catch {}
     finally { setCompetitorLoading(false) }
+  }
+
+  // ── Visual Competitor Deconstruction ─────────────────────
+  const deconstructCompetitor = async () => {
+    if (!deconstructImage.trim() || deconstructLoading) return
+    setDeconstructLoading(true)
+    setDeconstructResult(null)
+    try {
+      const res = await fetch('/api/competitor-deconstruct', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: deconstructImage, brandContext: deconstructContext }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setDeconstructResult(data.analysis)
+        addTimelineEvent('Competitor ad deconstructed')
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      }
+    } catch {}
+    finally { setDeconstructLoading(false) }
+  }
+
+  const applyDeconstructPrompt = (promptDirection) => {
+    if (!promptDirection) return
+    // Inject the superior prompt direction into the studio's visual anchor
+    set('visualAnchor', { description: promptDirection, imageUrl: '', prompt: promptDirection })
+    setAdOutputTab('creative')
+    addTimelineEvent('Deconstruct direction applied to Studio')
+  }
+
+  // ── UGC Creator Brief ─────────────────────────────────────
+  const generateUGCBrief = async () => {
+    if (!productName.trim() || ugcBriefLoading) return
+    setUgcBriefLoading(true)
+    setUgcBriefResult(null)
+    setUgcBriefError(null)
+    try {
+      const res = await fetch('/api/ugc-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainProblem:        s.mainProblem         || '',
+            mainDesire:         s.mainDesire          || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'authentic, premium',
+            platform:           ugcBriefPlatform,
+            ugcDuration:        ugcBriefDuration,
+            ugcCreatorType:     ugcBriefType,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setUgcBriefResult(data.brief)
+        addTimelineEvent('Creator Brief generated')
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setUgcBriefError(data.message || 'Generation failed')
+      }
+    } catch (err) {
+      setUgcBriefError('Something went wrong — please try again')
+    }
+    finally { setUgcBriefLoading(false) }
+  }
+
+  const copyUGCBriefAsText = () => {
+    if (!ugcBriefResult) return
+    const b = ugcBriefResult
+    const lines = [
+      `━━━ ${b.briefTitle || 'CREATOR BRIEF'} ━━━`,
+      `Platform: ${b.platform} · ${b.aspectRatio} · ${b.duration}`,
+      '',
+      '📦 PRODUCT CONTEXT',
+      b.productContext || '',
+      '',
+      '🎯 KEY MESSAGE',
+      b.keyMessage || '',
+      '',
+      '🪝 HOOK OPTIONS (pick one to A/B test)',
+      ...(b.hooks || []).map((h, i) => `${i + 1}. [${h.type?.toUpperCase()}] "${h.text}"`),
+      '',
+      '💬 TALKING POINTS (in your own words)',
+      ...(b.talkingPoints || []).map((p, i) => `${i + 1}. ${p}`),
+      '',
+      '🎬 SCENE BREAKDOWN',
+      ...(b.sceneBreakdown || []).map(sc =>
+        `Scene ${sc.sceneNumber} (${sc.timeCode}) — ${sc.type}\n  On Camera: ${sc.onCameraDirection}\n  Visual: ${sc.visualDirection}\n  B-Roll: ${sc.bRollNeeded}`
+      ),
+      '',
+      '📷 B-ROLL LIST',
+      ...(b.bRollList || []).map((item, i) => `${i + 1}. ${item}`),
+      '',
+      '⚡ ENERGY & DELIVERY',
+      b.energyAndDelivery || '',
+      '',
+      '✅ DO THIS',
+      ...(b.doThis || []).map(d => `· ${d}`),
+      '',
+      '🚫 AVOID THIS',
+      ...(b.avoidThis || []).map(d => `· ${d}`),
+      '',
+      '📐 TECHNICAL SPECS',
+      `Format: ${b.technicalSpecs?.format || ''}`,
+      `Aspect Ratio: ${b.technicalSpecs?.aspectRatio || ''}`,
+      `Resolution: ${b.technicalSpecs?.resolution || ''}`,
+      `Lighting: ${b.technicalSpecs?.lighting || ''}`,
+      `Editing: ${b.technicalSpecs?.editing || ''}`,
+      `Audio: ${b.technicalSpecs?.audio || ''}`,
+      '',
+      '📬 DELIVERABLES',
+      ...(b.deliverables || []).map(d => `· ${d}`),
+      '',
+      '📣 CALL TO ACTION',
+      b.cta || '',
+      '',
+      '🏷 HASHTAGS',
+      (b.hashtagSuggestions || []).join(' '),
+      '',
+      b.brandNotes ? `📝 BRAND NOTES\n${b.brandNotes}` : '',
+      '',
+      '━━━ Generated by Prompt CEO ━━━',
+    ]
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n')).catch(() => {})
+  }
+
+  // ── Landing Page Generator ────────────────────────────────
+  const generateLandingPage = async () => {
+    if (!productName.trim() || landingLoading) return
+    setLandingLoading(true)
+    setLandingPage(null)
+    setLandingError(null)
+    try {
+      const res = await fetch('/api/landing-page', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainProblem:        s.mainProblem         || '',
+            mainDesire:         s.mainDesire          || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            pricePoint:         s.pricePoint          || 'mid-ticket',
+            landingStyle,
+            adHook:    (s.adTextResults?.hooks?.[0]?.text)    || '',
+            adCaption: (s.adTextResults?.captions?.[0]?.caption) || '',
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setLandingPage(data.page)
+        addTimelineEvent('Landing page generated')
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setLandingError(data.message || 'Generation failed')
+      }
+    } catch { setLandingError('Something went wrong — please try again') }
+    finally { setLandingLoading(false) }
+  }
+
+  const copyLandingSection = (text, key) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    set('copiedText', key)
+    setTimeout(() => set('copiedText', null), 2000)
+  }
+
+  const copyFullLandingPage = () => {
+    if (!landingPage) return
+    const p = landingPage
+    const lines = [
+      `━━━ LANDING PAGE — ${productName} ━━━`, '',
+      `[HERO]`,
+      `Headline: ${p.hero?.headline}`,
+      `Subheadline: ${p.hero?.subheadline}`,
+      p.hero?.heroBodyCopy,
+      `CTA: ${p.hero?.heroCta}`,
+      p.hero?.heroCtaSubtext ? `Subtext: ${p.hero.heroCtaSubtext}` : '',
+      '',
+      `[SOCIAL PROOF]`,
+      ...(p.socialProofBar ? Object.values(p.socialProofBar).map(s => `${s.number} — ${s.label}`) : []),
+      '',
+      `[PROBLEM]`,
+      p.problemSection?.heading,
+      p.problemSection?.body,
+      p.problemSection?.agitator,
+      '',
+      `[SOLUTION]`,
+      p.solutionSection?.heading,
+      p.solutionSection?.body,
+      '',
+      `[BENEFITS]`,
+      ...(p.benefits || []).map(b => `${b.icon} ${b.title}\n${b.body}`),
+      '',
+      `[HOW IT WORKS]`,
+      p.howItWorks?.heading,
+      ...(p.howItWorks?.steps || []).map(s => `${s.step}. ${s.title} — ${s.body}`),
+      '',
+      `[TESTIMONIALS]`,
+      ...(p.testimonials || []).map(t => `"${t.quote}" — ${t.name}, ${t.detail}`),
+      '',
+      `[FAQ]`,
+      p.objectionCrusher?.heading,
+      ...(p.objectionCrusher?.faqs || []).map(f => `Q: ${f.question}\nA: ${f.answer}`),
+      '',
+      `[FINAL CTA]`,
+      p.finalCta?.heading,
+      p.finalCta?.subheading,
+      `CTA: ${p.finalCta?.ctaButton}`,
+      p.finalCta?.guarantee,
+      '',
+      '━━━ Generated by Prompt CEO ━━━',
+    ]
+    navigator.clipboard.writeText(lines.filter(Boolean).join('\n')).catch(() => {})
+  }
+
+  // ── Video Ad Storyboard (upgraded) ───────────────────────
+  const generateVideoStoryboard2 = async () => {
+    if (!productName.trim() || videoStoryboard2Loading) return
+    setVideoStoryboard2Loading(true)
+    setVideoStoryboard2(null)
+    setVideoStoryboard2Error(null)
+    try {
+      const res = await fetch('/api/video-ad-storyboard', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainProblem:        s.mainProblem         || '',
+            mainBenefit:        s.mainBenefit         || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            videoFormat,
+            visualMood:         s.visualDNA?.mood     || '',
+            colorPalette:       s.visualDNA?.palette  || '',
+            lightingStyle:      s.visualDNA?.lighting || '',
+            adHook:    (s.adTextResults?.hooks?.[0]?.text) || '',
+            directorStyle: s.directorPreset || '',
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setVideoStoryboard2(data.storyboard)
+        addTimelineEvent('Video storyboard generated')
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setVideoStoryboard2Error(data.message || 'Generation failed')
+      }
+    } catch { setVideoStoryboard2Error('Something went wrong — please try again') }
+    finally { setVideoStoryboard2Loading(false) }
+  }
+
+  // ── Hooks Library ─────────────────────────────────────────
+  const loadHooksLibrary = async () => {
+    setHooksLibLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (hooksLibFilter !== 'all') params.set('platform', hooksLibFilter)
+      if (hooksLibSearch.trim()) params.set('search', hooksLibSearch.trim())
+      const res  = await fetch(`/api/hooks-library?${params}`)
+      const data = await res.json()
+      if (data.status === 'success') setHooksLibrary(data.hooks || [])
+    } catch {}
+    finally { setHooksLibLoading(false) }
+  }
+
+  const saveHook = async (hookText, hookType = 'general', source = 'ad-studio') => {
+    if (!hookText?.trim() || hooksSaving) return
+    setHooksSaving(hookText)
+    try {
+      const res = await fetch('/api/hooks-library', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hookText,
+          hookType,
+          platform:       s.platform || 'all',
+          productContext: productName || '',
+          source,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setHooksLibrary(prev => [data.hook, ...prev])
+        addTimelineEvent('Hook saved to library')
+      }
+    } catch {}
+    finally { setHooksSaving(null) }
+  }
+
+  const deleteHook = async (id) => {
+    try {
+      await fetch('/api/hooks-library', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      setHooksLibrary(prev => prev.filter(h => h.id !== id))
+    } catch {}
+  }
+
+  // ── Hook Pre-Launch Scorer ────────────────────────────────
+  const scoreHook = async () => {
+    if (!hookScoreInput.trim() || hookScoreLoading) return
+    setHookScoreLoading(true)
+    setHookScoreResult(null)
+    setHookScoreError(null)
+    try {
+      const res = await fetch('/api/hook-score', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hookText:       hookScoreInput.trim(),
+          platform:       hookScorePlatform,
+          productContext: productName || '',
+          targetCustomer: s.targetCustomer || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setHookScoreResult(data.score)
+        addTimelineEvent('Hook scored', hookScoreInput.trim().slice(0, 50))
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setHookScoreError(data.message || 'Scoring failed')
+      }
+    } catch { setHookScoreError('Something went wrong') }
+    finally { setHookScoreLoading(false) }
+  }
+
+  // ── Email Sequence Generator ──────────────────────────────
+  const generateEmailSequence = async () => {
+    if (!productName.trim() || emailSeqLoading) return
+    setEmailSeqLoading(true)
+    setEmailSequence(null)
+    setEmailSeqError(null)
+    try {
+      const res = await fetch('/api/email-sequence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainProblem:        s.mainProblem         || '',
+            mainDesire:         s.mainDesire          || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            emailSequenceType:  emailSeqType,
+            emailLength:        emailSeqLength,
+            emailCount:         emailSeqCount,
+            adHook: (s.adTextResults?.hooks_pain?.hooks?.[0]) || (s.adTextResults?.hooks_desire?.hooks?.[0]) || '',
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setEmailSequence(data.sequence)
+        addTimelineEvent('Email sequence generated', `${emailSeqCount} emails, ${emailSeqType}`)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setEmailSeqError(data.message || 'Generation failed')
+      }
+    } catch { setEmailSeqError('Something went wrong — please try again') }
+    finally { setEmailSeqLoading(false) }
+  }
+
+  const copyEmailAsText = (email) => {
+    const lines = [
+      `Subject: ${email.subjectLine}`,
+      `Preview: ${email.previewText}`,
+      '',
+      email.body,
+      '',
+      `CTA: ${email.ctaButton}`,
+      email.psLine ? `\nP.S. ${email.psLine}` : '',
+    ]
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n')).catch(() => {})
+  }
+
+  const copyFullEmailSequence = () => {
+    if (!emailSequence) return
+    const lines = [
+      `━━━ ${emailSequence.sequenceTitle} ━━━`,
+      emailSequence.sequenceArc,
+      `Send schedule: ${emailSequence.sendingSchedule}`,
+      '',
+      ...(emailSequence.emails || []).flatMap(e => [
+        `━━ EMAIL ${e.emailNumber}: ${e.arcStage} ━━`,
+        `Send: ${e.sendTiming}`,
+        `Subject: ${e.subjectLine}`,
+        `Preview: ${e.previewText}`,
+        '',
+        e.body,
+        '',
+        `CTA: ${e.ctaButton}`,
+        e.psLine ? `P.S. ${e.psLine}` : '',
+        '',
+      ]),
+      '━━━ Generated by Prompt CEO ━━━',
+    ]
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n')).catch(() => {})
+  }
+
+  // ── Trend Intelligence ────────────────────────────────────
+  const generateTrendReport = async () => {
+    if (trendLoading) return
+    setTrendLoading(true)
+    setTrendReport(null)
+    setTrendError(null)
+    try {
+      const res = await fetch('/api/trend-report', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: trendPlatform, niche: trendNiche, productContext: productName || '' }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setTrendReport(data.report)
+        addTimelineEvent('Trend report generated', trendPlatform)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setTrendError(data.message || 'Generation failed')
+      }
+    } catch { setTrendError('Something went wrong') }
+    finally { setTrendLoading(false) }
+  }
+
+  const applyTrendHook = (template) => {
+    const filled = template.replace(/\[PRODUCT\]/gi, productName || 'your product')
+    setHookScoreInput(filled)
+    setAdOutputTab('score')
+  }
+
+  // ── Client Workspace ──────────────────────────────────────
+  const loadClientBrands = async () => {
+    setClientLoading(true)
+    try {
+      const res  = await fetch('/api/client-brands')
+      const data = await res.json()
+      if (data.status === 'success') setClientBrands(data.clients || [])
+    } catch {}
+    finally { setClientLoading(false) }
+  }
+
+  const saveClientBrand = async () => {
+    if (!clientForm.name.trim() || clientSaving) return
+    setClientSaving(true)
+    try {
+      const existing = clientBrands.find(c => c.name.toLowerCase() === clientForm.name.trim().toLowerCase())
+      let res, data
+      if (existing) {
+        res  = await fetch(`/api/client-brands/${existing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clientForm) })
+        data = await res.json()
+        if (data.status === 'success') setClientBrands(prev => prev.map(c => c.id === existing.id ? data.client : c))
+      } else {
+        res  = await fetch('/api/client-brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clientForm) })
+        data = await res.json()
+        if (data.status === 'success') setClientBrands(prev => [data.client, ...prev])
+      }
+      setClientFormOpen(false)
+      setClientForm({ name: '', industry: '', brandVoice: '', productName: '', targetCustomer: '', brandNotes: '' })
+    } catch {}
+    finally { setClientSaving(false) }
+  }
+
+  const deleteClientBrand = async (id) => {
+    try {
+      await fetch(`/api/client-brands/${id}`, { method: 'DELETE' })
+      setClientBrands(prev => prev.filter(c => c.id !== id))
+      if (activeClient?.id === id) setActiveClient(null)
+    } catch {}
+  }
+
+  const activateClientBrand = (client) => {
+    setActiveClient(client)
+    // Pre-fill Ad Studio fields from client data
+    if (client.product_name) set('productName', client.product_name)
+    if (client.target_customer) set('targetCustomer', client.target_customer)
+    if (client.brand_voice) set('brandVoice', client.brand_voice)
+    addTimelineEvent('Client brand loaded', client.name)
+  }
+
+  const generateDeliveryPackage = () => {
+    const client = activeClient
+    const lines = [
+      `━━━ DELIVERY PACKAGE ━━━`,
+      client ? `Client: ${client.name}${client.industry ? ` · ${client.industry}` : ''}` : '',
+      `Product: ${productName}`,
+      `Generated: ${new Date().toLocaleDateString()}`,
+      '',
+    ]
+
+    if (s.adTextResults?.hooks_pain?.hooks?.length) {
+      lines.push('── HOOKS ──')
+      Object.entries(s.adTextResults).forEach(([k, v]) => {
+        if (k.startsWith('hooks_') && v?.hooks?.length) {
+          lines.push(`[${k.replace('hooks_', '').toUpperCase()}]`)
+          v.hooks.forEach((h, i) => lines.push(`${i + 1}. ${h}`))
+          lines.push('')
+        }
+      })
+    }
+    if (s.adTextResults?.captions?.length) {
+      lines.push('── CAPTIONS ──')
+      s.adTextResults.captions.slice(0, 3).forEach((c, i) => lines.push(`${i + 1}. ${c.fullCaption || c.hook}`))
+      lines.push('')
+    }
+    if (s.adTextResults?.ugc_scripts?.length) {
+      lines.push('── UGC SCRIPTS ──')
+      s.adTextResults.ugc_scripts.forEach(sc => {
+        lines.push(`[${sc.label}]`)
+        lines.push(sc.script)
+        lines.push('')
+      })
+    }
+    if (landingPage?.hero) {
+      lines.push('── LANDING PAGE ──')
+      lines.push(`Headline: ${landingPage.hero.headline}`)
+      lines.push(`Subheadline: ${landingPage.hero.subheadline}`)
+      lines.push(`CTA: ${landingPage.hero.heroCta}`)
+      lines.push('')
+    }
+    if (emailSequence?.emails?.length) {
+      lines.push('── EMAIL SEQUENCE ──')
+      emailSequence.emails.forEach(e => {
+        lines.push(`Email ${e.emailNumber}: ${e.subjectLine}`)
+      })
+      lines.push('')
+    }
+    lines.push('━━━ Generated by Prompt CEO ━━━')
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n')).catch(() => {})
+    addTimelineEvent('Delivery package copied', client?.name || 'no client')
+  }
+
+  // ── Performance Learning ──────────────────────────────────
+  const loadPerfLogs = async () => {
+    setPerfLogsLoading(true)
+    try {
+      const res  = await fetch('/api/performance-logs?type=hook&limit=50')
+      const data = await res.json()
+      if (data.status === 'success') {
+        setPerfLogs(data.logs || [])
+        setPerfSummary(data.summary || null)
+      }
+    } catch {}
+    finally { setPerfLogsLoading(false) }
+  }
+
+  const savePerformanceLog = async (contentText, ctr, hookType, platform) => {
+    if (!contentText || perfLogSaving) return
+    setPerfLogSaving(true)
+    try {
+      const res  = await fetch('/api/performance-logs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: 'hook', contentText, ctr, hookType, platform: platform || s.platform || 'tiktok' }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setPerfLogs(prev => [data.log, ...prev])
+        addTimelineEvent('Performance logged', `CTR: ${ctr}%`)
+      }
+    } catch {}
+    finally { setPerfLogSaving(false) }
+  }
+
+  // ── Testimonial Miner ─────────────────────────────────────
+  const mineTestimonials = async () => {
+    if (!testimonialsInput.trim() || testimonialLoading) return
+    setTestimonialLoading(true)
+    setTestimonialResult(null)
+    setTestimonialError(null)
+    try {
+      const res = await fetch('/api/testimonial-miner', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: testimonialsInput, productName, productCategory: s.productDescription || '' }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setTestimonialResult(data.insights)
+        addTimelineEvent('Testimonials mined', `${data.insights.totalReviewsAnalyzed || '?'} reviews`)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setTestimonialError(data.message || 'Mining failed')
+      }
+    } catch { setTestimonialError('Something went wrong') }
+    finally { setTestimonialLoading(false) }
+  }
+
+  const useTestimonialHook = (hook) => {
+    setHookScoreInput(hook)
+    setAdOutputTab('score')
+  }
+
+  // ── Offer Builder ─────────────────────────────────────────
+  const buildOffer = async () => {
+    if (!productName.trim() || offerLoading) return
+    setOfferLoading(true)
+    setOfferResult(null)
+    setOfferError(null)
+    try {
+      const res = await fetch('/api/offer-builder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            offerType,
+            guaranteeType:      offerGuarantee,
+            price:              offerPrice,
+            comparePrice:       offerComparePrice,
+            whatIsIncluded:     offerIncluded,
+            urgencyMechanism:   offerUrgency,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setOfferResult(data.offer)
+        addTimelineEvent('Offer built', offerType)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setOfferError(data.message || 'Build failed')
+      }
+    } catch { setOfferError('Something went wrong') }
+    finally { setOfferLoading(false) }
+  }
+
+  const copyOfferSection = (text, key) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    set('copiedText', key)
+    setTimeout(() => set('copiedText', null), 2000)
+  }
+
+  // ── Retargeting Ads ───────────────────────────────────────
+  const generateRetargeting = async () => {
+    if (!productName.trim() || retargetLoading) return
+    setRetargetLoading(true)
+    setRetargetResult(null)
+    setRetargetError(null)
+    try {
+      const res = await fetch('/api/retargeting-ads', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            platform:           s.platform            || 'facebook',
+            retargetingStage:   retargetStage,
+            coldAdContext:      s.adTextResults?.hooks_pain?.hooks?.[0] || '',
+            mainObjection:      s.mainProblem          || '',
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setRetargetResult(data.pack)
+        addTimelineEvent('Retargeting pack generated', retargetStage)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else {
+        setRetargetError(data.message || 'Generation failed')
+      }
+    } catch { setRetargetError('Something went wrong') }
+    finally { setRetargetLoading(false) }
+  }
+
+  // ── SMS + Push Copy ───────────────────────────────────────
+  const generateSmsPush = async () => {
+    if (!productName.trim() || smsLoading) return
+    setSmsLoading(true)
+    setSmsResult(null)
+    setSmsError(null)
+    try {
+      const res = await fetch('/api/sms-push-copy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adConfig: {
+          productName, productDescription: s.productDescription || '',
+          targetCustomer: s.targetCustomer || '', mainBenefit: s.mainBenefit || '',
+          offer: s.offer || '', callToAction: s.callToAction || '',
+          brandVoice: s.brandVoice || 'premium',
+          smsSequenceType: smsSeqType, smsLinkPlaceholder: smsLink,
+          urgencyMechanism: s.urgencyMechanism || '',
+        } }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setSmsResult(data.sequence)
+        addTimelineEvent('SMS sequence generated', smsSeqType)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setSmsError(data.message || 'Generation failed') }
+    } catch { setSmsError('Something went wrong') }
+    finally { setSmsLoading(false) }
+  }
+
+  // ── Influencer Brief ──────────────────────────────────────
+  const generateInfluencerBrief = async () => {
+    if (!productName.trim() || influencerLoading) return
+    setInfluencerLoading(true)
+    setInfluencerResult(null)
+    setInfluencerError(null)
+    try {
+      const res = await fetch('/api/influencer-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adConfig: {
+          productName, productDescription: s.productDescription || '',
+          targetCustomer: s.targetCustomer || '', mainBenefit: s.mainBenefit || '',
+          proofPoint: s.proofPoint || '', callToAction: s.callToAction || '',
+          brandVoice: s.brandVoice || 'premium',
+          forbiddenElements: s.forbiddenElements || '',
+          influencerType, postingPlatform: influencerPlatform,
+          offerForCreator: influencerOffer, discountCode: influencerCode,
+          numberOfPosts: influencerPosts, campaignDeadline: influencerDeadline,
+        } }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setInfluencerResult(data.brief)
+        addTimelineEvent('Influencer brief generated', influencerType)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setInfluencerError(data.message || 'Generation failed') }
+    } catch { setInfluencerError('Something went wrong') }
+    finally { setInfluencerLoading(false) }
+  }
+
+  const copyInfluencerBrief = () => {
+    if (!influencerResult) return
+    const b = influencerResult
+    const lines = [
+      `━━━ ${b.briefTitle} ━━━`,
+      `Platform: ${b.platform} · Creator Type: ${b.creatorType}`,
+      `Deadline: ${b.campaignDeadline}`,
+      '', b.brandIntro, '',
+      `CAMPAIGN OBJECTIVE\n${b.campaignObjective}`, '',
+      `YOUR AUDIENCE\n${b.yourAudience}`, '',
+      `CONTENT REQUIREMENTS`,
+      `Posts: ${b.contentRequirements?.numberOfPosts}`,
+      `Formats: ${b.contentRequirements?.formats?.join(', ')}`,
+      `Deadline: ${b.contentRequirements?.deadline}`,
+      `Approval: ${b.contentRequirements?.approvalProcess}`, '',
+      `KEY MESSAGES\n${(b.keyMessages || []).map((m, i) => `${i + 1}. ${m}`).join('\n')}`, '',
+      `TALKING POINTS\n${(b.talkingPoints || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}`, '',
+      `HOOK IDEAS\n${(b.hookIdeas || []).map((h, i) => `${i + 1}. ${h}`).join('\n')}`, '',
+      `DO THIS\n${(b.doThis || []).map(d => `✓ ${d}`).join('\n')}`, '',
+      `NEVER DO THIS\n${(b.neverDoThis || []).map(d => `✗ ${d}`).join('\n')}`, '',
+      `CAPTION\nTone: ${b.captionGuidance?.tone}\nMust include: ${b.captionGuidance?.mustInclude}\nDisclosure: ${b.captionGuidance?.disclosureRequirement}`, '',
+      `COMPENSATION`,
+      b.compensation?.offer ? `Offer: ${b.compensation.offer}` : '',
+      b.compensation?.commissionRate ? `Commission: ${b.compensation.commissionRate}` : '',
+      b.compensation?.discountCode ? `Your code: ${b.compensation.discountCode}` : '', '',
+      `DELIVERABLES\n${(b.deliverables || []).map(d => `· ${d}`).join('\n')}`, '',
+      `SEND FILES TO: ${b.sendFilesTo}`,
+      `QUESTIONS: ${b.questions}`, '',
+      b.closingNote,
+      '', '━━━ Generated by Prompt CEO ━━━',
+    ]
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n')).catch(() => {})
+  }
+
+  // ── Naming Convention ─────────────────────────────────────
+  const generateNaming = async () => {
+    if (namingLoading) return
+    setNamingLoading(true)
+    setNamingResult(null)
+    setNamingError(null)
+    try {
+      const res = await fetch('/api/naming-convention', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: namingPlatform, productName, businessType: s.productDescription ? 'E-commerce / DTC' : 'Brand', campaignGoals: namingGoals, teamSize: 'solo' }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setNamingResult(data.system)
+        addTimelineEvent('Naming convention generated', namingPlatform)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setNamingError(data.message || 'Generation failed') }
+    } catch { setNamingError('Something went wrong') }
+    finally { setNamingLoading(false) }
+  }
+
+  // ── Ad Account Audit ──────────────────────────────────────
+  const runAdAudit = async () => {
+    if (!auditData.trim() || auditLoading) return
+    setAuditLoading(true)
+    setAuditResult(null)
+    setAuditError(null)
+    try {
+      const res = await fetch('/api/ad-account-audit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ performanceData: auditData, platform: auditPlatform, timeframe: auditTimeframe, productContext: productName || '', spendLevel: auditSpend }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setAuditResult(data.audit)
+        addTimelineEvent('Ad account audited', auditPlatform)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setAuditError(data.message || 'Audit failed') }
+    } catch { setAuditError('Something went wrong') }
+    finally { setAuditLoading(false) }
+  }
+
+  // ── Talking Head Script ───────────────────────────────────
+  const generateScript = async () => {
+    if (!productName.trim() || scriptLoading) return
+    setScriptLoading(true)
+    setScriptResult(null)
+    setScriptError(null)
+    try {
+      const res = await fetch('/api/talking-head-script', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainProblem:        s.mainProblem         || '',
+            mainBenefit:        s.mainBenefit         || '',
+            proofPoint:         s.proofPoint          || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            platform:           s.platform            || 'tiktok',
+            talkingHeadDuration: scriptDuration,
+            talkingHeadStyle:    scriptStyle,
+            founderStoryHint:    scriptStoryHint,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setScriptResult(data.script)
+        addTimelineEvent('Talking head script generated', `${scriptDuration}s ${scriptStyle}`)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setScriptError(data.message || 'Generation failed') }
+    } catch { setScriptError('Something went wrong') }
+    finally { setScriptLoading(false) }
+  }
+
+  const copyTeleprompterScript = () => {
+    if (!scriptResult?.fullScriptForTeleprompter) return
+    navigator.clipboard.writeText(scriptResult.fullScriptForTeleprompter).catch(() => {})
+  }
+
+  // ── Product Description ───────────────────────────────────
+  const generateProductDesc = async () => {
+    if (!productName.trim() || prodDescLoading) return
+    setProdDescLoading(true)
+    setProdDescResult(null)
+    setProdDescError(null)
+    try {
+      const res = await fetch('/api/product-description', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainBenefit:        s.mainBenefit         || '',
+            mainProblem:        s.mainProblem         || '',
+            proofPoint:         s.proofPoint          || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            pricePoint:         s.pricePoint          || 'mid-ticket',
+            productPlatform:    prodDescPlatform,
+            productCategory:    prodDescCategory,
+            keyFeatures:        prodDescFeatures,
+            keywords:           prodDescKeywords,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setProdDescResult(data.descriptions)
+        addTimelineEvent('Product descriptions generated', prodDescPlatform)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setProdDescError(data.message || 'Generation failed') }
+    } catch { setProdDescError('Something went wrong') }
+    finally { setProdDescLoading(false) }
   }
 
   const addTimelineEvent = (event, detail = '') => {
@@ -2360,48 +3482,155 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         )}
 
         {/* Output tabs */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${C.hairline}`, flexShrink: 0, overflowX: 'auto' }}>
-          {[
-            { id: 'creative',     label: 'Creative',  count: null },
-            { id: 'angles',       label: 'Angles',    count: s.adTextResults?.angles?.length || 0 },
-            { id: 'hooks',        label: 'Hooks',     count: s.adTextResults?.[`hooks_${activeHookType}`]?.hooks?.length || 0 },
-            { id: 'captions',     label: 'Captions',  count: s.adTextResults?.captions?.length || 0 },
-            { id: 'image_prompt', label: 'Images',    count: s.adTextResults?.image_prompt?.length || 0 },
-            { id: 'video_prompt', label: 'Video',     count: s.adTextResults?.video_prompt?.length || 0 },
-            { id: 'ugc_scripts',  label: 'UGC',       count: s.adTextResults?.ugc_scripts?.length || 0 },
-            { id: 'campaign',     label: 'Campaign',  count: s.adTextResults?.campaign?.length || 0 },
-            { id: 'score',        label: 'Score',     count: (s.adTextResults?.quality_score || projectScore) ? 1 : 0 },
-            { id: 'soundtrack',   label: 'Music',     count: s.adMusicTrack ? 1 : 0 },
-            { id: 'inspire',      label: 'Inspire',   count: (competitorResult || marketResult) ? 1 : 0 },
-            { id: 'launch',       label: 'Launch',    count: launchSequence ? 5 : 0 },
-            { id: 'calendar',     label: 'Calendar',  count: calendar ? calendar.length : 0 },
-            { id: 'abtests',      label: 'A/B Tests', count: abTests.filter(t => t.status === 'completed').length },
-            { id: 'roi',          label: 'ROI',       count: null },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setAdOutputTab(tab.id)} style={{
-              flex: 1, padding: '8px 3px', fontSize: 9, fontWeight: 700,
-              letterSpacing: 0.5, textTransform: 'uppercase', cursor: 'pointer',
-              background: adOutputTab === tab.id ? C.surface : 'transparent',
-              color: adOutputTab === tab.id ? C.gold : C.primary,
-              border: 'none', minWidth: 60,
-              borderBottom: adOutputTab === tab.id ? `2px solid ${C.gold}` : '2px solid transparent',
-              transition: 'all 0.15s', position: 'relative',
-            }}>
-              {tab.label}
-              {tab.count > 0 && (
-                <span style={{
-                  position: 'absolute', top: 4, right: 3,
-                  fontSize: 7, fontWeight: 800, lineHeight: 1,
-                  padding: '1px 4px', borderRadius: 999,
-                  background: adOutputTab === tab.id ? C.gold : C.muted,
-                  color: C.void,
-                }}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* ── GROUPED TAB NAVIGATION ── */}
+        {(() => {
+          const TAB_GROUPS = [
+            {
+              id: 'creative', label: 'Creative', icon: '✦',
+              tabs: [
+                { id: 'creative',     label: 'Creative',  count: null },
+                { id: 'angles',       label: 'Angles',    count: s.adTextResults?.angles?.length || 0 },
+                { id: 'hooks',        label: 'Hooks',     count: s.adTextResults?.[`hooks_${activeHookType}`]?.hooks?.length || 0 },
+                { id: 'captions',     label: 'Captions',  count: s.adTextResults?.captions?.length || 0 },
+                { id: 'image_prompt', label: 'Images',    count: s.adTextResults?.image_prompt?.length || 0 },
+                { id: 'video_prompt', label: 'Video',     count: s.adTextResults?.video_prompt?.length || 0 },
+                { id: 'ugc_scripts',  label: 'UGC',       count: s.adTextResults?.ugc_scripts?.length || 0 },
+              ],
+            },
+            {
+              id: 'campaign', label: 'Campaign', icon: '◈',
+              tabs: [
+                { id: 'campaign',   label: 'Campaign',  count: s.adTextResults?.campaign?.length || 0 },
+                { id: 'sequencer',  label: 'Sequencer', count: sequence ? sequence.length : 0 },
+                { id: 'email',      label: 'Email',     count: emailSequence ? (emailSequence.emails?.length || 0) : 0 },
+                { id: 'sms',        label: 'SMS',       count: smsResult ? (smsResult.smsMessages?.length || 0) : 0 },
+                { id: 'calendar',   label: 'Calendar',  count: calendar ? calendar.length : 0 },
+                { id: 'launch',     label: 'Launch',    count: launchSequence ? 5 : 0 },
+              ],
+            },
+            {
+              id: 'funnel', label: 'Funnel', icon: '▽',
+              tabs: [
+                { id: 'landing',  label: 'Landing',  count: landingPage ? 1 : 0 },
+                { id: 'offer',    label: 'Offer',     count: offerResult ? 1 : 0 },
+                { id: 'retarget', label: 'Retarget',  count: retargetResult ? (retargetResult.ads?.length || 0) : 0 },
+                { id: 'voice',    label: 'VoC',       count: testimonialResult ? 1 : 0 },
+              ],
+            },
+            {
+              id: 'intel', label: 'Intel', icon: '◎',
+              tabs: [
+                { id: 'score',   label: 'Score',    count: (s.adTextResults?.quality_score || projectScore) ? 1 : 0 },
+                { id: 'inspire', label: 'Inspire',  count: (competitorResult || marketResult) ? 1 : 0 },
+                { id: 'trends',  label: 'Trends',   count: trendReport ? 1 : 0 },
+                { id: 'audit',   label: 'Audit',    count: auditResult ? 1 : 0 },
+                { id: 'abtests', label: 'A/B Tests',count: abTests.filter(t => t.status === 'completed').length },
+              ],
+            },
+            {
+              id: 'production', label: 'Production', icon: '▶',
+              tabs: [
+                { id: 'script',     label: 'Script',     count: scriptResult ? 1 : 0 },
+                { id: 'storyboard', label: 'Storyboard', count: videoStoryboard2 ? (videoStoryboard2.scenes?.length || 1) : 0 },
+                { id: 'soundtrack', label: 'Music',       count: s.adMusicTrack ? 1 : 0 },
+                { id: 'product',    label: 'Product',    count: prodDescResult ? 1 : 0 },
+                { id: 'influencer', label: 'Influencer', count: influencerResult ? 1 : 0 },
+              ],
+            },
+            {
+              id: 'account', label: 'Account', icon: '⬡',
+              tabs: [
+                { id: 'naming',  label: 'Naming',     count: namingResult ? 1 : 0 },
+                { id: 'clients', label: 'Clients',    count: clientBrands.length },
+                { id: 'swipe',   label: 'Swipe File', count: hooksLibrary.length },
+                { id: 'roi',     label: 'ROI',        count: null },
+              ],
+            },
+          ]
+
+          // Keep group in sync when tab changes externally
+          const activeGroup = TAB_GROUPS.find(g => g.tabs.some(t => t.id === adOutputTab)) || TAB_GROUPS[0]
+          const currentGroup = TAB_GROUPS.find(g => g.id === adTabGroup) || activeGroup
+          const visibleTabs = currentGroup.tabs
+
+          // Count filled tabs per group for badge
+          const groupBadge = (g) => g.tabs.filter(t => t.count > 0).length
+
+          return (
+            <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.hairline}` }}>
+              {/* Row 1 — Category groups */}
+              <div style={{ display: 'flex', background: C.void, borderBottom: `1px solid ${C.hairline}` }}>
+                {TAB_GROUPS.map(g => {
+                  const isActive = adTabGroup === g.id
+                  const badge = groupBadge(g)
+                  return (
+                    <button key={g.id}
+                      onClick={() => {
+                        setAdTabGroup(g.id)
+                        // Auto-switch to first tab in group if current tab isn't in this group
+                        if (!g.tabs.some(t => t.id === adOutputTab)) {
+                          setAdOutputTab(g.tabs[0].id)
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: '7px 4px', fontSize: 9, fontWeight: 800,
+                        letterSpacing: 0.6, textTransform: 'uppercase', cursor: 'pointer',
+                        border: 'none', position: 'relative',
+                        background: isActive ? C.surface : 'transparent',
+                        color: isActive ? C.gold : C.secondary,
+                        borderBottom: isActive ? `2px solid ${C.gold}` : '2px solid transparent',
+                        transition: 'all 0.12s',
+                      }}>
+                      <span style={{ fontSize: 8, marginRight: 3, opacity: 0.7 }}>{g.icon}</span>
+                      {g.label}
+                      {badge > 0 && (
+                        <span style={{
+                          position: 'absolute', top: 3, right: 3,
+                          fontSize: 6, fontWeight: 800, lineHeight: 1,
+                          padding: '1px 3px', borderRadius: 999,
+                          background: isActive ? C.gold : C.goldDim,
+                          color: C.void,
+                        }}>{badge}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Row 2 — Sub-tabs for active group */}
+              <div style={{ display: 'flex', background: C.raised }}>
+                {visibleTabs.map(tab => {
+                  const isActive = adOutputTab === tab.id
+                  return (
+                    <button key={tab.id}
+                      onClick={() => setAdOutputTab(tab.id)}
+                      style={{
+                        flex: 1, padding: '6px 4px', fontSize: 9, fontWeight: 700,
+                        letterSpacing: 0.4, textTransform: 'uppercase', cursor: 'pointer',
+                        border: 'none', position: 'relative',
+                        background: isActive ? C.surface : 'transparent',
+                        color: isActive ? C.gold : C.muted,
+                        borderBottom: isActive ? `2px solid ${C.gold}` : '2px solid transparent',
+                        transition: 'all 0.12s',
+                        minWidth: 0,
+                      }}>
+                      {tab.label}
+                      {tab.count > 0 && (
+                        <span style={{
+                          position: 'absolute', top: 2, right: 2,
+                          fontSize: 6, fontWeight: 800, lineHeight: 1,
+                          padding: '1px 3px', borderRadius: 999,
+                          background: isActive ? C.gold : C.muted,
+                          color: C.void,
+                        }}>{tab.count}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Tab content wrapper */}
         <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -2450,7 +3679,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   color: C.gold, opacity: consistencyLoading ? 0.6 : 1,
                 }}
               >
-                {consistencyLoading ? '⟳ Checking…' : '✦ Check — 1 credit'}
+                {consistencyLoading ? '⟳ Checking…' : '✦ Check'}
               </button>
             </div>
             {consistencyResult && (
@@ -3064,7 +4293,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             >
               {s.adTextGenerating && s.adTextType === 'hooks'
                 ? `⟳ Generating ${activeHookType} hooks…`
-                : `✦ Generate ${activeHookType.charAt(0).toUpperCase() + activeHookType.slice(1)} Hooks only — 1 credit`}
+                : `✦ Generate ${activeHookType.charAt(0).toUpperCase() + activeHookType.slice(1)} Hooks only`}
             </button>
 
             {s.adTextError && s.adTextType === 'hooks' && (
@@ -3158,6 +4387,18 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     }}
                   >
                     {lockedHook === hook ? '🔒' : '🔓'}
+                  </button>
+                  <button
+                    onClick={() => saveHook(hook, activeHookType, 'hooks-tab')}
+                    disabled={hooksSaving === hook}
+                    title="Save to Swipe File"
+                    style={{
+                      padding: '6px 8px', borderRadius: 4, fontSize: 11, cursor: hooksSaving === hook ? 'not-allowed' : 'pointer',
+                      border: `1px solid ${C.hairline}`, background: C.deep,
+                      color: hooksSaving === hook ? C.muted : C.blue, flexShrink: 0,
+                    }}
+                  >
+                    {hooksSaving === hook ? '⟳' : '🔖'}
                   </button>
                 </div>
               </div>
@@ -3543,79 +4784,373 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           </div>
         </>)}
 
-        {/* ── UGC SCRIPTS TAB ── */}
+        {/* ── UGC SCRIPTS + CREATOR BRIEF TAB ── */}
         {adOutputTab === 'ugc_scripts' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button
-              onClick={() => handleGenerateText('ugc_scripts')}
-              disabled={!productName.trim() || s.adTextGenerating}
-              style={{
-                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
-                cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
-                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
-                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
-                color: productName.trim() ? C.gold : C.muted,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}
-            >
-              {s.adTextGenerating && s.adTextType === 'ugc_scripts' ? '⟳ Generating scripts…' : '✦ Generate 4 UGC Scripts'}
-            </button>
-            {s.adTextError && s.adTextType === 'ugc_scripts' && (
-              <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
-            )}
-            {(s.adTextResults?.ugc_scripts || []).length > 0 && (
-              <ExportBar items={s.adTextResults.ugc_scripts} filename="promptceo-ugc-scripts" />
-            )}
-            {(s.adTextResults?.ugc_scripts || []).map((scr, i) => (
-              <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
-                <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>{scr.label || scr.style}</span>
-                    <span style={{ fontSize: 9, color: C.muted }}>{scr.duration} · {scr.wordCount}</span>
+
+            {/* Mode toggle */}
+            <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: `1px solid ${C.hairline}` }}>
+              {[
+                { id: 'scripts', label: '📝 Scripts', desc: '4 spoken scripts' },
+                { id: 'brief',   label: '📋 Creator Brief', desc: 'Full send-to-creator brief' },
+              ].map(m => (
+                <button key={m.id} onClick={() => setUgcBriefMode(m.id)}
+                  style={{ flex: 1, padding: '8px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
+                    background: ugcBriefMode === m.id ? (m.id === 'brief' ? '#0e0818' : '#1a1408') : C.raised,
+                    color: ugcBriefMode === m.id ? (m.id === 'brief' ? C.violet : C.gold) : C.muted,
+                    borderRight: m.id === 'scripts' ? `1px solid ${C.hairline}` : 'none',
+                  }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── SCRIPTS MODE ── */}
+            {ugcBriefMode === 'scripts' && (<>
+              <button
+                onClick={() => handleGenerateText('ugc_scripts')}
+                disabled={!productName.trim() || s.adTextGenerating}
+                style={{
+                  width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                  cursor: productName.trim() && !s.adTextGenerating ? 'pointer' : 'not-allowed',
+                  border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                  background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                  color: productName.trim() ? C.gold : C.muted,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {s.adTextGenerating && s.adTextType === 'ugc_scripts' ? '⟳ Generating scripts…' : '✦ Generate 4 UGC Scripts'}
+              </button>
+              {s.adTextError && s.adTextType === 'ugc_scripts' && (
+                <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.adTextError}</div>
+              )}
+              {(s.adTextResults?.ugc_scripts || []).length > 0 && (
+                <ExportBar items={s.adTextResults.ugc_scripts} filename="promptceo-ugc-scripts" />
+              )}
+              {(s.adTextResults?.ugc_scripts || []).map((scr, i) => (
+                <div key={i} style={{ borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 11px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>{scr.label || scr.style}</span>
+                      <span style={{ fontSize: 9, color: C.muted }}>{scr.duration} · {scr.wordCount}</span>
+                    </div>
+                    <button onClick={() => doCopyAdText(scr.script, `scr_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `scr_${i}` ? C.green : C.muted }}>
+                      {copiedText === `scr_${i}` ? '✓ Copied' : '⎘ Copy Script'}
+                    </button>
                   </div>
-                  <button onClick={() => doCopyAdText(scr.script, `scr_${i}`)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `scr_${i}` ? C.green : C.muted }}>
-                    {copiedText === `scr_${i}` ? '✓ Copied' : '⎘ Copy Script'}
+                  <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ padding: '6px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Hook</div>
+                      <div style={{ fontSize: 12, color: C.primary, fontStyle: 'italic' }}>"{scr.hook}"</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{scr.script}</div>
+                    <VariationBar content={scr.script} contentType="script" />
+                    {scr.directorNote && (
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <span style={{ fontWeight: 700, color: C.muted }}>Director: </span>{scr.directorNote}
+                      </div>
+                    )}
+                    {scr.visualNote && (
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <span style={{ fontWeight: 700, color: C.muted }}>On screen: </span>{scr.visualNote}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {(s.adTextResults?.ugc_scripts || []).length > 0 && <DirectorNote noteKey="ugc_scripts" />}
+              {(s.adTextResults?.ugc_scripts || []).length > 0 && (
+                <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 10, color: C.secondary }}>UGC scripts ready — send to creators with a full brief</div>
+                  <button onClick={() => setUgcBriefMode('brief')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
+                    Generate Creator Brief →
                   </button>
                 </div>
-                <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ padding: '6px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Hook</div>
-                    <div style={{ fontSize: 12, color: C.primary, fontStyle: 'italic' }}>"{scr.hook}"</div>
+              )}
+              {!s.adTextResults?.ugc_scripts && !s.adTextGenerating && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28 }}>🎤</div>
+                  <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 4 UGC creator scripts — natural, emotional, direct response, and testimonial styles.</div>
+                </div>
+              )}
+            </>)}
+
+            {/* ── CREATOR BRIEF MODE ── */}
+            {ugcBriefMode === 'brief' && (<>
+
+              {/* Brief config */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Brief Settings</div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Platform</div>
+                    <select value={ugcBriefPlatform} onChange={e => setUgcBriefPlatform(e.target.value)}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="tiktok">TikTok</option>
+                      <option value="reels">Instagram Reels</option>
+                      <option value="shorts">YouTube Shorts</option>
+                      <option value="facebook">Facebook</option>
+                    </select>
                   </div>
-                  <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{scr.script}</div>
-                  <VariationBar content={scr.script} contentType="script" />
-                  {scr.directorNote && (
-                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
-                      <span style={{ fontWeight: 700, color: C.muted }}>Director: </span>{scr.directorNote}
-                    </div>
-                  )}
-                  {scr.visualNote && (
-                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, padding: '5px 8px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
-                      <span style={{ fontWeight: 700, color: C.muted }}>On screen: </span>{scr.visualNote}
-                    </div>
-                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Duration</div>
+                    <select value={ugcBriefDuration} onChange={e => setUgcBriefDuration(e.target.value)}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="15">15s</option>
+                      <option value="30">30s</option>
+                      <option value="45">45s</option>
+                      <option value="60">60s</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Creator Type</div>
+                    <select value={ugcBriefType} onChange={e => setUgcBriefType(e.target.value)}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="ugc_only">UGC Only</option>
+                      <option value="micro">Micro Creator</option>
+                      <option value="macro">Macro Creator</option>
+                      <option value="influencer">Influencer Post</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            ))}
-            {/* Creative Director Note — UGC */}
-            {(s.adTextResults?.ugc_scripts || []).length > 0 && <DirectorNote noteKey="ugc_scripts" />}
 
-            {/* Continue to Campaign */}
-            {(s.adTextResults?.ugc_scripts || []).length > 0 && (
-              <div style={{ borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: 10, color: C.secondary }}>UGC scripts ready — build the full 7-stage campaign</div>
-                <button onClick={() => setAdOutputTab('campaign')} style={{ padding: '5px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
-                  Continue to Campaign →
-                </button>
-              </div>
-            )}
+              {/* Generate button */}
+              <button
+                onClick={generateUGCBrief}
+                disabled={!productName.trim() || ugcBriefLoading}
+                style={{
+                  width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                  cursor: productName.trim() && !ugcBriefLoading ? 'pointer' : 'not-allowed',
+                  border: `1px solid ${productName.trim() ? C.violetDim : C.hairline}`,
+                  background: productName.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                  color: productName.trim() ? C.violet : C.muted,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {ugcBriefLoading ? '⟳ Building brief…' : '📋 Generate Full Creator Brief'}
+              </button>
 
-            {!s.adTextResults?.ugc_scripts && !s.adTextGenerating && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: 28 }}>🎤</div>
-                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 240, lineHeight: 1.6 }}>Generate 4 UGC creator scripts — natural, emotional, direct response, and testimonial styles.</div>
-              </div>
-            )}
+              {ugcBriefError && (
+                <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{ugcBriefError}</div>
+              )}
+
+              {/* Brief output */}
+              {ugcBriefResult && (() => {
+                const b = ugcBriefResult
+                const Section = ({ label, color, children }) => (
+                  <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                    <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</span>
+                    </div>
+                    <div style={{ padding: '8px 10px' }}>{children}</div>
+                  </div>
+                )
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+                    {/* Header */}
+                    <div style={{ padding: '10px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{b.briefTitle}</div>
+                        <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{b.platform} · {b.aspectRatio} · {b.duration} · {b.creatorType}</div>
+                      </div>
+                      <button onClick={copyUGCBriefAsText}
+                        style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: C.deep, color: C.violet, flexShrink: 0 }}>
+                        ⎘ Copy Full Brief
+                      </button>
+                    </div>
+
+                    {/* Product context + key message */}
+                    {b.productContext && (
+                      <Section label="Product Context" color={C.secondary}>
+                        <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6 }}>{b.productContext}</div>
+                      </Section>
+                    )}
+                    {b.keyMessage && (
+                      <div style={{ padding: '8px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Key Message</div>
+                        <div style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>{b.keyMessage}</div>
+                      </div>
+                    )}
+
+                    {/* Hooks */}
+                    {b.hooks?.length > 0 && (
+                      <Section label="Hook Options (A/B Test These)" color={C.gold}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {b.hooks.map((h, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.gold, background: C.goldGlow, padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{h.type?.toUpperCase()}</span>
+                              <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic', lineHeight: 1.5 }}>"{h.text}"</div>
+                              <button onClick={() => doCopyAdText(h.text, `hook_brief_${i}`)}
+                                style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `hook_brief_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                                {copiedText === `hook_brief_${i}` ? '✓' : '⎘'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* Talking points */}
+                    {b.talkingPoints?.length > 0 && (
+                      <Section label="Talking Points" color={C.secondary}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {b.talkingPoints.map((p, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: C.muted, flexShrink: 0, marginTop: 1 }}>{i + 1}.</span>
+                              <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.5 }}>{p}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* Scene breakdown */}
+                    {b.sceneBreakdown?.length > 0 && (
+                      <Section label="Scene Breakdown" color={C.violet}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {b.sceneBreakdown.map((sc, i) => {
+                            const isOpen = ugcBriefExpanded === `scene_${i}`
+                            return (
+                              <div key={i} style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                                <button onClick={() => setUgcBriefExpanded(isOpen ? null : `scene_${i}`)}
+                                  style={{ width: '100%', padding: '6px 8px', background: C.surface, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, background: '#0e0818', padding: '1px 5px', borderRadius: 3 }}>S{sc.sceneNumber}</span>
+                                  <span style={{ fontSize: 9, color: C.gold, fontWeight: 700 }}>{sc.type}</span>
+                                  <span style={{ fontSize: 8, color: C.muted }}>{sc.timeCode}</span>
+                                  <span style={{ marginLeft: 'auto', fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                                </button>
+                                {isOpen && (
+                                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {sc.onCameraDirection && (
+                                      <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>
+                                        <span style={{ fontWeight: 700, color: C.gold }}>On Camera: </span>{sc.onCameraDirection}
+                                      </div>
+                                    )}
+                                    {sc.visualDirection && (
+                                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                                        <span style={{ fontWeight: 700, color: C.muted }}>Visual: </span>{sc.visualDirection}
+                                      </div>
+                                    )}
+                                    {sc.bRollNeeded && (
+                                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                                        <span style={{ fontWeight: 700, color: C.violet }}>B-Roll: </span>{sc.bRollNeeded}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* B-Roll list */}
+                    {b.bRollList?.length > 0 && (
+                      <Section label="B-Roll Shot List" color={C.blue}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {b.bRollList.map((item, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: 8, color: C.blue, flexShrink: 0, marginTop: 2 }}>◈</span>
+                              <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.4 }}>{item}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* Energy & delivery */}
+                    {b.energyAndDelivery && (
+                      <Section label="Energy & Delivery" color={C.green}>
+                        <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6, fontStyle: 'italic' }}>{b.energyAndDelivery}</div>
+                      </Section>
+                    )}
+
+                    {/* Do this / Avoid this */}
+                    {(b.doThis?.length > 0 || b.avoidThis?.length > 0) && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {b.doThis?.length > 0 && (
+                          <div style={{ borderRadius: 5, border: `1px solid ${C.greenDim}`, background: C.base, overflow: 'hidden' }}>
+                            <div style={{ padding: '5px 8px', background: C.greenDim, fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase' }}>✅ Do This</div>
+                            <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {b.doThis.map((d, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>· {d}</div>)}
+                            </div>
+                          </div>
+                        )}
+                        {b.avoidThis?.length > 0 && (
+                          <div style={{ borderRadius: 5, border: `1px solid #3a1a1a`, background: C.base, overflow: 'hidden' }}>
+                            <div style={{ padding: '5px 8px', background: '#1a0606', fontSize: 8, fontWeight: 700, color: '#cf7e7e', letterSpacing: 0.8, textTransform: 'uppercase' }}>🚫 Avoid</div>
+                            <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {b.avoidThis.map((d, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>· {d}</div>)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Technical specs */}
+                    {b.technicalSpecs && (
+                      <Section label="Technical Specs" color={C.muted}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+                          {Object.entries(b.technicalSpecs).map(([k, v]) => v ? (
+                            <div key={k} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                              <span style={{ fontWeight: 700, color: C.muted, textTransform: 'capitalize' }}>{k}: </span>{v}
+                            </div>
+                          ) : null)}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* Deliverables */}
+                    {b.deliverables?.length > 0 && (
+                      <Section label="Deliverables" color={C.gold}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {b.deliverables.map((d, i) => (
+                            <div key={i} style={{ fontSize: 10, color: C.primary, lineHeight: 1.4 }}>· {d}</div>
+                          ))}
+                        </div>
+                      </Section>
+                    )}
+
+                    {/* CTA + hashtags */}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {b.cta && (
+                        <div style={{ flex: 1, padding: '7px 10px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>CTA</div>
+                          <div style={{ fontSize: 10, color: C.primary, fontWeight: 600 }}>{b.cta}</div>
+                        </div>
+                      )}
+                      {b.hashtagSuggestions?.length > 0 && (
+                        <div style={{ flex: 1, padding: '7px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Hashtags</div>
+                          <div style={{ fontSize: 9, color: C.blue, lineHeight: 1.5 }}>{b.hashtagSuggestions.join(' ')}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Brand notes */}
+                    {b.brandNotes && (
+                      <div style={{ padding: '7px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Brand Notes</div>
+                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{b.brandNotes}</div>
+                      </div>
+                    )}
+
+                  </div>
+                )
+              })()}
+
+              {!ugcBriefResult && !ugcBriefLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28 }}>📋</div>
+                  <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a full Creator Brief — scenes, b-roll list, talking points, hooks, do/don't, and technical specs. Ready to send directly to a creator.</div>
+                </div>
+              )}
+            </>)}
+
           </div>
         </>)}
 
@@ -3754,8 +5289,152 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── SCORE TAB ── */}
         {adOutputTab === 'score' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+            {/* ── PRE-LAUNCH HOOK SCORER ── */}
+            <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+              <div style={{ padding: '8px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Pre-Launch Hook Score</div>
+                <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>Paste any hook and get a CTR prediction before spending a single dollar</div>
+              </div>
+              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <textarea
+                  value={hookScoreInput}
+                  onChange={e => setHookScoreInput(e.target.value)}
+                  placeholder={'Paste your hook here…\n\nExample: "I tried 12 skincare brands. Nothing worked until this."'}
+                  rows={3}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '8px 10px', fontSize: 11, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <select value={hookScorePlatform} onChange={e => setHookScorePlatform(e.target.value)}
+                    style={{ background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="tiktok">TikTok</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="reels">Instagram Reels</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="youtube">YouTube</option>
+                  </select>
+                  <button onClick={scoreHook} disabled={!hookScoreInput.trim() || hookScoreLoading}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                      cursor: hookScoreInput.trim() && !hookScoreLoading ? 'pointer' : 'not-allowed',
+                      border: `1px solid ${hookScoreInput.trim() ? C.goldDim : C.hairline}`,
+                      background: hookScoreInput.trim() ? '#1a1408' : C.deep,
+                      color: hookScoreInput.trim() ? C.gold : C.muted }}>
+                    {hookScoreLoading ? '⟳ Scoring…' : '⚡ Score Hook'}
+                  </button>
+                </div>
+
+                {/* Quick-fill from generated hooks */}
+                {Object.keys(s.adTextResults || {}).some(k => k.startsWith('hooks_')) && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 8, color: C.muted, alignSelf: 'center' }}>Quick-fill:</span>
+                    {['pain','desire','curiosity','luxury','directOffer'].flatMap(t =>
+                      (s.adTextResults?.[`hooks_${t}`]?.hooks || []).slice(0, 1).map((h, i) => (
+                        <button key={`${t}_${i}`} onClick={() => setHookScoreInput(h)}
+                          style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary,
+                            maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {h.slice(0, 30)}…
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {hookScoreError && <div style={{ fontSize: 10, color: '#cf6a6a', padding: '5px 8px', borderRadius: 4, background: '#110606', border: '1px solid #2a1010' }}>{hookScoreError}</div>}
+
+                {hookScoreResult && (() => {
+                  const sc = hookScoreResult
+                  const scoreColor = sc.overallScore >= 80 ? C.green : sc.overallScore >= 65 ? C.gold : sc.overallScore >= 50 ? C.tension : '#cf6a6a'
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 32, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{sc.overallScore}</div>
+                          <div style={{ fontSize: 10, color: C.muted }}>{'/100'}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: scoreColor, marginTop: 2 }}>{sc.grade}</div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: C.primary, fontWeight: 600, lineHeight: 1.4, marginBottom: 5 }}>{sc.performanceVerdict}</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {sc.predictedCTRRange && <span style={{ fontSize: 9, color: C.green, background: C.greenDim, padding: '2px 7px', borderRadius: 3 }}>CTR {sc.predictedCTRRange}</span>}
+                            {sc.predictedScrollStopRate && <span style={{ fontSize: 9, color: C.blue, background: C.blueGlow, padding: '2px 7px', borderRadius: 3 }}>Stop {sc.predictedScrollStopRate}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 6 dimensions */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        {Object.entries(sc.dimensions || {}).map(([key, dim]) => {
+                          const ds = dim.score || 0
+                          const dc = ds >= 8 ? C.green : ds >= 6 ? C.gold : ds >= 4 ? C.tension : '#cf6a6a'
+                          return (
+                            <div key={key} style={{ padding: '6px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                <span style={{ fontSize: 8, color: C.secondary, fontWeight: 700 }}>{dim.label}</span>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: dc }}>{ds}</span>
+                              </div>
+                              <div style={{ height: 2, background: C.subtle, borderRadius: 1, marginBottom: 4, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${ds * 10}%`, background: dc }} />
+                              </div>
+                              {dim.note && <div style={{ fontSize: 8, color: C.muted, lineHeight: 1.4 }}>{dim.note}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Improvements */}
+                      {(sc.improvements || []).length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Improvements</div>
+                          {sc.improvements.map((imp, i) => (
+                            <div key={i} style={{ padding: '7px 9px', borderRadius: 4, background: C.raised, border: `1px solid ${imp.impact === 'high' ? C.goldDim : C.hairline}` }}>
+                              <div style={{ display: 'flex', gap: 5, marginBottom: 3 }}>
+                                <span style={{ fontSize: 8, color: imp.impact === 'high' ? C.gold : C.muted, fontWeight: 700, textTransform: 'uppercase' }}>{imp.impact}</span>
+                                <span style={{ fontSize: 9, color: '#cf6a6a' }}>{imp.issue}</span>
+                              </div>
+                              <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, fontStyle: 'italic' }}>→ "{imp.fix}"</div>
+                              <button onClick={() => setHookScoreInput(imp.fix)}
+                                style={{ marginTop: 4, padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.gold }}>
+                                Use this version
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Alternative versions */}
+                      {(sc.alternativeVersions || []).length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Alternative Versions</div>
+                          {sc.alternativeVersions.map((v, i) => (
+                            <div key={i} style={{ padding: '6px 9px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}`, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                              <div style={{ fontSize: 10, color: C.primary, flex: 1, lineHeight: 1.4, fontStyle: 'italic' }}>"{v}"</div>
+                              <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                                <button onClick={() => setHookScoreInput(v)}
+                                  style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: C.gold }}>Try</button>
+                                <button onClick={() => doCopyAdText(v, `alt_${i}`)}
+                                  style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `alt_${i}` ? C.green : C.muted }}>
+                                  {copiedText === `alt_${i}` ? '✓' : '⎘'}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {sc.platformTip && (
+                        <div style={{ padding: '6px 9px', borderRadius: 4, background: C.blueGlow, border: `1px solid ${C.blueDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                          <span style={{ fontWeight: 700, color: C.blue }}>Platform tip: </span>{sc.platformTip}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+
             <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
-              Paste any hook, caption, or ad copy below and score it across 6 dimensions.
+              Full campaign evaluation below — fatigue detection and 8-dimension score.
             </div>
 
             {/* Ad Fatigue Detection */}
@@ -3771,7 +5450,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     disabled={fatigueLoading}
                     style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: fatigueLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: fatigueLoading ? 0.6 : 1 }}
                   >
-                    {fatigueLoading ? '⟳ Scanning…' : '✦ Detect Fatigue — 1 credit'}
+                    {fatigueLoading ? '⟳ Scanning…' : '✦ Detect Fatigue'}
                   </button>
                 </div>
                 {fatigueResult && (
@@ -3908,7 +5587,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {s.adTextGenerating && s.adTextType === 'quality_score' ? '⟳ Scoring…' : '✦ Score This Ad — 1 credit'}
+              {s.adTextGenerating && s.adTextType === 'quality_score' ? '⟳ Scoring…' : '✦ Score This Ad'}
             </button>
 
             {s.adTextError && s.adTextType === 'quality_score' && (
@@ -4017,6 +5696,73 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Paste any ad copy above to score it across Hook Strength, Emotional Pull, Clarity, Visual Strength, Conversion Potential, and Platform Fit.</div>
               </div>
             )}
+
+            {/* ── PERFORMANCE LEARNING ── */}
+            <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+              <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>Your Performance Patterns</div>
+                  <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>What hook types win for your audience — learned from your past A/B tests</div>
+                </div>
+                <button onClick={loadPerfLogs} disabled={perfLogsLoading}
+                  style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: perfLogsLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: perfLogsLoading ? C.muted : C.gold }}>
+                  {perfLogsLoading ? '⟳' : '↺ Load Patterns'}
+                </button>
+              </div>
+
+              {perfSummary && (
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: C.primary }}>{perfSummary.totalLogs}</div>
+                      <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>Tests Logged</div>
+                    </div>
+                    {perfSummary.avgCTR && (
+                      <div style={{ flex: 1, padding: '8px 10px', borderRadius: 4, background: C.greenDim, border: `1px solid #2a4a2a`, textAlign: 'center' }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: C.green }}>{perfSummary.avgCTR}%</div>
+                        <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>Avg CTR</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {perfSummary.typeInsights?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>By Hook Type</div>
+                      {perfSummary.typeInsights.map((ti, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                          <span style={{ fontSize: 9, color: C.primary, fontWeight: 700, minWidth: 70, textTransform: 'capitalize' }}>{ti.type}</span>
+                          <div style={{ flex: 1, height: 4, background: C.subtle, borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min((parseFloat(ti.avgCTR) || 0) / 6 * 100, 100)}%`, background: C.gold, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 9, color: ti.avgCTR ? C.green : C.muted, fontWeight: 700, minWidth: 40, textAlign: 'right' }}>{ti.avgCTR ? `${ti.avgCTR}%` : `${ti.count}×`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {perfSummary.topPerformers?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Top Performing Hooks</div>
+                      {perfSummary.topPerformers.map((log, i) => (
+                        <div key={i} style={{ padding: '5px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: C.green, flexShrink: 0 }}>{log.ctr}%</span>
+                          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, flex: 1 }}>{log.content_text?.slice(0, 80)}</div>
+                          <button onClick={() => setHookScoreInput(log.content_text)}
+                            style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: C.gold, flexShrink: 0 }}>Score</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!perfSummary && !perfLogsLoading && (
+                <div style={{ padding: '16px 12px', fontSize: 9, color: C.muted, textAlign: 'center', lineHeight: 1.5 }}>
+                  Log CTR results from your A/B tests and the app learns which hook patterns win for your specific audience.
+                  <br />Use the 📊 button on any hook to log performance data.
+                </div>
+              )}
+            </div>
           </div>
         </>)}
 
@@ -4062,6 +5808,162 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* ── INSPIRE TAB ── */}
         {adOutputTab === 'inspire' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {/* ── VISUAL DECONSTRUCTION ── */}
+          <div style={{ borderRadius: 6, border: `1px solid ${C.violetDim}`, background: '#060510', overflow: 'hidden' }}>
+            <div style={{ padding: '8px 12px', background: '#0e0818', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: C.violet, letterSpacing: 0.8 }}>🔬 VISUAL DECONSTRUCTION</span>
+              <span style={{ fontSize: 8, color: C.muted, marginLeft: 'auto' }}>Upload a competitor ad → AI tears it apart → you get the better version</span>
+            </div>
+            <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Image upload */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Competitor Ad Image</div>
+                  {deconstructImage ? (
+                    <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                      <img src={deconstructImage} alt="competitor" style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 4, border: `1px solid ${C.violetDim}`, background: C.deep }} />
+                      <button onClick={() => { setDeconstructImage(''); setDeconstructResult(null) }}
+                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', fontSize: 10, borderRadius: 3, cursor: 'pointer', padding: '2px 6px' }}>✕</button>
+                    </div>
+                  ) : (
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '20px', borderRadius: 4, border: `2px dashed ${C.violetDim}`, background: C.deep, cursor: 'pointer', minHeight: 80 }}>
+                      <span style={{ fontSize: 20 }}>🖼</span>
+                      <span style={{ fontSize: 10, color: C.violet, fontWeight: 700 }}>Upload competitor ad</span>
+                      <span style={{ fontSize: 9, color: C.muted }}>JPG, PNG, WEBP · any size</span>
+                      <input type="file" accept="image/*" style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const reader = new FileReader()
+                          reader.onload = ev => setDeconstructImage(ev.target.result)
+                          reader.readAsDataURL(file)
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Optional context */}
+              <div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Your Brand Context (optional)</div>
+                <input
+                  value={deconstructContext}
+                  onChange={e => setDeconstructContext(e.target.value)}
+                  placeholder="e.g. luxury skincare for women 30-45, competing in the premium anti-aging space"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Analyse button */}
+              <button
+                onClick={deconstructCompetitor}
+                disabled={!deconstructImage || deconstructLoading}
+                style={{
+                  width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 12, fontWeight: 800, letterSpacing: 0.3,
+                  cursor: deconstructImage && !deconstructLoading ? 'pointer' : 'not-allowed',
+                  border: `1px solid ${deconstructImage ? C.violetDim : C.hairline}`,
+                  background: deconstructImage ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                  color: deconstructImage ? C.violet : C.muted,
+                  opacity: deconstructLoading ? 0.7 : 1,
+                }}
+              >
+                {deconstructLoading ? '⟳ Deconstructing…' : '🔬 Deconstruct & Generate Superior Version'}
+              </button>
+
+              {/* Result */}
+              {deconstructResult && (() => {
+                const r = deconstructResult
+                const sup = r.yourSuperiorVersion || {}
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Visual read */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {[
+                        { label: 'World', value: r.visualWorld },
+                        { label: 'Lighting', value: r.lightingStyle },
+                        { label: 'Composition', value: r.composition },
+                        { label: 'Wardrobe', value: r.wardrobeAndStyling },
+                        { label: 'Emotion', value: r.emotionalAngle },
+                        { label: 'Scroll-Stop', value: r.hookVisual },
+                        { label: 'Brand Tier', value: r.brandPositioning },
+                      ].filter(i => i.value).map((item, i) => (
+                        <div key={i} style={{ padding: '5px 7px', borderRadius: 3, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 7, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>{item.label}</div>
+                          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* What they did vs missed */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {r.whatTheyDid?.length > 0 && (
+                        <div style={{ borderRadius: 4, border: `1px solid #1a3a1a`, background: '#060e06', padding: '7px 8px' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.green, marginBottom: 4 }}>✓ What They Did</div>
+                          {r.whatTheyDid.map((item, i) => (
+                            <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
+                          ))}
+                        </div>
+                      )}
+                      {r.whatTheyMissed?.length > 0 && (
+                        <div style={{ borderRadius: 4, border: `1px solid #3a1a1a`, background: '#0e0606', padding: '7px 8px' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#cf7e7e', marginBottom: 4 }}>✗ What They Missed</div>
+                          {r.whatTheyMissed.map((item, i) => (
+                            <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, paddingBottom: 3 }}>· {item}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Superior version */}
+                    {sup.fullPromptDirection && (
+                      <div style={{ borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0d0c04', overflow: 'hidden' }}>
+                        <div style={{ padding: '7px 10px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: C.gold }}>⚡ Your Superior Version</span>
+                          <button onClick={() => applyDeconstructPrompt(sup.fullPromptDirection)}
+                            style={{ padding: '3px 10px', borderRadius: 3, fontSize: 9, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.gold}`, background: '#1a1408', color: C.gold }}>
+                            Apply to Studio →
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {[
+                            { label: 'World Upgrade', value: sup.worldAndSetting },
+                            { label: 'Lighting Upgrade', value: sup.lightingUpgrade },
+                            { label: 'Composition Upgrade', value: sup.compositionUpgrade },
+                            { label: 'Wardrobe Upgrade', value: sup.wardrobeUpgrade },
+                            { label: 'Emotion Upgrade', value: sup.emotionalUpgrade },
+                          ].filter(i => i.value).map((item, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.goldDim, minWidth: 110, paddingTop: 1 }}>{item.label}</span>
+                              <span style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, flex: 1 }}>{item.value}</span>
+                            </div>
+                          ))}
+                          <div style={{ marginTop: 4, padding: '8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.goldDim}` }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, marginBottom: 4 }}>Full Image Prompt Direction</div>
+                            <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.6, fontFamily: C.mono }}>{sup.fullPromptDirection}</div>
+                            <button onClick={() => navigator.clipboard.writeText(sup.fullPromptDirection).catch(() => {})}
+                              style={{ marginTop: 6, fontSize: 8, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 3, cursor: 'pointer', padding: '2px 8px' }}>⎘ Copy</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Win verdict */}
+                    {r.winVerdict && (
+                      <div style={{ padding: '7px 10px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, color: C.gold, fontStyle: 'italic' }}>
+                        "{r.winVerdict}"
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+
+          {/* ── TEXT ANALYSIS (existing) ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
               Paste a competitor ad, brand description, or any creative reference. The AI will analyse what makes it work and generate inspired original direction for your brand — without copying.
@@ -4086,7 +5988,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 color: competitorText.trim() ? C.gold : C.muted,
               }}
             >
-              {competitorLoading ? '⟳ Analysing…' : '✦ Analyse & Get Inspired Direction — 2 credits'}
+              {competitorLoading ? '⟳ Analysing…' : '✦ Analyse & Get Inspired Direction'}
             </button>
 
             {competitorResult && (() => {
@@ -4185,6 +6087,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </div>
             )}
           </div>
+          </div>{/* close outer inspire wrapper */}
         </>)}
 
         {/* ── MARKET INTELLIGENCE — inside Inspire tab, added below single competitor analysis ── */}
@@ -4231,7 +6134,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 color: marketAds[0].trim() ? C.blue : C.muted,
               }}
             >
-              {marketLoading ? '⟳ Analysing market…' : '🔍 Analyse Market & Find Your Gap — 2 credits'}
+              {marketLoading ? '⟳ Analysing market…' : '🔍 Analyse Market & Find Your Gap'}
             </button>
 
             {marketResult && (() => {
@@ -4326,7 +6229,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 color: productName.trim() ? C.gold : C.muted,
               }}
             >
-              {launchLoading ? '⟳ Building launch sequence…' : '🚀 Generate 5-Stage Launch Sequence — 5 credits'}
+              {launchLoading ? '⟳ Building launch sequence…' : '🚀 Generate 5-Stage Launch Sequence'}
             </button>
 
             {launchSequence && (() => {
@@ -4472,7 +6375,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   color: C.gold, opacity: iterationLoading ? 0.6 : 1,
                 }}
               >
-                {iterationLoading ? '⟳ Iterating campaign…' : `🔄 Iterate Campaign — Make It More ${iterationDir.charAt(0).toUpperCase() + iterationDir.slice(1)} — 3 credits`}
+                {iterationLoading ? '⟳ Iterating campaign…' : `🔄 Iterate Campaign — Make It More ${iterationDir.charAt(0).toUpperCase() + iterationDir.slice(1)}`}
               </button>
 
               {/* Iteration result */}
@@ -4508,6 +6411,225 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             </div>
           </div>
         )}
+
+        {/* ── LANDING PAGE TAB ── */}
+        {adOutputTab === 'landing' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Style selector */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Page Style</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {[
+                  { id: 'direct_response', label: 'Direct Response', desc: 'Urgency, benefit-stacked' },
+                  { id: 'luxury',          label: 'Luxury / Premium', desc: 'Elevated, aspirational' },
+                  { id: 'storytelling',    label: 'Storytelling',     desc: 'Narrative arc, soft sell' },
+                  { id: 'minimal',         label: 'Minimal / Clean',  desc: 'Short, confident, no fluff' },
+                ].map(st => (
+                  <button key={st.id} onClick={() => setLandingStyle(st.id)}
+                    style={{ padding: '6px 8px', borderRadius: 4, cursor: 'pointer', border: `1px solid ${landingStyle === st.id ? C.goldDim : C.hairline}`,
+                      background: landingStyle === st.id ? '#1a1408' : C.deep, textAlign: 'left' }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: landingStyle === st.id ? C.gold : C.primary }}>{st.label}</div>
+                    <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{st.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={generateLandingPage} disabled={!productName.trim() || landingLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !landingLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {landingLoading ? '⟳ Building page…' : '✦ Generate Landing Page Copy'}
+            </button>
+
+            {landingError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{landingError}</div>}
+
+            {landingPage && (() => {
+              const p = landingPage
+              const Sec = ({ title, color, badge, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</span>
+                    {badge}
+                  </div>
+                  <div style={{ padding: '8px 10px' }}>{children}</div>
+                </div>
+              )
+              const CopyBtn = ({ text, id }) => (
+                <button onClick={() => copyLandingSection(text, id)}
+                  style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === id ? C.green : C.muted, flexShrink: 0 }}>
+                  {copiedText === id ? '✓' : '⎘'}
+                </button>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Header bar */}
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>Landing Page — {productName}</div>
+                    <button onClick={copyFullLandingPage} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: C.deep, color: C.gold }}>⎘ Copy All</button>
+                  </div>
+
+                  {/* Hero */}
+                  {p.hero && (
+                    <Sec title="Hero Section" color={C.gold}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                          <div>
+                            <div style={{ fontSize: 8, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>Headline</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: C.primary, lineHeight: 1.3 }}>{p.hero.headline}</div>
+                          </div>
+                          <CopyBtn text={p.hero.headline} id="hero_headline" />
+                        </div>
+                        {p.hero.subheadline && (
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, fontStyle: 'italic' }}>{p.hero.subheadline}</div>
+                            <CopyBtn text={p.hero.subheadline} id="hero_sub" />
+                          </div>
+                        )}
+                        {p.hero.heroBodyCopy && <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6, paddingTop: 4, borderTop: `1px solid ${C.hairline}` }}>{p.hero.heroBodyCopy}</div>}
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingTop: 4 }}>
+                          <div style={{ padding: '6px 14px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 11, fontWeight: 700, color: C.gold }}>{p.hero.heroCta}</div>
+                          {p.hero.heroCtaSubtext && <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic' }}>{p.hero.heroCtaSubtext}</div>}
+                        </div>
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Social proof bar */}
+                  {p.socialProofBar && (
+                    <Sec title="Social Proof Bar" color={C.green}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                        {Object.values(p.socialProofBar).map((stat, i) => (
+                          <div key={i} style={{ textAlign: 'center', padding: '6px 0' }}>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>{stat.number}</div>
+                            <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{stat.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Problem → Solution */}
+                  {(p.problemSection || p.solutionSection) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {p.problemSection && (
+                        <Sec title="Problem" color={C.tension}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{p.problemSection.heading}</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{p.problemSection.body}</div>
+                            {p.problemSection.agitator && <div style={{ fontSize: 9, color: C.tension, fontStyle: 'italic', fontWeight: 600 }}>{p.problemSection.agitator}</div>}
+                          </div>
+                        </Sec>
+                      )}
+                      {p.solutionSection && (
+                        <Sec title="Solution" color={C.green}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{p.solutionSection.heading}</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{p.solutionSection.body}</div>
+                          </div>
+                        </Sec>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Benefits */}
+                  {p.benefits?.length > 0 && (
+                    <Sec title="Benefits" color={C.blue}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {p.benefits.map((b, i) => (
+                          <div key={i} style={{ padding: '7px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                            <div style={{ fontSize: 14, marginBottom: 3 }}>{b.icon}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{b.title}</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{b.body}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* How it works */}
+                  {p.howItWorks && (
+                    <Sec title="How It Works" color={C.violet}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, marginBottom: 4 }}>{p.howItWorks.heading}</div>
+                        {(p.howItWorks.steps || []).map((step, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: C.violet, background: C.violetGlow, padding: '1px 6px', borderRadius: 3, flexShrink: 0 }}>{step.step}</span>
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{step.title}</div>
+                              <div style={{ fontSize: 9, color: C.secondary }}>{step.body}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Testimonials */}
+                  {p.testimonials?.length > 0 && (
+                    <Sec title="Testimonials" color={C.gold}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {p.testimonials.map((t, i) => (
+                          <div key={i} style={{ padding: '7px 9px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                            <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6, fontStyle: 'italic', marginBottom: 4 }}>"{t.quote}"</div>
+                            <div style={{ fontSize: 8, color: C.muted }}>— {t.name}{t.detail ? `, ${t.detail}` : ''}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* FAQ */}
+                  {p.objectionCrusher && (
+                    <Sec title="FAQ / Objection Crusher" color={C.secondary}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {p.objectionCrusher.heading && <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{p.objectionCrusher.heading}</div>}
+                        {(p.objectionCrusher.faqs || []).map((faq, i) => {
+                          const isOpen = landingExpanded === `faq_${i}`
+                          return (
+                            <div key={i} style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                              <button onClick={() => setLandingExpanded(isOpen ? null : `faq_${i}`)}
+                                style={{ width: '100%', padding: '7px 9px', background: C.surface, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}>
+                                <span style={{ fontSize: 10, color: C.primary, fontWeight: 600 }}>{faq.question}</span>
+                                <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                              </button>
+                              {isOpen && <div style={{ padding: '6px 9px', fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{faq.answer}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Final CTA */}
+                  {p.finalCta && (
+                    <div style={{ padding: '12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: C.primary, lineHeight: 1.3 }}>{p.finalCta.heading}</div>
+                      {p.finalCta.subheading && <div style={{ fontSize: 10, color: C.secondary }}>{p.finalCta.subheading}</div>}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
+                        <div style={{ padding: '7px 16px', borderRadius: 4, background: C.gold, fontSize: 11, fontWeight: 800, color: C.void }}>{p.finalCta.ctaButton}</div>
+                        {p.finalCta.guarantee && <div style={{ fontSize: 9, color: C.secondary, fontStyle: 'italic' }}>{p.finalCta.guarantee}</div>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!landingPage && !landingLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📄</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a full landing page — hero, benefits, testimonials, FAQ, and final CTA — in the same voice as your ad. Complete the funnel.</div>
+              </div>
+            )}
+          </div>
+        </>)}
 
         {/* ── CALENDAR TAB ── */}
         {adOutputTab === 'calendar' && (<>
@@ -4602,6 +6724,2248 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 <div style={{ fontSize: 11, color: C.secondary, maxWidth: 280, lineHeight: 1.65 }}>
                   Every day has a specific hook, caption direction, creative brief, music energy, and posting time. Exports as CSV for any scheduling tool.
                 </div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── CAMPAIGN SEQUENCER TAB ── */}
+        {adOutputTab === 'sequencer' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>
+              Map your campaign to a cinematic story arc. Each day gets an engine phase, emotional energy, hook, caption, and image direction — so your whole campaign tells one coherent story.
+            </div>
+
+            {/* Duration + Goal */}
+            <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Duration</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[7, 14, 30, 60].map(d => (
+                    <button key={d} onClick={() => setSequenceDuration(d)} style={{
+                      flex: 1, padding: '6px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      border: `1px solid ${sequenceDuration === d ? C.goldDim : C.hairline}`,
+                      background: sequenceDuration === d ? '#1a1408' : C.deep,
+                      color: sequenceDuration === d ? C.gold : C.muted,
+                    }}>{d}d</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Goal</div>
+                <select value={sequenceGoal} onChange={e => setSequenceGoal(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10 }}>
+                  <option value="awareness">Awareness</option>
+                  <option value="sales">Sales</option>
+                  <option value="leads">Lead Generation</option>
+                  <option value="followers">Grow Following</option>
+                  <option value="engagement">Engagement</option>
+                  <option value="retention">Retention / Loyalty</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Generate button */}
+            <button
+              onClick={() => generateSequence(sequenceDuration)}
+              disabled={sequenceLoading || (!productName.trim() && !s.identityName?.trim())}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 12, fontWeight: 800,
+                letterSpacing: 0.3, cursor: sequenceLoading ? 'not-allowed' : 'pointer',
+                border: `1px solid ${C.goldDim}`,
+                background: sequenceLoading ? C.deep : 'linear-gradient(180deg,#1a1408,#0c0a04)',
+                color: sequenceLoading ? C.muted : C.gold,
+                opacity: sequenceLoading ? 0.7 : 1,
+              }}
+            >
+              {sequenceLoading ? '⟳ Building your story arc…' : `⚡ Build ${sequenceDuration}-Day Campaign Arc`}
+            </button>
+
+            {/* Sequence output */}
+            {sequence && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Controls */}
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {['all', 'awareness', 'interest', 'consideration', 'desire', 'conversion', 'retention'].map(f => {
+                    const count = f === 'all' ? sequence.length : sequence.filter(d => d.campaignRole === f).length
+                    return count > 0 ? (
+                      <button key={f} onClick={() => setSequenceFilter(f)} style={{
+                        padding: '3px 8px', borderRadius: 999, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                        border: `1px solid ${sequenceFilter === f ? C.goldDim : C.hairline}`,
+                        background: sequenceFilter === f ? '#1a1408' : C.deep,
+                        color: sequenceFilter === f ? C.gold : C.muted,
+                      }}>
+                        {f === 'all' ? `All ${count}` : `${f} (${count})`}
+                      </button>
+                    ) : null
+                  })}
+                  <button onClick={downloadSequenceCSV} style={{ marginLeft: 'auto', padding: '5px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary }}>
+                    ↓ CSV
+                  </button>
+                </div>
+
+                {/* Sequence cards */}
+                {sequence
+                  .filter(d => sequenceFilter === 'all' || d.campaignRole === sequenceFilter)
+                  .map((day, i) => {
+                    const ARC_COLORS = { tease: C.tease, tension: C.tension, payoff: C.payoff }
+                    const ROLE_COLORS = { awareness: C.blue, interest: C.violet, consideration: '#8a7a4a', desire: C.gold, conversion: C.green, retention: '#c8843a' }
+                    const arcColor  = ARC_COLORS[day.arc]  || C.muted
+                    const roleColor = ROLE_COLORS[day.campaignRole] || C.muted
+                    const isExpanded = sequenceExpanded === day.day
+
+                    return (
+                      <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, borderLeft: `3px solid ${arcColor}`, background: isExpanded ? C.surface : C.base, overflow: 'hidden' }}>
+                        {/* Day header — always visible */}
+                        <div
+                          onClick={() => setSequenceExpanded(isExpanded ? null : day.day)}
+                          style={{ padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 800, color: arcColor, minWidth: 36 }}>Day {day.day}</span>
+                          <span style={{ fontSize: 9, color: roleColor, fontWeight: 700, minWidth: 80 }}>{(day.campaignRole || '').toUpperCase()}</span>
+                          <span style={{ fontSize: 9, color: C.secondary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {day.phaseLabel || day.phase}
+                          </span>
+                          <span style={{ fontSize: 8, color: C.muted, flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+                        </div>
+
+                        {/* Hook preview — always visible */}
+                        <div style={{ padding: '0 10px 7px', fontSize: 10, color: C.primary, lineHeight: 1.5, fontStyle: 'italic', borderBottom: isExpanded ? `1px solid ${C.hairline}` : 'none' }}>
+                          "{day.hook}"
+                        </div>
+
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                            {/* Phase + arc badges */}
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 3, background: arcColor + '22', color: arcColor, border: `1px solid ${arcColor}44` }}>
+                                {(day.arc || '').toUpperCase()} ARC
+                              </span>
+                              <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 3, background: roleColor + '22', color: roleColor, border: `1px solid ${roleColor}44` }}>
+                                {(day.campaignRole || '').toUpperCase()}
+                              </span>
+                              <span style={{ fontSize: 8, color: C.muted, padding: '2px 7px', borderRadius: 3, border: `1px solid ${C.hairline}` }}>
+                                {day.phaseLabel || day.phase}
+                              </span>
+                              {day.postingTime && (
+                                <span style={{ fontSize: 8, color: C.secondary, marginLeft: 'auto' }}>🕐 {day.postingTime}</span>
+                              )}
+                            </div>
+
+                            {/* Caption */}
+                            {day.caption && (
+                              <div>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Caption</div>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                  <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6, flex: 1 }}>{day.caption}</div>
+                                  <button onClick={() => navigator.clipboard.writeText(day.caption).catch(() => {})}
+                                    style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>⎘</button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* CTA */}
+                            {day.cta && (
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, minWidth: 20 }}>CTA</span>
+                                <span style={{ fontSize: 10, color: C.gold, flex: 1 }}>{day.cta}</span>
+                                <button onClick={() => navigator.clipboard.writeText(day.cta).catch(() => {})}
+                                  style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>⎘</button>
+                              </div>
+                            )}
+
+                            {/* Image direction */}
+                            {day.imageDirection && (
+                              <div style={{ background: C.raised, borderRadius: 3, padding: '5px 8px', borderLeft: `2px solid ${C.violet}` }}>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, marginBottom: 2 }}>🎬 Generate This</div>
+                                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{day.imageDirection}</div>
+                              </div>
+                            )}
+
+                            {/* Copy all for this day */}
+                            <button
+                              onClick={() => {
+                                const text = [
+                                  `=== DAY ${day.day} — ${(day.campaignRole || '').toUpperCase()} ===`,
+                                  `Phase: ${day.phaseLabel || day.phase} | Arc: ${day.arc}`,
+                                  '',
+                                  `HOOK: ${day.hook}`,
+                                  `CAPTION: ${day.caption}`,
+                                  `CTA: ${day.cta}`,
+                                  `IMAGE: ${day.imageDirection}`,
+                                  `POST: ${day.postingTime}`,
+                                ].join('\n')
+                                navigator.clipboard.writeText(text).catch(() => {})
+                              }}
+                              style={{ padding: '4px 10px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.deep, color: C.secondary, alignSelf: 'flex-start' }}
+                            >
+                              Copy Day {day.day}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                {/* Copy all button */}
+                <button
+                  onClick={() => {
+                    const text = sequence.map(d =>
+                      `Day ${d.day} | ${(d.campaignRole || '').toUpperCase()} | ${d.phaseLabel || d.phase}\nHook: ${d.hook}\nCaption: ${d.caption}\nCTA: ${d.cta}\nImage: ${d.imageDirection}\n`
+                    ).join('\n---\n')
+                    navigator.clipboard.writeText(text).catch(() => {})
+                  }}
+                  style={{ padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.deep, color: C.secondary }}
+                >
+                  📋 Copy Full Sequence
+                </button>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── VIDEO AD STORYBOARD TAB ── */}
+        {adOutputTab === 'storyboard' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Format selector */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Video Format</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {[
+                  { id: 'tiktok_15',  label: 'TikTok 15s',       ar: '9:16' },
+                  { id: 'tiktok_30',  label: 'TikTok 30s',       ar: '9:16' },
+                  { id: 'meta_30',    label: 'Meta/IG 30s',       ar: '9:16' },
+                  { id: 'meta_60',    label: 'Meta/IG 60s',       ar: '4:5'  },
+                  { id: 'youtube_15', label: 'YouTube Pre-roll',  ar: '16:9' },
+                  { id: 'ugc_30',     label: 'UGC Creator 30s',   ar: '9:16' },
+                  { id: 'luxury_60',  label: 'Luxury Cinematic',  ar: '16:9' },
+                ].map(f => (
+                  <button key={f.id} onClick={() => setVideoFormat(f.id)}
+                    style={{ padding: '5px 7px', borderRadius: 4, cursor: 'pointer', border: `1px solid ${videoFormat === f.id ? C.violetDim : C.hairline}`,
+                      background: videoFormat === f.id ? '#0e0818' : C.deep, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: videoFormat === f.id ? C.violet : C.primary }}>{f.label}</span>
+                    <span style={{ fontSize: 8, color: C.muted }}>{f.ar}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={generateVideoStoryboard2} disabled={!productName.trim() || videoStoryboard2Loading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !videoStoryboard2Loading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.violetDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                color: productName.trim() ? C.violet : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {videoStoryboard2Loading ? '⟳ Directing…' : '🎬 Generate Video Storyboard + AI Prompts'}
+            </button>
+
+            {videoStoryboard2Error && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{videoStoryboard2Error}</div>}
+
+            {videoStoryboard2 && (() => {
+              const sb = videoStoryboard2
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{sb.storyboardTitle}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{sb.format} · {sb.aspectRatio} · {sb.totalDuration}</div>
+                    </div>
+                  </div>
+                  {sb.overallVisualTone && (
+                    <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Visual Tone</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sb.overallVisualTone}</div>
+                      {sb.musicDirection && <div style={{ fontSize: 9, color: C.violet, marginTop: 3 }}>♪ {sb.musicDirection}</div>}
+                    </div>
+                  )}
+
+                  {/* Scenes */}
+                  {(sb.scenes || []).map((sc, i) => {
+                    const isOpen = videoStoryboard2Expanded === `sc_${i}`
+                    return (
+                      <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                        <button onClick={() => setVideoStoryboard2Expanded(isOpen ? null : `sc_${i}`)}
+                          style={{ width: '100%', padding: '8px 10px', background: C.raised, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, background: '#0e0818', padding: '2px 6px', borderRadius: 3 }}>S{sc.sceneNumber}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.gold }}>{sc.type}</span>
+                          <span style={{ fontSize: 8, color: C.muted }}>{sc.timeCode}</span>
+                          <span style={{ fontSize: 8, color: C.secondary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sc.narrativeRole}</span>
+                          <span style={{ fontSize: 9, color: C.muted, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {sc.onScreenAction && (
+                              <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.5 }}>
+                                <span style={{ fontWeight: 700, color: C.gold }}>Action: </span>{sc.onScreenAction}
+                              </div>
+                            )}
+                            {sc.voiceoverOrDialogue && (
+                              <div style={{ fontSize: 10, color: C.primary, fontStyle: 'italic', lineHeight: 1.5, padding: '5px 8px', borderRadius: 4, background: C.surface }}>
+                                "{sc.voiceoverOrDialogue}"
+                              </div>
+                            )}
+                            {sc.onScreenText && (
+                              <div style={{ fontSize: 9, color: C.gold }}>
+                                <span style={{ fontWeight: 700, color: C.muted }}>Text overlay: </span>{sc.onScreenText}
+                              </div>
+                            )}
+                            {sc.directorNote && (
+                              <div style={{ fontSize: 9, color: C.violet, lineHeight: 1.4, padding: '5px 8px', borderRadius: 4, background: '#0e0818', border: `1px solid ${C.violetDim}` }}>
+                                <span style={{ fontWeight: 700 }}>Director: </span>{sc.directorNote}
+                              </div>
+                            )}
+                            {sc.aiVideoPrompt && (
+                              <div style={{ borderRadius: 4, border: `1px solid ${C.blueGlow}`, background: '#060a10', overflow: 'hidden' }}>
+                                <div style={{ padding: '5px 8px', background: C.blueDim, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase' }}>AI Video Prompt (Runway / Kling / Pika)</span>
+                                  <button onClick={() => doCopyAdText(sc.aiVideoPrompt, `ai_sc_${i}`)}
+                                    style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: 'none', color: copiedText === `ai_sc_${i}` ? C.green : C.blue }}>
+                                    {copiedText === `ai_sc_${i}` ? '✓ Copied' : '⎘ Copy'}
+                                  </button>
+                                </div>
+                                <div style={{ padding: '7px 8px', fontSize: 9, color: C.primary, lineHeight: 1.6, fontFamily: C.mono }}>{sc.aiVideoPrompt}</div>
+                              </div>
+                            )}
+                            {sc.transition && (
+                              <div style={{ fontSize: 8, color: C.muted }}>↳ {sc.transition}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Production + editing notes */}
+                  {(sb.productionNotes || sb.editingNotes) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {sb.productionNotes && (
+                        <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                          <div style={{ padding: '5px 8px', background: C.raised, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Production</div>
+                          <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {sb.productionNotes.locations?.length > 0 && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Locations: </span>{sb.productionNotes.locations.join(', ')}</div>}
+                            {sb.productionNotes.wardrobe && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Wardrobe: </span>{sb.productionNotes.wardrobe}</div>}
+                            {sb.productionNotes.talent && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Talent: </span>{sb.productionNotes.talent}</div>}
+                          </div>
+                        </div>
+                      )}
+                      {sb.editingNotes && (
+                        <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                          <div style={{ padding: '5px 8px', background: C.raised, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Editing</div>
+                          <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {sb.editingNotes.cutPace && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Cuts: </span>{sb.editingNotes.cutPace}</div>}
+                            {sb.editingNotes.colorGrade && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Grade: </span>{sb.editingNotes.colorGrade}</div>}
+                            {sb.editingNotes.soundDesign && <div style={{ fontSize: 9, color: C.violet }}><span style={{ color: C.muted, fontWeight: 700 }}>Sound: </span>{sb.editingNotes.soundDesign}</div>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {sb.aiGenerationTips && (
+                    <div style={{ padding: '7px 10px', borderRadius: 4, background: C.blueDim, border: `1px solid ${C.blueGlow}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.blue, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>AI Generation Tips</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sb.aiGenerationTips}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!videoStoryboard2 && !videoStoryboard2Loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎬</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a scene-by-scene video ad storyboard — director notes, on-screen action, and a ready-to-paste AI video prompt for every scene.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── EMAIL SEQUENCE TAB ── */}
+        {adOutputTab === 'email' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Config */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Sequence Settings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Type</div>
+                  <select value={emailSeqType} onChange={e => setEmailSeqType(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="sales">Sales / Promo</option>
+                    <option value="launch">Product Launch</option>
+                    <option value="nurture">Nurture / Welcome</option>
+                    <option value="abandoned">Abandoned Cart</option>
+                    <option value="winback">Win-Back</option>
+                    <option value="vip">VIP / Loyalty</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Length</div>
+                  <select value={emailSeqLength} onChange={e => setEmailSeqLength(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="short">Short (150–200w)</option>
+                    <option value="medium">Medium (250–350w)</option>
+                    <option value="long">Long (400–500w)</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 3 }}>Emails</div>
+                  <select value={emailSeqCount} onChange={e => setEmailSeqCount(Number(e.target.value))}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value={3}>3 emails</option>
+                    <option value={5}>5 emails</option>
+                    <option value={7}>7 emails</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={generateEmailSequence} disabled={!productName.trim() || emailSeqLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !emailSeqLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {emailSeqLoading ? '⟳ Writing sequence…' : `✦ Generate ${emailSeqCount}-Email Sequence`}
+            </button>
+
+            {emailSeqError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{emailSeqError}</div>}
+
+            {emailSequence && (() => {
+              const seq = emailSequence
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{seq.sequenceTitle}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{seq.totalEmails} emails · {seq.sendingSchedule}</div>
+                    </div>
+                    <button onClick={copyFullEmailSequence}
+                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: C.deep, color: C.gold }}>
+                      ⎘ Copy All
+                    </button>
+                  </div>
+
+                  {seq.sequenceArc && (
+                    <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, padding: '5px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      {seq.sequenceArc}
+                    </div>
+                  )}
+
+                  {/* Predictions */}
+                  {(seq.openRatePrediction || seq.clickRatePrediction) && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {seq.openRatePrediction && (
+                        <div style={{ flex: 1, padding: '6px 10px', borderRadius: 4, background: C.greenDim, border: `1px solid #2a4a2a`, textAlign: 'center' }}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{seq.openRatePrediction}</div>
+                          <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>Predicted Open Rate</div>
+                        </div>
+                      )}
+                      {seq.clickRatePrediction && (
+                        <div style={{ flex: 1, padding: '6px 10px', borderRadius: 4, background: C.blueGlow, border: `1px solid ${C.blueDim}`, textAlign: 'center' }}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: C.blue }}>{seq.clickRatePrediction}</div>
+                          <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>Predicted Click Rate</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Emails */}
+                  {(seq.emails || []).map((email, i) => {
+                    const isOpen = emailExpanded === `email_${i}`
+                    return (
+                      <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                        <button onClick={() => setEmailExpanded(isOpen ? null : `email_${i}`)}
+                          style={{ width: '100%', padding: '8px 10px', background: C.raised, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, background: C.goldGlow, padding: '1px 6px', borderRadius: 3, flexShrink: 0 }}>E{email.emailNumber}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email.subjectLine}</div>
+                            <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{email.sendTiming} · {email.arcStage}</div>
+                          </div>
+                          <span style={{ fontSize: 9, color: C.muted, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                              <div style={{ padding: '5px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Subject</div>
+                                <div style={{ fontSize: 11, color: C.primary, fontWeight: 600 }}>{email.subjectLine}</div>
+                              </div>
+                              <div style={{ padding: '5px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Preview</div>
+                                <div style={{ fontSize: 10, color: C.secondary }}>{email.previewText}</div>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.75, whiteSpace: 'pre-wrap', padding: '8px 0' }}>{email.body}</div>
+                            {email.psLine && (
+                              <div style={{ fontSize: 10, color: C.secondary, fontStyle: 'italic', borderTop: `1px solid ${C.hairline}`, paddingTop: 6 }}>
+                                P.S. {email.psLine}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                              <div style={{ padding: '5px 14px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, fontWeight: 700, color: C.gold }}>{email.ctaButton}</div>
+                              {email.directorNote && <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic', flex: 1 }}>{email.directorNote}</div>}
+                              <button onClick={() => copyEmailAsText(email)}
+                                style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted, flexShrink: 0 }}>
+                                ⎘ Copy
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Optimisation tips */}
+                  {(seq.optimisationTips || []).length > 0 && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Optimisation Tips</div>
+                      {seq.optimisationTips.map((t, i) => (
+                        <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}>· {t}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!emailSequence && !emailSeqLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>✉</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a full email sequence in the same voice as your ad. Same emotional arc, same brand tone — complete omnichannel campaign.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── TRENDS TAB ── */}
+        {adOutputTab === 'trends' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Get a real-time intelligence brief on what hook formats, visual styles, and emotional triggers are dominating your platform right now.
+            </div>
+
+            {/* Config */}
+            <div style={{ display: 'flex', gap: 5 }}>
+              <select value={trendPlatform} onChange={e => setTrendPlatform(e.target.value)}
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram / Reels</option>
+                <option value="facebook">Facebook Ads</option>
+                <option value="youtube">YouTube Ads</option>
+                <option value="all">All Platforms</option>
+              </select>
+              <select value={trendNiche} onChange={e => setTrendNiche(e.target.value)}
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="">Any Niche</option>
+                {['Beauty & Skincare','Fashion & Style','Fitness & Wellness','Food & Beverage','Tech & Gadgets','Home & Lifestyle','Finance & Investing','Education & Courses','Health & Supplements','Luxury & Premium','E-commerce General','SaaS / Software'].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <button onClick={generateTrendReport} disabled={trendLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: !trendLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${C.violetDim}`,
+                background: 'linear-gradient(180deg,#0e0818,#060510)',
+                color: trendLoading ? C.muted : C.violet,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {trendLoading ? '⟳ Analysing trends…' : '📡 Generate Trend Intelligence Report'}
+            </button>
+
+            {trendError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{trendError}</div>}
+
+            {trendReport && (() => {
+              const tr = trendReport
+              const Sec = ({ title, color, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</span>
+                  </div>
+                  <div style={{ padding: '8px 10px' }}>{children}</div>
+                </div>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{tr.reportTitle}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{tr.lastUpdated}</div>
+                    </div>
+                  </div>
+
+                  {/* Top hook formats */}
+                  {tr.topHookFormats?.length > 0 && (
+                    <Sec title="Top Hook Formats" color={C.gold}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {tr.topHookFormats.map((fmt, i) => {
+                          const isOpen = trendExpanded === `hook_fmt_${i}`
+                          return (
+                            <div key={i} style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                              <button onClick={() => setTrendExpanded(isOpen ? null : `hook_fmt_${i}`)}
+                                style={{ width: '100%', padding: '6px 8px', background: C.surface, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+                                <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, background: C.goldGlow, padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>#{fmt.rank}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, flex: 1 }}>{fmt.format}</span>
+                                <span style={{ fontSize: 8, color: fmt.decayRisk === 'evergreen' ? C.green : fmt.decayRisk === '3-6 months' ? C.gold : '#cf6a6a', flexShrink: 0 }}>{fmt.decayRisk}</span>
+                                <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                              </button>
+                              {isOpen && (
+                                <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{fmt.description}</div>
+                                  {fmt.example && (
+                                    <div style={{ padding: '5px 8px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, color: C.primary, fontStyle: 'italic', lineHeight: 1.4 }}>
+                                      "{fmt.example}"
+                                    </div>
+                                  )}
+                                  {fmt.whyItWorks && <div style={{ fontSize: 9, color: C.muted }}><span style={{ color: C.violet, fontWeight: 700 }}>Why: </span>{fmt.whyItWorks}</div>}
+                                  {fmt.example && (
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                      <button onClick={() => setHookScoreInput(fmt.example)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: C.gold }}>Score This Hook</button>
+                                      <button onClick={() => applyTrendHook(fmt.example)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>Use as Template</button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Emerging formats */}
+                  {tr.emergingFormats?.length > 0 && (
+                    <Sec title="Emerging — Get Ahead Now" color={C.green}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {tr.emergingFormats.map((ef, i) => (
+                          <div key={i} style={{ padding: '7px 9px', borderRadius: 4, background: C.greenDim, border: `1px solid #2a4a2a` }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 3 }}>{ef.format}</div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}>{ef.signal}</div>
+                            {ef.howToExecute && <div style={{ fontSize: 9, color: C.primary }}><span style={{ color: C.muted, fontWeight: 700 }}>Execute: </span>{ef.howToExecute}</div>}
+                            {ef.window && <div style={{ fontSize: 8, color: C.green, marginTop: 3 }}>⏱ Window: {ef.window}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Emotional triggers */}
+                  {tr.emotionalTriggers && (
+                    <Sec title="Emotional Triggers" color={C.violet}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {tr.emotionalTriggers.dominant?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Dominant Now</div>
+                            {tr.emotionalTriggers.dominant.map((t, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>· {t}</div>)}
+                          </div>
+                        )}
+                        {tr.emotionalTriggers.declining?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Fatiguing</div>
+                            {tr.emotionalTriggers.declining.map((t, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>· {t}</div>)}
+                          </div>
+                        )}
+                        {tr.emotionalTriggers.underused?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Underused Opportunity</div>
+                            {tr.emotionalTriggers.underused.map((t, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>· {t}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Hook templates ready to use */}
+                  {tr.hookTemplates?.length > 0 && (
+                    <Sec title="Ready-to-Use Templates" color={C.blue}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {tr.hookTemplates.map((tmpl, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', padding: '5px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                            <div style={{ flex: 1, fontSize: 10, color: C.primary, lineHeight: 1.4, fontStyle: 'italic' }}>"{tmpl}"</div>
+                            <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                              <button onClick={() => applyTrendHook(tmpl)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: C.gold }}>Use</button>
+                              <button onClick={() => doCopyAdText(tmpl, `tmpl_${i}`)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `tmpl_${i}` ? C.green : C.muted }}>
+                                {copiedText === `tmpl_${i}` ? '✓' : '⎘'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Algorithm + timing notes */}
+                  {tr.platformAlgorithmNotes?.length > 0 && (
+                    <Sec title="Algorithm Notes" color={C.secondary}>
+                      {tr.platformAlgorithmNotes.map((n, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 3 }}>· {n}</div>)}
+                    </Sec>
+                  )}
+
+                  {/* Actions */}
+                  {tr.actionableRecommendations?.length > 0 && (
+                    <Sec title="Action Items" color={C.gold}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {tr.actionableRecommendations.map((a, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: 8, fontWeight: 700, color: a.priority === 'high' ? C.gold : C.muted, background: a.priority === 'high' ? C.goldGlow : C.surface, padding: '1px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{a.priority?.toUpperCase()}</span>
+                            <div>
+                              <div style={{ fontSize: 10, color: C.primary, fontWeight: 600 }}>{a.action}</div>
+                              <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{a.rationale}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!trendReport && !trendLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📡</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Get real-time intelligence on what's winning on your platform — hook formats, visual styles, emerging patterns, and algorithm notes.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── VOICE OF CUSTOMER / TESTIMONIAL MINER TAB ── */}
+        {adOutputTab === 'voice' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Paste customer reviews from Amazon, Trustpilot, Google, or anywhere. AI extracts the best hooks, pain language, desire phrases, and proof statements hiding inside them.
+            </div>
+
+            <textarea value={testimonialsInput} onChange={e => setTestimonialsInput(e.target.value)}
+              placeholder={"Paste 5–15 customer reviews here — one per line or separated by breaks.\n\nExample:\n'I've tried everything for my skin. Nothing worked until this serum. After 2 weeks my dark spots are visibly lighter.'\n\n'Was skeptical at first but the results after 30 days are unreal. My friends keep asking what I'm using.'\n\n'The texture is incredible — absorbs instantly, no greasy residue. Worth every penny.'"}
+              rows={8}
+              style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '8px 10px', fontSize: 10, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }}
+            />
+
+            <button onClick={mineTestimonials} disabled={!testimonialsInput.trim() || testimonialLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: testimonialsInput.trim() && !testimonialLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${testimonialsInput.trim() ? C.goldDim : C.hairline}`,
+                background: testimonialsInput.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: testimonialsInput.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {testimonialLoading ? '⟳ Mining reviews…' : '⛏ Mine Customer Language'}
+            </button>
+
+            {testimonialError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{testimonialError}</div>}
+
+            {testimonialResult && (() => {
+              const ins = testimonialResult
+              const Sec = ({ title, color, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</span>
+                  </div>
+                  <div style={{ padding: '8px 10px' }}>{children}</div>
+                </div>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {ins.totalReviewsAnalyzed && (
+                    <div style={{ padding: '6px 10px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 9, color: C.gold }}>
+                      ⛏ Mined {ins.totalReviewsAnalyzed} reviews · {ins.keywordCloud?.length || 0} key terms extracted
+                    </div>
+                  )}
+
+                  {/* Top hooks from reviews */}
+                  {ins.topHooks?.length > 0 && (
+                    <Sec title="Hooks Extracted from Reviews" color={C.gold}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {ins.topHooks.map((h, i) => (
+                          <div key={i} style={{ padding: '7px 9px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                            <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic', lineHeight: 1.4, marginBottom: 4 }}>"{h.hook}"</div>
+                            {h.sourcePhrase && <div style={{ fontSize: 8, color: C.muted, marginBottom: 3 }}>From: "{h.sourcePhrase}"</div>}
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                              {h.hookType && <span style={{ fontSize: 8, color: C.gold, background: C.goldGlow, padding: '1px 5px', borderRadius: 3 }}>{h.hookType}</span>}
+                              {h.strength && <span style={{ fontSize: 8, color: h.strength === 'high' ? C.green : C.muted }}>{h.strength}</span>}
+                              <div style={{ marginLeft: 'auto', display: 'flex', gap: 3 }}>
+                                <button onClick={() => useTestimonialHook(h.hook)} style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: C.gold }}>Score</button>
+                                <button onClick={() => doCopyAdText(h.hook, `voc_hook_${i}`)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `voc_hook_${i}` ? C.green : C.muted }}>
+                                  {copiedText === `voc_hook_${i}` ? '✓' : '⎘'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Pain + Desire language side by side */}
+                  {(ins.painLanguage || ins.desireLanguage) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {ins.painLanguage && (
+                        <Sec title="Pain Language" color={C.tension}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {ins.painLanguage.topPhrases?.map((p, i) => (
+                              <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, padding: '3px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>"{p}"</div>
+                            ))}
+                            {ins.painLanguage.beforeState && (
+                              <div style={{ fontSize: 9, color: C.secondary, fontStyle: 'italic', marginTop: 4, paddingTop: 4, borderTop: `1px solid ${C.hairline}` }}>{ins.painLanguage.beforeState}</div>
+                            )}
+                          </div>
+                        </Sec>
+                      )}
+                      {ins.desireLanguage && (
+                        <Sec title="Desire Language" color={C.green}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {ins.desireLanguage.topPhrases?.map((p, i) => (
+                              <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, padding: '3px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>"{p}"</div>
+                            ))}
+                            {ins.desireLanguage.afterState && (
+                              <div style={{ fontSize: 9, color: C.secondary, fontStyle: 'italic', marginTop: 4, paddingTop: 4, borderTop: `1px solid ${C.hairline}` }}>{ins.desireLanguage.afterState}</div>
+                            )}
+                          </div>
+                        </Sec>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Best quote */}
+                  {ins.bestTestimonialQuote?.quote && (
+                    <div style={{ padding: '10px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Best Quote for Ads</div>
+                      <div style={{ fontSize: 12, color: C.primary, fontStyle: 'italic', lineHeight: 1.5 }}>"{ins.bestTestimonialQuote.quote}"</div>
+                      {ins.bestTestimonialQuote.whyBest && <div style={{ fontSize: 9, color: C.muted, marginTop: 4 }}>{ins.bestTestimonialQuote.whyBest}</div>}
+                      <button onClick={() => doCopyAdText(ins.bestTestimonialQuote.quote, 'best_quote')} style={{ marginTop: 6, padding: '3px 10px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: copiedText === 'best_quote' ? C.green : C.gold }}>
+                        {copiedText === 'best_quote' ? '✓ Copied' : '⎘ Copy Quote'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Proof statements */}
+                  {ins.proofStatements?.length > 0 && (
+                    <Sec title="Proof Statements" color={C.green}>
+                      {ins.proofStatements.map((p, i) => (
+                        <div key={i} style={{ fontSize: 10, color: C.primary, lineHeight: 1.4, padding: '4px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>{p.statement}</div>
+                      ))}
+                    </Sec>
+                  )}
+
+                  {/* Objections */}
+                  {ins.objectionsCrushed?.length > 0 && (
+                    <Sec title="Objections Customers Overcame" color={C.violet}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {ins.objectionsCrushed.map((obj, i) => (
+                          <div key={i} style={{ padding: '6px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                            <div style={{ fontSize: 9, color: '#cf6a6a', fontWeight: 600, marginBottom: 2 }}>"{obj.objection}"</div>
+                            <div style={{ fontSize: 9, color: C.secondary }}>{obj.resolution}</div>
+                            {obj.adUse && <div style={{ fontSize: 8, color: C.violet, marginTop: 3 }}>Ad use: {obj.adUse}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Ready-to-use formulas */}
+                  {ins.adCopyFormulas?.length > 0 && (
+                    <Sec title="Ad Copy Built from Customer Language" color={C.blue}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {ins.adCopyFormulas.map((f, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', padding: '5px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                            <span style={{ fontSize: 8, color: C.blue, background: C.blueGlow, padding: '1px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{f.type}</span>
+                            <div style={{ flex: 1, fontSize: 10, color: C.primary, lineHeight: 1.4, fontStyle: 'italic' }}>"{f.formula}"</div>
+                            <button onClick={() => doCopyAdText(f.formula, `voc_formula_${i}`)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `voc_formula_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                              {copiedText === `voc_formula_${i}` ? '✓' : '⎘'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Keyword cloud */}
+                  {ins.keywordCloud?.length > 0 && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Copy Pillars — Most Used Words</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {ins.keywordCloud.map((kw, i) => (
+                          <span key={i} style={{ fontSize: 9, color: C.primary, background: C.surface, padding: '2px 7px', borderRadius: 3, border: `1px solid ${C.hairline}` }}>{kw}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Surprising insights */}
+                  {ins.surprisingInsights?.length > 0 && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: '#0e0818', border: `1px solid ${C.violetDim}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Hidden Insights</div>
+                      {ins.surprisingInsights.map((s, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}>· {s}</div>)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!testimonialResult && !testimonialLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>⛏</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Paste customer reviews and extract the best hooks, pain language, desire phrases, and proof statements. Your customers already wrote your best ads — you just need to find them.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── OFFER BUILDER TAB ── */}
+        {adOutputTab === 'offer' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Offer config */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Offer Settings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Offer Type</div>
+                  <select value={offerType} onChange={e => setOfferType(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="value_stack">Value Stack</option>
+                    <option value="standard">Standard</option>
+                    <option value="launch">Launch Offer</option>
+                    <option value="subscription">Subscription</option>
+                    <option value="bundle">Bundle / Kit</option>
+                    <option value="premium">Premium / High-Ticket</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Guarantee</div>
+                  <select value={offerGuarantee} onChange={e => setOfferGuarantee(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="money_back_30">30-Day Money Back</option>
+                    <option value="money_back_60">60-Day Money Back</option>
+                    <option value="money_back_90">90-Day Money Back</option>
+                    <option value="results">Results Guarantee</option>
+                    <option value="satisfaction">Satisfaction Guarantee</option>
+                    <option value="lifetime">Lifetime Guarantee</option>
+                    <option value="none">No Guarantee</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Your Price ($)</div>
+                  <input value={offerPrice} onChange={e => setOfferPrice(e.target.value)} placeholder="e.g. 97"
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Compare-at Price ($)</div>
+                  <input value={offerComparePrice} onChange={e => setOfferComparePrice(e.target.value)} placeholder="e.g. 197"
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>What's Included (optional)</div>
+                <input value={offerIncluded} onChange={e => setOfferIncluded(e.target.value)} placeholder="e.g. serum + eye cream + free shipping + bonus guide"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Urgency / Scarcity (optional)</div>
+                <input value={offerUrgency} onChange={e => setOfferUrgency(e.target.value)} placeholder="e.g. Sale ends Sunday · Only 50 units left · First 100 buyers get free shipping"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <button onClick={buildOffer} disabled={!productName.trim() || offerLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !offerLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {offerLoading ? '⟳ Building offer…' : '💎 Build Complete Offer'}
+            </button>
+
+            {offerError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{offerError}</div>}
+
+            {offerResult && (() => {
+              const o = offerResult
+              const CopyBtn = ({ text, id }) => (
+                <button onClick={() => copyOfferSection(text, id)}
+                  style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === id ? C.green : C.muted, flexShrink: 0 }}>
+                  {copiedText === id ? '✓' : '⎘'}
+                </button>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Offer headline */}
+                  <div style={{ padding: '10px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.primary, lineHeight: 1.3, marginBottom: 4 }}>{o.offerHeadline}</div>
+                    {o.offerSubheadline && <div style={{ fontSize: 11, color: C.secondary }}>{o.offerSubheadline}</div>}
+                  </div>
+
+                  {/* Value stack */}
+                  {o.valueStack && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0c0a04', overflow: 'hidden' }}>
+                      <div style={{ padding: '6px 10px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}` }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>Value Stack</span>
+                      </div>
+                      <div style={{ padding: '8px 10px' }}>
+                        {(o.valueStack.valueBreakdown || []).map((item, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                            <span style={{ fontSize: 10, color: C.secondary }}>{item.item}</span>
+                            <span style={{ fontSize: 10, color: C.muted, textDecoration: 'line-through' }}>{item.value}</span>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', borderTop: `2px solid ${C.goldDim}`, marginTop: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>Total Value</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: 'line-through' }}>{o.valueStack.totalValue}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>You Pay Today</span>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{o.valueStack.youPay}</span>
+                        </div>
+                        {o.valueStack.savings && <div style={{ fontSize: 10, color: C.green, textAlign: 'right', marginTop: 2 }}>You save {o.valueStack.savings}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bonus stack */}
+                  {o.bonusStack?.length > 0 && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase' }}>Bonus Stack</span>
+                      </div>
+                      <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {o.bonusStack.map((b, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '5px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: C.violet, flexShrink: 0 }}>+{b.bonusNumber}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{b.name} <span style={{ color: C.muted, fontWeight: 400, textDecoration: 'line-through' }}>{b.value}</span></div>
+                              <div style={{ fontSize: 9, color: C.secondary }}>{b.description}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Guarantee */}
+                  {o.guarantee && (
+                    <div style={{ padding: '8px 12px', borderRadius: 5, background: C.greenDim, border: `1px solid #2a4a2a` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 3 }}>{o.guarantee.headline}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{o.guarantee.copy}</div>
+                    </div>
+                  )}
+
+                  {/* Urgency */}
+                  {o.urgencyScarcity && (
+                    <div style={{ padding: '8px 12px', borderRadius: 5, background: '#100808', border: `1px solid #3a1a1a` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#cf6a6a', marginBottom: 3 }}>{o.urgencyScarcity.headline}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{o.urgencyScarcity.copy}</div>
+                    </div>
+                  )}
+
+                  {/* Formatted outputs */}
+                  {[
+                    { key: 'formattedForAd',          label: 'Ad Copy',            color: C.blue },
+                    { key: 'formattedForEmail',        label: 'Email Version',      color: C.violet },
+                    { key: 'formattedForLandingPage',  label: 'Landing Page',       color: C.gold },
+                  ].map(({ key, label, color }) => {
+                    const section = o[key]
+                    if (!section) return null
+                    const isOpen = offerExpanded === key
+                    return (
+                      <div key={key} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                        <button onClick={() => setOfferExpanded(isOpen ? null : key)}
+                          style={{ width: '100%', padding: '7px 10px', background: C.raised, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: 0.8, textTransform: 'uppercase' }}>Formatted for {label}</span>
+                          <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {Object.entries(section).map(([k, v]) => v && (
+                              <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'capitalize', flexShrink: 0, minWidth: 60 }}>{k.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                <div style={{ flex: 1 }}>
+                                  {Array.isArray(v)
+                                    ? v.map((item, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>· {item}</div>)
+                                    : <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.4 }}>{v}</div>
+                                  }
+                                </div>
+                                {!Array.isArray(v) && <CopyBtn text={v} id={`offer_${key}_${k}`} />}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+
+            {!offerResult && !offerLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>💎</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Build a complete offer architecture — value stack, bonus stack, guarantee, urgency — formatted for your ad, landing page, and email.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── RETARGETING ADS TAB ── */}
+        {adOutputTab === 'retarget' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Warm traffic is different from cold. Generate dedicated hooks, captions, and strategy for people who've already seen your brand.
+            </div>
+
+            {/* Stage selector */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Audience Segment</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {[
+                  { id: 'site_visitor',  label: 'Site Visitors',            desc: 'Visited but didn\'t buy', warmth: 'warm' },
+                  { id: 'video_viewer',  label: 'Video Viewers (75%+)',      desc: 'Watched most of your ad', warmth: 'warm' },
+                  { id: 'add_to_cart',   label: 'Add-to-Cart / Checkout',    desc: 'Wanted it — got distracted', warmth: 'hot' },
+                  { id: 'post_purchase', label: 'Past Purchasers',           desc: 'Upsell / cross-sell / referral', warmth: 'loyal' },
+                  { id: 'engaged_post',  label: 'Post Engagers',             desc: 'Liked / commented / saved', warmth: 'warm' },
+                  { id: 'email_list',    label: 'Email List (non-buyers)',    desc: 'Subscribed but never purchased', warmth: 'warm' },
+                ].map(st => (
+                  <button key={st.id} onClick={() => setRetargetStage(st.id)}
+                    style={{ padding: '7px 10px', borderRadius: 4, cursor: 'pointer', border: `1px solid ${retargetStage === st.id ? C.goldDim : C.hairline}`,
+                      background: retargetStage === st.id ? '#1a1408' : C.deep, display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left' }}>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: retargetStage === st.id ? C.gold : C.primary }}>{st.label}</span>
+                      <span style={{ fontSize: 9, color: C.muted, marginLeft: 6 }}>{st.desc}</span>
+                    </div>
+                    <span style={{ fontSize: 8, color: st.warmth === 'hot' ? '#cf6a6a' : st.warmth === 'loyal' ? C.green : C.gold, background: st.warmth === 'hot' ? '#1a0606' : st.warmth === 'loyal' ? C.greenDim : C.goldGlow, padding: '1px 6px', borderRadius: 3 }}>
+                      {st.warmth}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={generateRetargeting} disabled={!productName.trim() || retargetLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                cursor: productName.trim() && !retargetLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {retargetLoading ? '⟳ Generating retargeting pack…' : '🎯 Generate Retargeting Pack'}
+            </button>
+
+            {retargetError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{retargetError}</div>}
+
+            {retargetResult && (() => {
+              const rt = retargetResult
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#1a1408', border: `1px solid ${C.goldDim}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{rt.audienceSegment}</div>
+                    {rt.strategicBrief && <div style={{ fontSize: 9, color: C.secondary, marginTop: 3, lineHeight: 1.5 }}>{rt.strategicBrief}</div>}
+                  </div>
+
+                  {/* 4 retargeting ads */}
+                  {(rt.ads || []).map((ad, i) => {
+                    const isOpen = retargetExpanded === `rt_${i}`
+                    return (
+                      <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                        <button onClick={() => setRetargetExpanded(isOpen ? null : `rt_${i}`)}
+                          style={{ width: '100%', padding: '8px 10px', background: C.raised, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, background: C.goldGlow, padding: '1px 6px', borderRadius: 3 }}>#{ad.adNumber}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, flex: 1 }}>{ad.angle}</span>
+                          <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {ad.hook && (
+                              <div style={{ padding: '6px 9px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Hook</div>
+                                  <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic' }}>{ad.hook}</div>
+                                </div>
+                                <button onClick={() => doCopyAdText(ad.hook, `rt_hook_${i}`)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: copiedText === `rt_hook_${i}` ? C.green : C.gold, flexShrink: 0 }}>
+                                  {copiedText === `rt_hook_${i}` ? '✓' : '⎘'}
+                                </button>
+                              </div>
+                            )}
+                            {ad.body && (
+                              <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6 }}>{ad.body}</div>
+                            )}
+                            {ad.visualDirection && (
+                              <div style={{ fontSize: 9, color: C.secondary, padding: '5px 8px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                                <span style={{ fontWeight: 700, color: C.muted }}>Visual: </span>{ad.visualDirection}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                              <div style={{ padding: '4px 12px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 10, fontWeight: 700, color: C.gold }}>{ad.cta}</div>
+                              {ad.copyNote && <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic', flex: 1 }}>{ad.copyNote}</div>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Audience settings + sequencing */}
+                  {(rt.audienceSettings || rt.sequencingStrategy) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {rt.audienceSettings && (
+                        <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                          <div style={{ padding: '5px 8px', background: C.raised, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Audience Settings</div>
+                          <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {rt.audienceSettings.recommendedWindow && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Window: </span>{rt.audienceSettings.recommendedWindow}</div>}
+                            {rt.audienceSettings.frequencyCap && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Frequency: </span>{rt.audienceSettings.frequencyCap}</div>}
+                            {rt.audienceSettings.platformNote && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Platform: </span>{rt.audienceSettings.platformNote}</div>}
+                          </div>
+                        </div>
+                      )}
+                      {rt.sequencingStrategy && (
+                        <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                          <div style={{ padding: '5px 8px', background: C.raised, fontSize: 8, fontWeight: 700, color: C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>Sequence</div>
+                          <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {rt.sequencingStrategy.day1to3 && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Day 1-3: </span>{rt.sequencingStrategy.day1to3}</div>}
+                            {rt.sequencingStrategy.day4to14 && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Day 4-14: </span>{rt.sequencingStrategy.day4to14}</div>}
+                            {rt.sequencingStrategy.day15plus && <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Day 15+: </span>{rt.sequencingStrategy.day15plus}</div>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {rt.whatNotToDo?.length > 0 && (
+                    <div style={{ padding: '7px 10px', borderRadius: 4, background: '#100808', border: `1px solid #3a1a1a` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>What NOT to Do</div>
+                      {rt.whatNotToDo.map((w, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 2 }}>· {w}</div>)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!retargetResult && !retargetLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎯</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Select your warm audience segment and generate 4 retargeting ad variations — hooks, captions, visual direction, and a 14-day sequencing strategy.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── AD ACCOUNT AUDIT TAB ── */}
+        {adOutputTab === 'audit' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Paste your ad performance data from Meta or TikTok Ads Manager. AI turns numbers into a creative action plan.
+            </div>
+
+            <div style={{ display: 'flex', gap: 5 }}>
+              <select value={auditPlatform} onChange={e => setAuditPlatform(e.target.value)}
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="meta">Meta Ads (FB/IG)</option>
+                <option value="tiktok">TikTok Ads</option>
+                <option value="google">Google Ads</option>
+                <option value="youtube">YouTube Ads</option>
+              </select>
+              <select value={auditTimeframe} onChange={e => setAuditTimeframe(e.target.value)}
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="7 days">Last 7 days</option>
+                <option value="14 days">Last 14 days</option>
+                <option value="30 days">Last 30 days</option>
+                <option value="60 days">Last 60 days</option>
+                <option value="90 days">Last 90 days</option>
+              </select>
+              <input value={auditSpend} onChange={e => setAuditSpend(e.target.value)} placeholder="Monthly spend $"
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+            </div>
+
+            <textarea value={auditData} onChange={e => setAuditData(e.target.value)}
+              placeholder={'Paste your ad performance data here. Examples:\n\n• Copy/paste from Ads Manager table (campaign names, spend, CTR, ROAS, CPM, CPC)\n• Export CSV data as text\n• Manual notes: "Campaign A: $2,400 spend, 1.2% CTR, 1.8x ROAS, CPM $28. Campaign B: $800 spend, 3.1% CTR, 3.4x ROAS, CPM $14. Fatigue showing on Campaign A after 21 days."'}
+              rows={7}
+              style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '8px 10px', fontSize: 10, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }}
+            />
+
+            <button onClick={runAdAudit} disabled={!auditData.trim() || auditLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: auditData.trim() && !auditLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${auditData.trim() ? C.goldDim : C.hairline}`,
+                background: auditData.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: auditData.trim() ? C.gold : C.muted }}>
+              {auditLoading ? '⟳ Auditing…' : '📊 Audit Ad Account'}
+            </button>
+
+            {auditError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{auditError}</div>}
+
+            {auditResult && (() => {
+              const a = auditResult
+              const scoreColor = (a.accountHealth?.overallScore || 0) >= 80 ? C.green : (a.accountHealth?.overallScore || 0) >= 60 ? C.gold : '#cf6a6a'
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Account health */}
+                  <div style={{ padding: '10px 12px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}`, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                      <div style={{ fontSize: 32, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{a.accountHealth?.overallScore}</div>
+                      <div style={{ fontSize: 10, color: C.muted }}>{'/100'}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{a.accountHealth?.grade}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{a.accountHealth?.headline}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{a.accountHealth?.summary}</div>
+                    </div>
+                  </div>
+
+                  {/* Critical issues */}
+                  {a.criticalIssues?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase' }}>Critical Issues</div>
+                      {a.criticalIssues.map((issue, i) => (
+                        <div key={i} style={{ padding: '7px 10px', borderRadius: 4, background: issue.severity === 'critical' ? '#110606' : C.raised, border: `1px solid ${issue.severity === 'critical' ? '#3a1a1a' : C.hairline}` }}>
+                          <div style={{ display: 'flex', gap: 5, marginBottom: 3 }}>
+                            <span style={{ fontSize: 8, fontWeight: 700, color: issue.severity === 'critical' ? '#cf6a6a' : C.tension, textTransform: 'uppercase' }}>{issue.severity}</span>
+                            <span style={{ fontSize: 9, color: C.primary, fontWeight: 600 }}>{issue.issue}</span>
+                          </div>
+                          {issue.dataEvidence && <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>Evidence: {issue.dataEvidence}</div>}
+                          <div style={{ fontSize: 9, color: C.gold, lineHeight: 1.4 }}><span style={{ fontWeight: 700 }}>Fix: </span>{issue.fix}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Winners */}
+                  {a.winners?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase' }}>Scale These</div>
+                      {a.winners.map((w, i) => (
+                        <div key={i} style={{ padding: '7px 10px', borderRadius: 4, background: C.greenDim, border: `1px solid #2a4a2a` }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: C.green, marginBottom: 2 }}>{w.item}</div>
+                          <div style={{ fontSize: 9, color: C.secondary, marginBottom: 3 }}>{w.whyWinning}</div>
+                          <div style={{ fontSize: 9, color: C.primary }}><span style={{ color: C.gold, fontWeight: 700 }}>Scale: </span>{w.scaleAction}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Creative tests */}
+                  {a.creativeTests?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase' }}>Tests to Run</div>
+                      {a.creativeTests.map((t, i) => {
+                        const isOpen = auditExpanded === `test_${i}`
+                        return (
+                          <div key={i} style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                            <button onClick={() => setAuditExpanded(isOpen ? null : `test_${i}`)}
+                              style={{ width: '100%', padding: '6px 8px', background: C.surface, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, textAlign: 'left' }}>
+                              <span style={{ fontSize: 8, color: t.priority === 'high' ? C.gold : C.muted, background: t.priority === 'high' ? C.goldGlow : C.raised, padding: '1px 5px', borderRadius: 3 }}>{t.priority?.toUpperCase()}</span>
+                              <span style={{ fontSize: 9, fontWeight: 600, color: C.primary, flex: 1 }}>{t.testName}</span>
+                              <span style={{ fontSize: 9, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                            </button>
+                            {isOpen && (
+                              <div style={{ padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Hypothesis: </span>{t.hypothesis}</div>
+                                <div style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>Setup: </span>{t.setup}</div>
+                                <div style={{ fontSize: 9, color: C.green }}><span style={{ color: C.muted, fontWeight: 700 }}>Win condition: </span>{t.successMetric}</div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Action plan */}
+                  {a.weeklyActionPlan?.length > 0 && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '6px 10px', background: C.raised, fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>7-Day Action Plan</div>
+                      {a.weeklyActionPlan.map((day, i) => (
+                        <div key={i} style={{ padding: '7px 10px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', display: 'flex', gap: 8 }}>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: C.gold, flexShrink: 0, minWidth: 50 }}>{day.day}</span>
+                          <div>
+                            <div style={{ fontSize: 9, color: C.primary, fontWeight: 600 }}>{day.action}</div>
+                            <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{day.why}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {a.platformSpecificTip && (
+                    <div style={{ padding: '7px 10px', borderRadius: 4, background: C.blueGlow, border: `1px solid ${C.blueDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                      <span style={{ fontWeight: 700, color: C.blue }}>Platform tip: </span>{a.platformSpecificTip}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!auditResult && !auditLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📊</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Paste your ad performance data and get a complete creative action plan — what to scale, what to kill, what to test, and why.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── TALKING HEAD SCRIPT TAB ── */}
+        {adOutputTab === 'script' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Script Settings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Duration</div>
+                  <select value={scriptDuration} onChange={e => setScriptDuration(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="30">30 seconds</option>
+                    <option value="60">60 seconds</option>
+                    <option value="90">90 seconds</option>
+                    <option value="120">2 minutes</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Style</div>
+                  <select value={scriptStyle} onChange={e => setScriptStyle(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="founder">Founder Story</option>
+                    <option value="expert">Expert Authority</option>
+                    <option value="testimonial">Testimonial Style</option>
+                    <option value="direct_sell">Direct Sell</option>
+                    <option value="problem_solver">Problem Solver</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Founder/Story Context (optional)</div>
+                <input value={scriptStoryHint} onChange={e => setScriptStoryHint(e.target.value)}
+                  placeholder="e.g. 'I built this after struggling with X for 3 years' — context the AI uses to personalise the script"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <button onClick={generateScript} disabled={!productName.trim() || scriptLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: productName.trim() && !scriptLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.violetDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                color: productName.trim() ? C.violet : C.muted }}>
+              {scriptLoading ? '⟳ Writing script…' : '🎤 Generate Talking Head Script'}
+            </button>
+
+            {scriptError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{scriptError}</div>}
+
+            {scriptResult && (() => {
+              const sc = scriptResult
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{sc.scriptTitle}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{sc.duration} · {sc.style} · {sc.totalWordCount} words</div>
+                    </div>
+                  </div>
+
+                  {sc.deliveryBrief && (
+                    <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Delivery Brief</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>{sc.deliveryBrief}</div>
+                    </div>
+                  )}
+
+                  {/* Teleprompter toggle */}
+                  <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: `1px solid ${C.hairline}` }}>
+                    <button onClick={() => setScriptTeleprompter(false)} style={{ flex: 1, padding: '7px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none', borderRight: `1px solid ${C.hairline}`, background: !scriptTeleprompter ? '#1a1408' : C.raised, color: !scriptTeleprompter ? C.gold : C.muted }}>
+                      📋 Section View
+                    </button>
+                    <button onClick={() => setScriptTeleprompter(true)} style={{ flex: 1, padding: '7px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none', background: scriptTeleprompter ? '#0e0818' : C.raised, color: scriptTeleprompter ? C.violet : C.muted }}>
+                      📺 Teleprompter
+                    </button>
+                  </div>
+
+                  {!scriptTeleprompter ? (
+                    /* Section view */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {(sc.sections || []).map((sec, i) => (
+                        <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                          <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, background: '#0e0818', padding: '1px 6px', borderRadius: 3 }}>{sec.timeCode}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: C.gold }}>{sec.sectionName}</span>
+                            {sec.deliveryNote && <span style={{ fontSize: 8, color: C.muted, fontStyle: 'italic', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sec.deliveryNote}</span>}
+                          </div>
+                          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {(sec.teleprompterLines || []).map((line, j) => (
+                              <div key={j} style={{ fontSize: 13, color: C.primary, lineHeight: 1.6, fontWeight: 500 }}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Teleprompter view */
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.violetDim}`, background: '#060408', overflow: 'hidden' }}>
+                      <div style={{ padding: '8px 12px', background: '#0e0818', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase' }}>📺 Teleprompter Script</span>
+                        <button onClick={copyTeleprompterScript} style={{ padding: '3px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: 'none', color: C.violet }}>⎘ Copy</button>
+                      </div>
+                      <div style={{ padding: '16px 20px' }}>
+                        {(sc.fullScriptForTeleprompter || '').split('\n').map((line, i) => (
+                          <div key={i} style={{ fontSize: 16, color: C.primary, lineHeight: 2, fontWeight: 500, textAlign: 'center', marginBottom: line.trim() === '' ? 8 : 0 }}>
+                            {line || ' '}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hook variations */}
+                  {sc.hookVariations?.length > 0 && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        Hook Variations — A/B Test These
+                      </div>
+                      <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {sc.hookVariations.map((v, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', padding: '4px 0', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none' }}>
+                            <span style={{ fontSize: 8, color: C.muted, flexShrink: 0, marginTop: 2 }}>{i + 1}.</span>
+                            <div style={{ flex: 1, fontSize: 10, color: C.primary, lineHeight: 1.4 }}>{v}</div>
+                            <button onClick={() => doCopyAdText(v, `hook_var_${i}`)} style={{ padding: '2px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `hook_var_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                              {copiedText === `hook_var_${i}` ? '✓' : '⎘'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* On camera direction */}
+                  {sc.onCameraDirection && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>On Camera Direction</div>
+                      {Object.entries(sc.onCameraDirection).map(([k, v]) => v ? (
+                        <div key={k} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}>
+                          <span style={{ fontWeight: 700, color: C.muted, textTransform: 'capitalize' }}>{k.replace(/([A-Z])/g, ' $1').trim()}: </span>{v}
+                        </div>
+                      ) : null)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!scriptResult && !scriptLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎤</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a teleprompter-ready talking head script. Choose your style — founder story, expert authority, direct sell — and get a complete script with delivery notes and hook variations.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── PRODUCT DESCRIPTION TAB ── */}
+        {adOutputTab === 'product' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Product Settings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Platform</div>
+                  <select value={prodDescPlatform} onChange={e => setProdDescPlatform(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="both">Amazon + Shopify</option>
+                    <option value="amazon">Amazon Only</option>
+                    <option value="shopify">Shopify / DTC Only</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Category</div>
+                  <select value={prodDescCategory} onChange={e => setProdDescCategory(e.target.value)}
+                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <option value="">Select category…</option>
+                    {['Beauty & Skincare','Health & Supplements','Fitness & Sports','Fashion & Apparel','Home & Kitchen','Electronics & Tech','Pet Products','Baby & Kids','Food & Beverage','Tools & Hardware','Garden & Outdoors'].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Key Features (optional)</div>
+                <input value={prodDescFeatures} onChange={e => setProdDescFeatures(e.target.value)}
+                  placeholder="e.g. vegan, dermatologist-tested, 2% retinol, 30ml, pump dispenser"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Target Keywords (optional)</div>
+                <input value={prodDescKeywords} onChange={e => setProdDescKeywords(e.target.value)}
+                  placeholder="e.g. retinol serum, anti-aging, dark spots, vitamin A serum"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <button onClick={generateProductDesc} disabled={!productName.trim() || prodDescLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: productName.trim() && !prodDescLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted }}>
+              {prodDescLoading ? '⟳ Writing descriptions…' : '🛍 Generate Product Descriptions'}
+            </button>
+
+            {prodDescError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{prodDescError}</div>}
+
+            {prodDescResult && (() => {
+              const pd = prodDescResult
+              const CopyBtn = ({ text, id }) => (
+                <button onClick={() => { navigator.clipboard.writeText(text).catch(() => {}); set('copiedText', id); setTimeout(() => set('copiedText', null), 2000) }}
+                  style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === id ? C.green : C.muted, flexShrink: 0 }}>
+                  {copiedText === id ? '✓' : '⎘'}
+                </button>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Amazon section */}
+                  {pd.amazon && (
+                    <div style={{ borderRadius: 5, border: `1px solid #ff9900`, background: '#0a0804', overflow: 'hidden' }}>
+                      <div style={{ padding: '7px 10px', background: '#1a1004', borderBottom: `1px solid #3a2a04`, fontSize: 9, fontWeight: 700, color: '#ff9900', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        Amazon Listing
+                      </div>
+                      <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {pd.amazon.title && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Title</span>
+                              <CopyBtn text={pd.amazon.title} id="amz_title" />
+                            </div>
+                            <div style={{ fontSize: 11, color: C.primary, fontWeight: 600, lineHeight: 1.4 }}>{pd.amazon.title}</div>
+                          </div>
+                        )}
+                        {pd.amazon.bullets?.length > 0 && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>5 Bullets</span>
+                              <CopyBtn text={pd.amazon.bullets.join('\n')} id="amz_bullets" />
+                            </div>
+                            {pd.amazon.bullets.map((b, i) => (
+                              <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, marginBottom: 4, display: 'flex', gap: 5 }}>
+                                <span style={{ color: '#ff9900', fontWeight: 700, flexShrink: 0 }}>•</span>
+                                <span>{b}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {pd.amazon.productDescription && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Description</span>
+                              <CopyBtn text={pd.amazon.productDescription} id="amz_desc" />
+                            </div>
+                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{pd.amazon.productDescription}</div>
+                          </div>
+                        )}
+                        {pd.amazon.backendKeywords && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Backend Keywords</span>
+                              <CopyBtn text={pd.amazon.backendKeywords} id="amz_keywords" />
+                            </div>
+                            <div style={{ fontSize: 8, color: C.muted, lineHeight: 1.5, fontFamily: C.mono }}>{pd.amazon.backendKeywords}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shopify section */}
+                  {pd.shopify && (
+                    <div style={{ borderRadius: 5, border: `1px solid #96bf48`, background: '#050a03', overflow: 'hidden' }}>
+                      <div style={{ padding: '7px 10px', background: '#0a1604', borderBottom: `1px solid #1a3008`, fontSize: 9, fontWeight: 700, color: '#96bf48', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                        Shopify / DTC Listing
+                      </div>
+                      <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {pd.shopify.productTitle && (
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                            <div>
+                              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>Product Title</div>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: C.primary }}>{pd.shopify.productTitle}</div>
+                              {pd.shopify.tagline && <div style={{ fontSize: 10, color: C.secondary, fontStyle: 'italic', marginTop: 2 }}>{pd.shopify.tagline}</div>}
+                            </div>
+                            <CopyBtn text={`${pd.shopify.productTitle}\n${pd.shopify.tagline || ''}`} id="shp_title" />
+                          </div>
+                        )}
+                        {pd.shopify.shortDescription && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Short Description</span>
+                              <CopyBtn text={pd.shopify.shortDescription} id="shp_short" />
+                            </div>
+                            <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.5 }}>{pd.shopify.shortDescription}</div>
+                          </div>
+                        )}
+                        {pd.shopify.fullDescription && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>Full Description</span>
+                              <CopyBtn text={pd.shopify.fullDescription} id="shp_full" />
+                            </div>
+                            <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{pd.shopify.fullDescription}</div>
+                          </div>
+                        )}
+                        {pd.shopify.metaTitle && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                            <div>
+                              <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>Meta Title</div>
+                              <div style={{ fontSize: 9, color: C.primary }}>{pd.shopify.metaTitle}</div>
+                            </div>
+                            {pd.shopify.metaDescription && (
+                              <div>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>Meta Description</div>
+                                <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{pd.shopify.metaDescription}</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {pd.shopify.tags?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>Tags</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {pd.shopify.tags.map((tag, i) => (
+                                <span key={i} style={{ fontSize: 8, color: '#96bf48', background: '#0a1604', padding: '2px 7px', borderRadius: 3, border: `1px solid #1a3008` }}>{tag}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!prodDescResult && !prodDescLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🛍</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate Amazon and Shopify product copy — title, bullets, description, meta, and tags — in the same brand voice as your ads.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── SMS + PUSH TAB ── */}
+        {adOutputTab === 'sms' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Sequence Type</div>
+                <select value={smsSeqType} onChange={e => setSmsSeqType(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="sales">Sales Sequence</option>
+                  <option value="launch">Product Launch</option>
+                  <option value="abandoned">Abandoned Cart</option>
+                  <option value="winback">Win-Back</option>
+                  <option value="vip">VIP / Flash Sale</option>
+                  <option value="event">Event / Webinar</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Link Placeholder</div>
+                <input value={smsLink} onChange={e => setSmsLink(e.target.value)} placeholder="[LINK]"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+            <button onClick={generateSmsPush} disabled={!productName.trim() || smsLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: productName.trim() && !smsLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted }}>
+              {smsLoading ? '⟳ Writing sequence…' : '📱 Generate SMS + Push Sequence'}
+            </button>
+            {smsError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{smsError}</div>}
+            {smsResult && (<>
+              <div style={{ padding: '6px 10px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 9, color: C.gold, fontWeight: 700 }}>
+                {smsResult.sequenceTitle}
+              </div>
+              {/* SMS messages */}
+              {(smsResult.smsMessages || []).map((msg, i) => (
+                <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, background: C.goldGlow, padding: '1px 6px', borderRadius: 3 }}>SMS {msg.messageNumber}</span>
+                    <span style={{ fontSize: 8, color: C.muted }}>{msg.sendTiming}</span>
+                    <span style={{ fontSize: 8, color: C.secondary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.arcStage}</span>
+                    <span style={{ fontSize: 8, color: (msg.characterCount || 0) > 160 ? '#cf6a6a' : C.green }}>{msg.characterCount || '?'} chars</span>
+                  </div>
+                  <div style={{ padding: '8px 10px' }}>
+                    <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.6, marginBottom: 5 }}>{msg.text}</div>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                      {msg.psychologicalLever && <span style={{ fontSize: 8, color: C.violet, background: C.violetGlow, padding: '1px 5px', borderRadius: 3 }}>{msg.psychologicalLever}</span>}
+                      <button onClick={() => doCopyAdText(msg.text, `sms_${i}`)} style={{ marginLeft: 'auto', padding: '3px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `sms_${i}` ? C.green : C.muted }}>
+                        {copiedText === `sms_${i}` ? '✓ Copied' : '⎘ Copy'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Push notifications */}
+              {(smsResult.pushNotifications || []).length > 0 && (<>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 4 }}>Push Notifications</div>
+                {smsResult.pushNotifications.map((push, i) => (
+                  <div key={i} style={{ borderRadius: 5, border: `1px solid ${C.violetDim}`, background: '#0a0610', overflow: 'hidden' }}>
+                    <div style={{ padding: '5px 9px', background: '#0e0818', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: C.violet }}>PUSH {push.pushNumber}</span>
+                      <span style={{ fontSize: 8, color: C.muted }}>{push.sendTiming}</span>
+                    </div>
+                    <div style={{ padding: '7px 9px' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{push.title}</div>
+                      <div style={{ fontSize: 9, color: C.secondary }}>{push.body}</div>
+                      <button onClick={() => doCopyAdText(`${push.title}\n${push.body}`, `push_${i}`)} style={{ marginTop: 5, padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: 'none', color: copiedText === `push_${i}` ? C.green : C.violet }}>
+                        {copiedText === `push_${i}` ? '✓ Copied' : '⎘ Copy'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>)}
+              {smsResult.complianceNote && (
+                <div style={{ padding: '6px 9px', borderRadius: 4, background: '#0a0a14', border: `1px solid ${C.blueDim}`, fontSize: 9, color: C.secondary }}><span style={{ color: C.blue, fontWeight: 700 }}>Compliance: </span>{smsResult.complianceNote}</div>
+              )}
+            </>)}
+            {!smsResult && !smsLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>📱</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a complete SMS sequence + push notifications. Every message under 160 characters, timed for maximum conversion.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── INFLUENCER BRIEF TAB ── */}
+        {adOutputTab === 'influencer' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Creator Type</div>
+                <select value={influencerType} onChange={e => setInfluencerType(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="micro">Micro (1k–50k)</option>
+                  <option value="macro">Macro (50k–1M)</option>
+                  <option value="celebrity">Celebrity (1M+)</option>
+                  <option value="affiliate">Affiliate Partner</option>
+                  <option value="ugc_creator">UGC Creator</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Platform</div>
+                <select value={influencerPlatform} onChange={e => setInfluencerPlatform(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="multi">Multi-Platform</option>
+                  <option value="ugc_only">UGC Only (brand posts)</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>No. of Posts</div>
+                <select value={influencerPosts} onChange={e => setInfluencerPosts(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  {['1','2','3','5','10'].map(n => <option key={n} value={n}>{n} post{n !== '1' ? 's' : ''}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Deadline (optional)</div>
+                <input value={influencerDeadline} onChange={e => setInfluencerDeadline(e.target.value)} placeholder="e.g. Jan 15 2026"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Offer / Compensation</div>
+                <input value={influencerOffer} onChange={e => setInfluencerOffer(e.target.value)} placeholder="e.g. $300 flat fee + 15% commission"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Creator Discount Code</div>
+                <input value={influencerCode} onChange={e => setInfluencerCode(e.target.value)} placeholder="e.g. CREATOR20"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+            <button onClick={generateInfluencerBrief} disabled={!productName.trim() || influencerLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: productName.trim() && !influencerLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.violetDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                color: productName.trim() ? C.violet : C.muted }}>
+              {influencerLoading ? '⟳ Writing brief…' : '✨ Generate Influencer Brief'}
+            </button>
+            {influencerError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{influencerError}</div>}
+            {influencerResult && (() => {
+              const b = influencerResult
+              const Sec = ({ title, color, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '5px 9px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</div>
+                  <div style={{ padding: '7px 9px' }}>{children}</div>
+                </div>
+              )
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{b.briefTitle}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{b.platform} · {b.creatorType} · Due: {b.campaignDeadline}</div>
+                    </div>
+                    <button onClick={copyInfluencerBrief} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: 'none', color: C.violet }}>⎘ Copy Full Brief</button>
+                  </div>
+                  {b.brandIntro && <Sec title="Brand Introduction" color={C.secondary}><div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6 }}>{b.brandIntro}</div></Sec>}
+                  {b.keyMessages?.length > 0 && (
+                    <Sec title="Key Messages" color={C.gold}>
+                      {b.keyMessages.map((m, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, marginBottom: 3 }}>{i + 1}. {m}</div>)}
+                    </Sec>
+                  )}
+                  {b.hookIdeas?.length > 0 && (
+                    <Sec title="Hook Ideas" color={C.violet}>
+                      {b.hookIdeas.map((h, i) => <div key={i} style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3, fontStyle: 'italic' }}>· "{h}"</div>)}
+                    </Sec>
+                  )}
+                  {(b.doThis?.length > 0 || b.neverDoThis?.length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {b.doThis?.length > 0 && (
+                        <Sec title="Do This" color={C.green}>
+                          {b.doThis.map((d, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, marginBottom: 2 }}>✓ {d}</div>)}
+                        </Sec>
+                      )}
+                      {b.neverDoThis?.length > 0 && (
+                        <Sec title="Never Do This" color="#cf6a6a">
+                          {b.neverDoThis.map((d, i) => <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.4, marginBottom: 2 }}>✗ {d}</div>)}
+                        </Sec>
+                      )}
+                    </div>
+                  )}
+                  {b.contentRequirements && (
+                    <Sec title="Content Requirements" color={C.blue}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+                        {[['Posts', b.contentRequirements.numberOfPosts],['Platform', b.contentRequirements.platform],['Formats', b.contentRequirements.formats?.join(', ')],['Deadline', b.contentRequirements.deadline],['Approval', b.contentRequirements.approvalProcess]].map(([k, v]) => v ? (
+                          <div key={k} style={{ fontSize: 9, color: C.secondary }}><span style={{ fontWeight: 700, color: C.muted }}>{k}: </span>{v}</div>
+                        ) : null)}
+                      </div>
+                    </Sec>
+                  )}
+                  {b.compensation && (b.compensation.offer || b.compensation.commissionRate || b.compensation.discountCode) && (
+                    <Sec title="Compensation" color={C.gold}>
+                      {b.compensation.offer && <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{b.compensation.offer}</div>}
+                      {b.compensation.commissionRate && <div style={{ fontSize: 9, color: C.secondary }}>Commission: {b.compensation.commissionRate}</div>}
+                      {b.compensation.discountCode && <div style={{ fontSize: 9, color: C.gold }}>Your code: {b.compensation.discountCode}</div>}
+                    </Sec>
+                  )}
+                  {b.captionGuidance && (
+                    <Sec title="Caption Guidelines" color={C.secondary}>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}><span style={{ color: C.muted, fontWeight: 700 }}>Tone: </span>{b.captionGuidance.tone}</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4, marginBottom: 3 }}><span style={{ color: C.muted, fontWeight: 700 }}>Must include: </span>{b.captionGuidance.mustInclude}</div>
+                      <div style={{ fontSize: 9, color: '#cf6a6a', lineHeight: 1.4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Disclosure: </span>{b.captionGuidance.disclosureRequirement}</div>
+                    </Sec>
+                  )}
+                </div>
+              )
+            })()}
+            {!influencerResult && !influencerLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>✨</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a complete, send-ready influencer brief — key messages, hook ideas, do/don't, content requirements, and compensation details.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── NAMING CONVENTION TAB ── */}
+        {adOutputTab === 'naming' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>Generate a clean, consistent naming system for your campaigns, ad sets, ads, and UTM parameters.</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Platform</div>
+                <select value={namingPlatform} onChange={e => setNamingPlatform(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="meta">Meta Ads</option>
+                  <option value="tiktok">TikTok Ads</option>
+                  <option value="google">Google Ads</option>
+                  <option value="multi">Multi-Platform</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Campaign Goals</div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {['conversions','awareness','retargeting','leads','traffic','video'].map(g => (
+                    <button key={g} onClick={() => setNamingGoals(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])}
+                      style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${namingGoals.includes(g) ? C.goldDim : C.hairline}`, background: namingGoals.includes(g) ? C.goldGlow : 'none', color: namingGoals.includes(g) ? C.gold : C.muted }}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button onClick={generateNaming} disabled={namingLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: !namingLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#0c0a04)', color: namingLoading ? C.muted : C.gold }}>
+              {namingLoading ? '⟳ Building system…' : '🏷 Generate Naming Convention'}
+            </button>
+            {namingError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{namingError}</div>}
+            {namingResult && (() => {
+              const nr = namingResult
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#1a1408', border: `1px solid ${C.goldDim}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{nr.systemName}</div>
+                  </div>
+                  {/* Cheat sheet */}
+                  {nr.cheatSheet && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.goldDim}`, background: '#0c0a04', overflow: 'hidden' }}>
+                      <div style={{ padding: '5px 9px', background: '#1a1408', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: C.gold, letterSpacing: 0.8, textTransform: 'uppercase' }}>📌 Cheat Sheet</span>
+                        <button onClick={() => doCopyAdText(nr.cheatSheet, 'cheat_sheet')} style={{ padding: '2px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: copiedText === 'cheat_sheet' ? C.green : C.gold }}>
+                          {copiedText === 'cheat_sheet' ? '✓' : '⎘ Copy'}
+                        </button>
+                      </div>
+                      <div style={{ padding: '8px 10px', fontSize: 10, color: C.primary, lineHeight: 1.8, fontFamily: C.mono, whiteSpace: 'pre-wrap' }}>{nr.cheatSheet}</div>
+                    </div>
+                  )}
+                  {/* Three levels */}
+                  {[
+                    { key: 'campaignLevel', label: 'Campaign Level', color: C.gold },
+                    { key: 'adSetLevel',    label: 'Ad Set Level',   color: C.violet },
+                    { key: 'adLevel',       label: 'Ad Level',       color: C.blue },
+                  ].map(({ key, label, color }) => {
+                    const level = nr[key]
+                    if (!level) return null
+                    return (
+                      <div key={key} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                        <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+                          <div style={{ fontSize: 10, color: C.primary, fontFamily: C.mono }}>{level.structure}</div>
+                        </div>
+                        <div style={{ padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {(level.examples || []).map((ex, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <div style={{ flex: 1, fontSize: 9, color: C.secondary, fontFamily: C.mono }}>{ex}</div>
+                              <button onClick={() => doCopyAdText(ex, `naming_${key}_${i}`)} style={{ padding: '2px 5px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `naming_${key}_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                                {copiedText === `naming_${key}_${i}` ? '✓' : '⎘'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {/* UTM */}
+                  {nr.utmParameters && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                      <div style={{ padding: '5px 9px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase' }}>UTM Parameters</div>
+                      <div style={{ padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {['source','medium','campaign','content'].map(k => nr.utmParameters[k] ? (
+                          <div key={k} style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700 }}>utm_{k}: </span><span style={{ fontFamily: C.mono }}>{nr.utmParameters[k]}</span></div>
+                        ) : null)}
+                        {nr.utmParameters.exampleUrl && (
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, marginBottom: 2 }}>Example URL:</div>
+                            <div style={{ fontSize: 8, color: C.secondary, fontFamily: C.mono, wordBreak: 'break-all', lineHeight: 1.5 }}>{nr.utmParameters.exampleUrl}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {/* Real world example */}
+                  {nr.realWorldExample && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Real Example — {nr.realWorldExample.scenario}</div>
+                      {[['Campaign', nr.realWorldExample.campaign],['Ad Set 1', nr.realWorldExample.adSet1],['Ad Set 2', nr.realWorldExample.adSet2],['Ad 1', nr.realWorldExample.ad1],['Ad 2', nr.realWorldExample.ad2],['Ad 3', nr.realWorldExample.ad3]].filter(([,v]) => v).map(([k, v]) => (
+                        <div key={k} style={{ fontSize: 9, color: C.secondary, fontFamily: C.mono, marginBottom: 2 }}><span style={{ color: C.muted, fontWeight: 700, fontFamily: 'inherit' }}>{k}: </span>{v}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+            {!namingResult && !namingLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🏷</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a complete naming convention system for your ad account — campaigns, ad sets, ads, and UTMs. Clean names = clean data = better decisions.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── CLIENTS TAB ── */}
+        {adOutputTab === 'clients' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 9, color: C.secondary }}>Manage client brands. Load a client to pre-fill Ad Studio with their details.</div>
+              <button onClick={loadClientBrands} disabled={clientLoading}
+                style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, cursor: clientLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: clientLoading ? C.muted : C.secondary }}>
+                {clientLoading ? '⟳' : '↺ Refresh'}
+              </button>
+            </div>
+
+            {/* Active client indicator */}
+            {activeClient && (
+              <div style={{ padding: '7px 10px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>Active: {activeClient.name}</div>
+                  {activeClient.industry && <div style={{ fontSize: 9, color: C.muted }}>{activeClient.industry}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={generateDeliveryPackage}
+                    style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: C.deep, color: C.gold }}>
+                    ⎘ Export Package
+                  </button>
+                  <button onClick={() => setActiveClient(null)}
+                    style={{ padding: '4px 7px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                </div>
+              </div>
+            )}
+
+            {/* New client form */}
+            {clientFormOpen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.primary, marginBottom: 2 }}>New Client Brand</div>
+                {[
+                  { label: 'Client Name *', key: 'name',           placeholder: 'e.g. Luxe Skincare Co.' },
+                  { label: 'Industry',      key: 'industry',       placeholder: 'e.g. Beauty & Skincare' },
+                  { label: 'Product Name',  key: 'productName',    placeholder: 'e.g. Vitamin C Serum' },
+                  { label: 'Target Customer', key: 'targetCustomer', placeholder: 'e.g. Women 25-40 into skincare' },
+                  { label: 'Brand Voice',   key: 'brandVoice',     placeholder: 'e.g. warm, elevated, clinical but approachable' },
+                  { label: 'Brand Notes',   key: 'brandNotes',     placeholder: 'Any important brand guidelines, forbidden words, etc.' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>{f.label}</div>
+                    <input value={clientForm[f.key]} onChange={e => setClientForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                  <button onClick={saveClientBrand} disabled={!clientForm.name.trim() || clientSaving}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: !clientForm.name.trim() || clientSaving ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                    {clientSaving ? '⟳ Saving…' : 'Save Client'}
+                  </button>
+                  <button onClick={() => setClientFormOpen(false)}
+                    style={{ padding: '7px 12px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setClientFormOpen(true)}
+                style={{ width: '100%', padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                + Add Client Brand
+              </button>
+            )}
+
+            {/* Client list */}
+            {clientBrands.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>{clientBrands.length} Client{clientBrands.length !== 1 ? 's' : ''}</div>
+                {clientBrands.map(client => {
+                  const isActive = activeClient?.id === client.id
+                  return (
+                    <div key={client.id} style={{ borderRadius: 5, border: `1px solid ${isActive ? C.goldDim : C.hairline}`, background: isActive ? '#1a1408' : C.base, padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? C.gold : C.primary }}>{client.name}</div>
+                        <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>
+                          {[client.industry, client.product_name, client.brand_voice].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <button onClick={() => activateClientBrand(client)}
+                          style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${isActive ? C.gold : C.goldDim}`, background: isActive ? C.goldGlow : C.deep, color: isActive ? C.gold : '#8a7a5a' }}>
+                          {isActive ? '✓ Active' : 'Load'}
+                        </button>
+                        <button onClick={() => deleteClientBrand(client.id)}
+                          style={{ padding: '4px 7px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🏢</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>No client brands yet. Add a client to save their brand details and generate a delivery package with all outputs.</div>
+                <button onClick={loadClientBrands} style={{ padding: '6px 16px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Load Clients
+                </button>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── SWIPE FILE / HOOKS LIBRARY TAB ── */}
+        {adOutputTab === 'swipe' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Your personal hook library. Every hook you save appears here — searchable, filterable, and ready to reuse.
+            </div>
+
+            {/* Load + search controls */}
+            <div style={{ display: 'flex', gap: 5 }}>
+              <input value={hooksLibSearch} onChange={e => setHooksLibSearch(e.target.value)}
+                placeholder="Search hooks…"
+                style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }}
+                onKeyDown={e => e.key === 'Enter' && loadHooksLibrary()} />
+              <select value={hooksLibFilter} onChange={e => { setHooksLibFilter(e.target.value); }}
+                style={{ background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="all">All platforms</option>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+                <option value="youtube">YouTube</option>
+              </select>
+              <button onClick={loadHooksLibrary} disabled={hooksLibLoading}
+                style={{ padding: '6px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: hooksLibLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: hooksLibLoading ? C.muted : C.gold }}>
+                {hooksLibLoading ? '⟳' : '↺ Load'}
+              </button>
+            </div>
+
+            {/* Hooks list */}
+            {hooksLibrary.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>{hooksLibrary.length} Saved Hooks</div>
+                {hooksLibrary.map(hook => (
+                  <div key={hook.id} style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.5, marginBottom: 3 }}>{hook.hook_text}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {hook.hook_type && <span style={{ fontSize: 8, color: C.gold, background: C.goldGlow, padding: '1px 5px', borderRadius: 3 }}>{hook.hook_type}</span>}
+                        {hook.platform && hook.platform !== 'all' && <span style={{ fontSize: 8, color: C.blue, background: C.blueGlow, padding: '1px 5px', borderRadius: 3 }}>{hook.platform}</span>}
+                        {hook.product_context && <span style={{ fontSize: 8, color: C.muted, padding: '1px 5px' }}>{hook.product_context}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      <button onClick={() => doCopyAdText(hook.hook_text, `lib_${hook.id}`)}
+                        style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `lib_${hook.id}` ? C.green : C.muted }}>
+                        {copiedText === `lib_${hook.id}` ? '✓' : '⎘'}
+                      </button>
+                      <button onClick={() => deleteHook(hook.id)}
+                        style={{ padding: '3px 5px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🪝</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Your swipe file is empty. Click the bookmark icon next to any hook in the Hooks tab to save it here.</div>
+                <button onClick={loadHooksLibrary} style={{ padding: '6px 16px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                  Load Library
+                </button>
               </div>
             )}
           </div>
@@ -4743,7 +9107,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     {test.status === 'completed' && !insight && (
                       <button onClick={() => getAbTestInsight(test)} disabled={abInsightLoading}
                         style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: abInsightLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, opacity: abInsightLoading ? 0.6 : 1 }}>
-                        {abInsightLoading ? '⟳ Analysing pattern…' : '✦ Analyse Winning Pattern — 1 credit'}
+                        {abInsightLoading ? '⟳ Analysing pattern…' : '✦ Analyse Winning Pattern'}
                       </button>
                     )}
 
@@ -4867,6 +9231,131 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     </div>
                     <div style={{ fontSize: 10, color: C.secondary }}>
                       Break-even: <strong style={{ color: C.primary }}>{r.breakEven} sales</strong> ({r.breakEvenConv}% conversion rate needed)
+                    </div>
+                  </div>
+
+                  {/* ── SCALING SCENARIOS ── */}
+                  <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                    <button onClick={() => setRoiShowScaling(!roiShowScaling)}
+                      style={{ width: '100%', padding: '8px 12px', background: C.raised, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>📈 Scaling Scenarios</span>
+                      <span style={{ fontSize: 9, color: C.muted }}>{roiShowScaling ? '▲' : '▼'}</span>
+                    </button>
+                    {roiShowScaling && (() => {
+                      const base = calcRoi()
+                      if (!base) return null
+                      const spend = parseFloat(roi.spend) || 0
+                      return (
+                        <div style={{ padding: '8px 12px', overflow: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9 }}>
+                            <thead>
+                              <tr style={{ borderBottom: `1px solid ${C.hairline}` }}>
+                                {['Spend', 'Revenue', 'ROAS', 'Net Profit', 'Purchases'].map(h => (
+                                  <th key={h} style={{ padding: '4px 6px', textAlign: 'right', color: C.muted, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[1, 2, 5, 10, 25].map(mult => {
+                                const scaledSpend   = spend * mult
+                                const scaledClicks  = Math.round((parseFloat(roi.audience) || 0) * (parseFloat(roi.ctr) || 0) / 100 * mult)
+                                const scaledPurch   = Math.round(scaledClicks * (parseFloat(roi.convRate) || 0) / 100)
+                                const scaledRev     = scaledPurch * (parseFloat(roi.price) || 0)
+                                const scaledGross   = scaledRev * (parseFloat(roi.margin) || 0) / 100
+                                const scaledProfit  = scaledGross - scaledSpend
+                                const scaledROAS    = scaledSpend > 0 ? scaledRev / scaledSpend : 0
+                                const profColor     = scaledProfit >= 0 ? C.green : '#cf6a6a'
+                                const roasColor2    = scaledROAS >= 3 ? C.green : scaledROAS >= 1.5 ? C.gold : '#cf6a6a'
+                                return (
+                                  <tr key={mult} style={{ borderBottom: `1px solid ${C.hairline}`, background: mult === 1 ? C.raised : 'transparent' }}>
+                                    <td style={{ padding: '5px 6px', textAlign: 'right', color: C.secondary }}>${scaledSpend.toLocaleString()}{mult === 1 ? ' ★' : ''}</td>
+                                    <td style={{ padding: '5px 6px', textAlign: 'right', color: C.primary }}>${scaledRev.toLocaleString('en', { maximumFractionDigits: 0 })}</td>
+                                    <td style={{ padding: '5px 6px', textAlign: 'right', color: roasColor2, fontWeight: 700 }}>{scaledROAS.toFixed(1)}×</td>
+                                    <td style={{ padding: '5px 6px', textAlign: 'right', color: profColor, fontWeight: 700 }}>{scaledProfit >= 0 ? '+' : ''}${scaledProfit.toLocaleString('en', { maximumFractionDigits: 0 })}</td>
+                                    <td style={{ padding: '5px 6px', textAlign: 'right', color: C.muted }}>{scaledPurch.toLocaleString()}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                          <div style={{ fontSize: 8, color: C.muted, marginTop: 6 }}>★ = current spend. Assumes same CTR and conversion rate at scale.</div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+
+                  {/* ── REVERSE CALCULATOR ── */}
+                  <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+                    <div style={{ padding: '8px 12px', background: C.raised, borderBottom: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>🎯 Reverse Calculator</div>
+                      <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>What do I need to hit a profit target?</div>
+                    </div>
+                    <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: C.secondary, flexShrink: 0 }}>I want</span>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: C.muted }}>$</span>
+                          <input type="number" value={roiTargetProfit} onChange={e => setRoiTargetProfit(e.target.value)}
+                            placeholder="5000"
+                            style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.goldDim}`, borderRadius: 4, padding: '7px 10px 7px 20px', fontSize: 12, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                        </div>
+                        <span style={{ fontSize: 10, color: C.secondary, flexShrink: 0 }}>profit</span>
+                      </div>
+                      {(() => {
+                        const target  = parseFloat(roiTargetProfit)
+                        const price   = parseFloat(roi.price)
+                        const margin  = parseFloat(roi.margin) / 100
+                        const ctr     = parseFloat(roi.ctr) / 100
+                        const conv    = parseFloat(roi.convRate) / 100
+                        if (!target || !price || !margin || !ctr || !conv || margin === 0) return (
+                          <div style={{ fontSize: 9, color: C.muted, textAlign: 'center', padding: 8 }}>Fill in product price, margin, CTR, and conversion rate above</div>
+                        )
+                        const profitPerSale  = price * margin
+                        const salesNeeded    = Math.ceil(target / profitPerSale)
+                        const clicksNeeded   = Math.ceil(salesNeeded / conv)
+                        const impressionsNd  = Math.ceil(clicksNeeded / ctr)
+                        const spendNeeded    = salesNeeded * price / (price * margin / (price * margin + 1))
+                        const revenueNeeded  = salesNeeded * price
+                        const adSpendNeeded  = revenueNeeded - target - (revenueNeeded * (1 - margin))
+                        const finalSpend     = Math.max(adSpendNeeded, 0)
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {[
+                              { label: 'Sales needed',        value: salesNeeded.toLocaleString(),                                color: C.primary },
+                              { label: 'Revenue needed',      value: `$${revenueNeeded.toLocaleString('en', { maximumFractionDigits: 0 })}`, color: C.primary },
+                              { label: 'Max ad spend',        value: `$${finalSpend.toLocaleString('en', { maximumFractionDigits: 0 })}`,  color: C.gold },
+                              { label: 'Clicks needed',       value: clicksNeeded.toLocaleString(),                              color: C.secondary },
+                              { label: 'Reach needed',        value: impressionsNd.toLocaleString(),                             color: C.secondary },
+                            ].map((row, i) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: 4, background: i < 3 ? C.surface : 'transparent', border: i < 3 ? `1px solid ${C.hairline}` : 'none' }}>
+                                <span style={{ fontSize: 10, color: C.secondary }}>{row.label}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: row.color }}>{row.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Platform benchmarks */}
+                  <div style={{ padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Platform Benchmarks</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+                      {[
+                        { p: 'TikTok',    avg: '2.1%', good: '3.5%', conv: '1.2%' },
+                        { p: 'IG Reels',  avg: '2.0%', good: '3.2%', conv: '1.1%' },
+                        { p: 'Facebook',  avg: '1.2%', good: '2.2%', conv: '1.5%' },
+                        { p: 'YouTube',   avg: '0.8%', good: '1.5%', conv: '0.8%' },
+                      ].map(b => (
+                        <div key={b.p} style={{ padding: '5px 6px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{b.p}</div>
+                          <div style={{ fontSize: 8, color: C.muted }}>Avg CTR: <span style={{ color: C.secondary }}>{b.avg}</span></div>
+                          <div style={{ fontSize: 8, color: C.muted }}>Good CTR: <span style={{ color: C.green }}>{b.good}</span></div>
+                          <div style={{ fontSize: 8, color: C.muted }}>Avg Conv: <span style={{ color: C.secondary }}>{b.conv}</span></div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -5641,6 +10130,19 @@ export default function PromptCEOPage() {
   const [studioDNASaveOpen,    setStudioDNASaveOpen]    = useState(false)
   const [shotDirectorNote,     setShotDirectorNote]     = useState(null)
   const [shotDirectorLoading,  setShotDirectorLoading]  = useState(false)
+  const [creativeBrief,        setCreativeBrief]        = useState(null)
+  const [creativeBriefLoading, setCreativeBriefLoading] = useState(false)
+  const [briefProductHint,     setBriefProductHint]     = useState('')
+
+  // App Guide
+  const [guideOpen,     setGuideOpen]     = useState(false)
+  const [guideMessages, setGuideMessages] = useState([
+    { role: 'assistant', content: "Hey! I'm your Prompt CEO guide. Ask me anything about how to use the app — workflows, features, tips, shortcuts. What do you want to do?" }
+  ])
+  const [guideInput,    setGuideInput]    = useState('')
+  const [guideLoading,  setGuideLoading]  = useState(false)
+  const [guideUnread,   setGuideUnread]   = useState(0)
+
   const [studioVariation,      setStudioVariation]      = useState(null)
   const [studioVarLoading,     setStudioVarLoading]     = useState(false)
   const [studioVarDir,         setStudioVarDir]         = useState('darker')
@@ -5658,7 +10160,7 @@ export default function PromptCEOPage() {
   const [activeCustomWorld,    setActiveCustomWorld]    = useState(null) // id of selected custom world
   // Feature 5 — Photographer Brief
   const [photographerBrief,    setPhotographerBrief]    = useState(null)
-  const [briefLoading2,        setBriefLoading2]        = useState(false)
+  const [photographerBriefLoading,    setPhotographerBriefLoading]    = useState(false)
   // Feature 6 — Creator Revenue System
   const [creatorCalendar,      setCreatorCalendar]      = useState(null)
   const [creatorCalLoading,    setCreatorCalLoading]    = useState(false)
@@ -5677,18 +10179,50 @@ export default function PromptCEOPage() {
   const [saved,        setSaved]        = useState([])
   const [dnaProfiles,  setDnaProfiles]  = useState([])
   const [dnaSelected,  setDnaSelected]  = useState('')
+  const [charLoading,  setCharLoading]  = useState(false)
+  const [charSaving,   setCharSaving]   = useState(false)
   const [regenState,   setRegenState]   = useState({})
   const [history,      setHistory]      = useState([])
   const [historyOpen,  setHistoryOpen]  = useState(false)
   const stopRef = useRef(false)
   const [helpOpen,      setHelpOpen]      = useState(false)
   const [subscription,  setSubscription]  = useState(null)
+  // Brand DNA Lock
+  const [brandDNAs,          setBrandDNAs]          = useState([])
+  const [activeBrandDNA,     setActiveBrandDNA]     = useState(null)
+  const [brandDNALoading,    setBrandDNALoading]    = useState(false)
+  const [brandDNASaving,     setBrandDNASaving]     = useState(false)
+  const [brandDNAViolations, setBrandDNAViolations] = useState([])
+  const [brandDNAFormOpen,   setBrandDNAFormOpen]   = useState(false)
+  const [brandDNAForm,       setBrandDNAForm]       = useState({
+    name: '', product_name: '', target_customer: '', brand_voice: 'premium',
+    tone_words: '', forbidden_words: '', color_palette: '',
+    visual_mood_signature: '', lighting_signature: '', styling_signature: '',
+    forbidden_visual_elements: '', is_locked: true,
+  })
 
   useEffect(() => {
     fetch('/api/subscription')
       .then(r => r.json())
       .then(d => { if (d.status === 'success') setSubscription(d) })
       .catch(() => {})
+  }, [])
+
+  // Load Brand DNA profiles from cloud on mount
+  useEffect(() => {
+    setBrandDNALoading(true)
+    fetch('/api/brand-dna')
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'success') {
+          setBrandDNAs(d.brands || [])
+          // Auto-lock any previously locked profile
+          const locked = (d.brands || []).find(b => b.is_locked)
+          if (locked) setActiveBrandDNA(locked)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setBrandDNALoading(false))
   }, [])
 
   // ── Derived ───────────────────────────────────────────────
@@ -5713,7 +10247,17 @@ export default function PromptCEOPage() {
   useEffect(() => { merge({ subLocationId: '', sceneGroupId: '', phaseKey: '' }) }, [s.worldId])
   useEffect(() => { set('sceneGroupId', '') }, [s.subLocationId])
   useEffect(() => { set('chapterId', '') }, [s.storyWorldId])
-  useEffect(() => { setDnaProfiles(dnaLoad()) }, [])
+  // Load character profiles from cloud (falls back to localStorage)
+  useEffect(() => {
+    const localProfiles = dnaLoad()
+    if (localProfiles.length) setDnaProfiles(localProfiles)
+    setCharLoading(true)
+    fetch('/api/characters')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setDnaProfiles(d.characters || []) })
+      .catch(() => {})
+      .finally(() => setCharLoading(false))
+  }, [])
 
   useEffect(() => {
     const loadPersistedIdentity = async () => {
@@ -5767,6 +10311,16 @@ export default function PromptCEOPage() {
     // Inject visual anchor for character consistency
     if (s.visualAnchor?.description && r.finalPrompt) {
       r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
+    }
+    // Inject Brand DNA Lock constraints
+    if (activeBrandDNA?.is_locked && r.finalPrompt) {
+      const dnaConstraints = buildBrandDNAConstraints(activeBrandDNA)
+      if (dnaConstraints) r = { ...r, finalPrompt: `${r.finalPrompt}${dnaConstraints}` }
+      // Validate for violations
+      const violations = validatePromptAgainstDNA(r.finalPrompt, activeBrandDNA)
+      setBrandDNAViolations(violations)
+    } else {
+      setBrandDNAViolations([])
     }
     setResult(r)
     setOutputTab('output')
@@ -5866,6 +10420,94 @@ export default function PromptCEOPage() {
       if (data.status === 'success') setShotDirectorNote(data.note)
     } catch {}
     finally { setShotDirectorLoading(false) }
+  }
+
+  // ── Brand DNA Lock CRUD ───────────────────────────────────
+  const saveBrandDNA = async () => {
+    if (brandDNASaving || !brandDNAForm.name?.trim()) return
+    setBrandDNASaving(true)
+    try {
+      const existing = brandDNAs.find(b => b.name === brandDNAForm.name.trim())
+      let updated
+      if (existing?.id) {
+        const res = await fetch(`/api/brand-dna/${existing.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(brandDNAForm),
+        })
+        const d = await res.json()
+        if (d.status === 'success') {
+          updated = brandDNAs.map(b => b.id === existing.id ? d.brand : b)
+          if (activeBrandDNA?.id === existing.id) setActiveBrandDNA(d.brand)
+        }
+      } else {
+        const res = await fetch('/api/brand-dna', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(brandDNAForm),
+        })
+        const d = await res.json()
+        if (d.status === 'success') updated = [d.brand, ...brandDNAs]
+      }
+      if (updated) setBrandDNAs(updated)
+      setBrandDNAFormOpen(false)
+    } catch {}
+    finally { setBrandDNASaving(false) }
+  }
+
+  const lockBrandDNA = async (brand) => {
+    // Toggle lock — if already active and locked, unlock
+    if (activeBrandDNA?.id === brand.id && activeBrandDNA.is_locked) {
+      setActiveBrandDNA(null)
+      setBrandDNAViolations([])
+      await fetch(`/api/brand-dna/${brand.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_locked: false }),
+      }).catch(() => {})
+      setBrandDNAs(prev => prev.map(b => b.id === brand.id ? { ...b, is_locked: false } : b))
+      return
+    }
+    // Lock this one
+    const locked = { ...brand, is_locked: true }
+    setActiveBrandDNA(locked)
+    setBrandDNAs(prev => prev.map(b => ({ ...b, is_locked: b.id === brand.id })))
+    await fetch(`/api/brand-dna/${brand.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_locked: true }),
+    }).catch(() => {})
+  }
+
+  const deleteBrandDNA = async (id) => {
+    try { await fetch(`/api/brand-dna/${id}`, { method: 'DELETE' }) } catch {}
+    setBrandDNAs(prev => prev.filter(b => b.id !== id))
+    if (activeBrandDNA?.id === id) setActiveBrandDNA(null)
+  }
+
+  const generateCreativeBrief = async (prompt) => {
+    if (!prompt?.trim() || creativeBriefLoading) return
+    setCreativeBriefLoading(true)
+    setCreativeBrief(null)
+    try {
+      const progLevel = (() => {
+        const r = s.progressionIndex / Math.max(s.totalCount - 1, 1)
+        return r < 0.33 ? 'tease' : r < 0.66 ? 'tension' : 'payoff'
+      })()
+      const res  = await fetch('/api/creative-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          finalPrompt: prompt,
+          context: {
+            worldId:          s.worldId || s.storyWorldId,
+            characterName:    s.identityName || s.traits?.subjectA?.name,
+            progressionLevel: progLevel,
+            timeOfDay:        result?.meta?.timeOfDay || '',
+            productHint:      briefProductHint,
+            platform:         'Instagram',
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') setCreativeBrief(data.brief)
+    } catch {}
+    finally { setCreativeBriefLoading(false) }
   }
 
   const generateStudioVariation = async (prompt) => {
@@ -5990,8 +10632,8 @@ export default function PromptCEOPage() {
 
   // Feature 5 — Photographer Brief
   const generatePhotographerBrief = async () => {
-    if (!batch.length || briefLoading2) return
-    setBriefLoading2(true)
+    if (!batch.length || photographerBriefLoading) return
+    setPhotographerBriefLoading(true)
     try {
       const res  = await fetch('/api/photographer-brief', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6013,7 +10655,7 @@ export default function PromptCEOPage() {
         if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
-    finally { setBriefLoading2(false) }
+    finally { setPhotographerBriefLoading(false) }
   }
 
   const exportPhotographerBriefTxt = () => {
@@ -6321,41 +10963,93 @@ export default function PromptCEOPage() {
   }
 
   // ── DNA ───────────────────────────────────────────────────
-  const dnaSaveProfile = useCallback(() => {
-    const name    = s.identityName?.trim() || `Profile ${Date.now()}`
-    const profile = {
-      id: Date.now(), name,
-      characterMode: s.characterMode, subjectGender: s.subjectGender,
-      imageDataUrl: s.imageDataUrl, hasImage: s.hasImage,
-      useIdentity: s.useIdentity, useTraits: s.useTraits,
-      identityStrength: s.identityStrength, ageRange: s.ageRange,
-      traits: s.traits,
-    }
-    const updated = [...dnaLoad().filter(p => p.name !== name), profile]
-    dnaSave(updated)
-    setDnaProfiles(updated)
-    setDnaSelected(String(profile.id))
-  }, [s])
+  // ── Cloud Character Profiles ──────────────────────────────
+  const dnaSaveProfile = useCallback(async () => {
+    if (charSaving) return
+    const name = s.identityName?.trim() || s.traits?.subjectA?.name?.trim() || `Character ${Date.now()}`
+    setCharSaving(true)
+    try {
+      const body = {
+        name,
+        character_mode:     s.characterMode    || 'female',
+        subject_gender:     s.subjectGender    || 'female',
+        identity_name:      s.identityName     || '',
+        has_image:          s.hasImage         || false,
+        image_url:          s.identityStorageUrl || s.imageDataUrl || '',
+        use_identity:       s.useIdentity      ?? true,
+        use_traits:         s.useTraits        ?? false,
+        identity_strength:  s.identityStrength ?? 100,
+        age_range:          s.ageRange         || 'auto',
+        traits:             s.traits           || {},
+        world_id:           s.worldId          || '',
+        director_preset:    s.directorPreset   || 'none',
+        thumbnail_url:      s.generatedImage   || '',
+      }
+      // Check if a profile with this name already exists — update it
+      const existing = dnaProfiles.find(p => p.name === name)
+      let updated
+      if (existing?.id) {
+        const res = await fetch(`/api/characters/${existing.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const d = await res.json()
+        if (d.status === 'success') {
+          updated = dnaProfiles.map(p => p.id === existing.id ? d.character : p)
+          setDnaSelected(String(d.character.id))
+        }
+      } else {
+        const res = await fetch('/api/characters', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const d = await res.json()
+        if (d.status === 'success') {
+          updated = [d.character, ...dnaProfiles]
+          setDnaSelected(String(d.character.id))
+        }
+      }
+      if (updated) setDnaProfiles(updated)
+    } catch {}
+    finally { setCharSaving(false) }
+  }, [s, dnaProfiles, charSaving])
 
-  const dnaLoadProfile = useCallback(id => {
-    const p = dnaLoad().find(x => String(x.id) === String(id))
+  const dnaLoadProfile = useCallback(async id => {
+    const p = dnaProfiles.find(x => String(x.id) === String(id))
     if (!p) return
+    // Map cloud fields to engine state fields
     merge({
-      identityName: p.name, characterMode: p.characterMode || 'female',
-      subjectGender: p.subjectGender || 'female', imageDataUrl: p.imageDataUrl || '',
-      hasImage: p.hasImage || false, useIdentity: p.useIdentity || false,
-      useTraits: p.useTraits || false, identityStrength: p.identityStrength ?? 100,
-      ageRange: p.ageRange || 'auto', traits: p.traits || INIT.traits,
+      identityName:     p.identity_name    || p.name || '',
+      characterMode:    p.character_mode   || 'female',
+      subjectGender:    p.subject_gender   || 'female',
+      imageDataUrl:     p.image_url        || '',
+      identityStorageUrl: p.image_url      || '',
+      hasImage:         p.has_image        || false,
+      useIdentity:      p.use_identity     ?? true,
+      useTraits:        p.use_traits       ?? false,
+      identityStrength: p.identity_strength ?? 100,
+      ageRange:         p.age_range        || 'auto',
+      traits:           p.traits           || INIT.traits,
+      worldId:          p.world_id         || '',
+      worldControlMode: p.world_id ? 'manual' : 'auto',
+      directorPreset:   p.director_preset  || 'none',
     })
     setDnaSelected(String(id))
-  }, [merge])
+    // Update last_used_at in background
+    fetch(`/api/characters/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ last_used_at: new Date().toISOString() }),
+    }).catch(() => {})
+  }, [dnaProfiles, merge])
 
-  const dnaDeleteProfile = useCallback(id => {
-    const updated = dnaLoad().filter(p => String(p.id) !== String(id))
-    dnaSave(updated)
+  const dnaDeleteProfile = useCallback(async id => {
+    try {
+      await fetch(`/api/characters/${id}`, { method: 'DELETE' })
+    } catch {}
+    const updated = dnaProfiles.filter(p => String(p.id) !== String(id))
     setDnaProfiles(updated)
     if (dnaSelected === String(id)) setDnaSelected('')
-  }, [dnaSelected])
+  }, [dnaSelected, dnaProfiles])
 
   // ── Image generation ──────────────────────────────────────
   const generateImage = useCallback(async () => {
@@ -7312,41 +12006,176 @@ export default function PromptCEOPage() {
                 )}
 
                 <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <Label>Saved Profiles ({dnaProfiles.length})</Label>
-                  <select
-                    style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 11 }}
-                    value={dnaSelected}
-                    onChange={e => setDnaSelected(e.target.value)}
-                  >
-                    <option value="">Select profile…</option>
-                    {dnaProfiles.map(p => (
-                      <option key={p.id} value={String(p.id)}>{p.name}</option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Label>My Characters ({dnaProfiles.length})</Label>
+                    <span style={{ fontSize: 9, color: charLoading ? C.gold : C.green, letterSpacing: 0.4 }}>
+                      {charLoading ? '⟳ syncing…' : '☁ cloud-saved'}
+                    </span>
+                  </div>
+
+                  {/* Character list — card-style */}
+                  {dnaProfiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                      {dnaProfiles.map(p => {
+                        const isSelected = String(p.id) === dnaSelected
+                        const thumb = p.thumbnail_url || p.image_url || ''
+                        const traitLine = [
+                          p.character_mode || p.characterMode,
+                          p.traits?.subjectA?.ethnicity,
+                          p.traits?.subjectA?.hair,
+                        ].filter(Boolean).join(' · ')
+                        const worldLine = p.world_id ? p.world_id.replace(/-/g, ' ') : ''
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => setDnaSelected(isSelected ? '' : String(p.id))}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                              padding: '6px 8px', borderRadius: 4,
+                              background: isSelected ? '#1a1408' : C.deep,
+                              border: `1px solid ${isSelected ? C.goldDim : C.hairline}`,
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {thumb ? (
+                              <img src={thumb} alt={p.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: 3, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                                {p.character_mode === 'male' ? '♂' : p.character_mode === 'couple' ? '⚤' : '♀'}
+                              </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? C.gold : C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.name}
+                              </div>
+                              {traitLine && (
+                                <div style={{ fontSize: 9, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{traitLine}</div>
+                              )}
+                              {worldLine && (
+                                <div style={{ fontSize: 9, color: C.blue, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {worldLine}</div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {dnaProfiles.length === 0 && !charLoading && (
+                    <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', padding: '10px 0' }}>
+                      No characters saved yet. Build one above and hit Save.
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 5 }}>
-                    <Btn variant="gold" onClick={dnaSaveProfile} sx={{ flex: 1, fontSize: 10 }}>💾 Save</Btn>
-                    <Btn variant="default" disabled={!dnaSelected} onClick={() => dnaLoadProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>↑ Load</Btn>
-                    <Btn variant="danger" disabled={!dnaSelected} onClick={() => dnaDeleteProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>✕</Btn>
+                    <Btn variant="gold" onClick={dnaSaveProfile} disabled={charSaving} sx={{ flex: 1, fontSize: 10 }}>
+                      {charSaving ? '…' : '💾 Save Character'}
+                    </Btn>
+                    <Btn variant="default" disabled={!dnaSelected} onClick={() => dnaLoadProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>
+                      ↑ Load
+                    </Btn>
+                    <Btn variant="danger" disabled={!dnaSelected} onClick={() => dnaDeleteProfile(dnaSelected)} sx={{ flex: 1, fontSize: 10 }}>
+                      ✕
+                    </Btn>
                   </div>
                 </div>
+              </Panel>
 
-                {dnaSelected && (() => {
-                  const p = dnaProfiles.find(x => String(x.id) === dnaSelected)
-                  if (!p) return null
-                  return (
-                    <div style={{ background: C.deep, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '7px 8px' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 4 }}>{p.name}</div>
-                      <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-                        <span style={{ color: C.secondary }}>{p.characterMode}</span>
-                        {p.traits?.subjectA?.ethnicity ? ` · ${p.traits.subjectA.ethnicity}` : ''}
-                        {p.traits?.subjectA?.hair      ? ` · ${p.traits.subjectA.hair}`      : ''}
-                      </div>
-                      {p.imageDataUrl && (
-                        <img src={p.imageDataUrl} alt="dna" style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 3, marginTop: 6 }} />
-                      )}
+              {/* ── BRAND DNA LOCK ── */}
+              <Panel
+                title="Brand DNA Lock"
+                accent={activeBrandDNA?.is_locked ? C.gold : C.muted}
+                badge={activeBrandDNA?.is_locked
+                  ? <Chip style={{ background: C.goldGlow, color: C.gold, border: `1px solid ${C.goldDim}` }}>🔒 {activeBrandDNA.name}</Chip>
+                  : <Chip>off</Chip>}
+                defaultOpen={false}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                    Lock a brand identity. Every generation will automatically inject the visual and tonal constraints — perfect for agencies managing multiple brands.
+                  </div>
+
+                  {/* Active lock indicator */}
+                  {activeBrandDNA?.is_locked && (
+                    <div style={{ padding: '6px 8px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.gold }}>🔒 {activeBrandDNA.name} is active</div>
+                      {activeBrandDNA.visual_mood_signature && <div style={{ fontSize: 8, color: C.secondary, marginTop: 2 }}>Mood: {activeBrandDNA.visual_mood_signature}</div>}
+                      {activeBrandDNA.forbidden_visual_elements && <div style={{ fontSize: 8, color: '#cf7e7e', marginTop: 1 }}>Forbidden: {activeBrandDNA.forbidden_visual_elements}</div>}
                     </div>
-                  )
-                })()}
+                  )}
+
+                  {/* Violations */}
+                  {brandDNAViolations.length > 0 && (
+                    <div style={{ padding: '5px 8px', borderRadius: 4, background: '#1a0606', border: '1px solid #3a1a1a' }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#cf7e7e', marginBottom: 3 }}>⚠ Brand DNA Violations</div>
+                      {brandDNAViolations.map((v, i) => <div key={i} style={{ fontSize: 9, color: '#cf7e7e', lineHeight: 1.4 }}>· {v}</div>)}
+                    </div>
+                  )}
+
+                  {/* Saved brands */}
+                  {brandDNAs.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Saved Brands ({brandDNAs.length})</div>
+                      {brandDNAs.map(b => {
+                        const isActive = activeBrandDNA?.id === b.id && activeBrandDNA.is_locked
+                        return (
+                          <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 7px', borderRadius: 4, background: isActive ? '#1a1408' : C.raised, border: `1px solid ${isActive ? C.goldDim : C.hairline}` }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? C.gold : C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
+                              <div style={{ fontSize: 8, color: C.muted }}>
+                                {b.brand_voice}{b.visual_mood_signature ? ` · ${b.visual_mood_signature.slice(0, 30)}` : ''}
+                              </div>
+                            </div>
+                            <button onClick={() => lockBrandDNA(b)}
+                              style={{ padding: '3px 7px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${isActive ? C.gold : C.goldDim}`, background: isActive ? C.goldGlow : C.deep, color: isActive ? C.gold : C.goldDim, flexShrink: 0 }}>
+                              {isActive ? '🔒 On' : '🔓 Lock'}
+                            </button>
+                            <button onClick={() => deleteBrandDNA(b.id)}
+                              style={{ padding: '3px 5px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted, flexShrink: 0 }}>✕</button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* New brand form */}
+                  {brandDNAFormOpen ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.primary, marginBottom: 2 }}>New Brand DNA</div>
+                      {[
+                        { label: 'Brand Name *', key: 'name', placeholder: 'e.g. Luxe Skincare' },
+                        { label: 'Tone Words', key: 'tone_words', placeholder: 'e.g. warm, elevated, intimate, cinematic' },
+                        { label: 'Visual Mood', key: 'visual_mood_signature', placeholder: 'e.g. golden hour, soft warm, editorial luxury' },
+                        { label: 'Color Palette', key: 'color_palette', placeholder: 'e.g. warm ivory, deep navy, soft gold' },
+                        { label: 'Lighting Signature', key: 'lighting_signature', placeholder: 'e.g. warm 3200K, soft diffused, golden hour' },
+                        { label: 'Styling Signature', key: 'styling_signature', placeholder: 'e.g. silk, minimal jewelry, white linen, tailored' },
+                        { label: 'Forbidden Elements', key: 'forbidden_visual_elements', placeholder: 'e.g. gym, casual, cold light, crowded scenes' },
+                        { label: 'Forbidden Copy/Tone', key: 'forbidden_words', placeholder: 'e.g. cheap, discount, urgent, harsh' },
+                      ].map(({ label, key, placeholder }) => (
+                        <div key={key}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, marginBottom: 2 }}>{label}</div>
+                          <input
+                            value={brandDNAForm[key] || ''}
+                            onChange={e => setBrandDNAForm(f => ({ ...f, [key]: e.target.value }))}
+                            placeholder={placeholder}
+                            style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '4px 7px', fontSize: 9, outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
+                        <Btn variant="gold" onClick={saveBrandDNA} disabled={brandDNASaving} sx={{ flex: 1, fontSize: 10 }}>
+                          {brandDNASaving ? '⟳' : '💾 Save Brand DNA'}
+                        </Btn>
+                        <Btn variant="default" onClick={() => setBrandDNAFormOpen(false)} sx={{ fontSize: 10 }}>Cancel</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <Btn variant="default" onClick={() => { setBrandDNAFormOpen(true); setBrandDNAForm({ name: '', tone_words: '', visual_mood_signature: '', color_palette: '', lighting_signature: '', styling_signature: '', forbidden_visual_elements: '', forbidden_words: '', brand_voice: 'premium', is_locked: true }) }}
+                      sx={{ fontSize: 10 }}>
+                      + New Brand DNA
+                    </Btn>
+                  )}
+                </div>
               </Panel>
 
               {/* WORLD */}
@@ -7632,7 +12461,7 @@ export default function PromptCEOPage() {
                             >
                               {directGenerating
                                 ? '⟳ Generating image…'
-                                : '🎨 Generate Image — 5 credits'}
+                                : '🎨 Generate Image'}
                             </button>
                           )}
 
@@ -7912,6 +12741,150 @@ export default function PromptCEOPage() {
                 </div>
               )}
 
+              {/* ── CREATIVE BRIEF ENGINE ── */}
+              {result?.finalPrompt && (
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Creative Brief</div>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <input
+                      value={briefProductHint}
+                      onChange={e => setBriefProductHint(e.target.value)}
+                      placeholder="Product or brand (optional)"
+                      style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 8px', fontSize: 10, outline: 'none' }}
+                      onKeyDown={e => e.key === 'Enter' && generateCreativeBrief(result.finalPrompt)}
+                    />
+                    <button
+                      onClick={() => creativeBrief ? setCreativeBrief(null) : generateCreativeBrief(result.finalPrompt)}
+                      disabled={creativeBriefLoading}
+                      style={{
+                        padding: '5px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: creativeBriefLoading ? 'not-allowed' : 'pointer',
+                        border: `1px solid ${creativeBrief ? C.hairline : C.violetDim}`,
+                        background: creativeBrief ? C.deep : '#0e0818',
+                        color: creativeBriefLoading ? C.muted : creativeBrief ? C.muted : C.violet,
+                        opacity: creativeBriefLoading ? 0.6 : 1,
+                      }}
+                    >
+                      {creativeBriefLoading ? '⟳' : creativeBrief ? '✕ Clear' : '📋 Generate Brief'}
+                    </button>
+                  </div>
+
+                  {creativeBriefLoading && (
+                    <div style={{ fontSize: 10, color: C.violet, padding: '6px 0' }}>Generating creative brief…</div>
+                  )}
+
+                  {creativeBrief && (
+                    <div style={{ borderRadius: 5, border: `1px solid ${C.violetDim}`, background: '#070610', overflow: 'hidden' }}>
+                      {/* Header */}
+                      <div style={{ padding: '6px 10px', background: '#0e0818', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.violet }}>📋 Creative Brief</span>
+                        <button onClick={() => {
+                          const lines = [
+                            '=== CREATIVE BRIEF ===',
+                            '',
+                            '— HOOKS —',
+                            ...(creativeBrief.hooks || []).map(h => `[${h.type?.toUpperCase()}] ${h.text}`),
+                            '',
+                            '— CAPTION —',
+                            creativeBrief.caption || '',
+                            '',
+                            '— CALLS TO ACTION —',
+                            ...(creativeBrief.ctas || []).map(c => `[${c.style?.toUpperCase()}] ${c.text}`),
+                            '',
+                            '— EMOTION ANGLE —',
+                            creativeBrief.emotionAngle || '',
+                            '',
+                            '— SCRIPT (FIRST 3 SECONDS) —',
+                            creativeBrief.scriptSnippet || '',
+                            '',
+                            '— PLATFORM TIP —',
+                            creativeBrief.platformTip || '',
+                          ]
+                          navigator.clipboard.writeText(lines.join('\n')).catch(() => {})
+                        }} style={{ fontSize: 9, color: C.violet, background: 'none', border: `1px solid ${C.violetDim}`, borderRadius: 3, padding: '2px 6px', cursor: 'pointer' }}>
+                          Copy All
+                        </button>
+                      </div>
+
+                      <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {/* Hooks */}
+                        {creativeBrief.hooks?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Hooks</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {creativeBrief.hooks.map((h, i) => (
+                                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: h.type === 'pain' ? '#cf7e7e' : h.type === 'desire' ? C.gold : C.blue, minWidth: 50, paddingTop: 1 }}>
+                                    {h.type?.toUpperCase()}
+                                  </span>
+                                  <span style={{ fontSize: 10, color: C.primary, lineHeight: 1.5, flex: 1 }}>{h.text}</span>
+                                  <button onClick={() => navigator.clipboard.writeText(h.text).catch(() => {})}
+                                    style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '0 2px' }}>⎘</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Caption */}
+                        {creativeBrief.caption && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Caption</div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                              <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.6, flex: 1 }}>{creativeBrief.caption}</div>
+                              <button onClick={() => navigator.clipboard.writeText(creativeBrief.caption).catch(() => {})}
+                                style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '0 2px' }}>⎘</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CTAs */}
+                        {creativeBrief.ctas?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Calls to Action</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {creativeBrief.ctas.map((c, i) => (
+                                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: C.secondary, minWidth: 56 }}>{c.style?.toUpperCase()}</span>
+                                  <span style={{ fontSize: 10, color: C.primary, flex: 1 }}>{c.text}</span>
+                                  <button onClick={() => navigator.clipboard.writeText(c.text).catch(() => {})}
+                                    style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>⎘</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Emotion Angle */}
+                        {creativeBrief.emotionAngle && (
+                          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 6 }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Why It Works</div>
+                            <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5, fontStyle: 'italic' }}>{creativeBrief.emotionAngle}</div>
+                          </div>
+                        )}
+
+                        {/* Script Snippet */}
+                        {creativeBrief.scriptSnippet && (
+                          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 6 }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Video Script — First 3 Seconds</div>
+                            <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.6, fontFamily: C.mono, background: C.raised, borderRadius: 3, padding: '5px 7px' }}>
+                              {creativeBrief.scriptSnippet}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Platform Tip */}
+                        {creativeBrief.platformTip && (
+                          <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 6 }}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Platform Tip</div>
+                            <div style={{ fontSize: 10, color: C.gold, lineHeight: 1.5 }}>💡 {creativeBrief.platformTip}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* GENERATE ACTIONS */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button onClick={generate} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid #1a4a2a', background: 'linear-gradient(180deg, #14381a, #0c2214)', color: C.green, letterSpacing: 0.5 }}>
@@ -8061,9 +13034,9 @@ export default function PromptCEOPage() {
                   <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 8 }}>
                     Translate your scene batch into a real-world shoot brief — for photographers, stylists, and models.
                   </div>
-                  <button onClick={generatePhotographerBrief} disabled={briefLoading2}
-                    style={{ width: '100%', padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: briefLoading2 ? 'not-allowed' : 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet, opacity: briefLoading2 ? 0.6 : 1 }}>
-                    {briefLoading2 ? '⟳ Generating brief…' : '✦ Generate Shoot Brief — 2 credits'}
+                  <button onClick={generatePhotographerBrief} disabled={photographerBriefLoading}
+                    style={{ width: '100%', padding: '8px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: photographerBriefLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet, opacity: photographerBriefLoading ? 0.6 : 1 }}>
+                    {photographerBriefLoading ? '⟳ Generating brief…' : '✦ Generate Shoot Brief'}
                   </button>
                   {photographerBrief && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 8 }}>
@@ -8358,6 +13331,142 @@ export default function PromptCEOPage() {
         )}
 
       </div>
+
+      {/* ── FLOATING APP GUIDE ── */}
+      {(() => {
+        const sendGuide = async (text) => {
+          if (!text?.trim() || guideLoading) return
+          const userMsg = { role: 'user', content: text.trim() }
+          const next = [...guideMessages, userMsg]
+          setGuideMessages(next)
+          setGuideInput('')
+          setGuideLoading(true)
+          try {
+            const res = await fetch('/api/app-guide', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: next }),
+            })
+            const data = await res.json()
+            if (data.status === 'success') {
+              setGuideMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+              if (!guideOpen) setGuideUnread(u => u + 1)
+            }
+          } catch {}
+          finally { setGuideLoading(false) }
+        }
+
+        const QUICK = [
+          'How do I build a full campaign fast?',
+          'What order should I use the tabs?',
+          'How does the Hook Scorer work?',
+          'Best workflow for agencies?',
+          'How do I use retargeting?',
+        ]
+
+        return (
+          <>
+            {/* Chat panel */}
+            {guideOpen && (
+              <div style={{
+                position: 'fixed', bottom: 80, right: 20, width: 340, height: 480,
+                borderRadius: 12, border: `1px solid ${C.goldDim}`,
+                background: C.base, display: 'flex', flexDirection: 'column',
+                zIndex: 9998, boxShadow: '0 8px 40px #00000088', overflow: 'hidden',
+              }}>
+                {/* Header */}
+                <div style={{ padding: '12px 14px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.goldGlow, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>✦</div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>App Guide</div>
+                      <div style={{ fontSize: 9, color: C.muted }}>Knows everything about Prompt CEO</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => { setGuideMessages([{ role: 'assistant', content: "Hey! I'm your Prompt CEO guide. Ask me anything about how to use the app — workflows, features, tips, shortcuts. What do you want to do?" }]) }}
+                      style={{ padding: '3px 7px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>Clear</button>
+                    <button onClick={() => setGuideOpen(false)}
+                      style={{ padding: '3px 7px', borderRadius: 3, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>✕</button>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {guideMessages.map((msg, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                      <div style={{
+                        maxWidth: '85%', padding: '8px 11px', borderRadius: msg.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                        background: msg.role === 'user' ? C.goldGlow : C.surface,
+                        border: `1px solid ${msg.role === 'user' ? C.goldDim : C.hairline}`,
+                        fontSize: 12, color: msg.role === 'user' ? C.gold : C.primary,
+                        lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                      }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {guideLoading && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <div style={{ padding: '8px 14px', borderRadius: '10px 10px 10px 2px', background: C.surface, border: `1px solid ${C.hairline}`, fontSize: 14, color: C.gold }}>⟳</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick questions */}
+                {guideMessages.length <= 1 && (
+                  <div style={{ padding: '6px 10px', borderTop: `1px solid ${C.hairline}`, display: 'flex', flexWrap: 'wrap', gap: 4, flexShrink: 0 }}>
+                    {QUICK.map((q, i) => (
+                      <button key={i} onClick={() => sendGuide(q)}
+                        style={{ padding: '3px 8px', borderRadius: 12, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.raised, color: C.secondary, lineHeight: 1.4 }}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input */}
+                <div style={{ padding: '10px', borderTop: `1px solid ${C.hairline}`, display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <input
+                    value={guideInput}
+                    onChange={e => setGuideInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGuide(guideInput) } }}
+                    placeholder="Ask anything about the app…"
+                    style={{ flex: 1, background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '7px 10px', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
+                    autoFocus
+                  />
+                  <button onClick={() => sendGuide(guideInput)} disabled={!guideInput.trim() || guideLoading}
+                    style={{ padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: guideInput.trim() && !guideLoading ? 'pointer' : 'not-allowed', border: `1px solid ${C.goldDim}`, background: guideInput.trim() ? C.goldGlow : C.deep, color: guideInput.trim() ? C.gold : C.muted }}>
+                    ↑
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Floating button */}
+            <button
+              onClick={() => { setGuideOpen(o => !o); setGuideUnread(0) }}
+              style={{
+                position: 'fixed', bottom: 20, right: 20, width: 52, height: 52,
+                borderRadius: '50%', border: `1px solid ${C.goldDim}`,
+                background: guideOpen ? C.goldGlow : `${C.void}ee`,
+                cursor: 'pointer', zIndex: 9999,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, color: C.gold,
+                boxShadow: guideOpen ? `0 0 20px ${C.gold}44` : '0 2px 12px #00000066',
+                transition: 'all 0.2s',
+              }}
+              title="App Guide — ask me anything"
+            >
+              {guideOpen ? '✕' : '✦'}
+              {guideUnread > 0 && !guideOpen && (
+                <span style={{ position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderRadius: '50%', background: C.gold, color: C.void, fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {guideUnread}
+                </span>
+              )}
+            </button>
+          </>
+        )
+      })()}
     </>
   )
 } 

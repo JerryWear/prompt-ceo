@@ -17,17 +17,19 @@ const C = {
 const TIMELINE = [
   { year: '2023', title: 'The first prompt tool', desc: 'Started as a simple prompt generator for creators who were frustrated with inconsistent AI results. One tool, one purpose.' },
   { year: '2024', title: 'Ad Studio', desc: 'Built a complete advertising creative system — angles, hooks, captions, images, video, UGC. Everything connected to one product brief.' },
-  { year: '2024', title: 'Director\'s Studio', desc: 'Added a full cinematic scene generation system. Upload your identity, pick a world and a director. Generate scenes anywhere on earth.' },
+  { year: '2024', title: 'Director\'s Studio', desc: 'Added a full cinematic scene generation system. Upload your identity, pick a world and a director. Generate scenes anywhere on earth with 12-layer AI.' },
   { year: '2025', title: 'Music Intelligence', desc: 'Added a music library with AI matching. Every track scored against your campaign goal, mood, and brand voice. 400+ original tracks.' },
-  { year: '2025', title: 'Subscription model', desc: 'Moved from credits to subscriptions. Creator, Studio Pro, Pro, Agency. One simple monthly price that covers everything you need.' },
-  { year: '2026', title: 'The creative OS', desc: 'What started as a prompt tool is now a complete creative operating system. Ad campaigns, cinematic worlds, 400+ music tracks. All connected.' },
+  { year: '2025', title: 'Full Funnel Platform', desc: 'Landing page copy, email sequences, SMS campaigns, offer builder, retargeting packs, testimonial mining, video storyboards — the complete marketing funnel in one tool.' },
+  { year: '2026', title: 'Marketing OS — Complete', desc: 'Trend intelligence, hook pre-scoring, ad account audit, talking head scripts, product descriptions, influencer briefs, campaign naming conventions, client workspaces. Every marketing output a team of 10 would produce — from a single brief.' },
 ]
 
 const VALUES = [
-  { icon: '🎯', title: 'Connected, not siloed',  desc: 'Every tool we build knows about every other tool. Your hook knows the angle. Your music knows the campaign. Nothing exists in isolation.' },
+  { icon: '🎯', title: 'Connected, not siloed',  desc: 'Every tool knows about every other tool. Your hook knows the angle. Your landing page knows the email sequence. Your SMS knows the campaign arc. Nothing exists in isolation.' },
   { icon: '🎬', title: 'Cinematic by default',   desc: 'We believe AI content should look and feel like it was made by a director, not a template. Every prompt, every scene, every ad is built with visual intelligence.' },
-  { icon: '🎵', title: 'Music is creative fuel', desc: 'Music shapes everything — energy, emotion, pacing. We built music intelligence into the creative process, not as an afterthought.' },
+  { icon: '📊', title: 'Data-driven creative',   desc: 'Score hooks before you spend. Audit your ad account. Learn which patterns convert for your specific audience. Creative decisions backed by performance intelligence.' },
+  { icon: '🎵', title: 'Music is creative fuel', desc: 'Music shapes everything — energy, emotion, pacing. We built music intelligence into the creative process, not as an afterthought. 400+ original tracks.' },
   { icon: '🔒', title: 'Yours stays yours',       desc: 'We don\'t train on your content. We don\'t sell your data. Your brand, your identity, your campaigns — all private.' },
+  { icon: '⚡', title: 'One brief, everything',  desc: 'The single hardest problem in marketing tools is context loss. We solved it. Enter your product once and every output — hooks, landing pages, emails, SMS, retargeting — knows everything.' },
 ]
 
 export default function AboutPage() {
@@ -79,10 +81,10 @@ export default function AboutPage() {
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 7vw, 60px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, margin: '0 0 24px' }}>
             Built by a creator.<br />
-            <span style={{ color: C.gold }}>For creators who are serious.</span>
+            <span style={{ color: C.gold }}>For every marketer who's serious.</span>
           </h1>
-          <p style={{ fontSize: 'clamp(14px, 2vw, 17px)', color: C.secondary, lineHeight: 1.75, maxWidth: 520, margin: '0 auto' }}>
-            Prompt CEO started with one question: why does every AI tool make you start from scratch? Everything should be connected. Every output should know every other output. That idea became this.
+          <p style={{ fontSize: 'clamp(14px, 2vw, 17px)', color: C.secondary, lineHeight: 1.75, maxWidth: 540, margin: '0 auto' }}>
+            Prompt CEO started with one question: why does every AI tool make you start from scratch? Everything should be connected. Every output should know every other output. That question became a cinematic studio, then an ad platform, then a complete marketing OS.
           </p>
         </div>
       </section>
