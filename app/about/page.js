@@ -42,7 +42,7 @@ const TIMELINE = [
   {
     year: '2025',
     title: 'Building the full platform',
-    desc: 'At 25, went all in. Built the complete marketing OS — landing pages, email sequences, SMS, retargeting, offer builder, testimonial mining, video storyboards, influencer briefs, ad account audits. Everything a marketing team of 10 would produce, from a single brief.',
+    desc: 'Went all in. Built the complete marketing OS — landing pages, email sequences, SMS, retargeting, offer builder, testimonial mining, video storyboards, influencer briefs, ad account audits. Everything a marketing team of 10 would produce, from a single brief.',
     color: C.violet,
   },
   {
@@ -152,7 +152,7 @@ export default function AboutPage() {
               In 2022, I started producing music seriously. Suddenly I was a creator who needed content, campaigns, social media presence, ad copy, hooks — all of it. And I kept hitting the same wall: every AI tool made me start from scratch. No memory. No connection between outputs. No brain behind the generation.
             </p>
             <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.85, marginBottom: 18 }}>
-              That was the frustration that built Prompt CEO. In 2025, at 25, I started building it seriously — not as a side project, but as the tool I actually needed. By 2026, it became what you're using now: a complete marketing and creative operating system that I built because I was the customer who needed it most.
+              That was the frustration that built Prompt CEO. In 2025, I started building it seriously — not as a side project, but as the tool I actually needed. By 2026, it became what you're using now: a complete marketing and creative operating system that I built because I was the customer who needed it most.
             </p>
             <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.85, marginBottom: 24 }}>
               The music library in the app is mine. I produced every track specifically for campaign use. The cinematic world system comes from years of thinking about aesthetics, light, and story. The fitness mindset is in the architecture — brief in, results out, no wasted reps.
