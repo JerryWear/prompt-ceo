@@ -381,6 +381,23 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [namingResult,      setNamingResult]       = useState(null)
   const [namingLoading,     setNamingLoading]      = useState(false)
   const [namingError,       setNamingError]        = useState(null)
+
+  // Avatar Brief
+  const [avatarResult,      setAvatarResult]       = useState(null)
+  const [avatarLoading,     setAvatarLoading]      = useState(false)
+  const [avatarError,       setAvatarError]        = useState(null)
+  const [avatarPlatform,    setAvatarPlatform]     = useState('HeyGen')
+  const [avatarScript,      setAvatarScript]       = useState('')
+
+  // Launch Package
+  const [launchPkg,         setLaunchPkg]          = useState(null)
+  const [launchPkgLoading,  setLaunchPkgLoading]   = useState(false)
+  const [launchPkgError,    setLaunchPkgError]     = useState(null)
+  const [launchPkgPlatform, setLaunchPkgPlatform]  = useState('both')
+  const [launchPkgGoal,     setLaunchPkgGoal]      = useState('conversions')
+  const [launchPkgBudget,   setLaunchPkgBudget]    = useState('')
+  const [launchPkgUrl,      setLaunchPkgUrl]       = useState('')
+  const [launchPkgExpanded, setLaunchPkgExpanded]  = useState(null)
   const [namingPlatform,    setNamingPlatform]     = useState('meta')
   const [namingGoals,       setNamingGoals]        = useState(['conversions', 'retargeting'])
 
@@ -2066,6 +2083,76 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     finally { setNamingLoading(false) }
   }
 
+  // ── Avatar Brief ──────────────────────────────────────────
+  const generateAvatarBrief = async () => {
+    if (!avatarScript.trim() || avatarLoading) return
+    setAvatarLoading(true)
+    setAvatarResult(null)
+    setAvatarError(null)
+    try {
+      const res = await fetch('/api/avatar-brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script:              avatarScript,
+          identityDescription: s.identityName || s.traits?.subjectA?.ethnicity ? `${s.characterMode || 'female'}, ${s.traits?.subjectA?.ethnicity || ''}, ${s.traits?.subjectA?.hair || ''}, ${s.traits?.subjectA?.age || ''}`.trim() : '',
+          productName,
+          platform:            avatarPlatform,
+          brandVoice:          s.brandVoice || 'premium',
+          visualMood:          s.visualDNA?.mood || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setAvatarResult(data.brief)
+        addTimelineEvent('Avatar brief generated', avatarPlatform)
+      } else { setAvatarError(data.message || 'Generation failed') }
+    } catch { setAvatarError('Something went wrong') }
+    finally { setAvatarLoading(false) }
+  }
+
+  // ── Launch Package ────────────────────────────────────────
+  const generateLaunchPackage = async () => {
+    if (!productName.trim() || launchPkgLoading) return
+    setLaunchPkgLoading(true)
+    setLaunchPkg(null)
+    setLaunchPkgError(null)
+    try {
+      const hooks = [
+        ...(s.adTextResults?.hooks_pain?.hooks || []),
+        ...(s.adTextResults?.hooks_desire?.hooks || []),
+        ...(s.adTextResults?.hooks_curiosity?.hooks || []),
+      ].slice(0, 5)
+      const captions = s.adTextResults?.captions || []
+      const res = await fetch('/api/launch-package', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adConfig: {
+            productName,
+            productDescription: s.productDescription || '',
+            targetCustomer:     s.targetCustomer     || '',
+            mainBenefit:        s.mainBenefit         || '',
+            offer:              s.offer               || '',
+            callToAction:       s.callToAction        || '',
+            brandVoice:         s.brandVoice          || 'premium',
+            platform:           launchPkgPlatform,
+            campaignGoal:       launchPkgGoal,
+            budget:             launchPkgBudget,
+            websiteUrl:         launchPkgUrl,
+            adHooks:            hooks,
+            adCaptions:         captions,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setLaunchPkg(data.package)
+        addTimelineEvent('Launch package generated', launchPkgPlatform)
+        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
+      } else { setLaunchPkgError(data.message || 'Generation failed') }
+    } catch { setLaunchPkgError('Something went wrong') }
+    finally { setLaunchPkgLoading(false) }
+  }
+
   // ── Ad Account Audit ──────────────────────────────────────
   const runAdAudit = async () => {
     if (!auditData.trim() || auditLoading) return
@@ -3506,6 +3593,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 { id: 'sms',        label: 'SMS',       count: smsResult ? (smsResult.smsMessages?.length || 0) : 0 },
                 { id: 'calendar',   label: 'Calendar',  count: calendar ? calendar.length : 0 },
                 { id: 'launch',     label: 'Launch',    count: launchSequence ? 5 : 0 },
+                { id: 'deploy',     label: 'Deploy',    count: launchPkg ? 1 : 0 },
               ],
             },
             {
@@ -3532,6 +3620,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               tabs: [
                 { id: 'script',     label: 'Script',     count: scriptResult ? 1 : 0 },
                 { id: 'storyboard', label: 'Storyboard', count: videoStoryboard2 ? (videoStoryboard2.scenes?.length || 1) : 0 },
+                { id: 'avatar',     label: 'Avatar',     count: avatarResult ? 1 : 0 },
                 { id: 'soundtrack', label: 'Music',       count: s.adMusicTrack ? 1 : 0 },
                 { id: 'product',    label: 'Product',    count: prodDescResult ? 1 : 0 },
                 { id: 'influencer', label: 'Influencer', count: influencerResult ? 1 : 0 },
@@ -5766,6 +5855,156 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           </div>
         </>)}
 
+        {/* ── AVATAR BRIEF TAB ── */}
+        {adOutputTab === 'avatar' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Turn your talking head script into a complete production brief for AI avatar tools — HeyGen, Synthesia, D-ID, or Arcads. Everything formatted for the platform you use.
+            </div>
+
+            {/* Platform selector */}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {['HeyGen', 'Synthesia', 'D-ID', 'Arcads'].map(p => (
+                <button key={p} onClick={() => setAvatarPlatform(p)}
+                  style={{ padding: '6px 14px', borderRadius: 5, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${avatarPlatform === p ? C.violetDim : C.hairline}`,
+                    background: avatarPlatform === p ? '#0e0818' : C.deep,
+                    color: avatarPlatform === p ? C.violet : C.muted }}>
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            {/* Script input — auto-fills from Script tab if available */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ fontSize: 8, color: C.secondary, fontWeight: 700 }}>Script to Deliver</div>
+                {scriptResult?.fullScriptForTeleprompter && (
+                  <button onClick={() => setAvatarScript(scriptResult.fullScriptForTeleprompter)}
+                    style={{ fontSize: 8, color: C.violet, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    ← Auto-fill from Script tab
+                  </button>
+                )}
+              </div>
+              <textarea value={avatarScript} onChange={e => setAvatarScript(e.target.value)}
+                placeholder={'Paste your script here or auto-fill from the Script tab above.\n\nExample:\n"Are you still doing this every morning?\n\nI was too. Until I found something that actually works.\n\nThis serum changed my skin in 14 days — and I have the photos to prove it.\n\nLink in bio."'}
+                rows={6}
+                style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '8px 10px', fontSize: 10, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <button onClick={generateAvatarBrief} disabled={!avatarScript.trim() || avatarLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: avatarScript.trim() && !avatarLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${avatarScript.trim() ? C.violetDim : C.hairline}`,
+                background: avatarScript.trim() ? 'linear-gradient(180deg,#0e0818,#060510)' : C.deep,
+                color: avatarScript.trim() ? C.violet : C.muted }}>
+              {avatarLoading ? '⟳ Building brief…' : `🎭 Generate ${avatarPlatform} Brief`}
+            </button>
+
+            {avatarError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{avatarError}</div>}
+
+            {avatarResult && (() => {
+              const av = avatarResult
+              const Sec = ({ title, color, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '5px 9px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 8, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</div>
+                  <div style={{ padding: '7px 9px' }}>{children}</div>
+                </div>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{av.videoTitle}</div>
+                    <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{av.platform} · {av.totalDuration}</div>
+                  </div>
+
+                  {/* Avatar setup */}
+                  {av.avatarSetup && (
+                    <Sec title="Avatar Setup" color={C.violet}>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5, marginBottom: 4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Type: </span>{av.avatarSetup.avatarType}</div>
+                      <div style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, marginBottom: 4 }}>{av.avatarSetup.avatarDescription}</div>
+                      {av.avatarSetup.photoAvatarInstructions && (
+                        <div style={{ padding: '5px 7px', borderRadius: 4, background: C.violetGlow, border: `1px solid ${C.violetDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                          <span style={{ color: C.violet, fontWeight: 700 }}>Photo requirements: </span>{av.avatarSetup.photoAvatarInstructions}
+                        </div>
+                      )}
+                    </Sec>
+                  )}
+
+                  {/* Script formatted */}
+                  {av.scriptFormatted && (
+                    <Sec title="Script for Avatar Input" color={C.gold}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                        <button onClick={() => doCopyAdText(av.scriptFormatted.rawScript, 'avatar_script')}
+                          style={{ padding: '3px 8px', borderRadius: 3, fontSize: 8, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'none', color: copiedText === 'avatar_script' ? C.green : C.gold }}>
+                          {copiedText === 'avatar_script' ? '✓ Copied' : '⎘ Copy Script'}
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 10, color: C.primary, lineHeight: 2, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{av.scriptFormatted.rawScript}</div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+                        {av.scriptFormatted.pacing && <span style={{ fontSize: 8, color: C.secondary, background: C.raised, padding: '2px 7px', borderRadius: 3 }}>Pace: {av.scriptFormatted.pacing}</span>}
+                        {av.scriptFormatted.pauseMarkers && <span style={{ fontSize: 8, color: C.secondary, background: C.raised, padding: '2px 7px', borderRadius: 3 }}>Pauses: {av.scriptFormatted.pauseMarkers}</span>}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Background + Voice side by side */}
+                  {(av.backgroundSetup || av.voiceSettings) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {av.backgroundSetup && (
+                        <Sec title="Background" color={C.blue}>
+                          <div style={{ fontSize: 9, color: C.primary, marginBottom: 3 }}>{av.backgroundSetup.backgroundType}</div>
+                          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{av.backgroundSetup.backgroundDescription}</div>
+                        </Sec>
+                      )}
+                      {av.voiceSettings && (
+                        <Sec title="Voice" color={C.green}>
+                          <div style={{ fontSize: 9, color: C.primary, marginBottom: 3 }}>{av.voiceSettings.deliveryStyle}</div>
+                          <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{av.voiceSettings.platformVoiceNotes || av.voiceSettings.voiceType}</div>
+                        </Sec>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Visual direction */}
+                  {av.visualDirection && (
+                    <Sec title="On-Camera Direction" color={C.secondary}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+                        {Object.entries(av.visualDirection).map(([k, v]) => v ? (
+                          <div key={k} style={{ fontSize: 9, color: C.secondary }}><span style={{ color: C.muted, fontWeight: 700, textTransform: 'capitalize' }}>{k}: </span>{v}</div>
+                        ) : null)}
+                      </div>
+                    </Sec>
+                  )}
+
+                  {/* Platform-specific instructions */}
+                  {av.platformSpecificInstructions && (
+                    <div style={{ padding: '8px 10px', borderRadius: 4, background: C.violetGlow, border: `1px solid ${C.violetDim}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: C.violet, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>{avatarPlatform} Step-by-Step</div>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{av.platformSpecificInstructions}</div>
+                    </div>
+                  )}
+
+                  {av.hookFrameDirection && (
+                    <div style={{ padding: '6px 9px', borderRadius: 4, background: C.goldGlow, border: `1px solid ${C.goldDim}`, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                      <span style={{ color: C.gold, fontWeight: 700 }}>Hook frame (0-3s): </span>{av.hookFrameDirection}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!avatarResult && !avatarLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🎭</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a production brief for {avatarPlatform} — avatar setup, script formatted for input, background direction, voice settings, and step-by-step platform instructions.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
         {/* ── SOUNDTRACK TAB ── */}
         {adOutputTab === 'soundtrack' && (<>
           {/* Music-first entry — shown when no product details yet */}
@@ -7241,6 +7480,221 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
                 <div style={{ fontSize: 28 }}>✉</div>
                 <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Generate a full email sequence in the same voice as your ad. Same emotional arc, same brand tone — complete omnichannel campaign.</div>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── DEPLOY / LAUNCH PACKAGE TAB ── */}
+        {adOutputTab === 'deploy' && (<>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+              Format your campaign for Meta Ads Manager and TikTok Ads — campaign structure, ad copy within character limits, targeting, UTMs, asset checklist, and a 7-day launch plan. Ready to upload.
+            </div>
+
+            {/* Config */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}` }}>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Platform</div>
+                <select value={launchPkgPlatform} onChange={e => setLaunchPkgPlatform(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="both">Meta + TikTok</option>
+                  <option value="meta">Meta Only</option>
+                  <option value="tiktok">TikTok Only</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Campaign Goal</div>
+                <select value={launchPkgGoal} onChange={e => setLaunchPkgGoal(e.target.value)}
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <option value="conversions">Conversions / Sales</option>
+                  <option value="traffic">Traffic</option>
+                  <option value="leads">Lead Generation</option>
+                  <option value="awareness">Awareness</option>
+                  <option value="video_views">Video Views</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Daily Budget ($)</div>
+                <input value={launchPkgBudget} onChange={e => setLaunchPkgBudget(e.target.value)} placeholder="e.g. 50"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.secondary, marginBottom: 2 }}>Landing Page URL</div>
+                <input value={launchPkgUrl} onChange={e => setLaunchPkgUrl(e.target.value)} placeholder="https://yourstore.com/product"
+                  style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '5px 7px', fontSize: 10, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+
+            <button onClick={generateLaunchPackage} disabled={!productName.trim() || launchPkgLoading}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 5, fontSize: 13, fontWeight: 800,
+                cursor: productName.trim() && !launchPkgLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${productName.trim() ? C.goldDim : C.hairline}`,
+                background: productName.trim() ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : C.deep,
+                color: productName.trim() ? C.gold : C.muted }}>
+              {launchPkgLoading ? '⟳ Formatting package…' : '🚀 Generate Launch Package'}
+            </button>
+
+            {launchPkgError && <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 11, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{launchPkgError}</div>}
+
+            {launchPkg && (() => {
+              const pkg = launchPkg
+              const Section = ({ title, color, children }) => (
+                <div style={{ borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.base, overflow: 'hidden' }}>
+                  <div style={{ padding: '6px 10px', background: C.raised, borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 700, color: color || C.secondary, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</div>
+                  <div style={{ padding: '8px 10px' }}>{children}</div>
+                </div>
+              )
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 5, background: C.goldGlow, border: `1px solid ${C.goldDim}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{pkg.launchTitle}</div>
+                    <div style={{ fontSize: 9, color: C.secondary, marginTop: 2 }}>{pkg.platform} · {pkg.campaignGoal}</div>
+                  </div>
+
+                  {/* META section */}
+                  {pkg.meta && (<>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#1877f2', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>◼ META ADS</div>
+
+                    {pkg.meta.campaignStructure && (
+                      <Section title="Campaign Structure" color="#1877f2">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {Object.entries(pkg.meta.campaignStructure).map(([k, v]) => v ? (
+                            <div key={k} style={{ display: 'flex', gap: 6 }}>
+                              <span style={{ fontSize: 8, color: C.muted, fontWeight: 700, minWidth: 90, textTransform: 'capitalize' }}>{k.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <span style={{ fontSize: 9, color: C.primary, flex: 1, lineHeight: 1.4 }}>{v}</span>
+                            </div>
+                          ) : null)}
+                        </div>
+                      </Section>
+                    )}
+
+                    {pkg.meta.ads?.length > 0 && (
+                      <Section title="Ad Copy (copy-paste ready)" color="#1877f2">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {pkg.meta.ads.map((ad, i) => {
+                            const isOpen = launchPkgExpanded === `meta_ad_${i}`
+                            return (
+                              <div key={i} style={{ borderRadius: 4, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                                <button onClick={() => setLaunchPkgExpanded(isOpen ? null : `meta_ad_${i}`)}
+                                  style={{ width: '100%', padding: '6px 8px', background: C.surface, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: C.primary }}>{ad.adName}</span>
+                                  <span style={{ fontSize: 8, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
+                                </button>
+                                {isOpen && (
+                                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                    {[
+                                      { label: 'Primary Text', value: ad.primaryText, limit: '125 chars', key: `meta_pt_${i}` },
+                                      { label: 'Headline',     value: ad.headline,    limit: '40 chars',  key: `meta_hl_${i}` },
+                                      { label: 'Description',  value: ad.description, limit: '30 chars',  key: `meta_dc_${i}` },
+                                    ].filter(f => f.value).map(f => (
+                                      <div key={f.label} style={{ padding: '5px 7px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                          <span style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{f.label}</span>
+                                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                                            <span style={{ fontSize: 7, color: C.muted }}>{f.limit}</span>
+                                            <button onClick={() => doCopyAdText(f.value, f.key)} style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === f.key ? C.green : C.muted }}>
+                                              {copiedText === f.key ? '✓' : '⎘'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div style={{ fontSize: 10, color: C.primary, lineHeight: 1.4 }}>{f.value}</div>
+                                      </div>
+                                    ))}
+                                    {ad.ctaButton && <div style={{ fontSize: 9, color: C.gold }}><span style={{ color: C.muted, fontWeight: 700 }}>CTA Button: </span>{ad.ctaButton}</div>}
+                                    {ad.urlParameters && (
+                                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                        <div style={{ fontSize: 8, color: C.secondary, fontFamily: 'monospace', flex: 1, wordBreak: 'break-all' }}>{ad.urlParameters}</div>
+                                        <button onClick={() => doCopyAdText(ad.urlParameters, `utm_meta_${i}`)} style={{ padding: '2px 5px', borderRadius: 3, fontSize: 7, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `utm_meta_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                                          {copiedText === `utm_meta_${i}` ? '✓' : '⎘ UTM'}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </Section>
+                    )}
+
+                    {pkg.meta.launchChecklist?.length > 0 && (
+                      <Section title="Launch Checklist" color={C.green}>
+                        {pkg.meta.launchChecklist.map((step, i) => (
+                          <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, marginBottom: 4 }}>
+                            <span style={{ color: C.green, fontWeight: 700, marginRight: 6 }}>{i + 1}.</span>{step}
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+                  </>)}
+
+                  {/* TIKTOK section */}
+                  {pkg.tiktok && (<>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#69c9d0', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>◼ TIKTOK ADS</div>
+
+                    {pkg.tiktok.ads?.length > 0 && (
+                      <Section title="TikTok Ad Copy" color="#69c9d0">
+                        {pkg.tiktok.ads.map((ad, i) => (
+                          <div key={i} style={{ padding: '7px 9px', borderRadius: 4, background: C.surface, border: `1px solid ${C.hairline}`, marginBottom: 6 }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: C.primary, marginBottom: 5 }}>{ad.adName}</div>
+                            {ad.adText && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                                <div style={{ fontSize: 10, color: C.primary, flex: 1 }}>{ad.adText}</div>
+                                <button onClick={() => doCopyAdText(ad.adText, `tt_${i}`)} style={{ padding: '2px 5px', borderRadius: 3, fontSize: 7, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: copiedText === `tt_${i}` ? C.green : C.muted, flexShrink: 0 }}>
+                                  {copiedText === `tt_${i}` ? '✓' : '⎘'}
+                                </button>
+                              </div>
+                            )}
+                            {ad.videoDirection && <div style={{ fontSize: 8, color: C.secondary, marginTop: 3 }}><span style={{ color: C.muted, fontWeight: 700 }}>Video: </span>{ad.videoDirection}</div>}
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+
+                    {pkg.tiktok.launchChecklist?.length > 0 && (
+                      <Section title="TikTok Launch Checklist" color={C.green}>
+                        {pkg.tiktok.launchChecklist.map((step, i) => (
+                          <div key={i} style={{ fontSize: 9, color: C.primary, lineHeight: 1.5, marginBottom: 4 }}>
+                            <span style={{ color: C.green, fontWeight: 700, marginRight: 6 }}>{i + 1}.</span>{step}
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+                  </>)}
+
+                  {/* Week 1 plan */}
+                  {pkg.weekOneLaunchPlan && (
+                    <Section title="Week 1 Launch Plan" color={C.violet}>
+                      {[['Day 1', pkg.weekOneLaunchPlan.day1],['Day 2-3', pkg.weekOneLaunchPlan.day2to3],['Day 4-7', pkg.weekOneLaunchPlan.day4to7],['Scale Rule', pkg.weekOneLaunchPlan.budgetScalingRule]].filter(([,v]) => v).map(([k,v]) => (
+                        <div key={k} style={{ marginBottom: 5 }}>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: C.violet }}>{k}: </span>
+                          <span style={{ fontSize: 9, color: C.secondary }}>{v}</span>
+                        </div>
+                      ))}
+                    </Section>
+                  )}
+
+                  {/* A/B testing plan */}
+                  {pkg.abTestingPlan && (
+                    <Section title="A/B Testing Plan" color={C.gold}>
+                      <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.5 }}>
+                        <div style={{ marginBottom: 4 }}><span style={{ color: C.gold, fontWeight: 700 }}>First test: </span>{pkg.abTestingPlan.firstTest}</div>
+                        <div style={{ marginBottom: 4 }}><span style={{ color: C.muted, fontWeight: 700 }}>Budget: </span>{pkg.abTestingPlan.budgetAllocation}</div>
+                        <div><span style={{ color: C.green, fontWeight: 700 }}>Win condition: </span>{pkg.abTestingPlan.winnerCriteria}</div>
+                      </div>
+                    </Section>
+                  )}
+                </div>
+              )
+            })()}
+
+            {!launchPkg && !launchPkgLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28 }}>🚀</div>
+                <div style={{ fontSize: 11, color: C.secondary, maxWidth: 260, lineHeight: 1.6 }}>Format your campaign for Meta and TikTok Ads Manager — ad copy within character limits, campaign structure, UTMs, targeting, asset checklist, and a 7-day launch plan. Ready to upload.</div>
               </div>
             )}
           </div>

@@ -181,9 +181,10 @@ export default function HomePage() {
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, borderBottom: `1px solid ${C.hairline}`, background: `${C.void}ee`, backdropFilter: 'blur(12px)', padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <button onClick={goToPricing}                          style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Pricing</button>
-          <button onClick={() => router.push('/partner')}        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Partner</button>
-          <button onClick={() => router.push('/about')}          style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>About</button>
+          <button onClick={goToPricing}                               style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Pricing</button>
+          <button onClick={() => router.push('/case-studies')}        style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Case Studies</button>
+          <button onClick={() => router.push('/partner')}             style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>Partner</button>
+          <button onClick={() => router.push('/about')}               style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>About</button>
           {user ? (
             <>
               <button onClick={() => router.push('/account')} style={{ background: 'none', border: 'none', color: C.secondary, fontSize: 13, cursor: 'pointer' }}>My Account</button>
@@ -400,6 +401,37 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── CASE STUDIES TEASER ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Proof</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 12px' }}>Real numbers from real campaigns.</h2>
+            <p style={{ fontSize: 15, color: C.secondary, maxWidth: 460, margin: '0 auto' }}>Not testimonials. Actual results with specific metrics.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 32 }}>
+            {[
+              { metric: '3.4×',  label: 'ROAS',           detail: 'DTC skincare brand, 6 weeks',          color: C.gold   },
+              { metric: '4.8%',  label: 'CTR',             detail: 'Cold traffic hook from VoC mining',     color: C.green  },
+              { metric: '$240k', label: 'Launch revenue',  detail: 'Fitness supplement, first month',       color: C.violet },
+              { metric: '60%',   label: 'Less delivery time', detail: 'Agency managing 8 clients',          color: C.blue   },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: '20px', borderRadius: 10, border: `1px solid ${s.color}33`, background: s.color + '06', textAlign: 'center' }}>
+                <div style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: s.color, letterSpacing: -1, lineHeight: 1 }}>{s.metric}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, margin: '8px 0 4px' }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.detail}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={() => router.push('/case-studies')}
+              style={{ padding: '12px 28px', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+              Read Full Case Studies →
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ── THE STUDIO (secondary positioning) ── */}
       <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
@@ -494,10 +526,11 @@ export default function HomePage() {
       <footer style={{ borderTop: `1px solid ${C.hairline}`, padding: '32px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
         <div style={{ display: 'flex', gap: 24 }}>
-          <button onClick={goToPricing}                      style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Pricing</button>
-          <button onClick={() => router.push('/partner')}    style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Partner</button>
-          <button onClick={() => router.push('/about')}      style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>About</button>
-          <button onClick={() => router.push('/tutorials')}  style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Tutorials</button>
+          <button onClick={goToPricing}                               style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Pricing</button>
+          <button onClick={() => router.push('/case-studies')}        style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Case Studies</button>
+          <button onClick={() => router.push('/partner')}             style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Partner</button>
+          <button onClick={() => router.push('/about')}               style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>About</button>
+          <button onClick={() => router.push('/tutorials')}           style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Tutorials</button>
         </div>
         <div style={{ fontSize: 11, color: C.muted }}>© 2026 Prompt CEO. All rights reserved.</div>
       </footer>
