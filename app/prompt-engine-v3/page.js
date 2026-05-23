@@ -144,7 +144,7 @@ function AdLoadingState({ outputType }) {
   )
 }
 
-function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText }) {
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon }) {
   const [adMode, setAdMode]             = useState('product_ad')
   const [adOutputType, setAdOutputType] = useState('image')
   const [adFormat, setAdFormat]         = useState('feed')
@@ -6761,7 +6761,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           <MusicSelector
             adConfig={buildAdConfig()}
             selectedTrack={s.adMusicTrack}
-            hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
+            hasMusicAddon={hasMusicAddon}
             onLicense={(track, licenseData) => {
               merge({
                 adMusicTrack:       track,
@@ -13156,6 +13156,7 @@ export default function PromptCEOPage() {
             generateAdImage={generateAdImage}
             generateAdVideo={generateAdVideo}
             generateAdText={generateAdText}
+            hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
           />
         )}
 
