@@ -11712,12 +11712,28 @@ export default function PromptCEOPage() {
   }
 
   const runBatch = useCallback(async () => {
+    const total = Number(s.totalCount) || 30
+
+    // Gate: check free-tier prompt limit before running
+    try {
+      const limitRes = await fetch('/api/use-prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: total }),
+      })
+      if (limitRes.status === 402) {
+        triggerPaywall('Prompt generation')
+        return
+      }
+    } catch (_) {
+      // Network error — allow generation to continue
+    }
+
     setBatchRun(true)
     setBatch([])
     setBatchProg(0)
     setActiveScene(0)
     stopRef.current = false
-    const total = Number(s.totalCount) || 30
     const res   = []
     for (let i = 0; i < total; i++) {
       if (stopRef.current) break
