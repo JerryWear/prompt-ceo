@@ -40,7 +40,7 @@ function AdminPanel() {
   const [memberError,   setMemberError]   = useState(null)
 
   // Music upload state
-  const [musicForm,     setMusicForm]     = useState({ title: '', artist: '', genre: 'Electronic', mood: 'euphoric', energy: 'medium', duration: '', is_premium: false, featured: false })
+  const [musicForm,     setMusicForm]     = useState({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false })
   const [musicFile,     setMusicFile]     = useState(null)
   const [musicUploading,setMusicUploading]= useState(false)
   const [musicError,    setMusicError]    = useState(null)
@@ -343,25 +343,47 @@ function AdminPanel() {
             setMusicError(null)
             setMusicSuccess(null)
             try {
-              const fd = new FormData()
-              fd.append('file',       musicFile)
-              fd.append('title',      musicForm.title)
-              fd.append('artist',     musicForm.artist)
-              fd.append('genre',      musicForm.genre)
-              fd.append('mood',       musicForm.mood)
-              fd.append('energy',     musicForm.energy)
-              fd.append('duration',   musicForm.duration)
-              fd.append('is_premium', String(musicForm.is_premium))
-              fd.append('featured',   String(musicForm.featured))
-              const res = await fetch('/api/admin/upload-music', { method: 'POST', body: fd })
-              const d   = await res.json()
-              if (d.status === 'success') {
-                setMusicSuccess(`"${d.track.title}" uploaded successfully`)
-                setMusicForm({ title: '', artist: '', genre: 'Electronic', mood: 'euphoric', energy: 'medium', duration: '', is_premium: false, featured: false })
+              // Step 1: get signed upload URL from server
+              const presignRes = await fetch('/api/admin/music-presign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: musicFile.name, contentType: musicFile.type, title: musicForm.title }),
+              })
+              const presign = await presignRes.json()
+              if (!presignRes.ok) throw new Error(presign.error || 'Failed to get upload URL')
+
+              // Step 2: upload file directly from browser to Supabase Storage (bypasses Next.js)
+              const uploadRes = await fetch(presign.signedUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': musicFile.type || 'audio/mpeg' },
+                body: musicFile,
+              })
+              if (!uploadRes.ok) throw new Error(`Storage upload failed: ${uploadRes.status}`)
+
+              // Step 3: save metadata row
+              const metaRes = await fetch('/api/admin/upload-music', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title:            musicForm.title,
+                  artist:           musicForm.artist,
+                  genre:            musicForm.genre,
+                  mood:             musicForm.moods.join(','),
+                  energy:           musicForm.energy,
+                  duration:         musicForm.duration,
+                  is_premium:       musicForm.is_premium,
+                  featured:         musicForm.featured,
+                  preview_file_url: presign.publicUrl,
+                }),
+              })
+              const meta = await metaRes.json()
+              if (meta.status === 'success') {
+                setMusicSuccess(`"${meta.track.title}" uploaded successfully`)
+                setMusicForm({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false })
                 setMusicFile(null)
                 e.target.reset()
               } else {
-                setMusicError(d.error || 'Upload failed')
+                throw new Error(meta.error || 'Failed to save track')
               }
             } catch (err) {
               setMusicError(err.message)
@@ -408,10 +430,26 @@ function AdminPanel() {
                 {field('ARTIST', 'artist', 'text', { placeholder: 'Artist name', required: true })}
               </div>
 
-              {/* Row: genre + mood */}
+              {/* Row: genre */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {select('GENRE', 'genre', GENRES)}
-                {select('MOOD', 'mood', MOODS)}
+              </div>
+
+              {/* Mood tag picker */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>MOOD <span style={{ fontWeight: 400, color: C.muted }}>(pick all that apply)</span></label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {MOODS.map(m => {
+                    const active = musicForm.moods.includes(m)
+                    return (
+                      <button key={m} type="button"
+                        onClick={() => setMusicForm(f => ({ ...f, moods: active ? f.moods.filter(x => x !== m) : [...f.moods, m] }))}
+                        style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${active ? C.violet : C.hairline}`, background: active ? C.violetGlow : 'transparent', color: active ? C.violet : C.muted, transition: 'all 0.12s' }}>
+                        {m}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* Row: energy + duration */}
