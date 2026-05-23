@@ -66,6 +66,17 @@ const STORY_WORLD_TO_WORLD_ID = {
   'neon-city':              'neon-city',
   'neon_city':              'neon-city',
 
+  // ── New trend worlds ──────────────────────────────────────
+  'dark-siren':             'dark-siren',
+  'dark_siren':             'dark-siren',
+  'travel-goddess':         'travel-goddess',
+  'travel_goddess':         'travel-goddess',
+  'goddess-complex':        'goddess-complex',
+  'goddess_complex':        'goddess-complex',
+  'neodeco':                'neodeco',
+  'lace-era':               'lace-era',
+  'lace_era':               'lace-era',
+
   // ── Location worlds ───────────────────────────────────────
   'bali':                   'bali',
   'venice':                 'venice',

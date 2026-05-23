@@ -21,6 +21,11 @@ import { STORY_WORLD_PILATES_PRINCESS } from './pilates-princess'
 import { STORY_WORLD_ROCKSTAR } from './rockstar'
 import { STORY_WORLD_LATEX_QUEEN } from './latex-queen'
 import { STORY_WORLD_FINE_ART_NUDE } from './fine-art-nude'
+import { STORY_WORLD_DARK_SIREN } from './dark-siren'
+import { STORY_WORLD_TRAVEL_GODDESS } from './travel-goddess'
+import { STORY_WORLD_GODDESS_COMPLEX } from './goddess-complex'
+import { STORY_WORLD_NEODECO } from './neodeco'
+import { STORY_WORLD_LACE_ERA } from './lace-era'
 
 export const STORY_WORLDS = [
   STORY_WORLD_LUXURY_LIFE,
@@ -46,4 +51,9 @@ export const STORY_WORLDS = [
   STORY_WORLD_ROCKSTAR,
   STORY_WORLD_LATEX_QUEEN,
   STORY_WORLD_FINE_ART_NUDE,
+  STORY_WORLD_DARK_SIREN,
+  STORY_WORLD_TRAVEL_GODDESS,
+  STORY_WORLD_GODDESS_COMPLEX,
+  STORY_WORLD_NEODECO,
+  STORY_WORLD_LACE_ERA,
 ]
