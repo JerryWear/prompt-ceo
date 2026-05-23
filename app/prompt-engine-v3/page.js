@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
@@ -667,7 +667,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data?.status === 'complete') {
         setCardImages(prev => ({ ...prev, [cardKey]: { generating: false, url: data.imageUrl, error: '' } }))
-        if (typeof data.creditsRemaining === 'number') merge({ credits: data.creditsRemaining })
       } else {
         setCardImages(prev => ({ ...prev, [cardKey]: { generating: false, url: '', error: data?.message || 'Generation failed' } }))
       }
@@ -703,7 +702,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       merge({ adTextGenerating: false })
       if (data.status !== 'complete') throw new Error(data.message || `${type} generation failed`)
-      if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       const key = type + (hookType ? `_${hookType}` : '')
       accum[key] = data.data
       merge({ adTextResults: { ...accum } })
@@ -1004,7 +1002,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setAbInsights(prev => ({ ...prev, [test.id]: data.insight }))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
         // Save learning rule to performance data comment
         const updated = abTests.map(t => t.id === test.id ? { ...t, insight: data.insight } : t)
         saveAbTests(updated)
@@ -1109,7 +1106,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setCalendar(data.calendar)
         addTimelineEvent('Content calendar generated', `${data.calendar.length} days`)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setCalendarLoading(false) }
@@ -1142,7 +1138,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         setSequence(data.sequence)
         setSequenceDuration(dur)
         addTimelineEvent('Campaign sequence built', `${data.sequence.length} days`)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         console.error('Sequencer error:', data.error)
       }
@@ -1202,7 +1197,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setMarketResult(data.analysis)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
         addTimelineEvent('Market intelligence analysed', `${validAds.length} competitor ads`)
       }
     } catch {}
@@ -1221,7 +1215,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setLaunchSequence(data.sequence)
         addTimelineEvent('Launch sequence generated', '5 stages')
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setLaunchLoading(false) }
@@ -1244,7 +1237,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setIterationResult(data.iteration)
         addTimelineEvent(`Campaign iterated (${iterationDir})`, data.iteration.iterationSummary?.slice(0, 60))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setIterationLoading(false) }
@@ -1294,7 +1286,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setConsistencyResult(data.report)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setConsistencyLoading(false) }
@@ -1311,7 +1302,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setFatigueResult(data.report)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setFatigueLoading(false) }
@@ -1332,7 +1322,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setProjectScore(data.score)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setProjectScoreLoading(false) }
@@ -1349,7 +1338,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setCompetitorResult(data.analysis)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setCompetitorLoading(false) }
@@ -1369,7 +1357,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setDeconstructResult(data.analysis)
         addTimelineEvent('Competitor ad deconstructed')
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setDeconstructLoading(false) }
@@ -1414,7 +1401,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setUgcBriefResult(data.brief)
         addTimelineEvent('Creator Brief generated')
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setUgcBriefError(data.message || 'Generation failed')
       }
@@ -1516,7 +1502,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setLandingPage(data.page)
         addTimelineEvent('Landing page generated')
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setLandingError(data.message || 'Generation failed')
       }
@@ -1610,7 +1595,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setVideoStoryboard2(data.storyboard)
         addTimelineEvent('Video storyboard generated')
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setVideoStoryboard2Error(data.message || 'Generation failed')
       }
@@ -1685,7 +1669,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setHookScoreResult(data.score)
         addTimelineEvent('Hook scored', hookScoreInput.trim().slice(0, 50))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setHookScoreError(data.message || 'Scoring failed')
       }
@@ -1725,7 +1708,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setEmailSequence(data.sequence)
         addTimelineEvent('Email sequence generated', `${emailSeqCount} emails, ${emailSeqType}`)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setEmailSeqError(data.message || 'Generation failed')
       }
@@ -1785,7 +1767,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setTrendReport(data.report)
         addTimelineEvent('Trend report generated', trendPlatform)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setTrendError(data.message || 'Generation failed')
       }
@@ -1946,7 +1927,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setTestimonialResult(data.insights)
         addTimelineEvent('Testimonials mined', `${data.insights.totalReviewsAnalyzed || '?'} reviews`)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setTestimonialError(data.message || 'Mining failed')
       }
@@ -1990,7 +1970,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setOfferResult(data.offer)
         addTimelineEvent('Offer built', offerType)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setOfferError(data.message || 'Build failed')
       }
@@ -2034,7 +2013,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setRetargetResult(data.pack)
         addTimelineEvent('Retargeting pack generated', retargetStage)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         setRetargetError(data.message || 'Generation failed')
       }
@@ -2064,7 +2042,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setSmsResult(data.sequence)
         addTimelineEvent('SMS sequence generated', smsSeqType)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setSmsError(data.message || 'Generation failed') }
     } catch { setSmsError('Something went wrong') }
     finally { setSmsLoading(false) }
@@ -2094,7 +2071,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setInfluencerResult(data.brief)
         addTimelineEvent('Influencer brief generated', influencerType)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setInfluencerError(data.message || 'Generation failed') }
     } catch { setInfluencerError('Something went wrong') }
     finally { setInfluencerLoading(false) }
@@ -2149,7 +2125,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setNamingResult(data.system)
         addTimelineEvent('Naming convention generated', namingPlatform)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setNamingError(data.message || 'Generation failed') }
     } catch { setNamingError('Something went wrong') }
     finally { setNamingLoading(false) }
@@ -2517,7 +2492,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setLaunchPkg(data.package)
         addTimelineEvent('Launch package generated', launchPkgPlatform)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setLaunchPkgError(data.message || 'Generation failed') }
     } catch { setLaunchPkgError('Something went wrong') }
     finally { setLaunchPkgLoading(false) }
@@ -2538,7 +2512,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setAuditResult(data.audit)
         addTimelineEvent('Ad account audited', auditPlatform)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setAuditError(data.message || 'Audit failed') }
     } catch { setAuditError('Something went wrong') }
     finally { setAuditLoading(false) }
@@ -2575,7 +2548,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setScriptResult(data.script)
         addTimelineEvent('Talking head script generated', `${scriptDuration}s ${scriptStyle}`)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setScriptError(data.message || 'Generation failed') }
     } catch { setScriptError('Something went wrong') }
     finally { setScriptLoading(false) }
@@ -2616,7 +2588,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setProdDescResult(data.descriptions)
         addTimelineEvent('Product descriptions generated', prodDescPlatform)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else { setProdDescError(data.message || 'Generation failed') }
     } catch { setProdDescError('Something went wrong') }
     finally { setProdDescLoading(false) }
@@ -2649,7 +2620,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       const data = await res.json()
       if (data.status === 'success') {
         setStoryboards(prev => ({ ...prev, [cardKey]: data.storyboard }))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setStoryboardLoading(prev => ({ ...prev, [cardKey]: false })) }
@@ -2667,7 +2637,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       if (data.status === 'success') {
         setBriefs(prev => ({ ...prev, [briefType]: data.brief }))
         setBriefOpen(briefType)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setBriefLoading(false) }
@@ -2917,11 +2886,9 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     )
   }
 
-  const cost = adOutputType === 'video' ? 60 : 5
-  const hasEnoughCredits = true // subscription model — no credit gate on generation
   const hasIdentity = !!s.imageDataUrl
   const isGenerating = s.adGenerating
-  const canGenerate = hasEnoughCredits && !isGenerating && (adMode !== 'product_ad' || productName.trim())
+  const canGenerate = !isGenerating && (adMode !== 'product_ad' || productName.trim())
 
   // AI auto-suggest style from product name
   const handleProductNameBlur = async () => {
@@ -4269,7 +4236,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             {/* Animate button */}
             {!s.adVideoUrl && (
               <Btn variant="gold" disabled={s.adVideoGenerating} onClick={handleAnimate} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
-                {s.adVideoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Animate to Video Ad'}
+                {s.adVideoGenerating ? '⟳ Generating video…' : '🎬 Animate to Video Ad'}
               </Btn>
             )}
           </Panel>
@@ -10658,7 +10625,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               Upgrade to Continue
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>
-              You've used your free credits
+              Unlock Full Access
             </h2>
             <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
               {paywallFeature ? `${paywallFeature} requires` : 'Generating requires'} an active plan. Start your 7-day free trial — no credit card needed.
@@ -10849,8 +10816,6 @@ const INIT = {
   prevOutputs:        [],
   directorPreset:     'none',
   view:               'studio',
-  credits:            null,
-  creditsLoading:     false,
   generatedImage:     '',
   imageGenerating:    false,
   imageError:         '',
@@ -11679,14 +11644,6 @@ export default function PromptCEOPage() {
     loadPersistedIdentity()
   }, [])
 
-  useEffect(() => {
-    set('creditsLoading', true)
-    fetch('/api/get-credits')
-      .then(r => r.json())
-      .then(d => { if (d?.status === 'success') set('credits', d.credits) })
-      .catch(() => {})
-      .finally(() => set('creditsLoading', false))
-  }, [])
 
   const saveToHistory = useCallback(async (prompt, meta, imageUrl = '') => {
     try {
@@ -11928,7 +11885,6 @@ export default function PromptCEOPage() {
       if (data.status === 'success') {
         setStudioVariation(data.variation)
         addStudioEvent(`Variation: ${studioVarDir}`, data.variation.changesMade?.slice(0, 60))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setStudioVarLoading(false) }
@@ -11960,7 +11916,6 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data.status === 'success') {
         setStudioCoherence(data.report)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setStudioCoherenceLoading(false) }
@@ -12058,7 +12013,6 @@ export default function PromptCEOPage() {
       if (data.status === 'success') {
         setPhotographerBrief(data.brief)
         addStudioEvent('Photographer brief generated', data.brief.briefTitle)
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       }
     } catch {}
     finally { setPhotographerBriefLoading(false) }
@@ -12134,7 +12088,6 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data.status === 'complete') {
         setCardImages(prev => ({ ...prev, [sceneIndex]: data.imageUrl }))
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
         addStudioEvent(`Scene ${typeof sceneIndex === 'number' ? sceneIndex + 1 : sceneIndex} generated`)
       } else {
         // Store error so card can display it
@@ -12480,7 +12433,6 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ generatedImage: data.imageUrl, imageGenerating: false })
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough') || msg.toLowerCase().includes('limit')) {
@@ -12516,7 +12468,6 @@ export default function PromptCEOPage() {
         const data = await res.json()
         if (data?.status === 'complete') {
           images.push({ index: i, imageUrl: data.imageUrl, prompt: r.finalPrompt, meta: r.meta })
-          if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
         } else {
           images.push({ index: i, error: data?.message || 'failed', prompt: r.finalPrompt })
         }
@@ -12555,7 +12506,6 @@ export default function PromptCEOPage() {
           adTextGenerating: false,
           adTextResults: { ...(s.adTextResults || {}), [type + (hookType ? `_${hookType}` : '')]: data.data },
         })
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         // Show upgrade modal instead of error for credit/subscription issues
         const msg = data?.message || ''
@@ -12592,7 +12542,6 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ adGeneratedImage: data.imageUrl, adGenerating: false })
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough')) {
@@ -12622,7 +12571,6 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ adVideoUrl: data.videoUrl, adVideoGenerating: false })
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         merge({ adVideoError: data?.error || 'Video generation failed', adVideoGenerating: false })
       }
@@ -12651,7 +12599,6 @@ export default function PromptCEOPage() {
         } else {
           merge({ videoGenerating: false, videoUrl: data.videoUrl, videoError: '' })
         }
-        if (typeof data.creditsRemaining === 'number') set('credits', data.creditsRemaining)
       } else {
         const errMsg = data?.error || 'Video generation failed'
         if (batchKey !== undefined) {
@@ -12830,7 +12777,7 @@ export default function PromptCEOPage() {
                 {[
                   ['Campaign Pack', '📦 Pack button in context bar. Downloads everything — angles, hooks, captions, UGC, campaign, launch, music — as one .txt file.'],
                   ['Share with Client', '🔗 Share button → generates a unique link. Client opens a clean review page, approves or requests changes. Agency gets notified. Client never touches the app.'],
-                  ['Export Briefs', 'Campaign Brief, Creator Brief, Media Buyer Brief. AI-generated professional documents, 2 credits each. Download as .txt.'],
+                  ['Export Briefs', 'Campaign Brief, Creator Brief, Media Buyer Brief. AI-generated professional documents. Download as .txt.'],
                   ['Webhook Integration', 'In My Projects panel — paste any Zapier or Make.com URL. Campaign data pushes automatically on Save, Share, and client Approve.'],
                 ].map(([feat, desc]) => (
                   <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
@@ -12862,9 +12809,9 @@ export default function PromptCEOPage() {
                 {[
                   ['Shot Director AI', 'Fires automatically after every scene. Shows: what works cinematically, what to fix, exact direction for the next shot, director quote. Free.'],
                   ['Layer Swap', 'Click ↺ Wardrobe / Scene / Camera / Mood / Lighting to regenerate that element while keeping everything else. A gold banner appears — click Regenerate Image to see the result.'],
-                  ['Variation Engine', '10 cinematic directions: 🌑 Darker · 🎬 More Cinematic · ⚡ Higher Tension · 🕯 More Intimate · 📸 More Editorial · 🌊 More Abstract · ✨ More Romantic · 🎭 More Dramatic · ◻ More Minimal · 🔮 More Surreal. 1 credit each.'],
+                  ['Variation Engine', '10 cinematic directions: 🌑 Darker · 🎬 More Cinematic · ⚡ Higher Tension · 🕯 More Intimate · 📸 More Editorial · 🌊 More Abstract · ✨ More Romantic · 🎭 More Dramatic · ◻ More Minimal · 🔮 More Surreal.'],
                   ['Visual Anchor', 'After generating a good image, click ⚓ Set as Visual Anchor. All future scenes maintain consistency with that visual reference — same lighting style, character energy, color temperature.'],
-                  ['Scene Coherence', 'Checks if world + director + progression + character are working together or fighting. Returns score, harmony points, friction points, one fix. 1 credit.'],
+                  ['Scene Coherence', 'Checks if world + director + progression + character are working together or fighting. Returns score, harmony points, friction points, one fix.'],
                 ].map(([feat, desc]) => (
                   <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 800, color: C.green, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
@@ -12901,7 +12848,7 @@ export default function PromptCEOPage() {
                 <HelpSub color={C.green}>Export</HelpSub>
                 {[
                   ['MJ / Runway / Kling', 'One-click copy of the prompt formatted for each platform. MJ gets --ar 2:3 --style raw, Kling gets --ratio 9:16 --duration 5.'],
-                  ['Photographer Brief', 'After running a batch — click the Photographer Brief panel (right). AI generates a real-world shoot brief with character, wardrobe, lighting, shot list, director notes. Download as .txt. 2 credits.'],
+                  ['Photographer Brief', 'After running a batch — click the Photographer Brief panel (right). AI generates a real-world shoot brief with character, wardrobe, lighting, shot list, director notes. Download as .txt.'],
                   ['.txt Export', 'Export all batch prompts as a plain text file, one per line, from the Timeline header.'],
                 ].map(([feat, desc]) => (
                   <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
@@ -14010,7 +13957,7 @@ export default function PromptCEOPage() {
                 {outputTab === 'image' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {!s.imageDataUrl && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>Upload an identity image to enable generation.</div>}
-                    {s.imageGenerating && <div style={{ padding: '10px', textAlign: 'center', color: C.green, fontSize: 11 }}>⟳ Generating image… (5 credits)</div>}
+                    {s.imageGenerating && <div style={{ padding: '10px', textAlign: 'center', color: C.green, fontSize: 11 }}>⟳ Generating image…</div>}
                     {s.imageError && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.imageError}</div>}
                     {s.generatedImage && (
                       <>
@@ -14033,12 +13980,12 @@ export default function PromptCEOPage() {
                           </div>
                         )}
                         <Btn variant="gold" disabled={s.videoGenerating} onClick={() => generateVideo(result?.finalPrompt, s.generatedImage, result?.meta?.progressionLevel)} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
-                          {s.videoGenerating ? '⟳ Generating video… (60 credits)' : '🎬 Generate Video (60 credits)'}
+                          {s.videoGenerating ? '⟳ Generating video…' : '🎬 Generate Video'}
                         </Btn>
                       </>
                     )}
                     <Btn variant="green" disabled={s.imageGenerating || !result?.finalPrompt} onClick={generateImage} sx={{ width: '100%', padding: '9px 0', fontSize: 12 }}>
-                      {s.imageGenerating ? '⟳ Generating…' : '🎨 Generate Image (5 credits)'}
+                      {s.imageGenerating ? '⟳ Generating…' : '🎨 Generate Image'}
                     </Btn>
 
                     {/* Visual Anchor — set this image as consistency reference */}
@@ -14960,9 +14907,9 @@ export default function PromptCEOPage() {
             <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${C.hairline}`, position: 'relative' }}>
               <button onClick={() => setStudioPaywallOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: C.muted, fontSize: 16, cursor: 'pointer', padding: '4px 8px' }}>✕</button>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Upgrade to Continue</div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>You've used your free image generations</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>Unlock Image Generation</h2>
               <p style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, margin: 0 }}>
-                Free accounts include 3 image generations. Upgrade to keep creating — 7-day free trial, no credit card needed.
+                Image generation is included with all plans. Start your 7-day free trial — no credit card needed.
               </p>
             </div>
             <div style={{ padding: '20px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
