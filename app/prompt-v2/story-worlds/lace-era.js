@@ -359,7 +359,7 @@ export const STORY_WORLD_LACE_ERA = {
       'thin gold chain anklet visible at hem of long dress',
       'embroidered floral handkerchief tucked into pocket or held loosely',
       'crystal hairpin in side part',
-      'dried flower wrist corsage — lavender and baby's breath',
+      'dried flower wrist corsage — lavender and baby\'s breath',
       'strappy ivory kitten-heel mule or flat sandal with ankle ribbon',
       'square-toe mary jane in cream or dusty rose',
       'bare feet on stone or wooden floor — delicate nail art, lace nail design',
