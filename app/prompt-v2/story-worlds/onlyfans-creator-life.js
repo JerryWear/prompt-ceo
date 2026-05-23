@@ -1,5 +1,5 @@
 export const STORY_WORLD_ONLYFANS_CREATOR_LIFE = {
-  id: 'onlyfans_creator',
+  id: 'onlyfans-creator-life',
   name: 'OnlyFans Creator Life',
 
   description:
@@ -1785,6 +1785,71 @@ export const STORY_WORLD_ONLYFANS_CREATOR_LIFE = {
   exclusions: {
     premium: ['cheap webcam aesthetic', 'messy amateur room', 'explicit vulgar framing', 'low-effort influencer posing', 'public gym or office setting'],
     hard: ['teen-coded styling', 'school environments', 'medical or coercive scenarios', 'public nudity scenarios', 'violent or degrading content'],
+  },
+
+  stylingPools: {
+    wardrobe: {
+      wake: [
+        'barely dressed in luxury sleepwear before the morning becomes content',
+        'silk or satin minimal in warm private bedroom before creator mode begins',
+        'soft white linen or nothing in the private suite — the woman before the subscription world enters',
+      ],
+      morning_refresh: [
+        'white luxury robe loosely worn at the marble mirror during the private ritual',
+        'towel wrapped after shower in warm bathroom — the face before the camera sees it',
+        'robe open at the vanity, skincare in hand, the pre-performance private skin ritual',
+      ],
+      getting_dressed: [
+        'the creator identity being assembled — lingerie foundation under the day\'s selected look',
+        'luxury bodysuit or lingerie chosen for the day\'s content and controlled access architecture',
+        'the transition wardrobe: from private woman to deliberate creator visibility in the mirror',
+      ],
+      content_planning: [
+        'soft luxury loungewear at the planning desk — silk or cashmere, privately comfortable',
+        'minimal home office look — comfortable knit or robe, the woman behind the brand in comfort',
+        'casual creator comfort while planning — the practical woman invisible to subscribers',
+      ],
+      late_morning: [
+        'soft natural-light content look — linen or thin silk in warm apartment morning',
+        'intimate window-light wardrobe — barely layered, perfectly aware of how the light falls',
+        'the natural morning creator look — minimal, intentional, designed to feel discovered',
+      ],
+      shoot_session: [
+        'the shoot look assembled: lingerie, bodysuit, or editorial piece chosen for maximum visual access',
+        'the content wardrobe at full power — the piece that earns the subscription and feeds the addiction',
+        'controlled intimacy styling: the exact garment chosen for the camera, the fantasy, and the premium tier',
+      ],
+      afternoon: [
+        'luxury swimwear or resort cover-up at the rooftop pool after the shoot session',
+        'post-shoot natural luxe — bikini or minimal cover in private creator afternoon',
+        'the after-shoot reward look: swimwear, warmth, and private luxury above the city',
+      ],
+      editing_reset: [
+        'comfortable editing wardrobe — soft loungewear or robe at the desk after the performance',
+        'the off-camera reality: casual minimal in low edit-desk light, nobody watching',
+        'post-shoot private comfort look — the woman behind the content in something real',
+      ],
+      golden_hour: [
+        'silk or backless for the balcony golden hour — the piece designed for amber warmth and visual addiction',
+        'the sunset creator look: editorial, intimate, and built for the most cinematic natural light',
+        'the golden-hour content wardrobe — deliberate, minimal, and impossibly well-lit',
+      ],
+      nightlife: [
+        'dressed for private luxury nightlife — silk minimal, the look designed to be seen and not fully accessed',
+        'the nightlife creator wardrobe: the look the city wants to photograph and the internet wants to subscribe to',
+        'private night-out styling: confident, composed, deliberately showing exactly what she decides to show',
+      ],
+      evening: [
+        'soft intimate evening look after the day\'s performance fades — silk or satin in candle warmth',
+        'the personal private evening wardrobe after the creator layer comes off',
+        'intimate evening ease: the private woman winding down in warm ambient light',
+      ],
+      night: [
+        'the final private look — minimal sleepwear as the creator economy day ends and the internet logs off',
+        'silk or nothing in the private bedroom when the subscription wall is finally closed',
+        'the night wardrobe: entirely personal, unhurried, belonging to nobody',
+      ],
+    },
   },
 
   routeRules: {

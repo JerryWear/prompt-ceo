@@ -83,20 +83,25 @@ export async function GET() {
     const totalCommissions = (commissionsData || []).reduce((sum, c) => sum + Number(c.commission_amount), 0)
     const paidCommissions  = (commissionsData || []).filter(c => c.status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount), 0)
 
-    // Recent signups from auth.users
-    const { data: recentUsers } = await admin
-      .from('app_users')
-      .select('id, subscription_tier, subscription_status, created_at')
-      .order('created_at', { ascending: false })
-      .limit(8)
+    // Recent signups — get from auth.users (ordered by created_at)
+    const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 8 })
+    const recentAuthUsers = (authList?.users || [])
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 8)
 
-    // Get emails for recent users
-    const recentWithEmails = await Promise.all(
-      (recentUsers || []).map(async (u) => {
-        const { data: authUser } = await admin.auth.admin.getUserById(u.id)
-        return { ...u, email: authUser?.user?.email || '—' }
-      })
-    )
+    const recentUserIds = recentAuthUsers.map(u => u.id)
+    const { data: recentAppRows } = recentUserIds.length > 0
+      ? await admin.from('app_users').select('id, subscription_tier, subscription_status').in('id', recentUserIds)
+      : { data: [] }
+    const appRowMap = Object.fromEntries((recentAppRows || []).map(r => [r.id, r]))
+
+    const recentWithEmails = recentAuthUsers.map(u => ({
+      id: u.id,
+      email: u.email || '—',
+      created_at: u.created_at,
+      subscription_tier:   appRowMap[u.id]?.subscription_tier   || 'free',
+      subscription_status: appRowMap[u.id]?.subscription_status || 'inactive',
+    }))
 
     return NextResponse.json({
       status: 'success',

@@ -338,6 +338,7 @@ const WORLD_TO_CATEGORY = {
   private_creator:             'creator',
   fanvue_creator:              'creator',
   onlyfans_creator:            'creator',
+  'onlyfans-creator-life':     'creator',
   fitness_life:                'athletic',
   gym_influencer:              'athletic',
   'fitness_global_elite':      'athletic',

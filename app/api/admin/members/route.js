@@ -33,8 +33,7 @@ export async function GET(req) {
 
     // Build query
     let query = db.from('app_users')
-      .select('id, subscription_tier, subscription_status, music_addon, created_at, referred_by_affiliate_id, referred_by_code', { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .select('id, subscription_tier, subscription_status, music_addon, referred_by_affiliate_id, referred_by_code', { count: 'exact' })
       .range(offset, offset + limit - 1)
 
     if (filter === 'free')    query = query.neq('subscription_status', 'active')
@@ -46,11 +45,11 @@ export async function GET(req) {
     const { data: members, count, error: qErr } = await query
     if (qErr) throw qErr
 
-    // Get emails from auth
+    // Get emails + created_at from auth
     const withEmails = await Promise.all(
       (members || []).map(async (m) => {
         const { data: authUser } = await db.auth.admin.getUserById(m.id)
-        return { ...m, email: authUser?.user?.email || '—' }
+        return { ...m, email: authUser?.user?.email || '—', created_at: authUser?.user?.created_at || null }
       })
     )
 

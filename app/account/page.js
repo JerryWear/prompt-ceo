@@ -39,6 +39,13 @@ function AdminPanel() {
   const [memberLoading, setMemberLoading] = useState(false)
   const [memberError,   setMemberError]   = useState(null)
 
+  // Music upload state
+  const [musicForm,     setMusicForm]     = useState({ title: '', artist: '', genre: 'Electronic', mood: 'euphoric', energy: 'medium', duration: '', is_premium: false, featured: false })
+  const [musicFile,     setMusicFile]     = useState(null)
+  const [musicUploading,setMusicUploading]= useState(false)
+  const [musicError,    setMusicError]    = useState(null)
+  const [musicSuccess,  setMusicSuccess]  = useState(null)
+
   const loadData = () => {
     fetch('/api/admin/stats')
       .then(r => r.json())
@@ -123,6 +130,7 @@ function AdminPanel() {
           { id: 'overview',   label: 'Overview' },
           { id: 'members',    label: `Members (${stats.totalUsers})` },
           { id: 'affiliates', label: `Affiliates${pendingApps.length > 0 ? ` ⚠ ${pendingApps.length}` : ` (${affiliates.length})`}` },
+          { id: 'music',      label: 'Music Upload' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: 'none', color: tab === t.id ? C.violet : C.muted, borderBottom: tab === t.id ? `2px solid ${C.violet}` : '2px solid transparent', transition: 'all 0.15s' }}>
@@ -321,6 +329,118 @@ function AdminPanel() {
             {affiliates.length === 0 && <div style={{ fontSize: 12, color: C.muted, padding: '8px 0', textAlign: 'center' }}>No affiliate applications yet.</div>}
           </div>
         </>)}
+
+        {/* ── MUSIC UPLOAD TAB ── */}
+        {tab === 'music' && (() => {
+          const GENRES = ['Electronic','Hip-Hop','Cinematic','Pop','R&B','Ambient','Dance','Latin','Trap','House','Soul','Jazz']
+          const MOODS  = ['euphoric','sensual','dark','uplifting','mysterious','romantic','energetic','chill','intense','playful','melancholic','powerful']
+
+          const handleMusicSubmit = async (e) => {
+            e.preventDefault()
+            if (!musicFile) { setMusicError('Please select an audio file'); return }
+            if (!musicForm.title || !musicForm.artist) { setMusicError('Title and artist are required'); return }
+            setMusicUploading(true)
+            setMusicError(null)
+            setMusicSuccess(null)
+            try {
+              const fd = new FormData()
+              fd.append('file',       musicFile)
+              fd.append('title',      musicForm.title)
+              fd.append('artist',     musicForm.artist)
+              fd.append('genre',      musicForm.genre)
+              fd.append('mood',       musicForm.mood)
+              fd.append('energy',     musicForm.energy)
+              fd.append('duration',   musicForm.duration)
+              fd.append('is_premium', String(musicForm.is_premium))
+              fd.append('featured',   String(musicForm.featured))
+              const res = await fetch('/api/admin/upload-music', { method: 'POST', body: fd })
+              const d   = await res.json()
+              if (d.status === 'success') {
+                setMusicSuccess(`"${d.track.title}" uploaded successfully`)
+                setMusicForm({ title: '', artist: '', genre: 'Electronic', mood: 'euphoric', energy: 'medium', duration: '', is_premium: false, featured: false })
+                setMusicFile(null)
+                e.target.reset()
+              } else {
+                setMusicError(d.error || 'Upload failed')
+              }
+            } catch (err) {
+              setMusicError(err.message)
+            } finally {
+              setMusicUploading(false)
+            }
+          }
+
+          const field = (label, key, type = 'text', extra = {}) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>{label}</label>
+              <input type={type} value={musicForm[key]} onChange={e => setMusicForm(f => ({ ...f, [key]: type === 'number' ? e.target.value : e.target.value }))}
+                style={{ padding: '8px 10px', borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary, fontSize: 12, outline: 'none' }}
+                {...extra} />
+            </div>
+          )
+
+          const select = (label, key, options) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>{label}</label>
+              <select value={musicForm[key]} onChange={e => setMusicForm(f => ({ ...f, [key]: e.target.value }))}
+                style={{ padding: '8px 10px', borderRadius: 5, border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary, fontSize: 12, outline: 'none', cursor: 'pointer' }}>
+                {options.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )
+
+          return (
+            <form onSubmit={handleMusicSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 520 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Upload Music Track</div>
+
+              {/* File picker */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>AUDIO FILE (MP3 / WAV)</label>
+                <input type="file" accept="audio/*"
+                  onChange={e => setMusicFile(e.target.files?.[0] || null)}
+                  style={{ padding: '8px 10px', borderRadius: 5, border: `1px solid ${musicFile ? C.greenDim : C.hairline}`, background: C.surface, color: C.primary, fontSize: 12, cursor: 'pointer' }} />
+                {musicFile && <span style={{ fontSize: 11, color: C.green }}>{musicFile.name} ({(musicFile.size / 1024 / 1024).toFixed(1)} MB)</span>}
+              </div>
+
+              {/* Row: title + artist */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {field('TITLE', 'title', 'text', { placeholder: 'Song title', required: true })}
+                {field('ARTIST', 'artist', 'text', { placeholder: 'Artist name', required: true })}
+              </div>
+
+              {/* Row: genre + mood */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {select('GENRE', 'genre', GENRES)}
+                {select('MOOD', 'mood', MOODS)}
+              </div>
+
+              {/* Row: energy + duration */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {select('ENERGY', 'energy', ['low', 'medium', 'high'])}
+                {field('DURATION (seconds)', 'duration', 'number', { placeholder: '187', min: 0 })}
+              </div>
+
+              {/* Checkboxes */}
+              <div style={{ display: 'flex', gap: 20 }}>
+                {[['is_premium', 'Premium only'], ['featured', 'Featured']].map(([key, label]) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: C.secondary, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={musicForm[key]} onChange={e => setMusicForm(f => ({ ...f, [key]: e.target.checked }))}
+                      style={{ width: 14, height: 14, cursor: 'pointer', accentColor: C.violet }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              {musicError   && <div style={{ padding: '10px 12px', borderRadius: 6, background: C.redGlow,   border: `1px solid #7a2a2a`, fontSize: 12, color: C.red   }}>{musicError}</div>}
+              {musicSuccess && <div style={{ padding: '10px 12px', borderRadius: 6, background: C.greenGlow, border: `1px solid ${C.greenDim}`, fontSize: 12, color: C.green }}>{musicSuccess}</div>}
+
+              <button type="submit" disabled={musicUploading}
+                style={{ padding: '10px 24px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: musicUploading ? 'default' : 'pointer', border: 'none', background: musicUploading ? C.muted : C.violet, color: '#fff', opacity: musicUploading ? 0.7 : 1, alignSelf: 'flex-start' }}>
+                {musicUploading ? 'Uploading…' : 'Upload Track'}
+              </button>
+            </form>
+          )
+        })()}
 
       </div>
     </div>
