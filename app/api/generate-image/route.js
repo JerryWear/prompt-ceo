@@ -238,7 +238,7 @@ export async function POST(req) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
         body: JSON.stringify({
-          model:        'grok-imagine-image',
+          model: 'grok-imagine-image-quality',
           prompt:       directPrompt.slice(0, 4000),
           aspect_ratio: '2:3',
         }),
@@ -310,7 +310,7 @@ export async function POST(req) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
-            model: 'grok-4-1-fast-reasoning',
+            model: 'grok-3',
             messages: [
               {
                 role: 'system',
@@ -371,7 +371,7 @@ ${identityTraitsBlock}
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
-            model: 'grok-4-1-fast-reasoning',
+            model: 'grok-3',
             messages: [
               {
                 role: 'system',
@@ -431,7 +431,7 @@ If anything conflicts with identity, preserve identity first.
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
-            model: 'grok-4-1-fast-reasoning',
+            model: 'grok-3',
             messages: [
               {
                 role: 'system',
@@ -465,7 +465,7 @@ If anything conflicts with identity, preserve identity first.
 
     // ── Call Grok image API ───────────────────────────────────────────────────
     const xaiPayload = {
-      model: 'grok-imagine-image',
+      model: 'grok-imagine-image-quality',
       prompt: editPrompt,
       aspect_ratio: mode === 'product_ad' ? '1:1' : '2:3',
     }

@@ -33,9 +33,11 @@ function AdminPanel() {
   const [loading,    setLoading]    = useState(true)
   const [acting,     setActing]     = useState(null)
   const [tab,        setTab]        = useState('overview')
-  const [memberFilter, setMemberFilter] = useState('all')
-  const [memberSearch, setMemberSearch] = useState('')
-  const [memberPage,   setMemberPage]   = useState(0)
+  const [memberFilter,  setMemberFilter]  = useState('all')
+  const [memberSearch,  setMemberSearch]  = useState('')
+  const [memberPage,    setMemberPage]    = useState(0)
+  const [memberLoading, setMemberLoading] = useState(false)
+  const [memberError,   setMemberError]   = useState(null)
 
   const loadData = () => {
     fetch('/api/admin/stats')
@@ -48,6 +50,8 @@ function AdminPanel() {
   }
 
   const loadMembers = (filter = memberFilter, page = 0) => {
+    setMemberLoading(true)
+    setMemberError(null)
     fetch(`/api/admin/members?filter=${filter}&page=${page}`)
       .then(r => r.json())
       .then(d => {
@@ -56,12 +60,17 @@ function AdminPanel() {
           setMemberTotal(d.total || 0)
           setBreakdown(d.breakdown || {})
           setMemberPage(page)
+        } else {
+          setMemberError(d.error || 'Failed to load members')
         }
       })
+      .catch(err => setMemberError(err.message))
+      .finally(() => setMemberLoading(false))
   }
 
   useEffect(() => { loadData() }, [])
-  useEffect(() => { if (tab === 'members') loadMembers(memberFilter, 0) }, [tab])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 'members') loadMembers('all', 0) }, [tab])
 
   const handleAffiliate = async (id, action, extra = {}) => {
     setActing(id + action)
@@ -203,7 +212,15 @@ function AdminPanel() {
             ))}
           </div>
 
-          {members.length === 0 ? (
+          {memberError && (
+            <div style={{ padding: '12px 14px', borderRadius: 8, background: C.redGlow, border: `1px solid #7a3030`, color: C.red, fontSize: 12 }}>
+              Error: {memberError}
+              <button onClick={() => loadMembers(memberFilter, 0)} style={{ marginLeft: 12, background: 'none', border: `1px solid ${C.red}`, color: C.red, padding: '3px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>Retry</button>
+            </div>
+          )}
+          {memberLoading ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: C.muted, fontSize: 12 }}>Loading members…</div>
+          ) : members.length === 0 && !memberError ? (
             <div style={{ textAlign: 'center', padding: '24px', color: C.muted, fontSize: 13 }}>
               <button onClick={() => loadMembers(memberFilter, 0)} style={{ background: C.violetGlow, border: `1px solid ${C.violetDim}`, color: C.violet, padding: '8px 20px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Load Members</button>
             </div>
