@@ -217,6 +217,70 @@ const REPLACES = [
   { tool: 'TubeBuddy',            use: 'Product descriptions',  price: '$20+/mo' },
 ]
 
+// ── Feature carousel slides ───────────────────────────────────
+const FEATURE_SLIDES = [
+  {
+    id:       'marketing-os',
+    badge:    'Complete Marketing OS',
+    color:    '#c8a84b',
+    headline: 'One brief.\nFifty outputs.\nAll connected.',
+    sub:      'Enter your product once. Hooks, landing pages, email sequences, SMS campaigns, retargeting packs, offer structures — every piece of copy your brand needs, tied to a single brief.',
+    bullets:  ['50+ hooks across 5 emotional types, CTR-scored', 'Full email + SMS sequences in your brand voice', 'Landing page, offer builder, retargeting packs', 'Ad account audit + competitor deconstruct'],
+    anchor:   'section-outputs',
+    cta:      'See all outputs ↓',
+  },
+  {
+    id:       'ad-studio',
+    badge:    'AI Ad Studio',
+    color:    '#9b6fd4',
+    headline: 'Images.\nVideo.\nMusic.\nOne studio.',
+    sub:      'Generate scroll-stopping ad images and video storyboards with AI. Pick a licensed soundtrack matched to your ad mood and energy. Build full campaigns without switching tabs.',
+    bullets:  ['AI image generation with 5 style modes', 'Video storyboards with Runway + Kling prompts', 'Licensed music library — mood + BPM matched', 'AI timing plan synced to your chosen track'],
+    anchor:   'section-adstudio',
+    cta:      'See Ad Studio ↓',
+  },
+  {
+    id:       'cinematic',
+    badge:    "Director's Studio",
+    color:    '#c8a84b',
+    headline: '20 worlds.\n12-layer AI.\n11 director styles.',
+    sub:      "The world's most advanced cinematic prompt engine. From Tokyo neon to Swiss Alps, Capri villas to Paris penthouses. Every prompt is a film scene. Every image looks like a movie still.",
+    bullets:  ['20+ cinematic worlds + story worlds', '11 director styles: Kubrick to Wong Kar-wai', 'Character persistence across all shots', 'Shot Director AI for scene sequencing'],
+    anchor:   'section-studio',
+    cta:      'Explore the Studio ↓',
+  },
+  {
+    id:       'music',
+    badge:    'Music Intelligence',
+    color:    '#4a9a6a',
+    headline: 'AI-matched\nsoundtracks\nfor every ad.',
+    sub:      'Browse a curated library of licensed tracks filtered by mood, energy, and campaign fit. The AI scores every track against your brief and shows you exactly where the drop hits in your video.',
+    bullets:  ['Mood-matched recommendations from your brief', 'BPM, energy, drop timing for every track', 'Licensed — use in all your campaigns', '$9/month unlimited with Music Addon'],
+    anchor:   'section-music',
+    cta:      'Hear the library ↓',
+  },
+  {
+    id:       'affiliate',
+    badge:    'Partner Program',
+    color:    '#4a8ab4',
+    headline: 'Earn 30%\nrecurring on\nevery referral.',
+    sub:      'Share your link. Every subscription you refer pays you 30% every single month — for as long as they stay. Real-time dashboard, monthly Stripe payouts, no complicated tiers.',
+    bullets:  ['30% recurring commission — no cap', 'Real-time dashboard + payout countdown', 'Ready-made share content included', 'Monthly payouts via Stripe'],
+    anchor:   'section-affiliate',
+    cta:      'Join the program ↓',
+  },
+  {
+    id:       'updates',
+    badge:    'Always Evolving',
+    color:    '#4a9a6a',
+    headline: 'New features\nand worlds\nevery week.',
+    sub:      "This isn't a tool that launched and stopped. New story worlds, AI upgrades, campaign tools, and platform integrations ship constantly. You're always on the latest version — no installs, no updates.",
+    bullets:  ['New cinematic worlds added regularly', 'New AI tools and campaign systems weekly', 'Feature requests from users actually ship', 'Every update live instantly — nothing to install'],
+    anchor:   'section-updates',
+    cta:      'See what\'s new ↓',
+  },
+]
+
 // ── Testimonials ──────────────────────────────────────────────
 const TESTIMONIALS = [
   {
@@ -247,6 +311,7 @@ export default function HomePage() {
   const [activeAudience, setActiveAudience] = useState(0)
   const [activeCard,     setActiveCard]     = useState(null)
   const [showcaseHover,  setShowcaseHover]  = useState(null)
+  const [slideIndex,     setSlideIndex]     = useState(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
@@ -254,6 +319,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const t = setInterval(() => setActiveAudience(i => (i + 1) % AUDIENCES.length), 5000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setSlideIndex(i => (i + 1) % FEATURE_SLIDES.length), 7000)
     return () => clearInterval(t)
   }, [])
 
@@ -341,6 +411,213 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── FEATURE CAROUSEL ── */}
+      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px', background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}` }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>What's Inside</div>
+            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 800, letterSpacing: -1, margin: '0 0 8px' }}>
+              Everything you need to market at scale.
+            </h2>
+            <p style={{ fontSize: 14, color: C.secondary }}>
+              Click any module below to see exactly what it does.
+            </p>
+          </div>
+
+          {/* Pill nav */}
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
+            {FEATURE_SLIDES.map((slide, i) => (
+              <button key={slide.id} onClick={() => setSlideIndex(i)} style={{
+                padding: '6px 16px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${slideIndex === i ? slide.color : C.hairline}`,
+                background: slideIndex === i ? slide.color + '18' : 'transparent',
+                color: slideIndex === i ? slide.color : C.muted,
+                transition: 'all 0.15s',
+              }}>
+                {slide.badge}
+              </button>
+            ))}
+          </div>
+
+          {/* Active slide */}
+          {(() => {
+            const slide = FEATURE_SLIDES[slideIndex]
+            const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+
+            const VISUALS = {
+              'marketing-os': (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {[
+                    { label: 'Hooks',         value: '50+ across 5 types',   badge: '4.8% CTR',    color: '#c8a84b' },
+                    { label: 'Email sequence', value: '5 emails, launch flow', badge: 'voice-matched', color: '#9b6fd4' },
+                    { label: 'Landing page',  value: 'Hero + FAQ + CTA',      badge: 'complete',    color: '#4a9a6a' },
+                    { label: 'Retargeting',   value: '6 audience segments',   badge: 'warm traffic', color: '#4a8ab4' },
+                    { label: 'SMS campaign',  value: '3-step sequence',       badge: '142 chars',   color: '#b4944a' },
+                  ].map((row, i) => (
+                    <div key={i} style={{ padding: '10px 14px', borderRadius: 8, background: C.surface, border: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: row.color }}>{row.label}</span>
+                        <span style={{ fontSize: 10, color: C.muted, marginLeft: 8 }}>{row.value}</span>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: row.color, background: row.color + '18', padding: '2px 8px', borderRadius: 999, border: `1px solid ${row.color}33`, whiteSpace: 'nowrap' }}>{row.badge}</span>
+                    </div>
+                  ))}
+                </div>
+              ),
+              'ad-studio': (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {[
+                      { label: 'Lifestyle · Tokyo',  color: '#9b6fd4' },
+                      { label: 'Editorial · Capri',  color: '#c8a84b' },
+                      { label: 'Minimal · Clean',    color: '#4a8ab4' },
+                      { label: 'UGC · Natural',      color: '#4a9a6a' },
+                    ].map((card, i) => (
+                      <div key={i} style={{ padding: '32px 12px', borderRadius: 8, border: `1px solid ${card.color}33`, background: card.color + '08', textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: card.color }}>{card.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '10px 14px', borderRadius: 8, background: C.surface, border: `1px solid #c8a84b44`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16, color: '#c8a84b' }}>♪</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>Diamond</div>
+                      <div style={{ fontSize: 9, color: C.muted }}>High energy · 128 BPM · Drop at 0:32</div>
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#4a9a6a', background: '#4a9a6a18', padding: '2px 8px', borderRadius: 999, border: '1px solid #4a9a6a33' }}>96% match</span>
+                  </div>
+                </div>
+              ),
+              'cinematic': (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    ['Tokyo',       'Neon · Aman · Shinjuku',      '#9b6fd4'],
+                    ['Capri',       'Villa · Faraglioni · Sea',     '#c8a84b'],
+                    ['Marrakech',   'Riad · Hammam · La Mamounia',  '#b4944a'],
+                    ['Swiss Alps',  'Chalet · Slopes · Alpenglow',  '#4a8ab4'],
+                    ['Boudoir',     'Silk · Candlelight · Private', '#9b6fd4'],
+                    ['Mega Yacht',  'Med · Deck · Sunset',          '#4a9a6a'],
+                  ].map(([name, desc, color]) => (
+                    <div key={name} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${color}33`, background: color + '06' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 2 }}>{name}</div>
+                      <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.3 }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              ),
+              'music': (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {[
+                    { title: 'Diamond',        mood: 'Luxury',    bpm: 128, match: 96, color: '#c8a84b' },
+                    { title: 'Midnight Drive', mood: 'Confident', bpm: 124, match: 91, color: '#9b6fd4' },
+                    { title: 'Golden Hour',    mood: 'Emotional', bpm: 100, match: 84, color: '#b4944a' },
+                    { title: 'Pure Energy',    mood: 'Hype',      bpm: 140, match: 79, color: '#4a9a6a' },
+                  ].map((t, i) => (
+                    <div key={i} style={{ padding: '10px 14px', borderRadius: 8, background: C.surface, border: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', border: `1px solid ${t.color}44`, background: t.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.color, flexShrink: 0 }}>▶</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{t.title}</div>
+                        <div style={{ fontSize: 9, color: C.muted }}>{t.mood} · {t.bpm} BPM</div>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: t.color }}>{t.match}%</span>
+                    </div>
+                  ))}
+                </div>
+              ),
+              'affiliate': (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {[
+                      { label: 'This month',     value: '$847',  color: '#4a9a6a' },
+                      { label: 'Referrals',       value: '14',    color: '#4a8ab4' },
+                      { label: 'Commission',      value: '30%',   color: '#c8a84b' },
+                      { label: 'Total earned',    value: '$3,240', color: '#9b6fd4' },
+                    ].map((s, i) => (
+                      <div key={i} style={{ padding: '16px', borderRadius: 8, border: `1px solid ${s.color}33`, background: s.color + '06', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: s.color, letterSpacing: -0.5 }}>{s.value}</div>
+                        <div style={{ fontSize: 9, color: C.muted, marginTop: 3 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '10px 14px', borderRadius: 8, background: C.surface, border: `1px solid #4a9a6a33` }}>
+                    <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>Next payout</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#4a9a6a' }}>June 1, 2026 · via Stripe</div>
+                  </div>
+                </div>
+              ),
+              'updates': (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[
+                    { text: 'Mega Yacht + Supermodel story worlds',    date: 'May 2026' },
+                    { text: 'Multi-mood music + track streaming',      date: 'May 2026' },
+                    { text: 'Ad Studio v3 — image + video + music',   date: 'Apr 2026' },
+                    { text: 'Affiliate dashboard + payout tracking',   date: 'Apr 2026' },
+                    { text: 'Shot Director AI + Brand DNA Lock',       date: 'Mar 2026' },
+                    { text: 'Variation engine + coherence check',      date: 'Mar 2026' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding: '8px 12px', borderRadius: 7, background: C.surface, border: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 8, fontWeight: 800, color: '#000', background: '#4a9a6a', padding: '2px 6px', borderRadius: 3, flexShrink: 0, letterSpacing: 0.5 }}>NEW</span>
+                      <span style={{ fontSize: 11, color: C.secondary, flex: 1 }}>{item.text}</span>
+                      <span style={{ fontSize: 9, color: C.muted, flexShrink: 0 }}>{item.date}</span>
+                    </div>
+                  ))}
+                </div>
+              ),
+            }
+
+            return (
+              <div key={slide.id} style={{ borderRadius: 16, border: `1px solid ${slide.color}33`, background: slide.color + '05', padding: 'clamp(28px, 4vw, 52px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(32px, 5vw, 64px)', alignItems: 'center' }}>
+                {/* Text */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: slide.color, marginBottom: 14 }}>{slide.badge}</div>
+                  <h3 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 18px', color: C.primary, whiteSpace: 'pre-line' }}>
+                    {slide.headline}
+                  </h3>
+                  <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, margin: '0 0 22px' }}>
+                    {slide.sub}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+                    {slide.bullets.map((b, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <span style={{ color: slide.color, fontSize: 10, flexShrink: 0, marginTop: 3 }}>✦</span>
+                        <span style={{ fontSize: 13, color: C.secondary }}>{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => scrollTo(slide.anchor)}
+                      style={{ padding: '10px 22px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${slide.color}`, background: slide.color + '18', color: slide.color }}>
+                      {slide.cta}
+                    </button>
+                    <button onClick={goToLogin}
+                      style={{ padding: '10px 22px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.primary }}>
+                      Start Free →
+                    </button>
+                  </div>
+                </div>
+                {/* Visual */}
+                <div>
+                  {VISUALS[slide.id]}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Dot nav */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 28 }}>
+            {FEATURE_SLIDES.map((s, i) => (
+              <button key={i} onClick={() => setSlideIndex(i)} style={{
+                width: slideIndex === i ? 28 : 8, height: 8, borderRadius: 4, border: 'none', cursor: 'pointer', padding: 0,
+                background: slideIndex === i ? FEATURE_SLIDES[i].color : C.subtle,
+                transition: 'all 0.2s',
+              }} />
+            ))}
+          </div>
+
+        </div>
+      </section>
+
       {/* ── OUTPUT NUMBERS ── */}
       <section style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: '40px 24px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
@@ -354,7 +631,7 @@ export default function HomePage() {
       </section>
 
       {/* ── LIVE OUTPUT SHOWCASE ── */}
-      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px', background: C.void }}>
+      <section id="section-outputs" style={{ padding: 'clamp(60px, 8vw, 100px) 24px', background: C.void }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>What It Actually Creates</div>
@@ -615,7 +892,7 @@ export default function HomePage() {
       </section>
 
       {/* ── THE STUDIO (secondary positioning) ── */}
-      <section style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+      <section id="section-studio" style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>The Director's Studio</div>
@@ -653,6 +930,196 @@ export default function HomePage() {
               <div key={name} style={{ padding: '13px 15px', borderRadius: 8, border: `1px solid ${color}33`, background: color + '06' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 3 }}>{name}</div>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.4 }}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── AD STUDIO ── */}
+      <section id="section-adstudio" style={{ padding: 'clamp(60px, 8vw, 100px) 24px', background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}` }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#9b6fd4', marginBottom: 16 }}>AI Ad Studio</div>
+            <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
+              Images. Video.<br />
+              <span style={{ color: '#9b6fd4' }}>Music. One studio.</span>
+            </h2>
+            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
+              Stop switching between Midjourney, CapCut, and Spotify. Generate scroll-stopping ad images in 5 style modes, build video storyboards with AI-ready prompts for Runway and Kling, and pick a licensed soundtrack matched to your exact mood and campaign — all without leaving the app.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+              {['AI image generation — lifestyle, editorial, minimal, UGC, cinematic', 'Video storyboards with shot-by-shot direction + Runway/Kling prompts', 'Licensed music library matched by mood, energy, and BPM to your brief', 'AI timing plan that syncs your ad script to the music drop'].map((f, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10 }}>
+                  <span style={{ color: '#9b6fd4', fontSize: 11, flexShrink: 0, marginTop: 2 }}>✦</span>
+                  <span style={{ fontSize: 13, color: C.secondary }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid #9b6fd4`, background: '#9b6fd418', color: '#9b6fd4' }}>
+              Try Ad Studio Free →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[['Lifestyle', 'Tokyo · Aman suites', '#9b6fd4'], ['Editorial', 'Capri · Villa terrace', '#c8a84b'], ['Minimal', 'Clean · White studio', '#4a8ab4'], ['UGC', 'Natural · Handheld', '#4a9a6a']].map(([s, d, c]) => (
+                <div key={s} style={{ padding: '20px 14px', borderRadius: 8, border: `1px solid ${c}33`, background: c + '08', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: c, marginBottom: 3 }}>{s}</div>
+                  <div style={{ fontSize: 9, color: C.muted }}>{d}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 8, background: C.surface, border: `1px solid #c8a84b44` }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a84b', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>AI Music Match — 96% fit</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18, color: '#c8a84b' }}>♪</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>Diamond</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>Luxury · High energy · 128 BPM · Drop at 0:32</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── MUSIC INTELLIGENCE ── */}
+      <section id="section-music" style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {[
+              { title: 'Diamond',        mood: 'Luxury · Confident',  bpm: 128, match: 96, color: '#c8a84b' },
+              { title: 'Midnight Drive', mood: 'Bold · Cinematic',    bpm: 124, match: 91, color: '#9b6fd4' },
+              { title: 'Golden Hour',    mood: 'Emotional · Warm',    bpm: 100, match: 84, color: '#b4944a' },
+              { title: 'Pure Energy',    mood: 'Hype · Explosive',    bpm: 140, match: 79, color: '#4a9a6a' },
+              { title: 'After Dark',     mood: 'Mysterious · Sexy',   bpm: 96,  match: 74, color: '#9b6fd4' },
+            ].map((t, i) => (
+              <div key={i} style={{ padding: '12px 16px', borderRadius: 8, background: C.surface, border: `1px solid ${i === 0 ? t.color + '55' : C.hairline}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${t.color}44`, background: t.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: t.color, flexShrink: 0 }}>▶</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: i === 0 ? t.color : C.primary }}>{t.title}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>{t.mood} · {t.bpm} BPM</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: t.color }}>{t.match}%</div>
+                  <div style={{ fontSize: 8, color: C.muted }}>AI match</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#4a9a6a', marginBottom: 16 }}>Music Intelligence</div>
+            <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
+              AI-matched soundtracks<br />
+              <span style={{ color: '#4a9a6a' }}>for every ad.</span>
+            </h2>
+            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
+              Every track in the library is scored against your ad brief — mood, energy, campaign type, platform, and product fit. You get a ranked list with exactly why each track fits, plus an AI timing plan that maps the drop, hook, and CTA moments to your video script.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+              {['Mood-matched recommendations from your brief', 'BPM, drop timing, hook window for every track', 'Licensed — use in any campaign without clearing rights', '$9/month Music Addon for unlimited access'].map((f, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10 }}>
+                  <span style={{ color: '#4a9a6a', fontSize: 11, flexShrink: 0, marginTop: 2 }}>✦</span>
+                  <span style={{ fontSize: 13, color: C.secondary }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid #4a9a6a`, background: '#4a9a6a18', color: '#4a9a6a' }}>
+              Explore Music Library →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── AFFILIATE PROGRAM ── */}
+      <section id="section-affiliate" style={{ background: C.deep, borderTop: `1px solid ${C.hairline}`, borderBottom: `1px solid ${C.hairline}`, padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#4a8ab4', marginBottom: 16 }}>Partner Program</div>
+            <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
+              Earn 30% recurring<br />
+              <span style={{ color: '#4a8ab4' }}>on every referral.</span>
+            </h2>
+            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
+              Share your link. Every subscription you refer pays you 30% every single month — for as long as they stay subscribed. No cap, no tiers, no minimum. Real-time dashboard shows you exactly what's coming and when.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+              {['30% recurring — paid every month indefinitely', 'Real-time dashboard with referral names + payout countdown', 'Ready-made share content for social and email', 'Monthly Stripe payouts — no minimum threshold'].map((f, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10 }}>
+                  <span style={{ color: '#4a8ab4', fontSize: 11, flexShrink: 0, marginTop: 2 }}>✦</span>
+                  <span style={{ fontSize: 13, color: C.secondary }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => router.push('/partner')} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid #4a8ab4`, background: '#4a8ab418', color: '#4a8ab4' }}>
+              Join the Partner Program →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                { label: 'This month',   value: '$847',   color: '#4a9a6a' },
+                { label: 'Referrals',    value: '14',     color: '#4a8ab4' },
+                { label: 'Commission',   value: '30%',    color: '#c8a84b' },
+                { label: 'Total earned', value: '$3,240', color: '#9b6fd4' },
+              ].map((s, i) => (
+                <div key={i} style={{ padding: '20px', borderRadius: 8, border: `1px solid ${s.color}33`, background: s.color + '06', textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: s.color, letterSpacing: -0.5 }}>{s.value}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 8, background: C.surface, border: `1px solid #4a9a6a33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>Next payout</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#4a9a6a' }}>June 1, 2026</div>
+              </div>
+              <div style={{ fontSize: 11, color: C.secondary }}>via Stripe</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── ALWAYS EVOLVING ── */}
+      <section id="section-updates" style={{ padding: 'clamp(60px, 8vw, 100px) 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'start' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#4a9a6a', marginBottom: 16 }}>Always Evolving</div>
+            <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: -1, lineHeight: 1.1, margin: '0 0 20px' }}>
+              New features and worlds<br />
+              <span style={{ color: '#4a9a6a' }}>every single week.</span>
+            </h2>
+            <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
+              This isn't a tool that launched and went quiet. New cinematic worlds, AI campaign tools, platform integrations, and creative features ship constantly — and every update goes live the moment it's ready. No installs. No app store. Just open it and it's already better.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+              {['New cinematic worlds added every month', 'New AI tools and campaign systems weekly', 'Feature requests from the community actually ship', 'Every update is live instantly — nothing to install'].map((f, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10 }}>
+                  <span style={{ color: '#4a9a6a', fontSize: 11, flexShrink: 0, marginTop: 2 }}>✦</span>
+                  <span style={{ fontSize: 13, color: C.secondary }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={goToLogin} style={{ padding: '12px 28px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid #4a9a6a`, background: '#4a9a6a18', color: '#4a9a6a' }}>
+              Start Free — See What's Live →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>Recent updates</div>
+            {[
+              { text: 'Mega Yacht + Supermodel story worlds',      date: 'May 2026' },
+              { text: 'Multi-mood music upload + track streaming', date: 'May 2026' },
+              { text: 'Ad Studio v3 — image + video + music',     date: 'Apr 2026' },
+              { text: 'Affiliate dashboard + payout tracking',     date: 'Apr 2026' },
+              { text: 'Shot Director AI + Brand DNA Lock',         date: 'Mar 2026' },
+              { text: 'Variation engine + coherence check',        date: 'Mar 2026' },
+              { text: 'onlyfans-creator + swim-model worlds',      date: 'Mar 2026' },
+              { text: 'Admin music upload panel',                  date: 'Feb 2026' },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: '9px 13px', borderRadius: 7, background: C.surface, border: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#000', background: '#4a9a6a', padding: '2px 6px', borderRadius: 3, flexShrink: 0, letterSpacing: 0.5 }}>NEW</span>
+                <span style={{ fontSize: 11, color: C.secondary, flex: 1 }}>{item.text}</span>
+                <span style={{ fontSize: 9, color: C.muted, flexShrink: 0 }}>{item.date}</span>
               </div>
             ))}
           </div>
