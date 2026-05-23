@@ -44,6 +44,7 @@ export async function POST(req) {
         energy:           energy || 'medium',
         duration_seconds: duration ? parseInt(duration, 10) : null,
         preview_file_url,
+        full_file_url:    preview_file_url,
         is_active:        true,
         is_premium:       !!is_premium,
         featured:         !!featured,
