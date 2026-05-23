@@ -217,6 +217,18 @@ const REPLACES = [
   { tool: 'TubeBuddy',            use: 'Product descriptions',  price: '$20+/mo' },
 ]
 
+// ── Hero ticker outputs ───────────────────────────────────────
+const HERO_TICKER = [
+  { type: 'Hook',         color: '#c8a84b', text: '"I\'ve tried every skincare brand. Nothing worked until this."',        badge: '4.8% CTR predicted' },
+  { type: 'Email',        color: '#9b6fd4', text: '"This is going to sound crazy…"',                                       badge: '38% open rate' },
+  { type: 'Landing Page', color: '#4a9a6a', text: '"One serum. 14 days. Your skin finally works."',                        badge: 'Full page generated' },
+  { type: 'SMS',          color: '#b4944a', text: '"Last call — your cart closes in 2 hours and the bonus disappears."',   badge: '142 chars · timed' },
+  { type: 'Retargeting',  color: '#4a8ab4', text: '"You left something behind. It\'s still waiting for you."',           badge: 'Warm audience · ATC' },
+  { type: 'Offer Stack',  color: '#4a9a6a', text: '"Total value: $394. You pay today: $97. Plus 3 bonuses."',             badge: 'Value anchor + guarantee' },
+  { type: 'Video Script', color: '#9b6fd4', text: '"I tried to fix this problem for three years. Nothing worked."',       badge: 'Teleprompter-ready' },
+  { type: 'Ad Audit',     color: '#cf6a6a', text: '"Campaign A is fatiguing — CTR dropped 3.8% → 1.1%. Kill it now."',   badge: '7-day action plan' },
+]
+
 // ── Feature carousel slides ───────────────────────────────────
 const FEATURE_SLIDES = [
   {
@@ -312,6 +324,7 @@ export default function HomePage() {
   const [activeCard,     setActiveCard]     = useState(null)
   const [showcaseHover,  setShowcaseHover]  = useState(null)
   const [slideIndex,     setSlideIndex]     = useState(0)
+  const [tickerIndex,    setTickerIndex]    = useState(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user || null))
@@ -324,6 +337,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const t = setInterval(() => setSlideIndex(i => (i + 1) % FEATURE_SLIDES.length), 7000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setTickerIndex(i => (i + 1) % HERO_TICKER.length), 3500)
     return () => clearInterval(t)
   }, [])
 
@@ -381,26 +399,69 @@ export default function HomePage() {
             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>Complete Marketing Operating System</span>
           </div>
 
-          <h1 style={{ fontSize: 'clamp(38px, 7.5vw, 78px)', fontWeight: 800, lineHeight: 1.0, letterSpacing: -3, margin: '0 0 28px', color: C.primary }}>
+          <style>{`
+            @keyframes tickerFade {
+              from { opacity: 0; transform: translateY(10px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            .ticker-card { animation: tickerFade 0.45s ease forwards; }
+          `}</style>
+
+          <h1 style={{ fontSize: 'clamp(38px, 7.5vw, 78px)', fontWeight: 800, lineHeight: 1.0, letterSpacing: -3, margin: '0 0 36px', color: C.primary }}>
             One brief.<br />
             <span style={{ color: C.gold }}>Your entire marketing stack.</span>
           </h1>
 
-          <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: C.secondary, lineHeight: 1.8, maxWidth: 580, margin: '0 auto 20px' }}>
-            Hooks. Captions. Landing pages. Email sequences. SMS campaigns. UGC briefs. Retargeting packs. Video storyboards. Offer structures. Ad audits. All from a single product brief. All connected.
+          {/* ── Live output ticker ── */}
+          {(() => {
+            const item = HERO_TICKER[tickerIndex]
+            return (
+              <div key={tickerIndex} className="ticker-card" style={{ maxWidth: 680, margin: '0 auto 36px', borderRadius: 12, border: `1px solid ${item.color}44`, background: item.color + '08', padding: '18px 22px', textAlign: 'left' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: item.color, background: item.color + '18', border: `1px solid ${item.color}33`, padding: '3px 9px', borderRadius: 999 }}>{item.type}</span>
+                  <span style={{ fontSize: 9, color: C.muted, letterSpacing: 0.5 }}>· AI generated</span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4a9a6a', display: 'inline-block', boxShadow: '0 0 6px #4a9a6a' }} />
+                    <span style={{ fontSize: 9, color: '#4a9a6a', fontWeight: 700 }}>LIVE</span>
+                  </span>
+                </div>
+                <div style={{ fontSize: 'clamp(14px, 1.8vw, 17px)', color: C.primary, fontStyle: 'italic', lineHeight: 1.6, marginBottom: 10 }}>
+                  {item.text}
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: item.color }}>{item.badge}</div>
+              </div>
+            )
+          })()}
+
+          <p style={{ fontSize: 'clamp(14px, 1.6vw, 16px)', color: C.secondary, lineHeight: 1.8, maxWidth: 520, margin: '0 auto 16px' }}>
+            Enter your product once. Walk out with your entire marketing stack — hooks, landing pages, email sequences, SMS campaigns, retargeting creatives, and more. All connected. All in your brand voice.
           </p>
 
-          <p style={{ fontSize: 14, color: C.muted, marginBottom: 44 }}>
+          <p style={{ fontSize: 13, color: C.muted, marginBottom: 40 }}>
             Plus the world's most advanced cinematic prompt engine — 20 worlds, 12-layer AI, 11 director styles.
           </p>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 56 }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
             <button onClick={goToLogin} style={{ padding: '15px 36px', borderRadius: 6, fontSize: 15, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#000', letterSpacing: 0.3 }}>
               Start Free — No Card Needed
             </button>
             <button onClick={goToPricing} style={{ padding: '15px 28px', borderRadius: 6, fontSize: 15, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.primary }}>
               See Pricing →
             </button>
+          </div>
+
+          {/* ── Social proof numbers ── */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, maxWidth: 560, margin: '0 auto 28px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, overflow: 'hidden' }}>
+            {[
+              { n: '2,400+',  label: 'marketers',         color: C.gold   },
+              { n: '180k+',   label: 'outputs generated', color: C.violet },
+              { n: '$300+',   label: 'worth of tools replaced', color: C.green },
+            ].map((s, i) => (
+              <div key={i} style={{ flex: 1, padding: '14px 8px', textAlign: 'center', borderRight: i < 2 ? `1px solid ${C.hairline}` : 'none' }}>
+                <div style={{ fontSize: 'clamp(18px, 2.5vw, 24px)', fontWeight: 800, color: s.color, letterSpacing: -0.5, lineHeight: 1 }}>{s.n}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4, lineHeight: 1.3 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
