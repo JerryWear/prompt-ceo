@@ -7,7 +7,24 @@
       "Bash(grep -c '' c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/__TRACKED_VAR__.js)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(node --input-type=module)",
+      "Bash(node --check app/prompt-v2/story-worlds/onlyfans-creator-life.js)",
+      "Bash(node --check app/prompt-engine-v3/resolvers/worldResolver.js)",
+      "Bash(node --check app/prompt-engine-v3/layers/05-wardrobe.js)",
+      "Bash(node --check app/prompt-engine-v3/components/MusicSelector.js)",
+      "Bash(grep -v \"//\\\\|'undefined'\\\\|=== undefined\\\\|!== undefined\\\\| undefined$\\\\|undefined }\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/layers/05-wardrobe.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/layers/06-camera.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/layers/07-lighting.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/layers/08-mood.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/ad-system/musicRecommendation.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/ad-system/brandDNALock.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-engine-v3/studio/studioIntelligence.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/boudoir.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/rockstar.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/power-ceo.js\")",
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/after-dark.js\")"
     ]
   }
 }
