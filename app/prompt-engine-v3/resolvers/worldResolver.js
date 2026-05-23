@@ -19,6 +19,7 @@ import { getWorldById } from '../../prompt-v2/worlds/index.js'
 // ─────────────────────────────────────────────────────────────
 
 const STORY_WORLD_TO_WORLD_ID = {
+  // ── Lifestyle story worlds ─────────────────────────────────
   'luxury-life':            'luxury_life',
   'luxury_life':            'luxury_life',
   'high-society-life':      'high-society-life',
@@ -33,19 +34,47 @@ const STORY_WORLD_TO_WORLD_ID = {
   'fitness_life':           'fitness_life',
   'gym-influencer-life':    'gym_influencer',
   'gym_influencer_life':    'gym_influencer',
+  'supermodel-life':        'supermodel-life',
+  'supermodel_life':        'supermodel-life',
+
+  // ── Model / niche story worlds ────────────────────────────
   'swim-model':             'swim-model',
   'swim_model':             'swim-model',
   'mega-yacht':             'mega-yacht',
   'mega_yacht':             'mega-yacht',
-  'supermodel-life':        'supermodel-life',
-  'supermodel_life':        'supermodel-life',
+  'boudoir':                'boudoir',
+  'dark-femme':             'dark-femme',
+  'dark_femme':             'dark-femme',
+  'after-dark':             'after-dark',
+  'after_dark':             'after-dark',
+  'forbidden':              'forbidden',
+  'power-ceo':              'power-ceo',
+  'power_ceo':              'power-ceo',
+  'victorias-angel':        'victorias-angel',
+  'victorias_angel':        'victorias-angel',
+  'pilates-princess':       'pilates-princess',
+  'pilates_princess':       'pilates-princess',
+  'rockstar':               'rockstar',
+  'latex-queen':            'latex-queen',
+  'latex_queen':            'latex-queen',
+  'fine-art-nude':          'fine-art-nude',
+  'fine_art_nude':          'fine-art-nude',
+  'wild-nature':            'wild-nature',
+  'wild_nature':            'wild-nature',
+  'desert-queen':           'desert-queen',
+  'desert_queen':           'desert-queen',
+  'neon-city':              'neon-city',
+  'neon_city':              'neon-city',
+
+  // ── Location worlds ───────────────────────────────────────
   'bali':                   'bali',
   'venice':                 'venice',
   'paris':                  'paris',
   'london':                 'london',
   'monaco':                 'monaco',
-  'lake-como-life':         'lake-como-private-escape',
-  'lake_como_life':         'lake-como-private-escape',
+  'lake-como-life':         'lake-como',
+  'lake_como_life':         'lake-como',
+  'lake-como':              'lake-como',
 }
 
 // ─────────────────────────────────────────────────────────────

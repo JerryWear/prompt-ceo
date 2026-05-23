@@ -12536,11 +12536,6 @@ export default function PromptCEOPage() {
   }
 
   const generateAdText = useCallback(async ({ type, hookType, adConfig, inspiredStyle, contentToScore, variationContent, variationType, variationContentType }) => {
-    // Gate: no credits and no active subscription
-    if (typeof s.credits === 'number' && s.credits <= 0) {
-      triggerPaywall(type || 'Ad generation')
-      return
-    }
     merge({ adTextGenerating: true, adTextError: '', adTextType: type, adTextHookType: hookType || null })
     try {
       const res  = await fetch('/api/generate-ad-text', {
@@ -12578,10 +12573,6 @@ export default function PromptCEOPage() {
 
   // ── Ad Studio generation ──────────────────────────────────
   const generateAdImage = useCallback(async ({ prompt, mode, adConfig }) => {
-    if (typeof s.credits === 'number' && s.credits <= 0) {
-      triggerPaywall('Image generation')
-      return
-    }
     merge({ adGenerating: true, adError: '', adGeneratedImage: '', adVideoUrl: '' })
     try {
       const res = await fetch('/api/generate-image', {
