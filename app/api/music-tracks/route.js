@@ -50,10 +50,22 @@ export async function GET(req) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
     }
 
-    const tracks = (data || []).map(t => ({
-      ...t,
-      campaign_count: t.music_licenses?.[0]?.count ?? 0,
-      music_licenses: undefined,
+    // Generate signed URLs for tracks stored in private buckets
+    const tracks = await Promise.all((data || []).map(async t => {
+      let previewUrl = t.preview_file_url
+      if (previewUrl && previewUrl.includes('/music-full/')) {
+        const path = previewUrl.split('/object/music-full/').pop()
+        if (path) {
+          const { data: signed } = await admin.storage.from('music-full').createSignedUrl(path, 3600)
+          if (signed?.signedUrl) previewUrl = signed.signedUrl
+        }
+      }
+      return {
+        ...t,
+        preview_file_url: previewUrl,
+        campaign_count:   t.music_licenses?.[0]?.count ?? 0,
+        music_licenses:   undefined,
+      }
     }))
 
     return NextResponse.json({ status: 'success', tracks })
