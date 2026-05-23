@@ -30,7 +30,7 @@ const CampaignCount = ({ count }) => count > 0 ? (
   </span>
 ) : null
 
-export default function MusicSelector({ adConfig, selectedTrack, onLicense, credits }) {
+export default function MusicSelector({ adConfig, selectedTrack, onLicense, hasMusicAddon }) {
   const [tracks,       setTracks]       = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -78,9 +78,9 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
 
   const handleLicense = async (track) => {
     if (selectedTrack?.id === track.id) return
-    if ((credits || 0) < (track.license_credits || 2)) {
-      setLicenseError(`Need ${track.license_credits || 2} credits — you have ${credits || 0}`)
-      setTimeout(() => setLicenseError(''), 3000)
+    if (!hasMusicAddon) {
+      setLicenseError('Music Addon required — add it from your account for $9/month to use all tracks.')
+      setTimeout(() => setLicenseError(''), 5000)
       return
     }
     setLicensing(track.id)
@@ -135,7 +135,7 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
             {selectedTrack.mood    && <span>{selectedTrack.mood}</span>}
             {selectedTrack.bpm     && <span>{selectedTrack.bpm} BPM</span>}
             {selectedTrack.energy  && <span style={{ color: ENERGY_COLORS[selectedTrack.energy] || C.muted }}>{selectedTrack.energy}</span>}
-            <span style={{ color: C.green }}>✓ 2 credits</span>
+            <span style={{ color: C.green }}>✓ Music Addon</span>
           </div>
 
           {/* Timing plan */}
@@ -237,7 +237,7 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
                     </div>
                   </div>
                   <button onClick={() => handleLicense(topTrack)} disabled={isSelected || licensing === topTrack.id} style={{ padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: isSelected ? 'default' : 'pointer', flexShrink: 0, border: `1px solid ${isSelected ? C.goldDim : C.goldDim}`, background: isSelected ? C.goldGlow : '#1a1408', color: C.gold, opacity: licensing === topTrack.id ? 0.6 : 1, transition: 'all 0.12s' }}>
-                    {isSelected ? '✓ Licensed' : licensing === topTrack.id ? '…' : `Use — ${topTrack.license_credits || 2}cr`}
+                    {isSelected ? '✓ Licensed' : licensing === topTrack.id ? '…' : 'Use Track'}
                   </button>
                 </div>
 
@@ -354,7 +354,7 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
                     {scored?.whyFits && <div style={{ fontSize: 9, color: C.goldDim, fontStyle: 'italic', marginTop: 4, lineHeight: 1.4 }}>"{scored.whyFits}"</div>}
                   </div>
                   <button onClick={() => handleLicense(track)} disabled={isSelected || licensing === track.id} style={{ padding: '7px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: isSelected ? 'default' : 'pointer', flexShrink: 0, border: `1px solid ${isSelected ? C.goldDim : C.goldDim}`, background: isSelected ? C.goldGlow : '#1a1408', color: C.gold, opacity: licensing === track.id ? 0.6 : 1 }}>
-                    {isSelected ? '✓ Licensed' : licensing === track.id ? '…' : `Use — ${track.license_credits || 2}cr`}
+                    {isSelected ? '✓ Licensed' : licensing === track.id ? '…' : 'Use Track'}
                   </button>
                 </div>
               </div>
@@ -391,7 +391,7 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
                   </div>
                 </div>
                 <button onClick={() => handleLicense(track)} disabled={isSelected || licensing === track.id} style={{ padding: '5px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: isSelected ? 'default' : 'pointer', flexShrink: 0, border: `1px solid ${isSelected ? C.goldDim : C.subtle}`, background: isSelected ? C.goldGlow : C.surface, color: isSelected ? C.gold : C.primary, opacity: licensing === track.id ? 0.6 : 1 }}>
-                  {isSelected ? '✓ Licensed' : licensing === track.id ? '…' : `Use — ${track.license_credits || 2}cr`}
+                  {isSelected ? '✓ Licensed' : licensing === track.id ? '…' : 'Use Track'}
                 </button>
               </div>
             )
@@ -399,8 +399,8 @@ export default function MusicSelector({ adConfig, selectedTrack, onLicense, cred
         </div>
       )}
 
-      <div style={{ fontSize: 9, color: C.muted, textAlign: 'center' }}>
-        ▶ Preview free · License = {tracks[0]?.license_credits || 2} credits
+      <div style={{ fontSize: 9, color: hasMusicAddon ? C.green : C.muted, textAlign: 'center' }}>
+        {hasMusicAddon ? '✓ Music Addon active — use all tracks' : '▶ Preview free · Add Music Addon ($9/mo) to use tracks'}
       </div>
     </div>
   )

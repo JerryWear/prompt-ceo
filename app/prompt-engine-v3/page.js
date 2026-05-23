@@ -6761,16 +6761,13 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           <MusicSelector
             adConfig={buildAdConfig()}
             selectedTrack={s.adMusicTrack}
-            credits={s.credits}
+            hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
             onLicense={(track, licenseData) => {
               merge({
                 adMusicTrack:       track,
                 adMusicLicenseId:   licenseData.licenseId,
                 adMusicTimingPlan:  licenseData.timingPlan,
               })
-              if (typeof licenseData.creditsRemaining === 'number') {
-                set('credits', licenseData.creditsRemaining)
-              }
               // After licensing, nudge to Creative tab if no product filled
               if (!productName.trim()) setAdOutputTab('creative')
             }}

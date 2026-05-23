@@ -5,13 +5,10 @@ import { createServerClient } from '@supabase/ssr'
 
 // POST /api/license-music
 // 1. Check auth
-// 2. Check credits
+// 2. Check music addon / tier limit
 // 3. Get track
-// 4. Deduct credits
-// 5. Insert license row
-// 6. Return track metadata (NOT full URL)
-
-const LICENSE_COST = 2
+// 4. Insert license row
+// 5. Return track metadata (NOT full URL)
 
 export async function POST(req) {
   try {
@@ -59,29 +56,29 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'Track not found' }, { status: 404 })
     }
 
-    // ── Subscription music check ─────────────────────────────
+    // ── Music addon / tier check ─────────────────────────────
     let { data: userRow } = await admin
       .from('app_users')
-      .select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon')
+      .select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon, is_admin')
       .eq('id', user.id)
       .single()
 
     if (!userRow) {
       await admin.from('app_users').insert({ id: user.id, credits: 0, plan: 'free' })
-      const { data: newUser } = await admin.from('app_users').select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon').eq('id', user.id).single()
+      const { data: newUser } = await admin.from('app_users').select('subscription_tier, subscription_status, music_licenses_used_this_period, music_addon, is_admin').eq('id', user.id).single()
       userRow = newUser
     }
 
     const { canLicenseMusic } = await import('../../../lib/subscription.js')
     if (!canLicenseMusic(userRow)) {
       return NextResponse.json(
-        { status: 'error', message: 'Music license limit reached. Upgrade to Pro or Agency for more licenses.', upgradeRequired: true },
+        { status: 'error', message: 'Music addon required. Add the Music Addon ($9/month) to use tracks.', upgradeRequired: true },
         { status: 402 }
       )
     }
 
-    // ── Increment music usage ────────────────────────────────
-    if (!userRow.music_addon) {
+    // ── Track tier-based usage (not addon users) ─────────────
+    if (!userRow.music_addon && !userRow.is_admin) {
       await admin.from('app_users').update({
         music_licenses_used_this_period: (userRow.music_licenses_used_this_period || 0) + 1,
       }).eq('id', user.id)
@@ -95,7 +92,7 @@ export async function POST(req) {
         track_id:        track.id,
         project_type:    'ad_studio',
         usage_type:      'ad_use',
-        credits_charged: cost,
+        credits_charged: 0,
       })
       .select()
       .single()
