@@ -40,7 +40,7 @@ function AdminPanel() {
   const [memberError,   setMemberError]   = useState(null)
 
   // Music upload state
-  const [musicForm,     setMusicForm]     = useState({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false })
+  const [musicForm,     setMusicForm]     = useState({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false, uploadType: 'full' })
   const [musicFile,     setMusicFile]     = useState(null)
   const [musicUploading,setMusicUploading]= useState(false)
   const [musicError,    setMusicError]    = useState(null)
@@ -347,7 +347,7 @@ function AdminPanel() {
               const presignRes = await fetch('/api/admin/music-presign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: musicFile.name, contentType: musicFile.type, title: musicForm.title }),
+                body: JSON.stringify({ filename: musicFile.name, contentType: musicFile.type, title: musicForm.title, bucket: musicForm.uploadType === 'preview' ? 'music-previews' : 'music-full' }),
               })
               const presign = await presignRes.json()
               if (!presignRes.ok) throw new Error(presign.error || 'Failed to get upload URL')
@@ -373,13 +373,14 @@ function AdminPanel() {
                   duration:         musicForm.duration,
                   is_premium:       musicForm.is_premium,
                   featured:         musicForm.featured,
-                  preview_file_url: presign.publicUrl,
+                  upload_type:      musicForm.uploadType,
+                  file_url:         presign.publicUrl,
                 }),
               })
               const meta = await metaRes.json()
               if (meta.status === 'success') {
                 setMusicSuccess(`"${meta.track.title}" uploaded successfully`)
-                setMusicForm({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false })
+                setMusicForm({ title: '', artist: '', genre: 'Electronic', moods: [], energy: 'medium', duration: '', is_premium: false, featured: false, uploadType: 'full' })
                 setMusicFile(null)
                 e.target.reset()
               } else {
@@ -411,9 +412,26 @@ function AdminPanel() {
             </div>
           )
 
+          const isPreview = musicForm.uploadType === 'preview'
+
           return (
             <form onSubmit={handleMusicSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 520 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Upload Music Track</div>
+
+              {/* Full / Preview toggle */}
+              <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.hairline}`, alignSelf: 'flex-start' }}>
+                {[['full', 'Full Track'], ['preview', 'Preview Clip']].map(([val, label]) => (
+                  <button key={val} type="button" onClick={() => setMusicForm(f => ({ ...f, uploadType: val }))}
+                    style={{ padding: '7px 18px', fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none',
+                      background: musicForm.uploadType === val ? C.violet : C.surface,
+                      color: musicForm.uploadType === val ? '#fff' : C.muted }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {isPreview && <div style={{ fontSize: 11, color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, borderRadius: 5, padding: '8px 12px' }}>
+                Preview mode — only Title is needed to match the existing track. File goes to public bucket.
+              </div>}
 
               {/* File picker */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -430,13 +448,12 @@ function AdminPanel() {
                 {field('ARTIST', 'artist', 'text', { placeholder: 'Artist name', required: true })}
               </div>
 
-              {/* Row: genre */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {!isPreview && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {select('GENRE', 'genre', GENRES)}
-              </div>
+              </div>}
 
               {/* Mood tag picker */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {!isPreview && <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.secondary }}>MOOD <span style={{ fontWeight: 400, color: C.muted }}>(pick all that apply)</span></label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {MOODS.map(m => {
@@ -450,16 +467,14 @@ function AdminPanel() {
                     )
                   })}
                 </div>
-              </div>
+              </div>}
 
-              {/* Row: energy + duration */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {!isPreview && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {select('ENERGY', 'energy', ['low', 'medium', 'high'])}
                 {field('DURATION (seconds)', 'duration', 'number', { placeholder: '187', min: 0 })}
-              </div>
+              </div>}
 
-              {/* Checkboxes */}
-              <div style={{ display: 'flex', gap: 20 }}>
+              {!isPreview && <div style={{ display: 'flex', gap: 20 }}>
                 {[['is_premium', 'Premium only'], ['featured', 'Featured']].map(([key, label]) => (
                   <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: C.secondary, cursor: 'pointer' }}>
                     <input type="checkbox" checked={musicForm[key]} onChange={e => setMusicForm(f => ({ ...f, [key]: e.target.checked }))}
@@ -467,7 +482,7 @@ function AdminPanel() {
                     {label}
                   </label>
                 ))}
-              </div>
+              </div>}
 
               {musicError   && <div style={{ padding: '10px 12px', borderRadius: 6, background: C.redGlow,   border: `1px solid #7a2a2a`, fontSize: 12, color: C.red   }}>{musicError}</div>}
               {musicSuccess && <div style={{ padding: '10px 12px', borderRadius: 6, background: C.greenGlow, border: `1px solid ${C.greenDim}`, fontSize: 12, color: C.green }}>{musicSuccess}</div>}

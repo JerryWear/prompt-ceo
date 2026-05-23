@@ -27,30 +27,66 @@ export async function POST(req) {
     if (!userRow?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
-    const { title, artist, genre, mood, energy, duration, is_premium, featured, preview_file_url } = body
+    const { title, artist, genre, mood, energy, duration, is_premium, featured, upload_type, file_url } = body
 
-    if (!title || !artist || !preview_file_url) {
-      return NextResponse.json({ error: 'title, artist, and preview_file_url are required' }, { status: 400 })
+    if (!title || !file_url) {
+      return NextResponse.json({ error: 'title and file_url are required' }, { status: 400 })
     }
 
-    const { data: track, error: insertErr } = await admin
-      .from('music_tracks')
-      .insert({
-        title,
-        artist:           artist,
-        artist_name:      artist,
-        genre:            genre || null,
-        mood:             mood  || null,
-        energy:           energy || 'medium',
-        duration_seconds: duration ? parseInt(duration, 10) : null,
-        preview_file_url,
-        full_file_url:    preview_file_url,
-        is_active:        true,
-        is_premium:       !!is_premium,
-        featured:         !!featured,
-      })
-      .select('id, title')
-      .single()
+    const isPreview = upload_type === 'preview'
+
+    let track, insertErr
+
+    if (isPreview) {
+      // Preview upload: find existing track by title and update preview_file_url
+      const { data: existing } = await admin
+        .from('music_tracks')
+        .select('id')
+        .ilike('title', title.trim())
+        .single()
+
+      if (existing) {
+        const { data: updated, error: updateErr } = await admin
+          .from('music_tracks')
+          .update({ preview_file_url: file_url })
+          .eq('id', existing.id)
+          .select('id, title')
+          .single()
+        track = updated
+        insertErr = updateErr
+      } else {
+        // No existing track — create a minimal row
+        const { data: inserted, error: ie } = await admin
+          .from('music_tracks')
+          .insert({ title, artist_name: artist || '', preview_file_url: file_url, full_file_url: file_url, is_active: false })
+          .select('id, title')
+          .single()
+        track = inserted
+        insertErr = ie
+      }
+    } else {
+      // Full track upload: create new row
+      const { data: inserted, error: ie } = await admin
+        .from('music_tracks')
+        .insert({
+          title,
+          artist:           artist,
+          artist_name:      artist,
+          genre:            genre || null,
+          mood:             mood  || null,
+          energy:           energy || 'medium',
+          duration_seconds: duration ? parseInt(duration, 10) : null,
+          full_file_url:    file_url,
+          preview_file_url: file_url,
+          is_active:        true,
+          is_premium:       !!is_premium,
+          featured:         !!featured,
+        })
+        .select('id, title')
+        .single()
+      track = inserted
+      insertErr = ie
+    }
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 

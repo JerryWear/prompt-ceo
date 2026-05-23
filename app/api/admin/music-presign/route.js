@@ -27,21 +27,22 @@ export async function POST(req) {
     const { data: userRow } = await admin.from('app_users').select('is_admin').eq('id', user.id).single()
     if (!userRow?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { filename, contentType, title } = await req.json()
+    const { filename, contentType, title, bucket } = await req.json()
     if (!filename) return NextResponse.json({ error: 'filename required' }, { status: 400 })
 
+    const targetBucket = bucket === 'music-previews' ? 'music-previews' : 'music-full'
     const ext      = filename.split('.').pop() || 'mp3'
     const safeName = (title || filename).toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40)
     const path     = `${Date.now()}-${safeName}.${ext}`
 
     const { data, error } = await admin.storage
-      .from('music-previews')
+      .from(targetBucket)
       .createSignedUploadUrl(path)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     const { data: { publicUrl } } = admin.storage
-      .from('music-previews')
+      .from(targetBucket)
       .getPublicUrl(path)
 
     return NextResponse.json({ status: 'success', signedUrl: data.signedUrl, path, publicUrl, token: data.token })
