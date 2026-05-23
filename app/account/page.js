@@ -27,9 +27,15 @@ const TIER_COLORS = {
 function AdminPanel() {
   const [stats,      setStats]      = useState(null)
   const [affiliates, setAffiliates] = useState([])
+  const [members,    setMembers]    = useState([])
+  const [memberTotal,setMemberTotal]= useState(0)
+  const [breakdown,  setBreakdown]  = useState({})
   const [loading,    setLoading]    = useState(true)
   const [acting,     setActing]     = useState(null)
-  const [showAll,    setShowAll]    = useState(false)
+  const [tab,        setTab]        = useState('overview')
+  const [memberFilter, setMemberFilter] = useState('all')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberPage,   setMemberPage]   = useState(0)
 
   const loadData = () => {
     fetch('/api/admin/stats')
@@ -41,17 +47,32 @@ function AdminPanel() {
       .then(d => { if (d.status === 'success') setAffiliates(d.affiliates || []) })
   }
 
-  useEffect(() => { loadData() }, [])
+  const loadMembers = (filter = memberFilter, page = 0) => {
+    fetch(`/api/admin/members?filter=${filter}&page=${page}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'success') {
+          setMembers(d.members || [])
+          setMemberTotal(d.total || 0)
+          setBreakdown(d.breakdown || {})
+          setMemberPage(page)
+        }
+      })
+  }
 
-  const handleAffiliate = async (id, action) => {
-    setActing(id)
+  useEffect(() => { loadData() }, [])
+  useEffect(() => { if (tab === 'members') loadMembers(memberFilter, 0) }, [tab])
+
+  const handleAffiliate = async (id, action, extra = {}) => {
+    setActing(id + action)
     try {
       const res  = await fetch('/api/admin/affiliates', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, ...extra }),
       })
       const data = await res.json()
-      if (data.status === 'success') loadData()
+      if (data.status === 'success') { loadData(); alert(data.message) }
+      else alert(data.error || 'Error')
     } finally {
       setActing(null)
     }
@@ -65,149 +86,224 @@ function AdminPanel() {
 
   if (!stats) return null
 
-  const TIER_LABELS = { creator: 'Creator ($29)', studio_pro: 'Studio Pro ($49)', pro: 'Pro ($79)', agency: 'Agency ($179)' }
+  const TIER_LABELS  = { creator: 'Creator', studio_pro: 'Studio Pro', pro: 'Pro', agency: 'Agency' }
+  const TIER_PRICES  = { creator: '$29', studio_pro: '$49', pro: '$79', agency: '$179' }
+  const TIER_COLORS2 = { creator: C.blue, studio_pro: C.green, pro: C.gold, agency: C.violet }
+  const pendingApps  = affiliates.filter(a => a.status === 'pending')
+
+  const filteredMembers = memberSearch
+    ? members.filter(m => m.email?.toLowerCase().includes(memberSearch.toLowerCase()))
+    : members
 
   return (
     <div style={{ borderRadius: 10, border: `1px solid ${C.violetDim}`, background: C.violetGlow, overflow: 'hidden' }}>
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.violet }}>⚡ Admin Overview</span>
+
+      {/* Header */}
+      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.violet }}>⚡ Admin</span>
+        {pendingApps.length > 0 && (
+          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: '#1a1408', border: `1px solid ${C.goldDim}`, color: C.gold }}>
+            {pendingApps.length} application{pendingApps.length !== 1 ? 's' : ''} waiting
+          </span>
+        )}
       </div>
 
-      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${C.violetDim}` }}>
+        {[
+          { id: 'overview',   label: 'Overview' },
+          { id: 'members',    label: `Members (${stats.totalUsers})` },
+          { id: 'affiliates', label: `Affiliates${pendingApps.length > 0 ? ` ⚠ ${pendingApps.length}` : ` (${affiliates.length})`}` },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: 'none', color: tab === t.id ? C.violet : C.muted, borderBottom: tab === t.id ? `2px solid ${C.violet}` : '2px solid transparent', transition: 'all 0.15s' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Key metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
-          {[
-            { label: 'Total Members',      value: stats.totalUsers,      color: C.primary },
-            { label: 'Active Subscribers', value: stats.totalActive,     color: C.green   },
-            { label: 'Monthly Revenue',    value: `$${stats.monthlyRevenue.toLocaleString()}`, color: C.gold },
-            { label: 'Music Add-ons',      value: stats.musicAddonCount, color: C.gold    },
-          ].map(m => (
-            <div key={m.label} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: m.color, letterSpacing: -1 }}>{m.value}</div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 0.3 }}>{m.label}</div>
-            </div>
-          ))}
-        </div>
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* Subscribers by tier */}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Subscribers by Tier</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(stats.tiers).map(([tier, count]) => (
-              <div key={tier} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
-                <span style={{ fontSize: 12, color: C.secondary }}>{TIER_LABELS[tier]}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: count > 0 ? C.primary : C.muted }}>{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Affiliate stats */}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Affiliate Program</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {/* ── OVERVIEW TAB ── */}
+        {tab === 'overview' && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
             {[
-              { label: 'Pending Applications', value: stats.affiliates.pending, color: C.gold   },
-              { label: 'Active Partners',      value: stats.affiliates.active,  color: C.green  },
-              { label: 'Total Commissions',    value: `$${stats.affiliates.totalCommissions}`, color: C.primary },
-              { label: 'Paid Out',             value: `$${stats.affiliates.paidCommissions}`,  color: C.muted   },
+              { label: 'Total Members',  value: stats.totalUsers,   color: C.primary },
+              { label: 'Paying',         value: stats.totalActive,  color: C.green   },
+              { label: 'Free',           value: stats.totalUsers - stats.totalActive, color: C.muted },
+              { label: 'MRR',            value: `$${stats.monthlyRevenue.toLocaleString()}`, color: C.gold },
             ].map(m => (
-              <div key={m.label} style={{ padding: '10px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: m.color }}>{m.value}</div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{m.label}</div>
+              <div key={m.label} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: m.color, letterSpacing: -1 }}>{m.value}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{m.label}</div>
               </div>
             ))}
           </div>
-          {stats.affiliates.pending > 0 && (
-            <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: '#1a1408', border: `1px solid ${C.goldDim}`, fontSize: 11, color: C.gold }}>
-              ⚠ {stats.affiliates.pending} affiliate application{stats.affiliates.pending !== 1 ? 's' : ''} waiting for review in Supabase → affiliates table
-            </div>
-          )}
-        </div>
 
-        {/* Recent signups */}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 10 }}>Recent Signups</div>
-          <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
-            {(stats.recentUsers || []).map((u, i) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', background: i % 2 === 0 ? C.base : C.void }}>
-                <span style={{ fontSize: 12, color: C.secondary }}>{u.email}</span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {u.subscription_status === 'active' && (
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: C.greenGlow, border: `1px solid ${C.greenDim}`, color: C.green }}>
-                      {u.subscription_tier}
-                    </span>
-                  )}
-                  <span style={{ fontSize: 10, color: C.muted }}>{new Date(u.created_at).toLocaleDateString()}</span>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>By Plan</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {Object.entries(stats.tiers).map(([tier, count]) => (
+                <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: (TIER_COLORS2[tier] || C.muted) + '22', border: `1px solid ${(TIER_COLORS2[tier] || C.muted)}44`, color: TIER_COLORS2[tier] || C.muted }}>{TIER_LABELS[tier]}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>{TIER_PRICES[tier]}/mo</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: count > 0 ? C.primary : C.muted, marginLeft: 'auto' }}>{count}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>${(count * parseInt(TIER_PRICES[tier]?.replace('$','') || 0)).toLocaleString()}/mo</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Affiliates</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                { label: 'Pending',     value: stats.affiliates.pending, color: C.gold  },
+                { label: 'Active',      value: stats.affiliates.active,  color: C.green },
+                { label: 'Commissions', value: `$${stats.affiliates.totalCommissions}`, color: C.primary },
+                { label: 'Paid Out',    value: `$${stats.affiliates.paidCommissions}`,  color: C.muted   },
+              ].map(m => (
+                <div key={m.label} style={{ padding: '10px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.base }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: m.color }}>{m.value}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Recent Signups</div>
+            <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+              {(stats.recentUsers || []).map((u, i) => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', background: i % 2 === 0 ? C.base : C.void }}>
+                  <span style={{ fontSize: 12, color: C.secondary }}>{u.email}</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {u.subscription_status === 'active'
+                      ? <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: C.greenGlow, border: `1px solid ${C.greenDim}`, color: C.green }}>{u.subscription_tier}</span>
+                      : <span style={{ fontSize: 9, color: C.muted }}>free</span>
+                    }
+                    <span style={{ fontSize: 10, color: C.muted }}>{new Date(u.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>)}
+
+        {/* ── MEMBERS TAB ── */}
+        {tab === 'members' && (<>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search email…"
+              style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.hairline}`, background: C.surface, color: C.primary, fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
+            {['all','free','paying','creator','pro','agency'].map(f => (
+              <button key={f} onClick={() => { setMemberFilter(f); loadMembers(f, 0) }}
+                style={{ padding: '7px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${memberFilter === f ? C.violet : C.hairline}`, background: memberFilter === f ? C.violetGlow : 'none', color: memberFilter === f ? C.violet : C.muted }}>
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {members.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: C.muted, fontSize: 13 }}>
+              <button onClick={() => loadMembers(memberFilter, 0)} style={{ background: C.violetGlow, border: `1px solid ${C.violetDim}`, color: C.violet, padding: '8px 20px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Load Members</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 80px 90px 120px', padding: '8px 14px', background: C.deep, borderBottom: `1px solid ${C.hairline}` }}>
+                  {['Email', 'Plan', 'Status', 'Joined', 'Referred By'].map(h => (
+                    <div key={h} style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.muted }}>{h}</div>
+                  ))}
+                </div>
+                {filteredMembers.map((m, i) => (
+                  <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 80px 90px 120px', padding: '10px 14px', borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none', background: i % 2 === 0 ? C.base : C.void, alignItems: 'center' }}>
+                    <div style={{ fontSize: 12, color: C.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</div>
+                    <div>
+                      {m.subscription_status === 'active'
+                        ? <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: (TIER_COLORS2[m.subscription_tier] || C.gold) + '22', border: `1px solid ${(TIER_COLORS2[m.subscription_tier] || C.gold)}44`, color: TIER_COLORS2[m.subscription_tier] || C.gold }}>{TIER_LABELS[m.subscription_tier] || m.subscription_tier}</span>
+                        : <span style={{ fontSize: 9, color: C.muted }}>Free</span>
+                      }
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: m.subscription_status === 'active' ? C.green : C.muted }}>{m.subscription_status === 'active' ? 'Paying' : 'Free'}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{new Date(m.created_at).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 10, color: m.referred_by_name ? C.gold : C.muted }}>{m.referred_by_name || '—'}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: C.muted }}>
+                <span>Showing {filteredMembers.length} of {memberTotal}</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {memberPage > 0 && <button onClick={() => loadMembers(memberFilter, memberPage - 1)} style={{ background: 'none', border: `1px solid ${C.hairline}`, color: C.secondary, padding: '4px 12px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>← Prev</button>}
+                  {members.length === 50 && <button onClick={() => loadMembers(memberFilter, memberPage + 1)} style={{ background: 'none', border: `1px solid ${C.hairline}`, color: C.secondary, padding: '4px 12px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>Next →</button>}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </>
+          )}
+        </>)}
 
-        {/* Affiliate management */}
-        {affiliates.length > 0 && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Affiliate Applications</div>
-              <button onClick={() => setShowAll(v => !v)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 11, cursor: 'pointer' }}>
-                {showAll ? 'Show pending only' : `Show all (${affiliates.length})`}
-              </button>
+        {/* ── AFFILIATES TAB ── */}
+        {tab === 'affiliates' && (<>
+          {pendingApps.length > 0 && (
+            <div style={{ padding: '12px 14px', borderRadius: 8, background: '#0f0d04', border: `1px solid ${C.goldDim}`, fontSize: 12, color: C.gold, fontWeight: 600 }}>
+              ⚠ {pendingApps.length} application{pendingApps.length !== 1 ? 's' : ''} waiting for your approval
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {affiliates
-                .filter(a => showAll || a.status === 'pending')
-                .map(a => (
-                  <div key={a.id} style={{ borderRadius: 8, border: `1px solid ${a.status === 'pending' ? C.goldDim : C.hairline}`, background: a.status === 'pending' ? '#0f0d04' : C.base, padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{a.full_name}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                            background: a.status === 'pending' ? '#1a1408' : a.status === 'approved' || a.status === 'active' ? C.greenGlow : C.surface,
-                            border: `1px solid ${a.status === 'pending' ? C.goldDim : a.status === 'approved' || a.status === 'active' ? C.greenDim : C.hairline}`,
-                            color: a.status === 'pending' ? C.gold : a.status === 'approved' || a.status === 'active' ? C.green : C.muted,
-                          }}>
-                            {a.status}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: C.secondary }}>{a.email}</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{a.platform}{a.audience_size ? ` · ${a.audience_size}` : ''}</div>
-                        {a.message && <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic', lineHeight: 1.5 }}>"{a.message}"</div>}
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {affiliates.map(a => {
+              const isApproved = a.status === 'approved' || a.status === 'active'
+              const pendingPay = Number(a.total_earned || 0) - Number(a.total_paid || 0)
+              return (
+                <div key={a.id} style={{ borderRadius: 8, border: `1px solid ${a.status === 'pending' ? C.goldDim : C.hairline}`, background: a.status === 'pending' ? '#0f0d04' : C.base, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{a.full_name}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                          background: a.status === 'pending' ? '#1a1408' : isApproved ? C.greenGlow : C.surface,
+                          border: `1px solid ${a.status === 'pending' ? C.goldDim : isApproved ? C.greenDim : C.hairline}`,
+                          color: a.status === 'pending' ? C.gold : isApproved ? C.green : C.muted }}>
+                          {a.status}
+                        </span>
+                        {a.tier && isApproved && <span style={{ fontSize: 9, color: C.violet }}>{a.tier} · {a.commission_percent}%</span>}
                       </div>
-                      {a.status === 'pending' && (
-                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                          <button
-                            onClick={() => handleAffiliate(a.id, 'approve')}
-                            disabled={acting === a.id}
-                            style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green, opacity: acting === a.id ? 0.6 : 1 }}
-                          >
-                            {acting === a.id ? '…' : '✓ Approve'}
-                          </button>
-                          <button
-                            onClick={() => handleAffiliate(a.id, 'reject')}
-                            disabled={acting === a.id}
-                            style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.muted, opacity: acting === a.id ? 0.6 : 1 }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                      {(a.status === 'approved' || a.status === 'active') && (
-                        <div style={{ fontSize: 10, color: C.muted }}>
-                          {a.total_clicks} clicks · {a.total_signups} signups · ${Number(a.total_earned || 0).toFixed(2)} earned
+                      <div style={{ fontSize: 12, color: C.secondary }}>{a.email}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{a.platform}{a.audience_size ? ` · ${a.audience_size}` : ''}</div>
+                      {a.message && <div style={{ fontSize: 11, color: C.muted, marginTop: 5, fontStyle: 'italic', lineHeight: 1.5 }}>"{a.message.slice(0, 120)}{a.message.length > 120 ? '…' : ''}"</div>}
+                      {isApproved && (
+                        <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11 }}>
+                          <span style={{ color: C.muted }}>{a.total_clicks || 0} clicks</span>
+                          <span style={{ color: C.muted }}>{a.total_signups || 0} signups</span>
+                          <span style={{ color: C.muted }}>{a.total_active || 0} active subs</span>
+                          <span style={{ color: C.green, fontWeight: 700 }}>${Number(a.total_earned || 0).toFixed(2)} earned</span>
+                          {pendingPay > 0 && <span style={{ color: C.gold, fontWeight: 700 }}>${pendingPay.toFixed(2)} to pay</span>}
                         </div>
                       )}
                     </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                      {a.status === 'pending' && (<>
+                        <button onClick={() => handleAffiliate(a.id, 'approve')} disabled={!!acting}
+                          style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green, opacity: acting ? 0.6 : 1 }}>
+                          {acting === a.id + 'approve' ? '…' : '✓ Approve'}
+                        </button>
+                        <button onClick={() => handleAffiliate(a.id, 'reject')} disabled={!!acting}
+                          style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.muted, opacity: acting ? 0.6 : 1 }}>
+                          {acting === a.id + 'reject' ? '…' : 'Reject'}
+                        </button>
+                      </>)}
+                      {isApproved && pendingPay > 0 && (
+                        <button onClick={() => { if (window.confirm(`Mark $${pendingPay.toFixed(2)} as paid to ${a.full_name}?`)) handleAffiliate(a.id, 'mark_paid') }} disabled={!!acting}
+                          style={{ padding: '6px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold, opacity: acting ? 0.6 : 1 }}>
+                          {acting === a.id + 'mark_paid' ? '…' : `💳 Mark Paid $${pendingPay.toFixed(2)}`}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
-              {!showAll && affiliates.filter(a => a.status === 'pending').length === 0 && (
-                <div style={{ fontSize: 12, color: C.muted, padding: '8px 0' }}>No pending applications.</div>
-              )}
-            </div>
+                </div>
+              )
+            })}
+            {affiliates.length === 0 && <div style={{ fontSize: 12, color: C.muted, padding: '8px 0', textAlign: 'center' }}>No affiliate applications yet.</div>}
           </div>
-        )}
+        </>)}
 
       </div>
     </div>

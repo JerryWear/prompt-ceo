@@ -81,6 +81,37 @@ export async function POST(req) {
       return NextResponse.json({ status: 'success', message: `${affiliate.full_name} rejected` })
     }
 
+    if (action === 'mark_paid') {
+      // Move all approved commissions to paid, add to total_paid
+      const { data: approved } = await db
+        .from('affiliate_commissions')
+        .select('id, commission_amount')
+        .eq('affiliate_id', id)
+        .eq('status', 'approved')
+
+      const paidAmount = (approved || []).reduce((sum, c) => sum + Number(c.commission_amount), 0)
+
+      if (approved?.length > 0) {
+        await db.from('affiliate_commissions')
+          .update({ status: 'paid', paid_at: new Date().toISOString() })
+          .eq('affiliate_id', id)
+          .eq('status', 'approved')
+
+        await db.from('affiliates')
+          .update({ total_paid: Number(affiliate.total_paid || 0) + paidAmount })
+          .eq('id', id)
+      }
+
+      return NextResponse.json({ status: 'success', message: `Marked $${paidAmount.toFixed(2)} as paid for ${affiliate.full_name}`, paidAmount })
+    }
+
+    if (action === 'set_rate') {
+      const rate = Number(commissionRate)
+      if (!rate || rate < 1 || rate > 60) return NextResponse.json({ error: 'Invalid rate' }, { status: 400 })
+      await db.from('affiliates').update({ commission_percent: rate }).eq('id', id)
+      return NextResponse.json({ status: 'success', message: `Commission rate updated to ${rate}%` })
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
