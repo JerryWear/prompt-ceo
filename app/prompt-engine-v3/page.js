@@ -14600,7 +14600,7 @@ export default function PromptCEOPage() {
                   >
                     {Object.values(cardGenerating).filter(Boolean).length > 0
                       ? `⟳ Generating ${Object.values(cardImages).filter(Boolean).length}/${batch.length}…`
-                      : `🎨 Generate All Images (${batch.length} × 5cr)`}
+                      : `🎨 Generate All Images (${batch.length})`}
                   </button>
                   <Btn variant="default" onClick={exportBatch}>⎘ .txt</Btn>
                   <Btn variant="default" onClick={() => exportForTool('midjourney')}>⎘ MJ</Btn>
