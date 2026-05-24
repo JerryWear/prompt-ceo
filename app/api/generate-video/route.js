@@ -124,9 +124,9 @@ export async function POST(req) {
       return NextResponse.json({ error: 'User not found' }, { status: 500 })
     }
 
-    const COST = 60
-    if (userRow.credits < COST) {
-      return NextResponse.json({ error: 'Not enough credits' }, { status: 402 })
+    const { isActive } = await import('../../../lib/subscription.js')
+    if (!isActive(userRow)) {
+      return NextResponse.json({ error: 'Active subscription required for video generation.', upgradeRequired: true }, { status: 402 })
     }
 
     // ── Build prompt based on mode ────────────────────────────────────────────
@@ -151,7 +151,11 @@ export async function POST(req) {
     }
 
     // ── Runway generation ─────────────────────────────────────────────────────
-    const client = new RunwayML({ apiKey: process.env.RUNWAYML_API_SECRET })
+    const runwayKey = process.env.RUNWAYML_API_SECRET
+    if (!runwayKey) {
+      return NextResponse.json({ error: 'Video generation is not configured on this server.' }, { status: 503 })
+    }
+    const client = new RunwayML({ apiKey: runwayKey })
 
     const duration = isAdMode ? 5 : resolveVideoDuration(progressionLevel)
     const safePrompt = trimPromptSafe(finalPrompt)
@@ -183,14 +187,6 @@ export async function POST(req) {
     const videoUrl = result.output?.[0]
     if (!videoUrl) throw new Error('No video returned from Runway')
 
-    // 💰 DEDUCT CREDITS
-    const { error: deductError } = await admin
-      .from('app_users')
-      .update({ credits: userRow.credits - COST })
-      .eq('id', user.id)
-
-    if (deductError) return NextResponse.json({ error: 'Failed to deduct credits' }, { status: 500 })
-
     // 📝 LOG
     try {
       await admin.from('generation_logs').insert({
@@ -199,7 +195,6 @@ export async function POST(req) {
         mode,
         prompt: safePrompt.slice(0, 500),
         video_url: videoUrl,
-        credits_used: COST,
         created_at: new Date().toISOString(),
       })
     } catch {
@@ -209,7 +204,6 @@ export async function POST(req) {
     return NextResponse.json({
       status: 'complete',
       videoUrl,
-      creditsRemaining: userRow.credits - COST,
       mode,
     })
 
