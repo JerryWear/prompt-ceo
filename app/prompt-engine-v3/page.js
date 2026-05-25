@@ -11536,6 +11536,88 @@ export default function PromptCEOPage() {
     setProjectDropOpen(false)
   }
 
+  // ── Publishing State ─────────────────────────────────────
+  const [platformConnections, setPlatformConnections] = useState({ instagram: null, tiktok: null })
+  const [scheduledPosts,      setScheduledPosts]      = useState([])
+  const [publishPanelOpen,    setPublishPanelOpen]    = useState(false)
+  const [publishCaption,      setPublishCaption]      = useState('')
+  const [publishPlatform,     setPublishPlatform]     = useState('instagram')
+  const [publishScheduledAt,  setPublishScheduledAt]  = useState('')
+  const [publishMediaUrl,     setPublishMediaUrl]     = useState('')
+  const [publishLoading,      setPublishLoading]      = useState(false)
+  const [publishResult,       setPublishResult]       = useState(null)
+
+  // Load platform connections on mount
+  useEffect(() => {
+    fetch('/api/integrations')
+      .then(r => r.json())
+      .then(d => { if (d.integrations) setPlatformConnections(d.integrations) })
+      .catch(() => {})
+  }, [])
+
+  // Load scheduled posts on mount
+  useEffect(() => {
+    fetch('/api/scheduled-posts')
+      .then(r => r.json())
+      .then(d => { if (d.posts) setScheduledPosts(d.posts) })
+      .catch(() => {})
+  }, [])
+
+  // Handle OAuth callback params (?publish_connected=instagram etc)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const connected = params.get('publish_connected')
+    const err = params.get('publish_error')
+    if (connected) {
+      const username = params.get('ig_user') || params.get('tt_user') || ''
+      setPlatformConnections(p => ({ ...p, [connected]: { username } }))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    if (err) {
+      console.warn('Publishing connection error:', err)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  const openPublishPanel = useCallback((mediaUrl, caption = '') => {
+    setPublishMediaUrl(mediaUrl)
+    setPublishCaption(caption)
+    setPublishResult(null)
+    setPublishPanelOpen(true)
+  }, [])
+
+  const schedulePost = useCallback(async () => {
+    if (!publishMediaUrl || publishLoading) return
+    setPublishLoading(true)
+    setPublishResult(null)
+    try {
+      const res = await fetch('/api/scheduled-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaUrl:    publishMediaUrl,
+          caption:     publishCaption,
+          platform:    publishPlatform,
+          contentType: 'image',
+          scheduledAt: publishScheduledAt || null,
+          projectId:   s.activeProjectId || null,
+          source:      s.view === 'ad_studio' ? 'ad_studio' : 'studio',
+        }),
+      })
+      const data = await res.json()
+      if (data.post) {
+        setScheduledPosts(p => [data.post, ...p])
+        setPublishResult({ success: true, publishingNow: data.publishingNow })
+      } else {
+        setPublishResult({ success: false, error: data.error || 'Failed to schedule' })
+      }
+    } catch (err) {
+      setPublishResult({ success: false, error: err.message })
+    } finally {
+      setPublishLoading(false)
+    }
+  }, [publishMediaUrl, publishCaption, publishPlatform, publishScheduledAt, s.activeProjectId, s.view, publishLoading])
+
   // ── Studio ↔ Ad Studio Bridge ────────────────────────────
   const [bridgeBannerOpen, setBridgeBannerOpen] = useState(false)
 
@@ -14588,6 +14670,7 @@ export default function PromptCEOPage() {
                                       {s.batchVideos?.[item.index]?.generating ? '⟳' : '🎬'}
                                     </button>
                                     <button onClick={() => useImageInAdStudio(item.imageUrl, item.finalPrompt)} style={{ background: '#2a0a4a', color: '#d580ff', border: '1px solid #7a3abf', borderRadius: 3, padding: '2px 5px', fontSize: 8, fontWeight: 700, cursor: 'pointer' }} title="Use in Ad Studio">📣</button>
+                                    <button onClick={() => openPublishPanel(item.imageUrl, '')} style={{ background: '#081208', color: C.green, border: `1px solid ${C.greenDim}`, borderRadius: 3, padding: '2px 5px', fontSize: 8, fontWeight: 700, cursor: 'pointer' }} title="Schedule & Post">📤</button>
                                   </div>
                                 </div>
                                 {s.batchVideos?.[item.index]?.url && (
@@ -14724,6 +14807,91 @@ export default function PromptCEOPage() {
                   <button onClick={() => set('visualAnchor', null)} style={{ width: '100%', padding: '5px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>Clear Anchor</button>
                 </Panel>
               )}
+
+              {/* ── SCHEDULE & POST ── */}
+              <Panel title="Schedule & Post" accent={C.green} defaultOpen={false} hint="Publish directly to Instagram and TikTok">
+                {/* Platform connection status */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {[
+                    { id: 'instagram', label: 'Instagram', icon: '📸', color: '#e1306c' },
+                    { id: 'tiktok',    label: 'TikTok',    icon: '🎵', color: '#69c9d0' },
+                  ].map(p => {
+                    const conn = platformConnections[p.id]
+                    return (
+                      <div key={p.id} style={{ flex: 1 }}>
+                        {conn ? (
+                          <div style={{ padding: '6px 8px', borderRadius: 5, background: '#081208', border: `1px solid #1a3a1a`, textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: '#7adf7a' }}>{p.icon} Connected</div>
+                            <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>@{conn.username || 'account'}</div>
+                          </div>
+                        ) : (
+                          <a href={`/api/auth/${p.id}`} style={{ display: 'block', padding: '6px 8px', borderRadius: 5, background: C.raised, border: `1px solid ${C.subtle}`, textAlign: 'center', textDecoration: 'none' }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary }}>{p.icon} Connect</div>
+                            <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{p.label}</div>
+                          </a>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Quick post from last generated image */}
+                {(s.generatedImage || s.batchImages?.some(i => i.imageUrl)) && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 9, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Quick Post</div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {s.generatedImage && (
+                        <button
+                          onClick={() => openPublishPanel(s.generatedImage, '')}
+                          style={{ flex: 1, padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${C.greenDim}`, background: '#081208', color: C.green }}
+                        >
+                          📤 Post Last Image
+                        </button>
+                      )}
+                      {s.batchImages?.filter(i => i.imageUrl).length > 0 && (
+                        <button
+                          onClick={() => openPublishPanel(s.batchImages.filter(i => i.imageUrl).slice(-1)[0].imageUrl, '')}
+                          style={{ flex: 1, padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${C.greenDim}`, background: '#081208', color: C.green }}
+                        >
+                          📤 Post Best Image
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Scheduled queue */}
+                {scheduledPosts.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Queue ({scheduledPosts.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 160, overflowY: 'auto' }}>
+                      {scheduledPosts.slice(0, 8).map(post => (
+                        <div key={post.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 7px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <span style={{ fontSize: 10 }}>{post.platform === 'instagram' ? '📸' : post.platform === 'tiktok' ? '🎵' : '📤'}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 9, color: C.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {post.caption?.slice(0, 40) || 'No caption'}
+                            </div>
+                            <div style={{ fontSize: 8, color: C.muted }}>
+                              {post.status === 'published' ? '✓ Published' : post.status === 'failed' ? '✗ Failed' : post.scheduled_at ? new Date(post.scheduled_at).toLocaleDateString() : 'Scheduled'}
+                            </div>
+                          </div>
+                          <div style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: post.status === 'published' ? C.green : post.status === 'failed' ? '#cf6a6a' : C.gold,
+                          }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!platformConnections.instagram && !platformConnections.tiktok && (
+                  <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', padding: '8px 0', lineHeight: 1.6 }}>
+                    Connect Instagram or TikTok above to start publishing directly from PromptCEO.
+                  </div>
+                )}
+              </Panel>
 
               {/* ── SESSION TIMELINE ── */}
               {studioTimeline.length > 0 && (
@@ -15043,6 +15211,98 @@ export default function PromptCEOPage() {
               >
                 Create Project
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PUBLISH MODAL ── */}
+      {publishPanelOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(4,4,4,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setPublishPanelOpen(false)}
+        >
+          <div
+            style={{ background: C.base, borderRadius: 12, border: `1px solid ${C.hairline}`, width: 420, padding: 24, boxShadow: '0 0 60px #00000088' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Schedule & Post</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>Publish directly to Instagram or TikTok.</div>
+
+            {/* Preview */}
+            {publishMediaUrl && (
+              <img src={publishMediaUrl} alt="preview" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 6, marginBottom: 14, border: `1px solid ${C.hairline}` }} />
+            )}
+
+            {/* Platform */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Platform</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { id: 'instagram', icon: '📸', label: 'Instagram' },
+                  { id: 'tiktok',    icon: '🎵', label: 'TikTok' },
+                  { id: 'both',      icon: '📤', label: 'Both' },
+                ].map(p => (
+                  <button key={p.id} onClick={() => setPublishPlatform(p.id)}
+                    style={{ flex: 1, padding: '7px 4px', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                      border: `1px solid ${publishPlatform === p.id ? C.green : C.subtle}`,
+                      background: publishPlatform === p.id ? '#081208' : C.surface,
+                      color: publishPlatform === p.id ? C.green : C.secondary }}>
+                    {p.icon} {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Caption */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Caption</div>
+              <textarea
+                value={publishCaption}
+                onChange={e => setPublishCaption(e.target.value)}
+                placeholder="Write a caption... (hashtags included)"
+                rows={3}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 5, fontSize: 11, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'system-ui' }}
+              />
+            </div>
+
+            {/* Schedule time */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>When</div>
+              <input
+                type="datetime-local"
+                value={publishScheduledAt}
+                onChange={e => setPublishScheduledAt(e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 5, fontSize: 11, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 4 }}>Leave blank to post immediately.</div>
+            </div>
+
+            {/* Result */}
+            {publishResult && (
+              <div style={{ marginBottom: 12, padding: '8px 10px', borderRadius: 5,
+                background: publishResult.success ? '#081208' : '#180808',
+                border: `1px solid ${publishResult.success ? '#1a3a1a' : '#3a1a1a'}`,
+                fontSize: 11, color: publishResult.success ? C.green : '#cf6a6a' }}>
+                {publishResult.success
+                  ? publishResult.publishingNow ? '✓ Publishing now…' : '✓ Scheduled successfully'
+                  : `✗ ${publishResult.error}`}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setPublishPanelOpen(false)}
+                style={{ flex: 1, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>
+                {publishResult?.success ? 'Close' : 'Cancel'}
+              </button>
+              {!publishResult?.success && (
+                <button onClick={schedulePost} disabled={publishLoading || !publishMediaUrl}
+                  style={{ flex: 2, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                    border: `1px solid ${C.greenDim}`, background: '#081208', color: C.green,
+                    opacity: publishLoading || !publishMediaUrl ? 0.5 : 1 }}>
+                  {publishLoading ? '⟳ Publishing…' : publishScheduledAt ? '📅 Schedule Post' : '📤 Post Now'}
+                </button>
+              )}
             </div>
           </div>
         </div>
