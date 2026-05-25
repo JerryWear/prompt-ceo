@@ -1241,6 +1241,8 @@ export default function HomePage() {
           <button onClick={() => router.push('/partner')}             style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Partner</button>
           <button onClick={() => router.push('/about')}               style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>About</button>
           <button onClick={() => router.push('/tutorials')}           style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Tutorials</button>
+          <button onClick={() => router.push('/terms')}               style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Terms</button>
+          <button onClick={() => router.push('/privacy')}             style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>Privacy</button>
         </div>
         <div style={{ fontSize: 11, color: C.muted }}>© 2026 Prompt CEO. All rights reserved.</div>
       </footer>
