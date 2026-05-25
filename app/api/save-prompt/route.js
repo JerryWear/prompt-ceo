@@ -40,6 +40,7 @@ export async function POST(req) {
       time_of_day:       body.time_of_day || '',
       director:          body.director || '',
       image_url:         body.image_url || '',
+      project_id:        body.project_id || null,
     })
 
     if (error) throw error

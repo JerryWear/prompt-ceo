@@ -27,7 +27,7 @@ export async function POST(req) {
     const {
       productName, campaignName, platform, campaignGoal, brandVoice, visualStyle,
       selectedAngle, selectedHook, fullContext, outputs,
-      musicTrackId, musicLicenseId,
+      musicTrackId, musicLicenseId, projectId,
     } = await req.json()
 
     // Auto-version — count existing saves for the same product
@@ -58,6 +58,7 @@ export async function POST(req) {
         outputs:                 outputs        || null,
         selected_music_track_id: musicTrackId   || null,
         music_license_id:        musicLicenseId || null,
+        project_id:              projectId      || null,
       })
       .select('id')
       .single()

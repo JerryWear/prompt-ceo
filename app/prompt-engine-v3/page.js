@@ -754,6 +754,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           outputs: s.adTextResults || {},
           musicTrackId: s.adMusicTrack?.id || null,
           musicLicenseId: s.adMusicLicenseId || null,
+          projectId: s.activeProjectId || null,
         }),
       })
       const data = await res.json()
@@ -10832,6 +10833,13 @@ const INIT = {
   adMusicTimingPlan:  null,
   // Studio Visual Anchor — character consistency across shots
   visualAnchor:       null, // { imageUrl, prompt, description }
+  // Project System
+  activeProjectId:    null,
+  activeProjectName:  '',
+  activeProjectType:  'creator',
+  // Studio ↔ Ad Studio Bridge
+  studioAssets:       [],   // generated Studio images available as ad anchors
+  adCreatorIdentity:  null, // Studio identity imported into Ad Studio
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -11433,6 +11441,45 @@ export default function PromptCEOPage() {
   const set         = useCallback((k, v) => setS(p => ({ ...p, [k]: v })), [])
   const merge       = useCallback(patch  => setS(p => ({ ...p, ...patch })), [])
 
+  // ── Project System State ──────────────────────────────────
+  const [projects,          setProjects]          = useState([])
+  const [projectsLoading,   setProjectsLoading]   = useState(false)
+  const [projectModalOpen,  setProjectModalOpen]  = useState(false)
+  const [projectModalName,  setProjectModalName]  = useState('')
+  const [projectModalType,  setProjectModalType]  = useState('creator')
+  const [projectDropOpen,   setProjectDropOpen]   = useState(false)
+
+  // Load projects on mount
+  useEffect(() => {
+    setProjectsLoading(true)
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(d => { if (d.projects) setProjects(d.projects) })
+      .catch(() => {})
+      .finally(() => setProjectsLoading(false))
+  }, [])
+
+  const createProject = async () => {
+    if (!projectModalName.trim()) return
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: projectModalName.trim(), type: projectModalType }),
+    })
+    const d = await res.json()
+    if (d.project) {
+      setProjects(p => [d.project, ...p])
+      merge({ activeProjectId: d.project.id, activeProjectName: d.project.name, activeProjectType: d.project.type })
+      setProjectModalOpen(false)
+      setProjectModalName('')
+    }
+  }
+
+  const switchProject = (proj) => {
+    merge({ activeProjectId: proj.id, activeProjectName: proj.name, activeProjectType: proj.type })
+    setProjectDropOpen(false)
+  }
+
   // ── Studio Intelligence State ─────────────────────────────
   const [studioCharDNA,        setStudioCharDNA]        = useState(() => { try { return JSON.parse(localStorage.getItem('promptceo_char_dna_v1') || '[]') } catch { return [] } })
   const [studioDNAName,        setStudioDNAName]        = useState('')
@@ -11656,6 +11703,7 @@ export default function PromptCEOPage() {
           time_of_day:       meta?.timeOfDay || '',
           director:          s.directorPreset || '',
           image_url:         imageUrl,
+          project_id:        s.activeProjectId || null,
         }),
       })
     } catch (err) {
@@ -12964,6 +13012,85 @@ export default function PromptCEOPage() {
               </div>
               <div style={{ fontSize: 8, color: C.muted, letterSpacing: 1 }}>DIRECTOR'S STUDIO</div>
             </div>
+          </div>
+
+          <div style={{ width: 1, height: 20, background: C.hairline }} />
+
+          {/* ── Project Selector ──────────────────────────── */}
+          <div style={{ position: 'relative' }}>
+            <div
+              onClick={() => setProjectDropOpen(o => !o)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
+                border: `1px solid ${s.activeProjectId ? C.goldDim : C.subtle}`,
+                background: s.activeProjectId ? '#1a1408' : C.surface,
+                color: s.activeProjectId ? C.gold : C.muted,
+                fontSize: 11, fontWeight: 600, maxWidth: 180,
+                transition: 'all 0.15s',
+              }}
+              title="Switch project"
+            >
+              <span style={{ fontSize: 12 }}>📁</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
+                {s.activeProjectName || 'No project'}
+              </span>
+              <span style={{ color: C.muted, fontSize: 9 }}>▾</span>
+            </div>
+            {projectDropOpen && (
+              <div style={{
+                position: 'absolute', top: 32, left: 0, zIndex: 999,
+                background: C.overlay, border: `1px solid ${C.hairline}`,
+                borderRadius: 6, padding: '6px 0', minWidth: 220,
+                boxShadow: '0 8px 24px #00000088',
+              }}>
+                <div style={{ padding: '4px 12px 8px', fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Projects</div>
+                {projectsLoading && <div style={{ padding: '6px 12px', fontSize: 11, color: C.muted }}>Loading...</div>}
+                {!projectsLoading && projects.length === 0 && (
+                  <div style={{ padding: '6px 12px', fontSize: 11, color: C.muted }}>No projects yet</div>
+                )}
+                {projects.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => switchProject(p)}
+                    style={{
+                      padding: '7px 12px', cursor: 'pointer', fontSize: 11,
+                      color: p.id === s.activeProjectId ? C.gold : C.primary,
+                      background: p.id === s.activeProjectId ? '#1a14081a' : 'transparent',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      borderLeft: p.id === s.activeProjectId ? `2px solid ${C.gold}` : '2px solid transparent',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.raised}
+                    onMouseLeave={e => e.currentTarget.style.background = p.id === s.activeProjectId ? '#1a14081a' : 'transparent'}
+                  >
+                    <span style={{ fontSize: 10 }}>{p.type === 'brand' ? '🏷' : p.type === 'campaign' ? '📣' : '🎬'}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  </div>
+                ))}
+                <div style={{ height: 1, background: C.hairline, margin: '6px 0' }} />
+                <div
+                  onClick={() => { setProjectDropOpen(false); setProjectModalOpen(true) }}
+                  style={{
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 11,
+                    color: C.green, display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.raised}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  + New Project
+                </div>
+                {s.activeProjectId && (
+                  <div
+                    onClick={() => { merge({ activeProjectId: null, activeProjectName: '', activeProjectType: 'creator' }); setProjectDropOpen(false) }}
+                    style={{ padding: '5px 12px', cursor: 'pointer', fontSize: 10, color: C.muted }}
+                    onMouseEnter={e => e.currentTarget.style.color = C.primary}
+                    onMouseLeave={e => e.currentTarget.style.color = C.muted}
+                  >
+                    Clear project
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ width: 1, height: 20, background: C.hairline }} />
@@ -14732,6 +14859,83 @@ export default function PromptCEOPage() {
         )}
 
       </div>
+
+      {/* ── NEW PROJECT MODAL ── */}
+      {projectModalOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(4,4,4,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setProjectModalOpen(false)}
+        >
+          <div
+            style={{ background: C.base, borderRadius: 12, border: `1px solid ${C.hairline}`, width: 400, padding: 28, boxShadow: '0 0 60px #00000088' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 4 }}>New Project</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>Projects save all your assets in one place across sessions.</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Project Name</div>
+              <input
+                autoFocus
+                value={projectModalName}
+                onChange={e => setProjectModalName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && createProject()}
+                placeholder='e.g. "Fitness Campaign Q3" or "Monaco Luxury Shoot"'
+                style={{
+                  width: '100%', padding: '9px 12px', borderRadius: 6, fontSize: 12,
+                  background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Type</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { id: 'creator', icon: '🎬', label: 'Creator' },
+                  { id: 'brand',   icon: '🏷',  label: 'Brand' },
+                  { id: 'campaign',icon: '📣',  label: 'Campaign' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setProjectModalType(t.id)}
+                    style={{
+                      flex: 1, padding: '8px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11,
+                      border: `1px solid ${projectModalType === t.id ? C.goldDim : C.subtle}`,
+                      background: projectModalType === t.id ? '#1a1408' : C.surface,
+                      color: projectModalType === t.id ? C.gold : C.secondary,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setProjectModalOpen(false)}
+                style={{ flex: 1, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createProject}
+                disabled={!projectModalName.trim()}
+                style={{
+                  flex: 2, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold,
+                  opacity: projectModalName.trim() ? 1 : 0.4,
+                }}
+              >
+                Create Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── ONBOARDING MODAL ── */}
       {onboardingOpen && (
