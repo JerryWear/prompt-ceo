@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Terms of Service — PromptCEO',
+  title: 'Terms of Service | PromptCEO',
   description: 'Terms of Service for PromptCEO',
 }
 
