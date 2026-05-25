@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // GET /api/auth/instagram — redirect to Meta OAuth
 export async function GET() {
-  const clientId    = process.env.META_APP_ID
+  const clientId    = process.env.INSTAGRAM_APP_ID
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/instagram/callback`
 
   if (!clientId) {
@@ -13,13 +13,12 @@ export async function GET() {
   }
 
   const scope = [
-    'instagram_basic',
+    'instagram_business_basic',
     'instagram_content_publish',
-    'pages_show_list',
-    'pages_read_engagement',
+    'instagram_manage_comments',
   ].join(',')
 
-  const url = new URL('https://www.facebook.com/v19.0/dialog/oauth')
+  const url = new URL('https://www.instagram.com/oauth/authorize')
   url.searchParams.set('client_id',     clientId)
   url.searchParams.set('redirect_uri',  redirectUri)
   url.searchParams.set('scope',         scope)
