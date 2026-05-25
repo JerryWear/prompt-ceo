@@ -3011,6 +3011,62 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       {/* ══ LEFT — Config ════════════════════════════════ */}
       <div style={{ borderRight: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
+        {/* ── From Studio Bridge Panel ── */}
+        {(s.adCreatorIdentity || s.studioAssets?.length > 0) && (
+          <Panel title="From Studio" hint="Identity and images imported from your Studio session" accent={C.green} defaultOpen={true}>
+            {s.adCreatorIdentity && (
+              <div style={{ marginBottom: s.studioAssets?.length > 0 ? 10 : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 5, background: '#081208', border: `1px solid #1a3a1a` }}>
+                  {s.adCreatorIdentity.storageUrl && (
+                    <img src={s.adCreatorIdentity.storageUrl} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: `1px solid #2a5a2a` }} alt="creator" />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#a0f0a0' }}>{s.adCreatorIdentity.name}</div>
+                    {s.adCreatorIdentity.storyWorldId && (
+                      <div style={{ fontSize: 9, color: C.muted }}>World: {s.adCreatorIdentity.storyWorldId}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => merge({ adCreatorIdentity: null })}
+                    style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 12 }}
+                  >×</button>
+                </div>
+                <div style={{ fontSize: 9, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
+                  This identity is automatically injected into ad image generation.
+                </div>
+              </div>
+            )}
+            {s.studioAssets?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                  Studio Images ({s.studioAssets.length})
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                  {s.studioAssets.map((asset, i) => (
+                    <div key={i} style={{ position: 'relative', borderRadius: 4, overflow: 'hidden', border: `1px solid #1a3a1a` }}>
+                      <img src={asset.imageUrl} style={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }} alt={`Studio ${i + 1}`} />
+                      <button
+                        onClick={() => {
+                          const next = s.studioAssets.filter((_, j) => j !== i)
+                          set('studioAssets', next)
+                        }}
+                        style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', border: 'none', color: C.muted, cursor: 'pointer', borderRadius: 2, fontSize: 9, lineHeight: 1, padding: '1px 3px' }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => set('studioAssets', [])}
+                  style={{ marginTop: 6, width: '100%', padding: '4px', borderRadius: 4, background: 'none', border: `1px solid ${C.subtle}`, color: C.muted, fontSize: 9, cursor: 'pointer' }}
+                >Clear all studio images</button>
+              </div>
+            )}
+            {!s.adCreatorIdentity && s.studioAssets?.length === 0 && (
+              <div style={{ fontSize: 10, color: C.muted }}>No Studio assets connected.</div>
+            )}
+          </Panel>
+        )}
+
         {/* Brand DNA */}
         {/* Brand Voice Fingerprinting */}
         <Panel title="Voice Fingerprint" hint="Train AI to write in your exact style" accent={C.violet} defaultOpen={false}>
@@ -11480,6 +11536,35 @@ export default function PromptCEOPage() {
     setProjectDropOpen(false)
   }
 
+  // ── Studio ↔ Ad Studio Bridge ────────────────────────────
+  const [bridgeBannerOpen, setBridgeBannerOpen] = useState(false)
+
+  const switchToAdStudio = useCallback(() => {
+    // If Studio has an active identity, offer to carry it over
+    if (s.hasImage && s.identityName && !s.adCreatorIdentity) {
+      merge({
+        adCreatorIdentity: {
+          name:        s.identityName,
+          imageDataUrl: s.imageDataUrl,
+          storageUrl:  s.identityStorageUrl,
+          traits:      s.traits,
+          storyWorldId: s.storyWorldId,
+        },
+        view: 'ad_studio',
+      })
+      setBridgeBannerOpen(true)
+    } else {
+      set('view', 'ad_studio')
+    }
+  }, [s.hasImage, s.identityName, s.adCreatorIdentity, s.imageDataUrl, s.identityStorageUrl, s.traits, s.storyWorldId])
+
+  const useImageInAdStudio = useCallback((imageUrl, prompt) => {
+    merge({
+      studioAssets: [...(s.studioAssets || []), { imageUrl, prompt, addedAt: Date.now() }],
+      view: 'ad_studio',
+    })
+  }, [s.studioAssets])
+
   // ── Studio Intelligence State ─────────────────────────────
   const [studioCharDNA,        setStudioCharDNA]        = useState(() => { try { return JSON.parse(localStorage.getItem('promptceo_char_dna_v1') || '[]') } catch { return [] } })
   const [studioDNAName,        setStudioDNAName]        = useState('')
@@ -12595,12 +12680,14 @@ export default function PromptCEOPage() {
           prompt,
           mode,
           adConfig,
-          // Pass identity for personal brand ads
-          ...(mode === 'personal_brand_ad' && s.imageDataUrl ? {
-            imageDataUrl: s.imageDataUrl,
-            identity: { image: s.imageDataUrl },
-            extractedTraits: s.traits?.subjectA || {},
+          // Pass identity — prefer bridge identity, fall back to direct Studio identity
+          ...(mode === 'personal_brand_ad' ? {
+            imageDataUrl: s.adCreatorIdentity?.imageDataUrl || s.imageDataUrl || '',
+            identity: { image: s.adCreatorIdentity?.imageDataUrl || s.imageDataUrl || '' },
+            extractedTraits: s.adCreatorIdentity?.traits?.subjectA || s.traits?.subjectA || {},
           } : {}),
+          // Inject Studio assets as visual reference if available
+          ...(s.studioAssets?.length > 0 ? { studioAnchorUrl: s.studioAssets[0].imageUrl } : {}),
         }),
       })
       const data = await res.json()
@@ -13120,7 +13207,7 @@ export default function PromptCEOPage() {
 
             {/* Ad Studio — visually distinct, always visible */}
             <button
-              onClick={() => set('view', 'ad_studio')}
+              onClick={switchToAdStudio}
               style={{
                 padding: '5px 16px', borderRadius: 4,
                 fontSize: 11, fontWeight: 800, cursor: 'pointer',
@@ -13230,15 +13317,38 @@ export default function PromptCEOPage() {
 
         {/* ── AD STUDIO VIEW ──────────────────────────────── */}
         {s.view === 'ad_studio' && (
-          <AdStudioView
-            s={s}
-            set={set}
-            merge={merge}
-            generateAdImage={generateAdImage}
-            generateAdVideo={generateAdVideo}
-            generateAdText={generateAdText}
-            hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
-          />
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Studio Bridge Banner */}
+            {bridgeBannerOpen && s.adCreatorIdentity && (
+              <div style={{
+                flexShrink: 0, padding: '8px 16px',
+                background: 'linear-gradient(90deg, #0e1a0e, #0a140a)',
+                borderBottom: `1px solid #2a4a2a`,
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: 14 }}>🎬</span>
+                <div style={{ flex: 1, fontSize: 11, color: '#7adf7a' }}>
+                  <strong style={{ color: '#a0f0a0' }}>{s.adCreatorIdentity.name}</strong> imported from Studio — identity + world carried into Ad campaigns
+                </div>
+                {s.studioAssets?.length > 0 && (
+                  <span style={{ fontSize: 10, color: C.muted }}>{s.studioAssets.length} studio image{s.studioAssets.length > 1 ? 's' : ''} available</span>
+                )}
+                <button
+                  onClick={() => { merge({ adCreatorIdentity: null }); setBridgeBannerOpen(false) }}
+                  style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+                >×</button>
+              </div>
+            )}
+            <AdStudioView
+              s={s}
+              set={set}
+              merge={merge}
+              generateAdImage={generateAdImage}
+              generateAdVideo={generateAdVideo}
+              generateAdText={generateAdText}
+              hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
+            />
+          </div>
         )}
 
         {/* ── STUDIO VIEW ─────────────────────────────────── */}
@@ -14477,6 +14587,7 @@ export default function PromptCEOPage() {
                                     <button onClick={() => generateVideo(item.prompt, item.imageUrl, item.meta?.progressionLevel, item.index)} disabled={s.batchVideos?.[item.index]?.generating} style={{ background: s.batchVideos?.[item.index]?.generating ? C.goldDim : C.gold, color: '#000', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: 9, fontWeight: 700, cursor: s.batchVideos?.[item.index]?.generating ? 'not-allowed' : 'pointer' }}>
                                       {s.batchVideos?.[item.index]?.generating ? '⟳' : '🎬'}
                                     </button>
+                                    <button onClick={() => useImageInAdStudio(item.imageUrl, item.finalPrompt)} style={{ background: '#2a0a4a', color: '#d580ff', border: '1px solid #7a3abf', borderRadius: 3, padding: '2px 5px', fontSize: 8, fontWeight: 700, cursor: 'pointer' }} title="Use in Ad Studio">📣</button>
                                   </div>
                                 </div>
                                 {s.batchVideos?.[item.index]?.url && (
