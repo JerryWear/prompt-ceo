@@ -173,6 +173,9 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [selectedHook,     setSelectedHook]     = useState(null)
   const [buildingProject,  setBuildingProject]  = useState(false)
   const [projectSaved,     setProjectSaved]     = useState(false)
+  const [fullCampaignLoading, setFullCampaignLoading] = useState(false)
+  const [fullCampaignStep,    setFullCampaignStep]    = useState('')
+  const [fullCampaignResult,  setFullCampaignResult]  = useState(null)
   // Lock state — locked items are injected into every generation
   const [lockedAngle,       setLockedAngle]       = useState(null)
   const [lockedHook,        setLockedHook]        = useState(null)
@@ -733,6 +736,41 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     } finally {
       setBuildingProject(false)
       merge({ adTextGenerating: false })
+    }
+  }
+
+  const handleFullCampaign = async () => {
+    if (!productName.trim() || fullCampaignLoading) return
+    setFullCampaignLoading(true)
+    setFullCampaignResult(null)
+    setFullCampaignStep('Generating angles, hooks + 30 image prompts…')
+    try {
+      const res = await fetch('/api/full-campaign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: productName, platform: adPlatform, projectId: s.activeProjectId }),
+      })
+      setFullCampaignStep('Building captions + 30-day schedule…')
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setFullCampaignResult(data)
+      // Inject top results into existing state
+      if (data.angles?.[0])  setSelectedAngle(data.angles[0])
+      if (data.hooks?.[0])   setSelectedHook(data.hooks[0])
+      merge({
+        adTextResults: {
+          angles:   data.angles,
+          hooks:    { hooks: data.hooks },
+          captions: data.captions,
+        },
+        activeProjectId:   data.projectId || s.activeProjectId,
+        activeProjectName: data.projectId ? `${productName} — Full Campaign` : s.activeProjectName,
+      })
+      setAdOutputTab('angles')
+      setFullCampaignStep('Done')
+    } catch (err) {
+      setFullCampaignStep('Error: ' + err.message)
+    } finally {
+      setFullCampaignLoading(false)
     }
   }
 
@@ -4493,6 +4531,47 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 Generating angles → selecting best → hooks → captions + UGC. Results appear in each tab.
               </div>
             )}
+
+            {/* One-Button Full Campaign */}
+            {productName.trim() && (
+              <button
+                onClick={handleFullCampaign}
+                disabled={fullCampaignLoading || buildingProject}
+                style={{
+                  padding: '13px 28px', borderRadius: 8, fontSize: 13, fontWeight: 800,
+                  cursor: fullCampaignLoading || buildingProject ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${fullCampaignLoading ? C.subtle : C.green}`,
+                  background: fullCampaignLoading ? C.raised : 'linear-gradient(180deg,#0a1a0f,#051008)',
+                  color: fullCampaignLoading ? C.muted : C.green,
+                  letterSpacing: 0.3, opacity: fullCampaignLoading || buildingProject ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}
+              >
+                {fullCampaignLoading ? `⟳ ${fullCampaignStep}` : '🚀 Generate Full Campaign — 30 Prompts + Captions + Schedule'}
+              </button>
+            )}
+
+            {fullCampaignResult && !fullCampaignLoading && (
+              <div style={{ background: C.raised, border: `1px solid ${C.green}22`, borderRadius: 8, padding: '14px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.green, letterSpacing: 1, marginBottom: 10 }}>✓ FULL CAMPAIGN GENERATED</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  {[
+                    ['Angles', fullCampaignResult.angles?.length],
+                    ['Hooks', fullCampaignResult.hooks?.length],
+                    ['Image Prompts', fullCampaignResult.imagePrompts?.length],
+                    ['Captions', fullCampaignResult.captions?.length],
+                    ['Schedule Days', fullCampaignResult.schedule?.length],
+                  ].map(([label, count]) => (
+                    <div key={label} style={{ background: C.surface, borderRadius: 5, padding: '6px 10px', fontSize: 11 }}>
+                      <span style={{ color: C.muted }}>{label}: </span>
+                      <span style={{ color: C.primary, fontWeight: 700 }}>{count || 0}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 10, color: C.muted }}>Results loaded into Angles, Hooks + Captions tabs. Auto-saved as project.</div>
+              </div>
+            )}
+
             <div style={{ fontSize: 10, color: C.muted }}>✦ AI auto-suggests style from your product name</div>
           </div>
         )}
