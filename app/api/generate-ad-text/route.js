@@ -109,13 +109,35 @@ export async function POST(req) {
       )
     }
 
+    // ── Performance bias (Upgrade 5) ─────────────────────────
+    let performanceBias = ''
+    try {
+      const { data: perfLogs } = await admin
+        .from('performance_logs')
+        .select('hook_type, platform, world_id, ctr')
+        .eq('user_id', user.id)
+        .not('ctr', 'is', null)
+        .order('ctr', { ascending: false })
+        .limit(50)
+      if (perfLogs?.length >= 5) {
+        const topHook = perfLogs[0]?.hook_type
+        const topPlatform = perfLogs[0]?.platform
+        const topWorld = perfLogs.find(l => l.world_id)?.world_id
+        const parts = []
+        if (topHook) parts.push(`User data shows ${topHook} hooks perform best — bias toward this style`)
+        if (topPlatform) parts.push(`Optimise for ${topPlatform}`)
+        if (topWorld) parts.push(`${topWorld} visual world drives highest engagement for this user`)
+        if (parts.length) performanceBias = `\n\nUSER PERFORMANCE DATA: ${parts.join('. ')}.`
+      }
+    } catch {}
+
     // ── Build prompt ────────────────────────────────────────
     let systemPrompt = 'You are a world-class advertising strategist and direct-response copywriter. CRITICAL RULE: respond with ONLY raw valid JSON — no markdown, no code fences, no preamble, no explanation. Your entire response must start with [ or { and end with ] or }. Never add text before or after the JSON.'
     let userPrompt   = ''
 
     // Platform instruction appended to all content-generating types
     const platformInstruction = type !== 'quality_score'
-      ? `\n\n${buildPlatformInstruction(adConfig?.platform || 'general')}`
+      ? `\n\n${buildPlatformInstruction(adConfig?.platform || 'general')}${performanceBias}`
       : ''
 
     if (type === 'angles') {

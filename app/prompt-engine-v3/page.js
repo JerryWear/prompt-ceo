@@ -312,6 +312,10 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [perfSummary,       setPerfSummary]        = useState(null)
   const [perfLogsLoading,   setPerfLogsLoading]    = useState(false)
   const [perfLogSaving,     setPerfLogSaving]      = useState(false)
+  // Performance Insights (Upgrade 5)
+  const [perfInsights,      setPerfInsights]       = useState(null)
+  const [perfInsightsLoading, setPerfInsightsLoading] = useState(false)
+  const [quickFeedback,     setQuickFeedback]      = useState({})
 
   // Testimonial Miner
   const [testimonialsInput, setTestimonialsInput]  = useState('')
@@ -979,6 +983,27 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     const hooks  = Object.entries(perfData.hooks  || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 5)
     const angles = Object.entries(perfData.angles || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 3)
     return { hooks: hooks.map(([h, d]) => ({ text: h, ...d })), angles: angles.map(([a, d]) => ({ text: a, ...d })) }
+  }
+
+  const quickLog = async (contentText, contentType, liked, key) => {
+    setQuickFeedback(prev => ({ ...prev, [key]: liked ? 'liked' : 'disliked' }))
+    try {
+      await fetch('/api/performance-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentText, contentType, platform: adPlatform || 'instagram', liked }),
+      })
+    } catch {}
+  }
+
+  const loadPerfInsights = async () => {
+    setPerfInsightsLoading(true)
+    try {
+      const res = await fetch('/api/performance-insights')
+      const data = await res.json()
+      setPerfInsights(data)
+    } catch {}
+    setPerfInsightsLoading(false)
   }
 
   // ── Visual Brand DNA ──────────────────────────────────────
@@ -4705,12 +4730,24 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     <span style={{ fontSize: 10, fontWeight: 700, color: C.gold, letterSpacing: 0.5 }}>{angle.title}</span>
                     <span style={{ fontSize: 9, color: C.muted, marginLeft: 8 }}>{angle.emotionalTrigger}</span>
                   </div>
-                  <button
-                    onClick={() => doCopyAdText(`${angle.hook}\n\nVisual: ${angle.visualDirection}\nCaption: ${angle.captionDirection}\nScript: ${angle.scriptDirection}`, `angle_${i}`)}
-                    style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `angle_${i}` ? C.green : C.muted }}
-                  >
-                    {copiedText === `angle_${i}` ? '✓' : '⎘'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    <button onClick={() => quickLog(angle.hook, 'angle', true, `angle_${i}`)}
+                      title="This worked"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`angle_${i}`] === 'liked' ? '#2a4a2a' : C.hairline}`, background: quickFeedback[`angle_${i}`] === 'liked' ? C.greenDim : C.deep }}>
+                      👍
+                    </button>
+                    <button onClick={() => quickLog(angle.hook, 'angle', false, `angle_${i}`)}
+                      title="Didn't work"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`angle_${i}`] === 'disliked' ? '#4a2a2a' : C.hairline}`, background: quickFeedback[`angle_${i}`] === 'disliked' ? '#2a0808' : C.deep }}>
+                      👎
+                    </button>
+                    <button
+                      onClick={() => doCopyAdText(`${angle.hook}\n\nVisual: ${angle.visualDirection}\nCaption: ${angle.captionDirection}\nScript: ${angle.scriptDirection}`, `angle_${i}`)}
+                      style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copiedText === `angle_${i}` ? C.green : C.muted }}
+                    >
+                      {copiedText === `angle_${i}` ? '✓' : '⎘'}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, lineHeight: 1.5, fontStyle: 'italic' }}>"{angle.hook}"</div>
@@ -4909,6 +4946,16 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                    <button onClick={() => quickLog(hook, 'hook', true, `hook_${i}`)}
+                      title="This worked"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`hook_${i}`] === 'liked' ? '#2a4a2a' : C.hairline}`, background: quickFeedback[`hook_${i}`] === 'liked' ? C.greenDim : C.deep }}>
+                      👍
+                    </button>
+                    <button onClick={() => quickLog(hook, 'hook', false, `hook_${i}`)}
+                      title="Didn't work"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`hook_${i}`] === 'disliked' ? '#4a2a2a' : C.hairline}`, background: quickFeedback[`hook_${i}`] === 'disliked' ? '#2a0808' : C.deep }}>
+                      👎
+                    </button>
                     <button onClick={() => setLogOpen(logOpen === `hook_${i}` ? null : `hook_${i}`)}
                       style={{ padding: '3px 6px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${perfData.hooks?.[hook] ? '#2a4a2a' : C.hairline}`, background: perfData.hooks?.[hook] ? C.greenDim : C.deep, color: perfData.hooks?.[hook] ? C.green : C.muted }}>
                       📊
@@ -5050,7 +5097,17 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   <span style={{ fontSize: 10, fontWeight: 700, color: C.gold, letterSpacing: 0.5 }}>
                     {isLockedCap && '🔒 '}{cap.label || cap.type}
                   </span>
-                  <div style={{ display: 'flex', gap: 5 }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => quickLog(cap.fullCaption || cap.hook, 'caption', true, `cap_${i}`)}
+                      title="This worked"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`cap_${i}`] === 'liked' ? '#2a4a2a' : C.hairline}`, background: quickFeedback[`cap_${i}`] === 'liked' ? C.greenDim : C.deep }}>
+                      👍
+                    </button>
+                    <button onClick={() => quickLog(cap.fullCaption || cap.hook, 'caption', false, `cap_${i}`)}
+                      title="Didn't work"
+                      style={{ padding: '3px 5px', borderRadius: 3, fontSize: 11, cursor: 'pointer', border: `1px solid ${quickFeedback[`cap_${i}`] === 'disliked' ? '#4a2a2a' : C.hairline}`, background: quickFeedback[`cap_${i}`] === 'disliked' ? '#2a0808' : C.deep }}>
+                      👎
+                    </button>
                     <button
                       onClick={() => { if (isLockedCap) setLockedCaption(null); else setLockedCaption(cap) }}
                       style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${isLockedCap ? C.gold : C.subtle}`, background: isLockedCap ? '#1a1c08' : C.surface, color: isLockedCap ? C.gold : C.muted }}
@@ -14968,6 +15025,82 @@ export default function PromptCEOPage() {
                 {!platformConnections.instagram && !platformConnections.tiktok && (
                   <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', padding: '8px 0', lineHeight: 1.6 }}>
                     Connect Instagram or TikTok above to start publishing directly from PromptCEO.
+                  </div>
+                )}
+              </Panel>
+
+              {/* ── PERFORMANCE INSIGHTS ── */}
+              <Panel title="Performance Insights" accent={C.green} defaultOpen={false} hint="What's working for your brand">
+                {!perfInsights ? (
+                  <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                    <div style={{ fontSize: 10, color: C.muted, marginBottom: 8, lineHeight: 1.6 }}>
+                      Use 👍/👎 on any hook, caption, or angle to build your data. Once you have 5+ data points, insights unlock.
+                    </div>
+                    <button onClick={loadPerfInsights} disabled={perfInsightsLoading}
+                      style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.greenDim}`, background: '#081208', color: C.green }}>
+                      {perfInsightsLoading ? 'Loading…' : 'Load Insights'}
+                    </button>
+                  </div>
+                ) : !perfInsights.ready ? (
+                  <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.7, padding: '4px 0' }}>
+                    <div style={{ marginBottom: 6 }}>{perfInsights.message}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: C.hairline }}>
+                        <div style={{ height: '100%', borderRadius: 2, background: C.green, width: `${Math.min(100, ((perfInsights.dataPoints || 0) / (perfInsights.needed || 5)) * 100)}%`, transition: 'width 0.4s' }} />
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, flexShrink: 0 }}>{perfInsights.dataPoints}/{perfInsights.needed}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {perfInsights.overallAvgCTR != null && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 4, background: C.greenDim, border: '1px solid #2a4a2a' }}>
+                        <span style={{ fontSize: 9, color: C.muted }}>Overall Avg CTR</span>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: C.green }}>{perfInsights.overallAvgCTR}%</span>
+                      </div>
+                    )}
+                    {perfInsights.bestHookType && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>Best Hook Type</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{perfInsights.bestHookType.key}</div>
+                        <div style={{ fontSize: 9, color: C.green }}>{perfInsights.bestHookType.avgCTR}% avg CTR · {perfInsights.bestHookType.count} ads</div>
+                      </div>
+                    )}
+                    {perfInsights.bestPlatform && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>Best Platform</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{perfInsights.bestPlatform.key}</div>
+                        <div style={{ fontSize: 9, color: C.green }}>{perfInsights.bestPlatform.avgCTR}% avg CTR</div>
+                      </div>
+                    )}
+                    {perfInsights.bestWorld && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>Best Visual World</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>{perfInsights.bestWorld.key?.replace(/_/g, ' ')}</div>
+                        <div style={{ fontSize: 9, color: C.green }}>{perfInsights.bestWorld.avgCTR}% avg CTR</div>
+                      </div>
+                    )}
+                    {perfInsights.topPerformers?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 8, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>Top Performers</div>
+                        {perfInsights.topPerformers.slice(0, 3).map((p, i) => (
+                          <div key={i} style={{ padding: '5px 7px', borderRadius: 3, background: C.surface, border: `1px solid ${C.hairline}`, marginBottom: 3, fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>
+                            {p.ctr != null && <span style={{ color: C.green, fontWeight: 700 }}>{p.ctr}% CTR — </span>}
+                            {(p.content_text || '').slice(0, 55)}{(p.content_text || '').length > 55 ? '…' : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {perfInsights.promptBias && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, background: '#0c1208', border: '1px solid #2a4a2a', fontSize: 9, color: C.green, lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 700, display: 'block', marginBottom: 2 }}>AI is biased toward:</span>
+                        {perfInsights.promptBias}
+                      </div>
+                    )}
+                    <button onClick={loadPerfInsights} disabled={perfInsightsLoading}
+                      style={{ padding: '4px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                      {perfInsightsLoading ? 'Refreshing…' : 'Refresh'}
+                    </button>
                   </div>
                 )}
               </Panel>
