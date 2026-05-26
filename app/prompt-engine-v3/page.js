@@ -11841,6 +11841,17 @@ export default function PromptCEOPage() {
     setProjectDropOpen(false)
   }
 
+  // ── Video Provider State (Build 4) ──────────────────────
+  const [videoProviderStatus,    setVideoProviderStatus]    = useState(null)
+  const [preferredVideoProvider, setPreferredVideoProvider] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/video-providers')
+      .then(r => r.json())
+      .then(d => { if (d.available) { setVideoProviderStatus(d); setPreferredVideoProvider(d.preferred || d.active?.id || null) } })
+      .catch(() => {})
+  }, [])
+
   // ── Performance Insights State (Upgrade 5) ───────────────
   const [perfInsights,        setPerfInsights]        = useState(null)
   const [perfInsightsLoading, setPerfInsightsLoading] = useState(false)
@@ -13215,7 +13226,8 @@ export default function PromptCEOPage() {
           prompt,
           mode,
           adConfig,
-          imageUrl: imageUrl || s.adGeneratedImage || '',
+          imageUrl:          imageUrl || s.adGeneratedImage || '',
+          preferredProvider: preferredVideoProvider || null,
         }),
       })
       const data = await res.json()
@@ -13240,7 +13252,7 @@ export default function PromptCEOPage() {
     try {
       const res = await fetch('/api/generate-video', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, imageUrl, progressionLevel, mode: 'director' }),
+        body: JSON.stringify({ prompt, imageUrl, progressionLevel, mode: 'director', preferredProvider: preferredVideoProvider || null }),
       })
       const data = await res.json()
       if (data?.status === 'complete') {
@@ -15379,6 +15391,50 @@ export default function PromptCEOPage() {
                   </div>
                 )}
               </Panel>
+
+              {/* ── VIDEO PROVIDER (Build 4) ── */}
+              {videoProviderStatus && (
+                <Panel title="Video Provider" hint="Active AI video engine — switch providers via env vars" accent={C.blue} defaultOpen={false}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Active provider */}
+                    <div style={{ padding: '7px 10px', borderRadius: 5, background: C.blueGlow, border: `1px solid ${C.blueDim}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.blue }}>Active: {videoProviderStatus.active?.name || 'None'}</div>
+                        <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{videoProviderStatus.available?.length || 0} provider{videoProviderStatus.available?.length !== 1 ? 's' : ''} configured</div>
+                      </div>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: videoProviderStatus.active ? C.green : '#f87171', flexShrink: 0 }} />
+                    </div>
+
+                    {/* All configured providers */}
+                    {(videoProviderStatus.available || []).map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => setPreferredVideoProvider(p.id)}
+                        style={{
+                          padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
+                          border: `1px solid ${preferredVideoProvider === p.id ? C.blueDim : C.hairline}`,
+                          background: preferredVideoProvider === p.id ? C.blueGlow : C.raised,
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = C.blueDim}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = preferredVideoProvider === p.id ? C.blueDim : C.hairline}
+                      >
+                        <span style={{ fontSize: 10, color: preferredVideoProvider === p.id ? C.blue : C.primary }}>{p.name}</span>
+                        {preferredVideoProvider === p.id && <span style={{ fontSize: 9, color: C.blue, fontWeight: 700 }}>Selected</span>}
+                      </div>
+                    ))}
+
+                    {videoProviderStatus.available?.length === 0 && (
+                      <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5 }}>No video provider configured. Set RUNWAYML_API_SECRET, KLING_API_KEY + KLING_API_SECRET, or LUMAAI_API_KEY in your environment.</div>
+                    )}
+
+                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5 }}>
+                      Selection persists for this session. Set PREFERRED_VIDEO_PROVIDER env var to lock a default permanently.
+                    </div>
+                  </div>
+                </Panel>
+              )}
 
               {/* ── ORCHESTRATION SUGGESTIONS (Build 3) ── */}
               <OrchestrationPanel s={s} activeBrandProfile={activeBrandProfile} />
