@@ -5,7 +5,7 @@ import { createServerClient } from '@supabase/ssr'
 export async function GET(req) {
   const { searchParams, origin } = new URL(req.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/prompt-engine-v3'
+  const next = searchParams.get('next') ?? '/app'
 
   if (code) {
     const cookieStore = await cookies()

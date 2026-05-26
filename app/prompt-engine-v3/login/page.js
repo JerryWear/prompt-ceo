@@ -12,7 +12,7 @@ export default function LoginPage() {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session) {
-        router.replace('/prompt-engine-v3')
+        router.replace('/app')
       }
     }
     checkSession()
@@ -40,7 +40,7 @@ export default function LoginPage() {
       if (error) { setError(error.message); setLoading(false); return }
       // Send welcome email
       fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
-      router.replace('/prompt-engine-v3')
+      router.replace('/app')
       router.refresh()
       return
     }
@@ -48,7 +48,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
 
-    router.replace('/prompt-engine-v3')
+    router.replace('/app')
     router.refresh()
   }
 

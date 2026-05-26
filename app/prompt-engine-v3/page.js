@@ -13571,6 +13571,18 @@ export default function PromptCEOPage() {
             </div>
           )}
 
+          <a
+            href="/instant"
+            style={{
+              padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+              border: `1px solid ${C.goldDim}`, background: '#1a1408',
+              color: C.gold, letterSpacing: 0.5, textDecoration: 'none', whiteSpace: 'nowrap',
+            }}
+            title="Switch to PromptCEO Instant™"
+          >
+            ⚡ Instant
+          </a>
+
           <button
             onClick={() => window.location.href = '/account'}
             style={{ padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, letterSpacing: 0.5 }}
