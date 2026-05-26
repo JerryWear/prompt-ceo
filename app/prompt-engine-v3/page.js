@@ -743,6 +743,53 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     }
   }
 
+  const exportCampaignZip = async (campaign) => {
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    const folder = zip.folder(`${productName.replace(/\s+/g, '-').toLowerCase()}-campaign`)
+
+    if (campaign.angles?.length) {
+      folder.file('angles.txt', campaign.angles.map((a, i) => `${i + 1}. ${typeof a === 'string' ? a : `${a.title}: ${a.hook}`}`).join('\n\n'))
+    }
+    if (campaign.hooks?.length) {
+      folder.file('hooks.txt', campaign.hooks.map((h, i) => `${i + 1}. ${h}`).join('\n\n'))
+    }
+    if (campaign.imagePrompts?.length) {
+      folder.file('image-prompts.txt', campaign.imagePrompts.map((p, i) => `${i + 1}. ${p}`).join('\n\n'))
+    }
+    if (campaign.captions?.length) {
+      folder.file('captions.txt', campaign.captions.map((c, i) => `--- Caption ${i + 1} ---\n${c}`).join('\n\n'))
+    }
+    if (campaign.schedule?.length) {
+      const scheduleLines = campaign.schedule.map(d =>
+        `Day ${d.day}${d.time ? ` @ ${d.time}` : ''} [${d.content_type || 'post'}]: ${d.theme || ''}`
+      )
+      folder.file('30-day-schedule.txt', scheduleLines.join('\n'))
+    }
+
+    const readmeParts = [
+      `FULL CAMPAIGN — ${productName}`,
+      `Generated: ${new Date().toLocaleDateString()}`,
+      `Platform: ${adPlatform || 'general'}`,
+      '',
+      `Files included:`,
+      campaign.angles?.length     ? `• angles.txt — ${campaign.angles.length} marketing angles`       : null,
+      campaign.hooks?.length      ? `• hooks.txt — ${campaign.hooks.length} scroll-stopping hooks`    : null,
+      campaign.imagePrompts?.length ? `• image-prompts.txt — ${campaign.imagePrompts.length} AI image prompts` : null,
+      campaign.captions?.length   ? `• captions.txt — ${campaign.captions.length} captions`           : null,
+      campaign.schedule?.length   ? `• 30-day-schedule.txt — ${campaign.schedule.length}-day schedule` : null,
+    ].filter(Boolean).join('\n')
+    folder.file('README.txt', readmeParts)
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${productName.replace(/\s+/g, '-').toLowerCase()}-campaign.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleFullCampaign = async () => {
     if (!productName.trim() || fullCampaignLoading) return
     setFullCampaignLoading(true)
@@ -4593,7 +4640,17 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 10, color: C.muted }}>Results loaded into Angles, Hooks + Captions tabs. Auto-saved as project.</div>
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>Results loaded into Angles, Hooks + Captions tabs. Auto-saved as project.</div>
+                <button
+                  onClick={() => exportCampaignZip(fullCampaignResult)}
+                  style={{
+                    width: '100%', padding: '8px 0', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${C.greenDim}`, background: '#081208', color: C.green,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  📦 Download Campaign ZIP
+                </button>
               </div>
             )}
 

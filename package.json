@@ -13,6 +13,7 @@
     "@runwayml/sdk": "^3.20.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
+    "jszip": "^3.10.1",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
