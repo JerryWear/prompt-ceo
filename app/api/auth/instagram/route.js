@@ -9,7 +9,7 @@ export async function GET() {
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/instagram/callback`
 
   if (!clientId) {
-    return NextResponse.json({ error: 'META_APP_ID not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'INSTAGRAM_APP_ID not configured', available: Object.keys(process.env).filter(k => k.includes('INSTA') || k.includes('META')) }, { status: 500 })
   }
 
   const scope = [
