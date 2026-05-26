@@ -144,7 +144,7 @@ function AdLoadingState({ outputType }) {
   )
 }
 
-function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon }) {
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon, quickLog, quickFeedback }) {
   const [adMode, setAdMode]             = useState('product_ad')
   const [adOutputType, setAdOutputType] = useState('image')
   const [adFormat, setAdFormat]         = useState('feed')
@@ -312,10 +312,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [perfSummary,       setPerfSummary]        = useState(null)
   const [perfLogsLoading,   setPerfLogsLoading]    = useState(false)
   const [perfLogSaving,     setPerfLogSaving]      = useState(false)
-  // Performance Insights (Upgrade 5)
-  const [perfInsights,      setPerfInsights]       = useState(null)
-  const [perfInsightsLoading, setPerfInsightsLoading] = useState(false)
-  const [quickFeedback,     setQuickFeedback]      = useState({})
 
   // Testimonial Miner
   const [testimonialsInput, setTestimonialsInput]  = useState('')
@@ -1030,27 +1026,6 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     const hooks  = Object.entries(perfData.hooks  || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 5)
     const angles = Object.entries(perfData.angles || {}).sort((a, b) => b[1].ctr - a[1].ctr).slice(0, 3)
     return { hooks: hooks.map(([h, d]) => ({ text: h, ...d })), angles: angles.map(([a, d]) => ({ text: a, ...d })) }
-  }
-
-  const quickLog = async (contentText, contentType, liked, key) => {
-    setQuickFeedback(prev => ({ ...prev, [key]: liked ? 'liked' : 'disliked' }))
-    try {
-      await fetch('/api/performance-insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentText, contentType, platform: adPlatform || 'instagram', liked }),
-      })
-    } catch {}
-  }
-
-  const loadPerfInsights = async () => {
-    setPerfInsightsLoading(true)
-    try {
-      const res = await fetch('/api/performance-insights')
-      const data = await res.json()
-      setPerfInsights(data)
-    } catch {}
-    setPerfInsightsLoading(false)
   }
 
   // ── Visual Brand DNA ──────────────────────────────────────
@@ -11729,6 +11704,32 @@ export default function PromptCEOPage() {
     setProjectDropOpen(false)
   }
 
+  // ── Performance Insights State (Upgrade 5) ───────────────
+  const [perfInsights,        setPerfInsights]        = useState(null)
+  const [perfInsightsLoading, setPerfInsightsLoading] = useState(false)
+  const [quickFeedback,       setQuickFeedback]       = useState({})
+
+  const quickLog = async (contentText, contentType, liked, key) => {
+    setQuickFeedback(prev => ({ ...prev, [key]: liked ? 'liked' : 'disliked' }))
+    try {
+      await fetch('/api/performance-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentText, contentType, platform: 'instagram', liked }),
+      })
+    } catch {}
+  }
+
+  const loadPerfInsights = async () => {
+    setPerfInsightsLoading(true)
+    try {
+      const res = await fetch('/api/performance-insights')
+      const data = await res.json()
+      setPerfInsights(data)
+    } catch {}
+    setPerfInsightsLoading(false)
+  }
+
   // ── Publishing State ─────────────────────────────────────
   const [platformConnections, setPlatformConnections] = useState({ instagram: null, tiktok: null })
   const [scheduledPosts,      setScheduledPosts]      = useState([])
@@ -13622,6 +13623,8 @@ export default function PromptCEOPage() {
               generateAdVideo={generateAdVideo}
               generateAdText={generateAdText}
               hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
+              quickLog={quickLog}
+              quickFeedback={quickFeedback}
             />
           </div>
         )}
