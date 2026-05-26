@@ -11703,6 +11703,74 @@ function SubjectTraits({ label, traits, accentColor, onChange, onToggleLock, isM
 }
 
 // ─────────────────────────────────────────────────────────────
+// ORCHESTRATION SUGGESTIONS PANEL (Build 3)
+// ─────────────────────────────────────────────────────────────
+
+function OrchestrationPanel({ s, activeBrandProfile }) {
+  const [recs,    setRecs]    = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loaded,  setLoaded]  = useState(false)
+
+  const load = async () => {
+    if (loading) return
+    setLoading(true)
+    try {
+      // Detect type from active context
+      const type = s.adConfig?.instantType || s.adConfig?.adStyle || 'creator'
+      const res = await fetch('/api/orchestration-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      })
+      const data = await res.json()
+      if (data.recommendations) { setRecs(data.recommendations); setLoaded(true) }
+    } catch {}
+    setLoading(false)
+  }
+
+  const CONF_COLOR = { high: C.green, medium: C.gold, low: C.muted }
+
+  return (
+    <Panel title="Orchestration Suggestions" hint="AI-recommended configurations based on your history" accent={C.gold} defaultOpen={false}>
+      {!loaded ? (
+        <div style={{ textAlign: 'center', padding: '4px 0' }}>
+          <div style={{ fontSize: 10, color: C.muted, marginBottom: 8, lineHeight: 1.6 }}>
+            {activeBrandProfile ? `Analysing context for ${activeBrandProfile.name}…` : 'Recommends optimal goal, style, and hook type for your current context.'}
+          </div>
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}
+          >
+            {loading ? 'Analysing…' : '✦ Get Suggestions'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {recs.map((rec, i) => (
+            <div key={i} style={{ padding: '8px 10px', borderRadius: 5, background: i === 0 ? '#1a1408' : C.raised, border: `1px solid ${i === 0 ? C.goldDim : C.hairline}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? C.gold : C.primary }}>{rec.label}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: CONF_COLOR[rec.confidence] || C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{rec.confidence}</div>
+              </div>
+              <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5, marginBottom: 5 }}>{rec.reason}</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 99, background: '#08101a', border: `1px solid ${C.blueDim}`, color: C.blue }}>{rec.platform}</span>
+                <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 99, background: C.deep, border: `1px solid ${C.hairline}`, color: C.muted }}>{rec.style?.replace(/_/g, ' ')}</span>
+                <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 99, background: C.deep, border: `1px solid ${C.hairline}`, color: C.muted }}>{rec.hookType} hooks</span>
+              </div>
+            </div>
+          ))}
+          <button onClick={load} disabled={loading} style={{ padding: '4px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // MAIN PAGE COMPONENT
 // ─────────────────────────────────────────────────────────────
 
@@ -15311,6 +15379,9 @@ export default function PromptCEOPage() {
                   </div>
                 )}
               </Panel>
+
+              {/* ── ORCHESTRATION SUGGESTIONS (Build 3) ── */}
+              <OrchestrationPanel s={s} activeBrandProfile={activeBrandProfile} />
 
               {/* ── PERFORMANCE INSIGHTS ── */}
               <Panel title="Performance Insights" accent={C.green} defaultOpen={false} hint="What's working for your brand">

@@ -78,16 +78,18 @@ export default function InstantPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  const [step,        setStep]        = useState(1) // 1 | 2 | 3 | 'building' | 'results'
-  const [productName, setProductName] = useState('')
-  const [type,        setType]        = useState('')
-  const [goal,        setGoal]        = useState('')
-  const [style,       setStyle]       = useState('')
-  const [result,      setResult]      = useState(null)
-  const [error,       setError]       = useState('')
-  const [loadingLine, setLoadingLine] = useState(LOADING_LINES[0])
-  const [copied,      setCopied]      = useState(null)
-  const [expanded,    setExpanded]    = useState({})
+  const [step,            setStep]            = useState(1) // 1 | 2 | 3 | 'building' | 'results'
+  const [productName,     setProductName]     = useState('')
+  const [type,            setType]            = useState('')
+  const [goal,            setGoal]            = useState('')
+  const [style,           setStyle]           = useState('')
+  const [result,          setResult]          = useState(null)
+  const [error,           setError]           = useState('')
+  const [loadingLine,     setLoadingLine]     = useState(LOADING_LINES[0])
+  const [copied,          setCopied]          = useState(null)
+  const [expanded,        setExpanded]        = useState({})
+  const [recommendations, setRecommendations] = useState([])
+  const [recsLoading,     setRecsLoading]     = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -181,6 +183,54 @@ export default function InstantPage() {
   const startOver = () => {
     setStep(1); setType(''); setGoal(''); setStyle('')
     setProductName(''); setResult(null); setError(''); setExpanded({})
+    setRecommendations([])
+  }
+
+  const advanceStep = async () => {
+    const next = typeof step === 'number' ? step + 1 : step
+    setStep(next)
+    // Fetch recommendations when moving from step 1 → 2
+    if (step === 1 && type) {
+      setRecsLoading(true)
+      try {
+        const res = await fetch('/api/orchestration-engine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, productName: productName.trim() }),
+        })
+        const data = await res.json()
+        if (data.recommendations) setRecommendations(data.recommendations)
+      } catch {}
+      setRecsLoading(false)
+    }
+  }
+
+  const applyRecommendation = (rec) => {
+    setGoal(rec.goal)
+    setStyle(rec.style)
+    // Jump straight to build
+    if (!productName.trim()) return
+    setStep('building')
+    setError('')
+    let lineIdx = 0
+    setLoadingLine(LOADING_LINES[0])
+    const interval = setInterval(() => {
+      lineIdx = Math.min(lineIdx + 1, LOADING_LINES.length - 1)
+      setLoadingLine(lineIdx === 3 ? `Building captions for ${productName}…` : LOADING_LINES[lineIdx])
+    }, 2200)
+    fetch('/api/instant-campaign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, goal: rec.goal, style: rec.style, productName: productName.trim() }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        clearInterval(interval)
+        if (data.error) { setError(data.error); setStep(3); return }
+        setResult(data)
+        setStep('results')
+      })
+      .catch(err => { clearInterval(interval); setError(err.message || 'Something went wrong'); setStep(3) })
   }
 
   // ── Building state ──────────────────────────────────────────────────────────
@@ -193,7 +243,7 @@ export default function InstantPage() {
         </div>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: C.gold, textTransform: 'uppercase', marginBottom: 12 }}>Building Your Campaign</div>
         <div style={{ fontSize: 14, color: C.secondary, minHeight: 22 }}>{loadingLine}</div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:0.5}50%{opacity:0.9}}`}</style>
       </div>
     )
   }
@@ -407,6 +457,54 @@ export default function InstantPage() {
           </div>
         )}
 
+        {/* AI Recommendations — shown on step 2 */}
+        {step === 2 && (recsLoading || recommendations.length > 0) && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: C.gold, textTransform: 'uppercase', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>✦</span>
+              <span>AI Recommended</span>
+              {recsLoading && <span style={{ fontSize: 9, color: C.muted, fontWeight: 400 }}>Analysing your data…</span>}
+            </div>
+            {recsLoading ? (
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ flex: 1, height: 80, borderRadius: 9, background: C.surface, border: `1px solid ${C.border}`, animation: 'pulse 1.5s ease-in-out infinite', opacity: 0.5 + i * 0.1 }} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {recommendations.map((rec, i) => (
+                  <div
+                    key={i}
+                    onClick={() => applyRecommendation(rec)}
+                    style={{
+                      flex: '1 1 200px', padding: '14px 16px', borderRadius: 9, cursor: 'pointer',
+                      border: `1px solid ${i === 0 ? C.gold : C.gold + '33'}`,
+                      background: i === 0 ? 'linear-gradient(135deg,#1a1408,#0c0a04)' : C.surface,
+                      transition: 'all 0.15s', position: 'relative',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = 'linear-gradient(135deg,#1a1408,#0c0a04)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = i === 0 ? C.gold : C.gold + '33'; e.currentTarget.style.background = i === 0 ? 'linear-gradient(135deg,#1a1408,#0c0a04)' : C.surface }}
+                  >
+                    {i === 0 && (
+                      <div style={{ position: 'absolute', top: -8, left: 12, fontSize: 8, fontWeight: 800, letterSpacing: 1.5, color: '#000', background: C.gold, padding: '2px 7px', borderRadius: 99, textTransform: 'uppercase' }}>Best Match</div>
+                    )}
+                    <div style={{ fontSize: 12, fontWeight: 700, color: i === 0 ? C.gold : C.primary, marginBottom: 4 }}>{rec.label}</div>
+                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5, marginBottom: 8 }}>{rec.reason}</div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 99, background: C.goldDim, border: `1px solid ${C.gold}22`, color: C.gold }}>{rec.platform}</span>
+                      <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 99, background: C.raised, border: `1px solid ${C.border}`, color: C.muted }}>{rec.hookType} hooks</span>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 10, fontWeight: 700, color: C.gold, textAlign: 'right' }}>Build this →</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ height: 1, background: C.border, margin: '20px 0 4px' }} />
+            <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', marginBottom: 4 }}>Or choose manually below</div>
+          </div>
+        )}
+
         {/* Option grid */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
           {items.map(item => (
@@ -437,7 +535,7 @@ export default function InstantPage() {
             ← Back
           </button>
           <button
-            onClick={step < 3 ? () => setStep(s => s + 1) : build}
+            onClick={step < 3 ? advanceStep : build}
             disabled={!canContinue}
             style={{
               padding: '12px 28px', borderRadius: 8,
