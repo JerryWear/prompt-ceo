@@ -144,7 +144,7 @@ function AdLoadingState({ outputType }) {
   )
 }
 
-function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon, quickLog, quickFeedback }) {
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon, quickLog, quickFeedback, brandProfiles, activeBrandProfile, setActiveBrandProfile, brandProfileDrop, setBrandProfileDrop, brandModalOpen, setBrandModalOpen, deleteBrandProfile }) {
   const [adMode, setAdMode]             = useState('product_ad')
   const [adOutputType, setAdOutputType] = useState('image')
   const [adFormat, setAdFormat]         = useState('feed')
@@ -3151,6 +3151,75 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             )}
           </Panel>
         )}
+
+        {/* ── Brand Profile ── */}
+        <Panel title="Brand Profile" hint="Active brand injects voice, style & audience into every generation" accent={C.violet} defaultOpen={true}>
+          {activeBrandProfile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ padding: '8px 10px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.violet }}>{activeBrandProfile.name}</div>
+                  {activeBrandProfile.voice && <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>Voice: {activeBrandProfile.voice}</div>}
+                  {activeBrandProfile.target_audience && <div style={{ fontSize: 9, color: C.muted }}>Audience: {activeBrandProfile.target_audience}</div>}
+                </div>
+                <button onClick={() => setActiveBrandProfile(null)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 13 }}>×</button>
+              </div>
+              <div style={{ fontSize: 9, color: C.green }}>✦ Brand context active — injected into all generation</div>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setBrandProfileDrop(o => !o)}
+                  style={{ width: '100%', padding: '5px 0', borderRadius: 4, background: 'none', border: `1px solid ${C.subtle}`, color: C.muted, fontSize: 9, cursor: 'pointer' }}
+                >Switch brand ▾</button>
+                {brandProfileDrop && brandProfiles.length > 0 && (
+                  <div style={{ position: 'absolute', top: 28, left: 0, right: 0, zIndex: 100, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: 5, boxShadow: '0 6px 20px #00000077' }}>
+                    {brandProfiles.map(b => (
+                      <div key={b.id} style={{ padding: '7px 10px', cursor: 'pointer', fontSize: 11, color: b.id === activeBrandProfile?.id ? C.violet : C.primary, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.raised}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span onClick={() => { setActiveBrandProfile(b); setBrandProfileDrop(false) }} style={{ flex: 1 }}>{b.name}</span>
+                        <span onClick={() => deleteBrandProfile(b.id)} style={{ fontSize: 9, color: C.muted, padding: '0 4px' }}>✕</span>
+                      </div>
+                    ))}
+                    <div style={{ height: 1, background: C.hairline }} />
+                    <div onClick={() => { setBrandProfileDrop(false); setBrandModalOpen(true) }} style={{ padding: '7px 10px', cursor: 'pointer', fontSize: 10, color: C.green }}
+                      onMouseEnter={e => e.currentTarget.style.background = C.raised}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >+ New Brand</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {brandProfiles.length > 0 ? (
+                <>
+                  <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>Select a brand to inject its voice and audience into generation:</div>
+                  {brandProfiles.map(b => (
+                    <div key={b.id} onClick={() => { setActiveBrandProfile(b); fetch(`/api/brand-profiles/${b.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ last_used_at: new Date().toISOString() }) }).catch(() => {}) }}
+                      style={{ padding: '7px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.hairline}`, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = C.violetDim}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = C.hairline}
+                    >
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.primary }}>{b.name}</div>
+                        {b.voice && <div style={{ fontSize: 9, color: C.muted }}>{b.voice}</div>}
+                      </div>
+                      <span style={{ fontSize: 9, color: C.violet }}>Select →</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.6 }}>
+                  Create a brand profile once — name, voice, target audience. Every generation automatically uses it as context.
+                </div>
+              )}
+              <button onClick={() => setBrandModalOpen(true)} style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet }}>
+                + New Brand Profile
+              </button>
+            </div>
+          )}
+        </Panel>
 
         {/* Brand DNA */}
         {/* Brand Voice Fingerprinting */}
@@ -11730,6 +11799,91 @@ export default function PromptCEOPage() {
     setPerfInsightsLoading(false)
   }
 
+  // ── Brand Profiles (Build 2) ────────────────────────────
+  const [brandProfiles,       setBrandProfiles]       = useState([])
+  const [brandProfilesLoaded, setBrandProfilesLoaded] = useState(false)
+  const [activeBrandProfile,  setActiveBrandProfile]  = useState(null)
+  const [brandProfileDrop,    setBrandProfileDrop]    = useState(false)
+  const [brandModalOpen,      setBrandModalOpen]      = useState(false)
+  const [brandModalName,      setBrandModalName]      = useState('')
+  const [brandModalVoice,     setBrandModalVoice]     = useState('')
+  const [brandModalAudience,  setBrandModalAudience]  = useState('')
+  const [brandModalStyle,     setBrandModalStyle]     = useState('')
+  const [brandSaving,         setBrandSaving]         = useState(false)
+
+  useEffect(() => {
+    fetch('/api/brand-profiles')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) { setBrandProfiles(d); setBrandProfilesLoaded(true) } })
+      .catch(() => {})
+  }, [])
+
+  const saveBrandProfile = async () => {
+    if (!brandModalName.trim()) return
+    setBrandSaving(true)
+    try {
+      const res = await fetch('/api/brand-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: brandModalName.trim(), voice: brandModalVoice, target_audience: brandModalAudience, style: brandModalStyle }),
+      })
+      const d = await res.json()
+      if (d.id) {
+        setBrandProfiles(p => [d, ...p])
+        setActiveBrandProfile(d)
+        setBrandModalOpen(false)
+        setBrandModalName(''); setBrandModalVoice(''); setBrandModalAudience(''); setBrandModalStyle('')
+      }
+    } catch {}
+    setBrandSaving(false)
+  }
+
+  const deleteBrandProfile = async (id) => {
+    await fetch(`/api/brand-profiles/${id}`, { method: 'DELETE' }).catch(() => {})
+    setBrandProfiles(p => p.filter(b => b.id !== id))
+    if (activeBrandProfile?.id === id) setActiveBrandProfile(null)
+  }
+
+  // ── Creator Profiles (Build 2) ──────────────────────────
+  const [creatorProfiles,      setCreatorProfiles]      = useState([])
+  const [creatorProfileSaving, setCreatorProfileSaving] = useState(false)
+  const [creatorProfileName,   setCreatorProfileName]   = useState('')
+  const [creatorSaveOpen,      setCreatorSaveOpen]      = useState(false)
+
+  useEffect(() => {
+    fetch('/api/creator-profiles')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setCreatorProfiles(d) })
+      .catch(() => {})
+  }, [])
+
+  const saveCreatorProfile = async () => {
+    if (!creatorProfileName.trim()) return
+    setCreatorProfileSaving(true)
+    try {
+      const res = await fetch('/api/creator-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: creatorProfileName.trim(),
+          creator_type: s.characterMode,
+          physical_traits: s.traits,
+          top_worlds: s.storyWorldId ? [s.storyWorldId] : [],
+          top_directors: s.directorPreset !== 'none' ? [s.directorPreset] : [],
+        }),
+      })
+      const d = await res.json()
+      if (d.id) { setCreatorProfiles(p => [d, ...p]); setCreatorSaveOpen(false); setCreatorProfileName('') }
+    } catch {}
+    setCreatorProfileSaving(false)
+  }
+
+  const loadCreatorProfile = (profile) => {
+    if (profile.physical_traits) merge({ traits: profile.physical_traits, useTraits: true })
+    if (profile.top_worlds?.[0]) merge({ storyWorldId: profile.top_worlds[0] })
+    if (profile.top_directors?.[0] && profile.top_directors[0] !== 'none') merge({ directorPreset: profile.top_directors[0] })
+  }
+
   // ── Publishing State ─────────────────────────────────────
   const [platformConnections, setPlatformConnections] = useState({ instagram: null, tiktok: null })
   const [scheduledPosts,      setScheduledPosts]      = useState([])
@@ -12923,6 +13077,7 @@ export default function PromptCEOPage() {
           variationContent:    variationContent    || null,
           variationType:       variationType       || null,
           variationContentType: variationContentType || null,
+          brandProfile:        activeBrandProfile  || null,
         }),
       })
       const data = await res.json()
@@ -13637,6 +13792,14 @@ export default function PromptCEOPage() {
               hasMusicAddon={subscription?.musicAddon || subscription?.isAdmin || false}
               quickLog={quickLog}
               quickFeedback={quickFeedback}
+              brandProfiles={brandProfiles}
+              activeBrandProfile={activeBrandProfile}
+              setActiveBrandProfile={setActiveBrandProfile}
+              brandProfileDrop={brandProfileDrop}
+              setBrandProfileDrop={setBrandProfileDrop}
+              brandModalOpen={brandModalOpen}
+              setBrandModalOpen={setBrandModalOpen}
+              deleteBrandProfile={deleteBrandProfile}
             />
           </div>
         )}
@@ -14005,6 +14168,54 @@ export default function PromptCEOPage() {
                       ✕
                     </Btn>
                   </div>
+                </div>
+              </Panel>
+
+              {/* ── Creator Profiles (Build 2 — cloud persistence) ── */}
+              <Panel title="Creator Profiles" hint="Save your identity to the cloud — load across devices and sessions" accent={C.blue} defaultOpen={false}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.55 }}>
+                    Character DNA saves locally. Creator Profiles save to your account — available on any device, any session.
+                  </div>
+
+                  {creatorProfiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {creatorProfiles.map(p => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: C.primary }}>{p.name}</div>
+                            {p.top_worlds?.[0] && <div style={{ fontSize: 9, color: C.muted }}>World: {p.top_worlds[0]}</div>}
+                          </div>
+                          <button onClick={() => loadCreatorProfile(p)} style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: C.blueGlow, color: C.blue }}>Load</button>
+                          <button onClick={async () => { await fetch(`/api/creator-profiles/${p.id}`, { method: 'DELETE' }).catch(() => {}); setCreatorProfiles(prev => prev.filter(x => x.id !== p.id)) }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 11 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {creatorSaveOpen ? (
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <input
+                        autoFocus
+                        value={creatorProfileName}
+                        onChange={e => setCreatorProfileName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveCreatorProfile()}
+                        placeholder='Profile name, e.g. "Maya Fitness"'
+                        style={{ flex: 1, padding: '5px 8px', borderRadius: 4, fontSize: 10, background: C.deep, color: C.primary, border: `1px solid ${C.blueDim}`, outline: 'none' }}
+                      />
+                      <button onClick={saveCreatorProfile} disabled={creatorProfileSaving || !creatorProfileName.trim()} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: C.blueGlow, color: C.blue }}>
+                        {creatorProfileSaving ? '…' : 'Save'}
+                      </button>
+                      <button onClick={() => setCreatorSaveOpen(false)} style={{ padding: '5px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCreatorSaveOpen(true)}
+                      style={{ width: '100%', padding: '7px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: C.blueGlow, color: C.blue }}
+                    >
+                      ☁ Save Current Identity to Cloud
+                    </button>
+                  )}
                 </div>
               </Panel>
 
@@ -15494,6 +15705,54 @@ export default function PromptCEOPage() {
                 }}
               >
                 Create Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BRAND PROFILE MODAL ── */}
+      {brandModalOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(4,4,4,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setBrandModalOpen(false)}
+        >
+          <div
+            style={{ background: C.base, borderRadius: 12, border: `1px solid ${C.violetDim}`, width: 420, padding: 28, boxShadow: '0 0 60px #00000088' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 4 }}>New Brand Profile</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>Saved once — injected into every generation automatically.</div>
+
+            {[
+              { label: 'Brand Name', placeholder: 'e.g. "Luxe Fit" or "Nova Coaching"', value: brandModalName, set: setBrandModalName, required: true },
+              { label: 'Brand Voice', placeholder: 'e.g. "Authoritative & inspiring" or "Warm, conversational, direct"', value: brandModalVoice, set: setBrandModalVoice },
+              { label: 'Target Audience', placeholder: 'e.g. "Women 25–40, fitness-focused, aspirational"', value: brandModalAudience, set: setBrandModalAudience },
+              { label: 'Visual Style', placeholder: 'e.g. "Dark luxury, cinematic, editorial"', value: brandModalStyle, set: setBrandModalStyle },
+            ].map(f => (
+              <div key={f.label} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>{f.label}{f.required ? ' *' : ''}</div>
+                <input
+                  autoFocus={f.required}
+                  value={f.value}
+                  onChange={e => f.set(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && f.required && saveBrandProfile()}
+                  placeholder={f.placeholder}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={e => e.target.style.borderColor = C.violetDim}
+                  onBlur={e => e.target.style.borderColor = C.subtle}
+                />
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <button onClick={() => setBrandModalOpen(false)} style={{ flex: 1, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>Cancel</button>
+              <button
+                onClick={saveBrandProfile}
+                disabled={!brandModalName.trim() || brandSaving}
+                style={{ flex: 2, padding: '9px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, border: `1px solid ${C.violetDim}`, background: '#0e0818', color: C.violet, opacity: brandModalName.trim() ? 1 : 0.4 }}
+              >
+                {brandSaving ? 'Saving…' : 'Save Brand Profile'}
               </button>
             </div>
           </div>

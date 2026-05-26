@@ -63,6 +63,7 @@ export async function POST(req) {
     const variationContent = clean(body?.variationContent) // for variation
     const variationType   = clean(body?.variationType)    // e.g. 'luxury', 'emotional'
     const variationContentType = clean(body?.variationContentType) // 'hook' | 'caption' | etc.
+    const brandProfile         = body?.brandProfile || null
 
     // quality_score skips productName requirement
     if (type !== 'quality_score' && !clean(adConfig?.productName)) {
@@ -131,6 +132,19 @@ export async function POST(req) {
       }
     } catch {}
 
+    // ── Brand Profile injection (Build 2) ───────────────────
+    let brandProfileContext = ''
+    if (brandProfile && type !== 'quality_score') {
+      const parts = []
+      if (brandProfile.name) parts.push(`Brand: ${brandProfile.name}`)
+      if (brandProfile.voice) parts.push(`Voice: ${brandProfile.voice}`)
+      if (brandProfile.style) parts.push(`Style: ${brandProfile.style}`)
+      if (brandProfile.target_audience) parts.push(`Target Audience: ${brandProfile.target_audience}`)
+      if (brandProfile.hooks_that_work?.length) parts.push(`Hooks that work for this brand: ${brandProfile.hooks_that_work.slice(0, 3).join('; ')}`)
+      if (brandProfile.angles_that_work?.length) parts.push(`Angles that work for this brand: ${brandProfile.angles_that_work.slice(0, 3).join('; ')}`)
+      if (parts.length) brandProfileContext = `ACTIVE BRAND PROFILE — write specifically for this brand:\n${parts.map(p => `• ${p}`).join('\n')}\n\n`
+    }
+
     // ── Build prompt ────────────────────────────────────────
     let systemPrompt = 'You are a world-class advertising strategist and direct-response copywriter. CRITICAL RULE: respond with ONLY raw valid JSON — no markdown, no code fences, no preamble, no explanation. Your entire response must start with [ or { and end with ] or }. Never add text before or after the JSON.'
     let userPrompt   = ''
@@ -185,6 +199,9 @@ export async function POST(req) {
         userPrompt = `LOCKED CREATIVE DECISIONS — these are already decided. Build your output to align with them, not replace them:\n${locks.map(l => `• ${l}`).join('\n')}\n\n` + userPrompt
       }
     }
+
+    // ── Inject Brand Profile ─────────────────────────────────
+    if (brandProfileContext) userPrompt = brandProfileContext + userPrompt
 
     // ── Inject Brand Voice Fingerprint — trained voice overrides generic labels ──
     if (type !== 'quality_score' && type !== 'variation' && adConfig.voiceFingerprint) {
