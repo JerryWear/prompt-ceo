@@ -11841,6 +11841,30 @@ export default function PromptCEOPage() {
     setProjectDropOpen(false)
   }
 
+  // ── Memory Stats (Build 5) ───────────────────────────────
+  const [memoryStats,        setMemoryStats]        = useState(null)
+  const [memoryStatsLoading, setMemoryStatsLoading] = useState(false)
+
+  const loadMemoryStats = async () => {
+    setMemoryStatsLoading(true)
+    try {
+      const res = await fetch('/api/memory-stats')
+      const data = await res.json()
+      if (!data.error) setMemoryStats(data)
+    } catch {}
+    setMemoryStatsLoading(false)
+  }
+
+  // Track world memory whenever active world changes
+  useEffect(() => {
+    if (!s.storyWorldId) return
+    fetch('/api/world-memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ worldId: s.storyWorldId, worldName: s.storyWorldId.replace(/_/g, ' ') }),
+    }).catch(() => {})
+  }, [s.storyWorldId])
+
   // ── Video Provider State (Build 4) ──────────────────────
   const [videoProviderStatus,    setVideoProviderStatus]    = useState(null)
   const [preferredVideoProvider, setPreferredVideoProvider] = useState(null)
@@ -15438,6 +15462,89 @@ export default function PromptCEOPage() {
 
               {/* ── ORCHESTRATION SUGGESTIONS (Build 3) ── */}
               <OrchestrationPanel s={s} activeBrandProfile={activeBrandProfile} />
+
+              {/* ── MEMORY STATS (Build 5) ── */}
+              <Panel title="System Memory" hint="What PromptCEO has learned about you" accent={C.gold} defaultOpen={false}>
+                {!memoryStats ? (
+                  <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                    <div style={{ fontSize: 10, color: C.muted, marginBottom: 8, lineHeight: 1.6 }}>
+                      Your creative history — worlds used, campaigns built, styles that work. Gets smarter every session.
+                    </div>
+                    <button onClick={loadMemoryStats} disabled={memoryStatsLoading}
+                      style={{ padding: '6px 14px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                      {memoryStatsLoading ? 'Loading…' : '✦ Load Memory'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Stats grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {[
+                        { label: 'Generations', value: memoryStats.totalGenerations },
+                        { label: 'Campaigns',   value: memoryStats.totalCampaigns },
+                        { label: 'Brands',      value: memoryStats.brandProfiles },
+                        { label: 'Data Points', value: memoryStats.perfDataPoints },
+                      ].map(s => (
+                        <div key={s.label} style={{ padding: '6px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: C.gold }}>{s.value ?? 0}</div>
+                          <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Top signals */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {[
+                        { label: 'Best World',    value: memoryStats.topWorld?.name },
+                        { label: 'Best Hook',     value: memoryStats.topHookType },
+                        { label: 'Best Style',    value: memoryStats.topStyle },
+                        { label: 'Best Platform', value: memoryStats.topPlatform },
+                      ].filter(r => r.value).map(r => (
+                        <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', borderRadius: 3, background: C.deep }}>
+                          <span style={{ fontSize: 9, color: C.muted }}>{r.label}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.gold }}>{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* World usage */}
+                    {memoryStats.worldsUsed?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>World Usage</div>
+                        {memoryStats.worldsUsed.map((w, i) => (
+                          <div key={w.worldId} style={{ marginBottom: 4 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span style={{ fontSize: 9, color: C.secondary }}>{w.name}</span>
+                              <span style={{ fontSize: 8, color: C.muted }}>{w.useCount}×</span>
+                            </div>
+                            <div style={{ height: 3, borderRadius: 99, background: C.hairline, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', borderRadius: 99, background: C.gold, width: `${Math.min(100, (w.useCount / (memoryStats.worldsUsed[0]?.useCount || 1)) * 100)}%`, transition: 'width 0.4s' }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Recent campaigns */}
+                    {memoryStats.recentCampaigns?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Recent Campaigns</div>
+                        {memoryStats.recentCampaigns.map((c, i) => (
+                          <div key={i} style={{ padding: '4px 6px', borderRadius: 3, background: C.deep, marginBottom: 3 }}>
+                            <div style={{ fontSize: 9, color: C.primary }}>{c.style} · {c.goal}</div>
+                            <div style={{ fontSize: 8, color: C.muted }}>{c.platform} · {c.hookType} hooks</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button onClick={loadMemoryStats} disabled={memoryStatsLoading}
+                      style={{ padding: '4px 0', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.muted }}>
+                      {memoryStatsLoading ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                  </div>
+                )}
+              </Panel>
 
               {/* ── PERFORMANCE INSIGHTS ── */}
               <Panel title="Performance Insights" accent={C.green} defaultOpen={false} hint="What's working for your brand">

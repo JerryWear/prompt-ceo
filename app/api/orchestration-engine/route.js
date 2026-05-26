@@ -179,10 +179,11 @@ export async function POST(req) {
     const db = admin()
 
     // ── Load user intelligence ──────────────────────────────
-    const [{ data: perfLogs }, { data: worldMem }, { data: brandProfiles }] = await Promise.all([
+    const [{ data: perfLogs }, { data: worldMem }, { data: brandProfiles }, { data: campMem }] = await Promise.all([
       db.from('performance_logs').select('hook_type, world_id, liked, ctr').eq('user_id', user.id).limit(100),
       db.from('world_memory').select('world_id, use_count, like_count').eq('user_id', user.id),
       db.from('brand_profiles').select('voice, style').eq('user_id', user.id).order('last_used_at', { ascending: false }).limit(1),
+      db.from('campaign_memory').select('successful_patterns, top_hook_types, top_platforms').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
     ])
 
     // Derive signals
@@ -198,6 +199,14 @@ export async function POST(req) {
     const brandVoice = brandProfiles?.[0]?.voice || brandProfiles?.[0]?.style || ''
     const worldMemory = worldMem || []
 
+    // Campaign memory signals — styles and goals that have succeeded before
+    const campStyleCount = {}
+    ;(campMem || []).forEach(c => {
+      const style = c.successful_patterns?.style
+      if (style) campStyleCount[style] = (campStyleCount[style] || 0) + 1
+    })
+    const topCampStyles = Object.entries(campStyleCount).sort((a, b) => b[1] - a[1]).map(([k]) => k)
+
     // ── Score all goal × style combos for this type ─────────
     const GOALS = ['sales', 'leads', 'followers', 'brand_awareness', 'app_installs', 'creator_growth', 'high_ticket', 'viral_reach', 'premium_positioning']
     const STYLES = ['luxury', 'cinematic', 'ugc', 'emotional', 'viral', 'dark_luxury', 'high_energy', 'soft_feminine', 'corporate_authority', 'fitness_motivation', 'high_status', 'aspirational_lifestyle']
@@ -205,7 +214,11 @@ export async function POST(req) {
     const combos = []
     for (const goal of (hintGoal ? [hintGoal] : GOALS)) {
       for (const style of STYLES) {
-        const score = scoreCombo(type, goal, style, { perfHooks, perfWorlds, brandVoice, worldMemory })
+        let score = scoreCombo(type, goal, style, { perfHooks, perfWorlds, brandVoice, worldMemory })
+        // Campaign memory boost: styles used successfully before score higher
+        if (topCampStyles[0] === style) score += 20
+        else if (topCampStyles[1] === style) score += 12
+        else if (topCampStyles.includes(style)) score += 6
         combos.push({ type, goal, style, score })
       }
     }
@@ -231,7 +244,8 @@ export async function POST(req) {
           label: `${STYLE_LABELS[c.style]} ${GOAL_LABELS[c.goal]}`,
           reason: buildReason(c.type, c.goal, c.style, c.score, { brandVoice, perfHooks, perfWorlds }),
           confidence: c.score >= 60 ? 'high' : c.score >= 35 ? 'medium' : 'low',
-          hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice,
+          hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice || topCampStyles.length > 0,
+          fromCampaignHistory: topCampStyles.includes(c.style),
         })
       }
     }

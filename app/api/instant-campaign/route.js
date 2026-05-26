@@ -124,6 +124,30 @@ export async function POST(req) {
       })
     } catch {}
 
+    // Step 5 — write campaign_memory (Build 5)
+    try {
+      await admin.from('campaign_memory').insert({
+        user_id:              user.id,
+        project_id:           projectId,
+        top_hook_types:       [orch.hookType].filter(Boolean),
+        top_platforms:        [orch.platform].filter(Boolean),
+        top_angles:           angles.slice(0, 3),
+        successful_patterns:  { style, goal, type, topHooks: hooks.slice(0, 3), world: orch.suggestedWorld },
+      })
+    } catch {}
+
+    // Step 6 — track world memory (Build 5)
+    try {
+      if (orch.suggestedWorld) {
+        const existing = await admin.from('world_memory').select('id, use_count').eq('user_id', user.id).eq('world_id', orch.suggestedWorld).single()
+        if (existing.data) {
+          await admin.from('world_memory').update({ use_count: existing.data.use_count + 1, last_used_at: new Date().toISOString() }).eq('id', existing.data.id)
+        } else {
+          await admin.from('world_memory').insert({ user_id: user.id, world_id: orch.suggestedWorld, world_name: orch.suggestedWorld.replace(/_/g, ' '), use_count: 1, last_used_at: new Date().toISOString() })
+        }
+      }
+    } catch {}
+
     return NextResponse.json({
       hooks,
       angles,
