@@ -12401,6 +12401,19 @@ export default function PromptCEOPage() {
     set('view', 'ad_studio')
   }, [set])
 
+  // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
+  useEffect(() => {
+    if (!s.hasImage || !s.imageDataUrl) return
+    try {
+      localStorage.setItem('promptceo_identity', JSON.stringify({
+        hasImage:     true,
+        imageDataUrl: s.imageDataUrl,
+        identityName: s.identityName || '',
+        traits:       s.traits || {},
+      }))
+    } catch {}
+  }, [s.hasImage, s.imageDataUrl, s.identityName, s.traits])
+
   // Load Instant campaign bridge from sessionStorage on mount
   useEffect(() => {
     try {
