@@ -11791,7 +11791,7 @@ export default function PromptCEOPage() {
     const params = new URLSearchParams(window.location.search)
     const view   = params.get('view')
     const tab    = params.get('tab')
-    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline']
+    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video']
     if (view && validViews.includes(view)) {
       set('view', view)
       if (tab) window.__adStudioInitTab = tab
@@ -12161,6 +12161,195 @@ export default function PromptCEOPage() {
     } catch {}
     setPerfectDayLoading(false)
   }, [perfectDayLoading, perfectDayWorldId, perfectDayStyle, perfectDayPlatform, creatorProfiles, activeBrandProfile, s.activeProjectId, s.traits, s.identityName])
+
+  // ── AI Director™ ────────────────────────────────────────
+  const [directorHistory,    setDirectorHistory]    = useState([])   // [{role:'user'|'ai', content, options, paramKey}]
+  const [directorParams,     setDirectorParams]     = useState({})
+  const [directorIntent,     setDirectorIntent]     = useState(null)
+  const [directorLoading,    setDirectorLoading]    = useState(false)
+  const [directorInput,      setDirectorInput]      = useState('')
+  const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
+
+  const resetDirector = useCallback(() => {
+    setDirectorHistory([])
+    setDirectorParams({})
+    setDirectorIntent(null)
+    setDirectorInput('')
+    setDirectorPhase('idle')
+  }, [])
+
+  const directorSend = useCallback(async (messageText, paramValue = null, paramKey = null) => {
+    if (directorLoading) return
+    const msgText = messageText?.trim()
+    if (!msgText && !paramValue) return
+
+    // If answering a specific param question, record the answer
+    const newParams = { ...directorParams }
+    if (paramKey && paramValue !== null) {
+      newParams[paramKey] = paramValue
+      setDirectorParams(newParams)
+    }
+
+    const userMsg = paramValue !== null ? (typeof paramValue === 'string' ? paramValue : msgText) : msgText
+    const newHistory = [...directorHistory, { role: 'user', content: userMsg }]
+    setDirectorHistory(newHistory)
+    setDirectorInput('')
+    setDirectorLoading(true)
+    setDirectorPhase('chat')
+
+    try {
+      const res = await fetch('/api/ai-director', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:         userMsg,
+          history:         directorHistory,
+          collectedParams: newParams,
+          identity: {
+            hasImage:      s.hasImage || false,
+            imageDataUrl:  s.imageDataUrl || null,
+            identityName:  s.identityName || null,
+            traits:        s.traits || null,
+          },
+          brandProfile:    activeBrandProfile || null,
+          creatorProfile:  creatorProfiles[0] || null,
+          projectId:       s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        setDirectorHistory(h => [...h, { role: 'ai', content: `Error: ${data.error}` }])
+        setDirectorLoading(false)
+        return
+      }
+
+      // Update history and params from server response
+      if (data.history) setDirectorHistory(data.history)
+      if (data.collectedParams) setDirectorParams(data.collectedParams)
+      if (data.intent) setDirectorIntent(data.intent)
+
+      if (data.phase === 'clarify') {
+        // AI is asking a clarifying question
+        setDirectorHistory(h => [...h, {
+          role:     'ai',
+          content:  data.understood ? `${data.understood}\n\n${data.question}` : data.question,
+          options:  data.options || null,
+          freeText: data.freeText || false,
+          placeholder: data.placeholder || null,
+          paramKey: data.paramKey || null,
+        }])
+        setDirectorPhase('chat')
+
+      } else if (data.phase === 'ready') {
+        // All params collected — execute the engine
+        setDirectorHistory(h => [...h, { role: 'ai', content: data.understood }])
+        setDirectorPhase('executing')
+        setDirectorLoading(false)
+
+        const p = data.params
+        const engine = data.engine
+
+        if (engine === 'studio') {
+          sendToStudio(p.imagePrompt)
+          resetDirector()
+
+        } else if (engine === '/api/perfect-day') {
+          setPerfectDayLoading(true)
+          const r = await fetch('/api/perfect-day', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ worldId: p.world || 'luxury_penthouse', creatorProfile: p.creatorProfile, brandProfile: p.brandProfile, style: p.style || 'cinematic', platform: p.platform || 'instagram', outputMode: 'both', projectId: p.projectId }),
+          })
+          const rd = await r.json()
+          if (!rd.error) { setPerfectDayResult(rd); set('view', 'perfect_day') }
+          setPerfectDayLoading(false)
+          resetDirector()
+
+        } else if (engine === '/api/full-day-generate') {
+          setFullDayLoading(true)
+          const r = await fetch('/api/full-day-generate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ world: p.world || 'luxury_penthouse', dayType: p.dayType || 'luxury_creator_day', style: p.style || 'cinematic', platform: p.platform || 'instagram', creatorProfile: p.creatorProfile, brandProfile: p.brandProfile, projectId: p.projectId }),
+          })
+          const rd = await r.json()
+          if (!rd.error) { setFullDayResult(rd); set('view', 'full_day_video') }
+          setFullDayLoading(false)
+          resetDirector()
+
+        } else if (engine === '/api/full-ad-campaign') {
+          setFullCampaignLoading(true)
+          const r = await fetch('/api/full-ad-campaign', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productName: p.productName || activeBrandProfile?.name || 'My Brand', type: p.type || 'personal_brand', goal: p.goal || 'brand_awareness', style: p.style || 'cinematic', platform: p.platform || 'instagram', world: p.world || 'minimal_studio', creatorProfile: p.creatorProfile, brandProfile: p.brandProfile, projectId: p.projectId }),
+          })
+          const rd = await r.json()
+          if (!rd.error) { setFullCampaignResult(rd); setFullCampaignPhase('attention'); set('view', 'full_campaign') }
+          setFullCampaignLoading(false)
+          resetDirector()
+
+        } else if (engine === '/api/instant-campaign') {
+          setInstantLoading(true)
+          const r = await fetch('/api/instant-campaign', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productName: p.productName || activeBrandProfile?.name || 'My Brand', type: p.type || 'personal_brand', goal: p.goal || 'brand_awareness', style: p.style || 'cinematic', brandProfile: p.brandProfile }),
+          })
+          const rd = await r.json()
+          if (!rd.error) {
+            // Instant result shape: normalize to campaign-like shape and show in full_campaign view
+            const normalized = { ...rd, productName: p.productName, source: 'instant_campaign' }
+            setFullCampaignResult(normalized)
+            setFullCampaignPhase('attention')
+            set('view', 'full_campaign')
+          }
+          setInstantLoading(false)
+          resetDirector()
+        }
+        setDirectorPhase('done')
+        return
+      }
+    } catch (err) {
+      setDirectorHistory(h => [...h, { role: 'ai', content: 'Something went wrong. Try again.' }])
+      setDirectorPhase('chat')
+    }
+    setDirectorLoading(false)
+  }, [directorLoading, directorHistory, directorParams, s.hasImage, s.imageDataUrl, s.identityName, s.traits, activeBrandProfile, creatorProfiles, s.activeProjectId, sendToStudio, resetDirector])
+
+  // ── Full Day Video™ ──────────────────────────────────────
+  const [fullDayResult,   setFullDayResult]   = useState(null)
+  const [fullDayLoading,  setFullDayLoading]  = useState(false)
+  const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
+  const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
+  const [fullDayStyle,    setFullDayStyle]    = useState('cinematic')
+  const [fullDayPlatform, setFullDayPlatform] = useState('instagram')
+  const [fullDayScene,    setFullDayScene]    = useState(null)
+
+  const generateFullDay = useCallback(async () => {
+    if (fullDayLoading) return
+    setFullDayLoading(true)
+    try {
+      const res = await fetch('/api/full-day-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          world:          fullDayWorld,
+          dayType:        fullDayType,
+          style:          fullDayStyle,
+          platform:       fullDayPlatform,
+          creatorProfile: {
+            ...(creatorProfiles[0] || {}),
+            ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}),
+            ...(s.identityName ? { name: s.identityName } : {}),
+          },
+          brandProfile:  activeBrandProfile || null,
+          projectId:     s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!data.error) setFullDayResult(data)
+    } catch {}
+    setFullDayLoading(false)
+  }, [fullDayLoading, fullDayWorld, fullDayType, fullDayStyle, fullDayPlatform, creatorProfiles, s.traits, s.identityName, activeBrandProfile, s.activeProjectId])
+
+  const [instantLoading, setInstantLoading] = useState(false)
 
   // ── Crown Upgrade: Full Ad Campaign™ ────────────────────
   const [fullCampaignResult,   setFullCampaignResult]   = useState(null)
@@ -13881,9 +14070,11 @@ export default function PromptCEOPage() {
           {/* ── View tabs ── */}
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {[
+              { id: 'ai_director',  label: 'AI Director',  icon: '✦' },
               { id: 'studio',       label: 'Studio',       icon: '◧' },
               { id: 'timeline',     label: 'Timeline',     icon: '▤' },
               { id: 'perfect_day',  label: 'Perfect Day',  icon: '☀' },
+              { id: 'full_day_video',label: 'Day Video',   icon: '🎬' },
               { id: 'full_campaign',label: 'Full Campaign', icon: '◈' },
             ].map(v => (
               <button
@@ -16069,6 +16260,320 @@ export default function PromptCEOPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ══ AI DIRECTOR™ VIEW ══ */}
+        {s.view === 'ai_director' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>✦ AI Director™</span>
+              <span style={{ fontSize: 10, color: C.ghost }}>Tell me what you want to create — I'll ask the right questions and build it.</span>
+              <div style={{ flex: 1 }} />
+              {directorHistory.length > 0 && (
+                <button onClick={resetDirector} style={{ fontSize: 9, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 3, padding: '2px 8px', cursor: 'pointer' }}>New conversation</button>
+              )}
+            </div>
+
+            {/* Messages area */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Welcome state */}
+              {directorHistory.length === 0 && directorPhase === 'idle' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 24 }}>
+                  <div style={{ fontSize: 32 }}>✦</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: C.display, textAlign: 'center' }}>What would you like to create?</div>
+                  <div style={{ fontSize: 12, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>
+                    Just tell me in plain language. I'll understand your intent, ask only what I need, and build it through the right engine automatically.
+                  </div>
+                  {/* Quick-start buttons */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 520 }}>
+                    {[
+                      { label: '☀ Perfect Day in Bali', msg: 'Create a perfect day in Bali for my luxury lifestyle brand' },
+                      { label: '🎬 Full Day Video', msg: 'Make a full cinematic day video for my personal brand' },
+                      { label: '◈ Full Ad Campaign', msg: 'Build a full 30-day ad campaign for my brand' },
+                      { label: '⚡ Instant Campaign', msg: 'Create a quick campaign for my product launch' },
+                      { label: '◧ Generate Image', msg: 'Create a cinematic luxury lifestyle image for my feed' },
+                    ].map(q => (
+                      <button key={q.label} onClick={() => { setDirectorInput(q.msg); setTimeout(() => directorSend(q.msg), 50) }}
+                        style={{ padding: '8px 14px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.target.style.borderColor = C.goldDim; e.target.style.color = C.gold }}
+                        onMouseLeave={e => { e.target.style.borderColor = C.subtle; e.target.style.color = C.secondary }}
+                      >{q.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Conversation messages */}
+              {directorHistory.map((msg, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: 10 }}>
+                  {/* Message bubble */}
+                  <div style={{
+                    maxWidth: '72%',
+                    padding: '10px 14px',
+                    borderRadius: msg.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                    background: msg.role === 'user' ? '#1a1408' : C.surface,
+                    border: `1px solid ${msg.role === 'user' ? C.goldDim : C.hairline}`,
+                    color: msg.role === 'user' ? C.gold : C.primary,
+                    fontSize: 12,
+                    lineHeight: 1.7,
+                    whiteSpace: 'pre-wrap',
+                  }}>{msg.content}</div>
+
+                  {/* Option buttons for clarifying questions */}
+                  {msg.role === 'ai' && msg.options && idx === directorHistory.length - 1 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxWidth: '80%' }}>
+                      {msg.options.map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => directorSend(opt.label, opt.value, msg.paramKey)}
+                          disabled={directorLoading}
+                          style={{
+                            padding: '6px 12px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                            border: `1px solid ${C.subtle}`, background: C.raised, color: C.secondary,
+                            transition: 'all 0.15s', opacity: directorLoading ? 0.5 : 1,
+                          }}
+                          onMouseEnter={e => { if (!directorLoading) { e.target.style.borderColor = C.goldDim; e.target.style.color = C.gold; e.target.style.background = '#1a1408' } }}
+                          onMouseLeave={e => { e.target.style.borderColor = C.subtle; e.target.style.color = C.secondary; e.target.style.background = C.raised }}
+                        >{opt.label}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Loading indicator */}
+              {directorLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, animation: 'pulse 1s ease-in-out infinite' }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, animation: 'pulse 1s ease-in-out 0.2s infinite' }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, animation: 'pulse 1s ease-in-out 0.4s infinite' }} />
+                </div>
+              )}
+
+              {/* Executing state */}
+              {directorPhase === 'executing' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 24, color: C.gold }}>
+                  <div style={{ fontSize: 24, animation: 'spin 2s linear infinite' }}>✦</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Building your {directorIntent?.replace(/_/g, ' ')}…</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>This takes 10-30 seconds</div>
+                </div>
+              )}
+            </div>
+
+            {/* Input area */}
+            {directorPhase !== 'executing' && (
+              <div style={{ flexShrink: 0, padding: '12px 16px', borderTop: `1px solid ${C.hairline}`, background: C.deep, display: 'flex', gap: 8 }}>
+                {/* Identity pill */}
+                {s.hasImage && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
+                    <img src={s.imageDataUrl} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} />
+                    <span style={{ fontSize: 8, color: C.gold }}>{s.identityName || 'Identity'}</span>
+                  </div>
+                )}
+                <input
+                  value={directorInput}
+                  onChange={e => setDirectorInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && directorInput.trim()) { e.preventDefault(); directorSend(directorInput) } }}
+                  placeholder="Tell me what to create…"
+                  disabled={directorLoading}
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 8, fontSize: 12, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', opacity: directorLoading ? 0.6 : 1 }}
+                  onFocus={e => e.target.style.borderColor = C.goldDim}
+                  onBlur={e => e.target.style.borderColor = C.subtle}
+                />
+                <button
+                  onClick={() => directorInput.trim() && directorSend(directorInput)}
+                  disabled={directorLoading || !directorInput.trim()}
+                  style={{
+                    padding: '10px 20px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#120e04)',
+                    color: C.gold, opacity: (directorLoading || !directorInput.trim()) ? 0.5 : 1,
+                  }}
+                >Send →</button>
+              </div>
+            )}
+            <style>{`@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
+          </div>
+        )}
+
+        {/* ══ FULL DAY VIDEO™ VIEW ══ */}
+        {s.view === 'full_day_video' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>🎬 Full Day Video™</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select value={fullDayWorld} onChange={e => setFullDayWorld(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary }}>
+                  {[['luxury_penthouse','Luxury Penthouse'],['maldives_villa','Maldives Villa'],['bali_villa','Bali Villa'],['dubai_highrise','Dubai High-Rise'],['paris_apartment','Paris Apartment'],['greek_islands','Greek Islands'],['miami_penthouse','Miami Penthouse'],['coastal_house','Coastal House'],['ski_chalet','Ski Chalet'],['tokyo_apartment','Tokyo Apartment']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                <select value={fullDayType} onChange={e => setFullDayType(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary }}>
+                  {[['luxury_creator_day','Luxury Creator'],['beach_creator_day','Beach Creator'],['wellness_retreat_day','Wellness Retreat'],['romantic_travel_day','Romantic Travel'],['fitness_lifestyle_day','Fitness Lifestyle'],['business_power_day','Business Power'],['fashion_content_day','Fashion Content'],['foodie_luxury_day','Gourmet Day']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                <select value={fullDayStyle} onChange={e => setFullDayStyle(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary }}>
+                  {['cinematic','luxury','dark_luxury','soft_feminine','high_energy','ugc','emotional'].map(st => <option key={st} value={st}>{st.replace(/_/g,' ')}</option>)}
+                </select>
+                <select value={fullDayPlatform} onChange={e => setFullDayPlatform(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary }}>
+                  {['instagram','tiktok','youtube','meta_ads'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              {/* Identity pill */}
+              {s.hasImage ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
+                  <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {s.identityName || 'Identity'} — in every scene</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
+                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>add in Studio</button>
+                </div>
+              )}
+              <div style={{ flex: 1 }} />
+              <button onClick={generateFullDay} disabled={fullDayLoading}
+                style={{ padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: fullDayLoading ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#120e04)', color: C.gold, opacity: fullDayLoading ? 0.6 : 1 }}>
+                {fullDayLoading ? '⟳ Directing Day…' : '🎬 Generate Full Day Video'}
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
+              {!fullDayResult && !fullDayLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
+                  <div style={{ fontSize: 36 }}>🎬</div>
+                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Full cinematic day video production</div>
+                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
+                    12 directed scenes with camera moves, lighting arc, wardrobe progression, video prompts, and short-form cuts.
+                    {s.hasImage
+                      ? <><br /><span style={{ color: C.gold }}>✓ {s.identityName || 'Your identity'} will appear in every scene.</span></>
+                      : <><br />Upload your photo in Studio for identity-driven video direction.</>}
+                  </div>
+                  <button onClick={generateFullDay} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                    🎬 Direct Full Day
+                  </button>
+                </div>
+              )}
+              {fullDayLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
+                  <div style={{ fontSize: 28, animation: 'spin 2s linear infinite' }}>⟳</div>
+                  <div style={{ fontSize: 12 }}>Directing your cinematic day…</div>
+                  <div style={{ fontSize: 10, color: C.ghost }}>12 scenes · camera moves · lighting arc · wardrobe · video prompts</div>
+                </div>
+              )}
+              {fullDayResult && !fullDayLoading && (
+                <div>
+                  {/* Production header */}
+                  <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, border: `1px solid ${C.goldDim}`, background: '#0d0d00' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: C.display, marginBottom: 4 }}>{fullDayResult.productionTitle}</div>
+                    <div style={{ fontSize: 11, color: C.secondary, fontStyle: 'italic', marginBottom: 8 }}>{fullDayResult.directorStatement}</div>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      {fullDayResult.lightingArc && (
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 3 }}>Lighting Arc</div>
+                          <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>{fullDayResult.lightingArc}</div>
+                        </div>
+                      )}
+                      {fullDayResult.wardrobeArc && (
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Wardrobe Arc</div>
+                          <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6 }}>{fullDayResult.wardrobeArc}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scenes */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {(fullDayResult.scenes || []).map((scene, idx) => (
+                      <div key={scene.id || idx} style={{ borderRadius: 8, border: `1px solid ${fullDayScene === idx ? C.goldDim : C.hairline}`, background: C.surface, overflow: 'hidden', cursor: 'pointer' }} onClick={() => setFullDayScene(fullDayScene === idx ? null : idx)}>
+                        {/* Scene header */}
+                        <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, background: C.raised }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, minWidth: 42 }}>{scene.time}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{scene.title}</span>
+                          <span style={{ fontSize: 9, color: C.muted, fontStyle: 'italic' }}>{scene.clipLength}</span>
+                          <Chip>{scene.emotion?.split(' ')[0]}</Chip>
+                          <div style={{ flex: 1 }} />
+                          <span style={{ fontSize: 9, color: C.ghost }}>{fullDayScene === idx ? '▲' : '▼'}</span>
+                        </div>
+
+                        {/* Scene body — expanded */}
+                        {fullDayScene === idx && (
+                          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }} onClick={e => e.stopPropagation()}>
+                            {/* Action + setting */}
+                            <div style={{ display: 'flex', gap: 16 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 3 }}>Action</div>
+                                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{scene.action}</div>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 3 }}>Setting</div>
+                                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{scene.setting}</div>
+                              </div>
+                            </div>
+                            {/* Camera + Lens + Lighting */}
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                              {scene.cameraMove && <div><span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension }}>Camera </span><span style={{ fontSize: 10, color: C.secondary }}>{scene.cameraMove}</span></div>}
+                              {scene.lensType && <div><span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension }}>Lens </span><span style={{ fontSize: 10, color: C.secondary }}>{scene.lensType}</span></div>}
+                              {scene.transitionTo && <div><span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension }}>Transition </span><span style={{ fontSize: 10, color: C.secondary }}>{scene.transitionTo}</span></div>}
+                            </div>
+                            {scene.lightingNote && <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 3 }}>Lighting</div>
+                              <div style={{ fontSize: 10, color: C.muted }}>{scene.lightingNote}</div>
+                            </div>}
+                            {scene.wardrobe && <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Wardrobe</div>
+                              <div style={{ fontSize: 10, color: C.secondary }}>{scene.wardrobe}</div>
+                            </div>}
+                            {/* Video prompt */}
+                            <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 10 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green }}>Video Prompt</div>
+                                {s.hasImage && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ identity-driven</span>}
+                              </div>
+                              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{scene.videoPrompt}</div>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                                <button onClick={() => navigator.clipboard.writeText(scene.videoPrompt).catch(() => {})}
+                                  style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}>copy</button>
+                                <button onClick={() => sendToAdStudio(scene.videoPrompt)}
+                                  style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}>→ Ad Studio</button>
+                              </div>
+                            </div>
+                            {/* Short form clip */}
+                            {scene.shortFormClip && <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension, marginBottom: 3 }}>Short-Form Cut</div>
+                              <div style={{ fontSize: 10, color: C.muted, fontStyle: 'italic' }}>{scene.shortFormClip}</div>
+                            </div>}
+                            {/* Caption */}
+                            {scene.captionLine && <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Caption Hook</div>
+                              <div style={{ fontSize: 11, color: C.secondary }}>"{scene.captionLine}"</div>
+                              <button onClick={() => sendToAdStudio(scene.captionLine)}
+                                style={{ marginTop: 5, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>→ Use in Ad Studio</button>
+                            </div>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Posting strategy */}
+                  {fullDayResult.postingStrategy && (
+                    <div style={{ marginTop: 16, padding: 14, borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 10 }}>Posting Strategy</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {fullDayResult.postingStrategy.fullCut && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>FULL CUT </span><span style={{ fontSize: 10, color: C.secondary }}>{fullDayResult.postingStrategy.fullCut}</span></div>}
+                        {fullDayResult.postingStrategy.shortFormCuts && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>SHORT CUTS </span><span style={{ fontSize: 10, color: C.secondary }}>{fullDayResult.postingStrategy.shortFormCuts}</span></div>}
+                        {fullDayResult.postingStrategy.reelOrder && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>POSTING ORDER </span><span style={{ fontSize: 10, color: C.secondary }}>{fullDayResult.postingStrategy.reelOrder}</span></div>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
