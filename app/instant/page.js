@@ -98,10 +98,27 @@ export default function InstantPage() {
   const [chatError,   setChatError]   = useState('')
   const [chatMode,    setChatMode]    = useState(false)
 
+  // Brand profiles
+  const [brandProfiles,  setBrandProfiles]  = useState([])
+  const [activeBrand,    setActiveBrand]    = useState(null)
+  const [brandDropOpen,  setBrandDropOpen]  = useState(false)
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) router.replace('/prompt-engine-v3/login')
     })
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/brand-profiles')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d) && d.length > 0) {
+          setBrandProfiles(d)
+          setActiveBrand(d[0])
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const build = async () => {
@@ -124,7 +141,7 @@ export default function InstantPage() {
       const res  = await fetch('/api/instant-campaign', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ type, goal, style, productName: productName.trim() }),
+        body:    JSON.stringify({ type, goal, style, productName: productName.trim(), brandProfile: activeBrand || null }),
       })
       const data = await res.json()
       clearInterval(interval)
@@ -202,7 +219,7 @@ export default function InstantPage() {
       const res = await fetch('/api/creative-conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: chatInput.trim() }),
+        body: JSON.stringify({ message: chatInput.trim(), brandProfile: activeBrand || null }),
       })
       const data = await res.json()
       if (data.error) { setChatError(data.error); setChatLoading(false); return }
@@ -270,7 +287,7 @@ export default function InstantPage() {
     fetch('/api/instant-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, goal: rec.goal, style: rec.style, productName: productName.trim() }),
+      body: JSON.stringify({ type, goal: rec.goal, style: rec.style, productName: productName.trim(), brandProfile: activeBrand || null }),
     })
       .then(r => r.json())
       .then(data => {
@@ -453,9 +470,44 @@ export default function InstantPage() {
   return (
     <div style={{ background: C.bg, minHeight: '100vh', fontFamily: 'system-ui, sans-serif', color: C.primary }}>
       {/* Top bar */}
-      <div style={{ borderBottom: `1px solid ${C.border}`, padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3, color: C.gold, textTransform: 'uppercase' }}>PromptCEO Instant™</div>
-        <a href="/prompt-engine-v3" style={{ fontSize: 11, color: C.muted, textDecoration: 'none' }}>Open Studio →</a>
+      <div style={{ borderBottom: `1px solid ${C.border}`, padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3, color: C.gold, textTransform: 'uppercase', flexShrink: 0 }}>PromptCEO Instant™</div>
+
+        {/* Brand selector */}
+        {brandProfiles.length > 0 && (
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              onClick={() => setBrandDropOpen(p => !p)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, border: `1px solid ${activeBrand ? C.gold + '44' : C.border}`, background: activeBrand ? 'linear-gradient(180deg,#0d0a04,#080604)' : C.surface, cursor: 'pointer', fontSize: 11, color: activeBrand ? C.gold : C.muted }}
+            >
+              <span>◈</span>
+              <span>{activeBrand ? activeBrand.name : 'No Brand'}</span>
+              <span style={{ fontSize: 8 }}>▾</span>
+            </button>
+            {brandDropOpen && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, minWidth: 180, zIndex: 100, overflow: 'hidden' }}>
+                <div
+                  onClick={() => { setActiveBrand(null); setBrandDropOpen(false) }}
+                  style={{ padding: '9px 14px', fontSize: 12, color: C.muted, cursor: 'pointer', borderBottom: `1px solid ${C.border}` }}
+                >
+                  No Brand
+                </div>
+                {brandProfiles.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => { setActiveBrand(b); setBrandDropOpen(false) }}
+                    style={{ padding: '9px 14px', fontSize: 12, color: b.id === activeBrand?.id ? C.gold : C.primary, cursor: 'pointer', background: b.id === activeBrand?.id ? '#0d0a04' : 'transparent' }}
+                  >
+                    {b.name}
+                    {b.target_audience && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{b.target_audience.slice(0, 40)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <a href="/prompt-engine-v3" style={{ fontSize: 11, color: C.muted, textDecoration: 'none', flexShrink: 0 }}>Open Studio →</a>
       </div>
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>

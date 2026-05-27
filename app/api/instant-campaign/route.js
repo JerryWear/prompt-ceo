@@ -69,12 +69,20 @@ export async function POST(req) {
     }
 
     const body = await req.json()
-    const { type, goal, style, productName } = body
+    const { type, goal, style, productName, brandProfile = null } = body
     if (!productName?.trim()) return NextResponse.json({ error: 'productName is required' }, { status: 400 })
     if (!type || !goal || !style) return NextResponse.json({ error: 'type, goal, and style are required' }, { status: 400 })
 
     const orch = orchestrate(type, goal, style, productName.trim())
-    const ctx  = orch.context
+    let ctx = orch.context
+    if (brandProfile) {
+      const brandLines = []
+      if (brandProfile.name)            brandLines.push(`Brand Name: ${brandProfile.name}`)
+      if (brandProfile.voice)           brandLines.push(`Brand Voice: ${brandProfile.voice}`)
+      if (brandProfile.target_audience) brandLines.push(`Target Audience: ${brandProfile.target_audience}`)
+      if (brandProfile.style)           brandLines.push(`Brand Style: ${brandProfile.style}`)
+      if (brandLines.length) ctx += '\n' + brandLines.join('\n')
+    }
 
     // Step 1 — parallel: hooks + angles + image prompts
     const [hooksRaw, anglesRaw, promptsRaw] = await Promise.all([
