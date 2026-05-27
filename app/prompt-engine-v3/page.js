@@ -16739,9 +16739,30 @@ export default function PromptCEOPage() {
                               {s.hasImage && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ with your identity</span>}
                             </div>
                             <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{moment.imagePrompt}</div>
-                            <button onClick={() => sendToStudio(moment.imagePrompt)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>
-                              {s.hasImage ? '→ Generate with Identity' : '→ Generate in Studio'}
-                            </button>
+                            {/* Inline image generation */}
+                            {cardImages[`pd_${idx}`] ? (
+                              <div style={{ marginTop: 8 }}>
+                                <img src={cardImages[`pd_${idx}`]} alt="Generated" style={{ width: '100%', borderRadius: 6, display: 'block' }} onClick={() => window.open(cardImages[`pd_${idx}`], '_blank')} />
+                                <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+                                  <a href={`/api/download-image?url=${encodeURIComponent(cardImages[`pd_${idx}`])}&name=moment_${idx + 1}.jpg`}
+                                    style={{ flex: 1, padding: '4px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}>↓ Download</a>
+                                  <button onClick={() => setCardImages(p => { const n = {...p}; delete n[`pd_${idx}`]; return n })}
+                                    style={{ padding: '4px 10px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✕</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+                                <button
+                                  onClick={() => generateCardImageDirect(moment.imagePrompt, `pd_${idx}`)}
+                                  disabled={cardGenerating[`pd_${idx}`]}
+                                  style={{ padding: '5px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: cardGenerating[`pd_${idx}`] ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: cardGenerating[`pd_${idx}`] ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)', color: cardGenerating[`pd_${idx}`] ? C.muted : C.gold }}
+                                >
+                                  {cardGenerating[`pd_${idx}`] ? '⟳ Generating…' : (s.hasImage ? '🎨 Generate Image' : '🎨 Generate Image')}
+                                </button>
+                                <button onClick={() => sendToStudio(moment.imagePrompt)} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>→ Studio</button>
+                              </div>
+                            )}
+                            {cardImages[`err_pd_${idx}`] && <div style={{ marginTop: 4, fontSize: 9, color: C.tension }}>{cardImages[`err_pd_${idx}`]}</div>}
                           </div>
                           {/* Caption */}
                           {moment.caption && (
