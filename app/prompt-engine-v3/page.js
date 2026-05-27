@@ -14132,6 +14132,22 @@ export default function PromptCEOPage() {
               </button>
             ))}
 
+            {/* Life Engine — standalone page link */}
+            <a
+              href="/full-day"
+              style={{
+                padding: '5px 14px', borderRadius: 4,
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                letterSpacing: 0.4, textDecoration: 'none', whiteSpace: 'nowrap',
+                border: '1px solid #3a2a6a',
+                background: 'linear-gradient(135deg, #1a0f38, #0e0920)',
+                color: '#9b6fd4',
+                transition: 'all 0.15s',
+              }}
+            >
+              🎬 Life Engine
+            </a>
+
             {/* Ad Studio — visually distinct, always visible */}
             <button
               onClick={switchToAdStudio}
