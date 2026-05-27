@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { orchestrate } from '../../instant/orchestration.js'
+import { sequenceDay } from '../../life-engine/lifeSequencer.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -74,6 +75,24 @@ export async function POST(req) {
     if (!type || !goal || !style) return NextResponse.json({ error: 'type, goal, and style are required' }, { status: 400 })
 
     const orch = orchestrate(type, goal, style, productName.trim())
+
+    // Life Engine builds the world-specific scene skeleton
+    const engineScenes = sequenceDay({
+      worldId:  orch.lifeEngineWorldId,
+      dayType:  orch.lifeEngineDayType,
+      style,
+      platform: orch.platform,
+      creatorProfile: body.creatorProfile || null,
+      brandProfile:   brandProfile || null,
+      mode:    orch.lifeEngineDayType === 'ad_campaign_day' ? 'campaign' : 'life',
+      product: productName.trim(),
+    })
+
+    // Engine image + video prompts (identity-aware, world-specific)
+    const engineImagePrompts = engineScenes.map(s => s.imagePrompt)
+    const engineVideoPrompts = engineScenes.map(s => s.videoPrompt)
+    const engineHooks        = engineScenes.map(s => s.hook)
+
     let ctx = orch.context
     if (brandProfile) {
       const brandLines = []
@@ -84,20 +103,18 @@ export async function POST(req) {
       if (brandLines.length) ctx += '\n' + brandLines.join('\n')
     }
 
-    // Step 1 — parallel: hooks + angles + image prompts
-    const [hooksRaw, anglesRaw, promptsRaw] = await Promise.all([
+    // Step 1 — parallel: hooks + angles (image prompts come from Life Engine)
+    const [hooksRaw, anglesRaw] = await Promise.all([
       ask(xaiApiKey,
         `Generate 10 scroll-stopping ${orch.hookType} hooks for:\n${ctx}\n\nMake them powerful, specific, and platform-optimized for ${orch.platform}. Under 20 words each.\n\nReturn a JSON array of 10 strings.`),
       ask(xaiApiKey,
         `Generate 5 distinct marketing angles for:\n${ctx}\n\nEach angle is one compelling sentence describing a unique positioning strategy.\n\nReturn a JSON array of 5 strings.`),
-      ask(xaiApiKey,
-        `Generate 15 AI image generation prompts for:\n${ctx}\n\nEach prompt must be vivid, specific, cinematically composed, and match the ${style.replace(/_/g, ' ')} style direction. Vary environments and compositions.\n\nReturn a JSON array of 15 strings.`,
-        3000),
     ])
 
-    const hooks        = tryJSON(hooksRaw,   [])
-    const angles       = tryJSON(anglesRaw,  [])
-    const imagePrompts = tryJSON(promptsRaw, [])
+    const hooks  = tryJSON(hooksRaw,  [])
+    const angles = tryJSON(anglesRaw, [])
+    // Life Engine provides world-specific, identity-aware prompts; supplement with AI
+    const imagePrompts = [...engineImagePrompts, ...engineVideoPrompts.slice(0, 1)]
 
     // Step 2 — captions using top hook + angle context
     const captionsRaw = await ask(xaiApiKey,
@@ -163,13 +180,21 @@ export async function POST(req) {
       captions,
       schedule,
       projectId,
+      // Life Engine data — scene-level prompts with world + identity context
+      engine: {
+        worldId:    orch.lifeEngineWorldId,
+        dayType:    orch.lifeEngineDayType,
+        scenes:     engineScenes,
+        hooksByScene: engineHooks,
+      },
       orchestration: {
         type, goal, style,
-        platform:      orch.platform,
-        hookType:      orch.hookType,
+        platform:       orch.platform,
+        hookType:       orch.hookType,
         suggestedWorld: orch.suggestedWorld,
-        summary:       orch.summary,
-        adConfig:      orch.adConfig,
+        lifeEngineWorldId: orch.lifeEngineWorldId,
+        summary:        orch.summary,
+        adConfig:       orch.adConfig,
       },
     })
   } catch (err) {

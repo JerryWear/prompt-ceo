@@ -1,5 +1,19 @@
 // Orchestration intelligence layer — maps type + goal + style to full engine parameters.
-// This is the seed of the Orchestration Engine (Build 3).
+// Bridge to Life Campaign Orchestration Engine™ via lifeEngineWorldId.
+
+// Maps Instant world slugs → Life Engine world IDs
+const WORLD_BRIDGE = {
+  minimal_studio:   'urban_apartment',
+  lifestyle_home:   'coastal_house',
+  urban_street:     'urban_apartment',
+  urban_coffee:     'urban_apartment',
+  urban_office:     'london_penthouse',
+  outdoor_nature:   'countryside_estate',
+  gym:              'urban_apartment',
+  luxury_hotel:     'luxury_penthouse',
+  penthouse:        'luxury_penthouse',
+  yacht:            'monaco',
+}
 
 const TYPE_PROFILES = {
   product: {
@@ -177,11 +191,20 @@ export function orchestrate(type, goal, style, productName) {
     `Suggested World: ${typeProfile.worlds[0]}`,
   ]
 
+  const suggestedWorld = typeProfile.worlds[0]
+  const lifeEngineWorldId = WORLD_BRIDGE[suggestedWorld] || 'luxury_penthouse'
+  const lifeEngineDayType = type === 'fitness' ? 'fitness_day'
+    : type === 'creator' || type === 'personal_brand' ? 'creator_day'
+    : goal === 'brand_awareness' || goal === 'premium_positioning' ? 'travel_world'
+    : 'ad_campaign_day'
+
   return {
     context: contextLines.join('\n'),
     platform: goalProfile.platform,
     hookType: typeProfile.hookType,
-    suggestedWorld: typeProfile.worlds[0],
+    suggestedWorld,
+    lifeEngineWorldId,
+    lifeEngineDayType,
     summary: `${style.replace(/_/g, ' ')} ${type.replace(/_/g, ' ')} campaign — ${goal.replace(/_/g, ' ')} — ${goalProfile.platform}`,
     adConfig: {
       productName,
