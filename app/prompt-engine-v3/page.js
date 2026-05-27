@@ -12069,6 +12069,111 @@ export default function PromptCEOPage() {
     }
   }, [publishMediaUrl, publishCaption, publishPlatform, publishScheduledAt, s.activeProjectId, s.view, publishLoading])
 
+  // ── Crown Upgrade: AI Creative Conversation™ ────────────
+  const [convInput,           setConvInput]           = useState('')
+  const [convLoading,         setConvLoading]         = useState(false)
+  const [convUnderstood,      setConvUnderstood]      = useState('')
+  const [convError,           setConvError]           = useState('')
+
+  const runConversation = useCallback(async () => {
+    if (!convInput.trim() || convLoading) return
+    setConvLoading(true)
+    setConvError('')
+    setConvUnderstood('')
+    try {
+      const res = await fetch('/api/creative-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: convInput.trim(),
+          creatorProfile: creatorProfiles[0] || null,
+          brandProfile: activeBrandProfile || null,
+          projectId: s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) { setConvError(data.error); return }
+      setConvUnderstood(data.understood || '')
+      if (data.output_type === 'perfect_day' && data.result) {
+        setPerfectDayResult(data.result)
+        set('view', 'perfect_day')
+      } else if (data.result) {
+        setFullCampaignResult(data.result)
+        set('view', 'full_campaign')
+      }
+      setConvInput('')
+    } catch (err) {
+      setConvError(err.message)
+    } finally {
+      setConvLoading(false)
+    }
+  }, [convInput, convLoading, creatorProfiles, activeBrandProfile, s.activeProjectId])
+
+  // ── Crown Upgrade: Perfect Day™ ─────────────────────────
+  const [perfectDayResult,    setPerfectDayResult]    = useState(null)
+  const [perfectDayLoading,   setPerfectDayLoading]   = useState(false)
+  const [perfectDayWorldId,   setPerfectDayWorldId]   = useState('luxury_penthouse')
+  const [perfectDayPlatform,  setPerfectDayPlatform]  = useState('instagram')
+  const [perfectDayStyle,     setPerfectDayStyle]     = useState('aspirational_lifestyle')
+  const [perfectDayWorldOpen, setPerfectDayWorldOpen] = useState(false)
+
+  const generatePerfectDay = useCallback(async () => {
+    if (perfectDayLoading) return
+    setPerfectDayLoading(true)
+    try {
+      const res = await fetch('/api/perfect-day', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          worldId:       perfectDayWorldId,
+          creatorProfile: creatorProfiles[0] || null,
+          brandProfile:  activeBrandProfile || null,
+          style:         perfectDayStyle,
+          platform:      perfectDayPlatform,
+          outputMode:    'both',
+          projectId:     s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!data.error) setPerfectDayResult(data)
+    } catch {}
+    setPerfectDayLoading(false)
+  }, [perfectDayLoading, perfectDayWorldId, perfectDayStyle, perfectDayPlatform, creatorProfiles, activeBrandProfile, s.activeProjectId])
+
+  // ── Crown Upgrade: Full Ad Campaign™ ────────────────────
+  const [fullCampaignResult,   setFullCampaignResult]   = useState(null)
+  const [fullCampaignLoading,  setFullCampaignLoading]  = useState(false)
+  const [fullCampaignProduct,  setFullCampaignProduct]  = useState('')
+  const [fullCampaignGoal,     setFullCampaignGoal]     = useState('sales')
+  const [fullCampaignStyle,    setFullCampaignStyle]    = useState('cinematic')
+  const [fullCampaignPlatform, setFullCampaignPlatform] = useState('instagram')
+  const [fullCampaignPhase,    setFullCampaignPhase]    = useState('attention')
+
+  const generateFullCampaign = useCallback(async (productName) => {
+    if (fullCampaignLoading) return
+    setFullCampaignLoading(true)
+    try {
+      const res = await fetch('/api/full-ad-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName:    (productName || fullCampaignProduct || activeBrandProfile?.name || 'My Brand').trim(),
+          type:           'product',
+          goal:           fullCampaignGoal,
+          style:          fullCampaignStyle,
+          platform:       fullCampaignPlatform,
+          world:          s.storyWorldId || 'minimal_studio',
+          creatorProfile: creatorProfiles[0] || null,
+          brandProfile:   activeBrandProfile || null,
+          projectId:      s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!data.error) { setFullCampaignResult(data); setFullCampaignPhase('attention') }
+    } catch {}
+    setFullCampaignLoading(false)
+  }, [fullCampaignLoading, fullCampaignProduct, fullCampaignGoal, fullCampaignStyle, fullCampaignPlatform, s.storyWorldId, creatorProfiles, activeBrandProfile, s.activeProjectId])
+
   // ── Studio ↔ Ad Studio Bridge ────────────────────────────
   const [bridgeBannerOpen, setBridgeBannerOpen] = useState(false)
 
@@ -13717,11 +13822,13 @@ export default function PromptCEOPage() {
 
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
-          {/* ── View tabs — now 3 tabs ── */}
+          {/* ── View tabs ── */}
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {[
-              { id: 'studio',   label: 'Studio',   icon: '◧' },
-              { id: 'timeline', label: 'Timeline',  icon: '▤' },
+              { id: 'studio',       label: 'Studio',       icon: '◧' },
+              { id: 'timeline',     label: 'Timeline',     icon: '▤' },
+              { id: 'perfect_day',  label: 'Perfect Day',  icon: '☀' },
+              { id: 'full_campaign',label: 'Full Campaign', icon: '◈' },
             ].map(v => (
               <button
                 key={v.id}
@@ -13860,6 +13967,49 @@ export default function PromptCEOPage() {
             ? Help
           </button>
           <Btn variant="danger" onClick={rAll}>↺ Reset</Btn>
+        </div>
+
+        {/* ── AI CREATIVE CONVERSATION BAR ────────────────── */}
+        <div style={{
+          flexShrink: 0, padding: '8px 16px',
+          borderBottom: `1px solid ${C.hairline}`,
+          background: 'linear-gradient(90deg, #080808, #0a0a0f)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>✦</span>
+          <input
+            value={convInput}
+            onChange={e => setConvInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runConversation()}
+            placeholder='Tell me what to create… "Perfect day in Maldives for my travel brand" or "Full campaign for my black hoodie on TikTok"'
+            style={{
+              flex: 1, padding: '7px 12px', borderRadius: 6, fontSize: 12,
+              background: C.surface, border: `1px solid ${C.subtle}`,
+              color: C.primary, outline: 'none',
+            }}
+            onFocus={e => e.target.style.borderColor = C.goldDim}
+            onBlur={e => e.target.style.borderColor = C.subtle}
+          />
+          <button
+            onClick={runConversation}
+            disabled={!convInput.trim() || convLoading}
+            style={{
+              padding: '7px 16px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+              cursor: !convInput.trim() || convLoading ? 'not-allowed' : 'pointer',
+              border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold,
+              opacity: !convInput.trim() || convLoading ? 0.5 : 1, flexShrink: 0,
+            }}
+          >
+            {convLoading ? '…' : 'Create →'}
+          </button>
+          {convUnderstood && !convLoading && (
+            <div style={{ fontSize: 10, color: C.green, flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              ✓ {convUnderstood}
+            </div>
+          )}
+          {convError && (
+            <div style={{ fontSize: 10, color: '#e05050', flexShrink: 0 }}>{convError}</div>
+          )}
         </div>
 
         {/* ── AD STUDIO VIEW ──────────────────────────────── */}
@@ -15863,6 +16013,358 @@ export default function PromptCEOPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ══ PERFECT DAY VIEW ══ */}
+        {s.view === 'perfect_day' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>☀ Perfect Day™</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* World selector */}
+                <select
+                  value={perfectDayWorldId}
+                  onChange={e => setPerfectDayWorldId(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}
+                >
+                  {[
+                    { id: 'luxury_penthouse', name: 'Luxury Penthouse' },
+                    { id: 'maldives_villa',   name: 'Maldives Villa' },
+                    { id: 'coastal_house',    name: 'Coastal House' },
+                    { id: 'urban_apartment',  name: 'Urban Apartment' },
+                    { id: 'countryside_estate', name: 'Countryside Estate' },
+                    { id: 'dubai_highrise',   name: 'Dubai High-Rise' },
+                    { id: 'tokyo_apartment',  name: 'Tokyo Apartment' },
+                    { id: 'paris_apartment',  name: 'Paris Apartment' },
+                  ].map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+                <select
+                  value={perfectDayStyle}
+                  onChange={e => setPerfectDayStyle(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}
+                >
+                  {['aspirational_lifestyle','luxury','cinematic','ugc','emotional','high_status','dark_luxury','soft_feminine'].map(st => (
+                    <option key={st} value={st}>{st.replace(/_/g,' ')}</option>
+                  ))}
+                </select>
+                <select
+                  value={perfectDayPlatform}
+                  onChange={e => setPerfectDayPlatform(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}
+                >
+                  {['instagram','tiktok','meta_ads','youtube'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={generatePerfectDay}
+                disabled={perfectDayLoading}
+                style={{
+                  padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: perfectDayLoading ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg, #1a1408, #120e04)',
+                  color: C.gold, opacity: perfectDayLoading ? 0.6 : 1,
+                }}
+              >
+                {perfectDayLoading ? '⟳ Creating Day…' : '☀ Generate Full Day'}
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
+              {!perfectDayResult && !perfectDayLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
+                  <div style={{ fontSize: 40 }}>☀</div>
+                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Create a cinematic perfect day</div>
+                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>
+                    Choose a world above and generate a full day — 12 moments from waking up to getting ready for bed.<br />
+                    Or type in the conversation bar above: <em>"Perfect day in Maldives for my travel brand"</em>
+                  </div>
+                  <button onClick={generatePerfectDay} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                    ☀ Generate Perfect Day
+                  </button>
+                </div>
+              )}
+              {perfectDayLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
+                  <div style={{ fontSize: 28, animation: 'spin 2s linear infinite' }}>⟳</div>
+                  <div style={{ fontSize: 12 }}>Directing your cinematic day…</div>
+                  <div style={{ fontSize: 10, color: C.ghost }}>12 moments · hooks · captions · image prompts · video scripts</div>
+                </div>
+              )}
+              {perfectDayResult && !perfectDayLoading && (
+                <div>
+                  {/* Day title */}
+                  <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, border: `1px solid ${C.goldDim}`, background: '#0d0d00' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: C.display, marginBottom: 4 }}>{perfectDayResult.dayTitle}</div>
+                    <div style={{ fontSize: 12, color: C.secondary, fontStyle: 'italic' }}>{perfectDayResult.seriesHook}</div>
+                    {perfectDayResult.openingNarration && (
+                      <div style={{ marginTop: 10, fontSize: 11, color: C.muted, lineHeight: 1.8, borderTop: `1px solid ${C.hairline}`, paddingTop: 10 }}>{perfectDayResult.openingNarration}</div>
+                    )}
+                  </div>
+
+                  {/* Moments */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {(perfectDayResult.moments || []).map((moment, idx) => (
+                      <div key={moment.id || idx} style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, overflow: 'hidden' }}>
+                        {/* Moment header */}
+                        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.raised }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: C.gold, minWidth: 40 }}>{moment.time}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{moment.label}</span>
+                          <Chip>{moment.mood?.split(',')[0]}</Chip>
+                          <div style={{ flex: 1 }} />
+                          <button
+                            onClick={() => {
+                              const text = `${moment.time} — ${moment.label}\n\nHook: ${moment.hook}\n\nImage Prompt: ${moment.imagePrompt}\n\nCaption: ${moment.caption}`
+                              navigator.clipboard.writeText(text).catch(() => {})
+                            }}
+                            style={{ padding: '3px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}
+                          >copy</button>
+                        </div>
+                        {/* Moment body */}
+                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {/* Hook */}
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 4 }}>Hook</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, fontFamily: C.display, lineHeight: 1.5 }}>"{moment.hook}"</div>
+                          </div>
+                          {/* Image Prompt */}
+                          <div>
+                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 4 }}>Image Prompt</div>
+                            <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{moment.imagePrompt}</div>
+                          </div>
+                          {/* Caption */}
+                          {moment.caption && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 4 }}>Caption</div>
+                              <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.7 }}>{moment.caption}</div>
+                            </div>
+                          )}
+                          {/* Video prompt */}
+                          {moment.videoPrompt && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green, marginBottom: 4 }}>Video Direction</div>
+                              <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, fontStyle: 'italic' }}>{moment.videoPrompt}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Closing narration */}
+                  {perfectDayResult.closingNarration && (
+                    <div style={{ marginTop: 16, padding: 14, borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 8 }}>Closing</div>
+                      <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8, fontStyle: 'italic' }}>{perfectDayResult.closingNarration}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ══ FULL CAMPAIGN VIEW ══ */}
+        {s.view === 'full_campaign' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>◈ Full Campaign™</span>
+              <input
+                value={fullCampaignProduct}
+                onChange={e => setFullCampaignProduct(e.target.value)}
+                placeholder={activeBrandProfile?.name || 'Product or brand name…'}
+                style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', width: 180 }}
+                onFocus={e => e.target.style.borderColor = C.goldDim}
+                onBlur={e => e.target.style.borderColor = C.subtle}
+              />
+              <select value={fullCampaignGoal} onChange={e => setFullCampaignGoal(e.target.value)}
+                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                {['sales','leads','followers','brand_awareness','high_ticket','viral_reach','premium_positioning'].map(g => (
+                  <option key={g} value={g}>{g.replace(/_/g,' ')}</option>
+                ))}
+              </select>
+              <select value={fullCampaignStyle} onChange={e => setFullCampaignStyle(e.target.value)}
+                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                {['cinematic','luxury','ugc','emotional','viral','dark_luxury','high_energy','corporate_authority','fitness_motivation','aspirational_lifestyle'].map(st => (
+                  <option key={st} value={st}>{st.replace(/_/g,' ')}</option>
+                ))}
+              </select>
+              <select value={fullCampaignPlatform} onChange={e => setFullCampaignPlatform(e.target.value)}
+                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                {['instagram','tiktok','meta_ads','youtube','linkedin'].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => generateFullCampaign(fullCampaignProduct)}
+                disabled={fullCampaignLoading}
+                style={{
+                  padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: fullCampaignLoading ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg, #1a1408, #120e04)',
+                  color: C.gold, opacity: fullCampaignLoading ? 0.6 : 1,
+                }}
+              >
+                {fullCampaignLoading ? '⟳ Building Campaign…' : '◈ Generate Full Campaign'}
+              </button>
+            </div>
+
+            {/* Phase tabs */}
+            {fullCampaignResult && (
+              <div style={{ flexShrink: 0, display: 'flex', gap: 0, borderBottom: `1px solid ${C.hairline}`, background: C.void }}>
+                {[
+                  { id: 'attention',            label: 'Attention',    color: C.blue },
+                  { id: 'emotional_connection',  label: 'Story',        color: C.violet },
+                  { id: 'desire_escalation',     label: 'Desire',       color: C.tension },
+                  { id: 'conversion',            label: 'Conversion',   color: C.green },
+                  { id: 'retargeting',           label: 'Retargeting',  color: C.gold },
+                  { id: 'captions',              label: 'Captions',     color: C.secondary },
+                  { id: 'schedule',              label: 'Schedule',     color: C.muted },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setFullCampaignPhase(tab.id)}
+                    style={{
+                      flex: 1, padding: '8px 4px', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      border: 'none', borderBottom: `2px solid ${fullCampaignPhase === tab.id ? tab.color : 'transparent'}`,
+                      background: fullCampaignPhase === tab.id ? C.surface : 'transparent',
+                      color: fullCampaignPhase === tab.id ? tab.color : C.ghost,
+                      letterSpacing: 0.5, transition: 'all 0.15s',
+                    }}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Content */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
+              {!fullCampaignResult && !fullCampaignLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
+                  <div style={{ fontSize: 40 }}>◈</div>
+                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Generate a complete 5-phase ad campaign</div>
+                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
+                    Enter your product name above and hit Generate.<br />
+                    Or type in the conversation bar: <em>"Full campaign for my black hoodie targeting luxury women on TikTok"</em>
+                  </div>
+                </div>
+              )}
+              {fullCampaignLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
+                  <div style={{ fontSize: 28 }}>⟳</div>
+                  <div style={{ fontSize: 12 }}>Building your full campaign…</div>
+                  <div style={{ fontSize: 10, color: C.ghost }}>5 phases · hooks · stories · desire · conversion · retargeting · 30-day schedule</div>
+                </div>
+              )}
+              {fullCampaignResult && !fullCampaignLoading && (
+                <div>
+                  {/* Attention phase */}
+                  {fullCampaignPhase === 'attention' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Stop the scroll. Zero selling. 5 hook archetypes.</div>
+                      {(fullCampaignResult.phases?.attention?.hooks || []).map((h, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.blueDim}`, background: '#060a10' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 6 }}>{h.archetype?.replace(/_/g,' ')}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: C.primary, lineHeight: 1.5, fontFamily: C.display }}>"{h.hook || h}"</div>
+                          <button onClick={() => navigator.clipboard.writeText(h.hook || h).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Emotional connection */}
+                  {fullCampaignPhase === 'emotional_connection' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Build trust. Tell the story. Make them feel something.</div>
+                      {(fullCampaignResult.phases?.emotional_connection?.scripts || []).map((s, i) => (
+                        <div key={i} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.violetDim}`, background: '#0a0810' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 6 }}>{s.type?.replace(/_/g,' ')}</div>
+                          {s.hook && <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, marginBottom: 8, fontFamily: C.display }}>"{s.hook}"</div>}
+                          <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{s.script || s}</div>
+                          <button onClick={() => navigator.clipboard.writeText(s.script || s).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Desire escalation */}
+                  {fullCampaignPhase === 'desire_escalation' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>5 image prompts — aspirational, cinematic, desire-building.</div>
+                      {(fullCampaignResult.phases?.desire_escalation?.imagePrompts || []).map((p, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid #3a2a0a`, background: '#0a0800' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension, marginBottom: 6 }}>{p.type?.replace(/_/g,' ')}</div>
+                          <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{p.prompt || p}</div>
+                          <button onClick={() => navigator.clipboard.writeText(p.prompt || p).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Conversion */}
+                  {fullCampaignPhase === 'conversion' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Direct offer. Remove friction. Hard CTA.</div>
+                      {(fullCampaignResult.phases?.conversion?.ads || []).map((a, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.greenDim}`, background: '#040a06' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green, marginBottom: 6 }}>{a.type?.replace(/_/g,' ')}</div>
+                          <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7 }}>{a.copy || a}</div>
+                          {a.cta && <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: C.green }}>→ {a.cta}</div>}
+                          <button onClick={() => navigator.clipboard.writeText((a.copy || a) + (a.cta ? `\n→ ${a.cta}` : '')).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Retargeting */}
+                  {fullCampaignPhase === 'retargeting' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Win back. Remind. Reassure. No pressure.</div>
+                      {(fullCampaignResult.phases?.retargeting?.ads || []).map((a, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.goldDim}`, background: '#0a0900' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 6 }}>{a.type?.replace(/_/g,' ')}</div>
+                          <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7 }}>{a.copy || a}</div>
+                          <button onClick={() => navigator.clipboard.writeText(a.copy || a).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Captions */}
+                  {fullCampaignPhase === 'captions' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>10 platform-optimized captions across all phases.</div>
+                      {(fullCampaignResult.captions || []).map((c, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 6 }}>{(c.phase || '').replace(/_/g,' ')}</div>
+                          <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{c.caption || c}</div>
+                          <button onClick={() => navigator.clipboard.writeText(c.caption || c).catch(() => {})}
+                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Schedule */}
+                  {fullCampaignPhase === 'schedule' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>30-day posting schedule — phase-sequenced for maximum campaign effectiveness.</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
+                        {(fullCampaignResult.schedule || []).map((day) => {
+                          const phaseColors = { attention: C.blue, emotional_connection: C.violet, desire_escalation: C.tension, conversion: C.green, retargeting: C.gold }
+                          const col = phaseColors[day.phase] || C.muted
+                          return (
+                            <div key={day.day} style={{ padding: '8px', borderRadius: 6, border: `1px solid ${col}22`, background: `${col}08` }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: col }}>Day {day.day}</div>
+                              <div style={{ fontSize: 9, color: C.muted }}>{day.phaseLabel}</div>
+                              <div style={{ fontSize: 9, color: C.ghost }}>{day.postTime} · {day.contentType}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
