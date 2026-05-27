@@ -15,9 +15,9 @@ const C = {
   goldDim: '#2a200a',
   green:   '#7adf7a',
   primary: '#f0ede6',
-  secondary: '#a09888',
-  muted:   '#5a5650',
-  ghost:   '#303030',
+  secondary: '#ccc8c2',
+  muted:   '#9e9a96',
+  ghost:   '#3a3835',
 }
 
 // ─── Step data ────────────────────────────────────────────────────────────────
@@ -90,6 +90,13 @@ export default function InstantPage() {
   const [expanded,        setExpanded]        = useState({})
   const [recommendations, setRecommendations] = useState([])
   const [recsLoading,     setRecsLoading]     = useState(false)
+
+  // AI Chat mode
+  const [chatInput,   setChatInput]   = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatResult,  setChatResult]  = useState(null)
+  const [chatError,   setChatError]   = useState('')
+  const [chatMode,    setChatMode]    = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -184,6 +191,48 @@ export default function InstantPage() {
     setStep(1); setType(''); setGoal(''); setStyle('')
     setProductName(''); setResult(null); setError(''); setExpanded({})
     setRecommendations([])
+  }
+
+  const runChat = async () => {
+    if (!chatInput.trim() || chatLoading) return
+    setChatLoading(true)
+    setChatError('')
+    setChatResult(null)
+    try {
+      const res = await fetch('/api/creative-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: chatInput.trim() }),
+      })
+      const data = await res.json()
+      if (data.error) { setChatError(data.error); setChatLoading(false); return }
+      setChatResult(data)
+      // If it's an instant campaign-style result, use existing result display
+      if (data.result && (data.output_type === 'full_ad_campaign' || data.output_type === 'image_sequence')) {
+        const r = data.result
+        if (r.phases || r.hooks || r.captions) {
+          // Map full_ad_campaign result to instant result shape for display
+          const mapped = {
+            hooks:        r.phases?.attention?.hooks?.map(h => h.hook || h) || r.hooks || [],
+            angles:       r.phases?.emotional_connection?.scripts?.map(s => s.script || s) || r.angles || [],
+            captions:     r.captions?.map(c => c.caption || c) || [],
+            imagePrompts: r.phases?.desire_escalation?.imagePrompts?.map(p => p.prompt || p) || r.imagePrompts || [],
+            schedule:     r.schedule || [],
+            projectId:    r.projectId,
+            orchestration: { summary: data.understood || '', platform: data.params?.platform || 'instagram' },
+          }
+          const prod = data.params?.productName || chatInput.trim()
+          setProductName(prod)
+          setResult(mapped)
+          setStep('results')
+          setChatLoading(false)
+          return
+        }
+      }
+    } catch (err) {
+      setChatError(err.message || 'Something went wrong')
+    }
+    setChatLoading(false)
   }
 
   const advanceStep = async () => {
@@ -410,6 +459,56 @@ export default function InstantPage() {
       </div>
 
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>
+
+        {/* AI Chat bar */}
+        <div style={{ marginBottom: 40, borderRadius: 12, border: `1px solid ${chatMode ? C.gold + '55' : C.border}`, background: chatMode ? 'linear-gradient(135deg, #0a0804, #080608)' : C.surface, padding: 20, transition: 'all 0.2s' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: C.gold, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>✦</span><span>AI Creative Director</span>
+          </div>
+          <div style={{ fontSize: 13, color: C.secondary, marginBottom: 14, lineHeight: 1.6 }}>
+            Tell me what you want to create — I'll build the entire campaign.
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && runChat()}
+              placeholder='e.g. "Create a luxury campaign for my skincare brand targeting women 25–35"'
+              style={{
+                flex: 1, padding: '12px 16px', borderRadius: 8,
+                border: `1px solid ${chatInput.trim() ? C.gold + '44' : C.border}`,
+                background: '#060606', color: C.primary,
+                fontSize: 14, outline: 'none', fontFamily: 'inherit',
+              }}
+            />
+            <button
+              onClick={runChat}
+              disabled={!chatInput.trim() || chatLoading}
+              style={{
+                padding: '12px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                cursor: chatInput.trim() && !chatLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${chatInput.trim() ? C.gold : C.ghost}`,
+                background: chatInput.trim() ? 'linear-gradient(180deg, #1a1408, #0c0a04)' : 'transparent',
+                color: chatInput.trim() ? C.gold : C.ghost, whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {chatLoading ? '…' : 'Create →'}
+            </button>
+          </div>
+          {chatError && <div style={{ marginTop: 10, fontSize: 12, color: '#f87171' }}>{chatError}</div>}
+          {chatResult && !result && (
+            <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: '#060e06', border: '1px solid #1a3a1a', fontSize: 13, color: '#7adf7a' }}>
+              ✓ {chatResult.understood} — {chatResult.output_type?.replace(/_/g, ' ')}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Or build step by step</div>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+        </div>
+
         {/* Progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 40, justifyContent: 'center' }}>
           {[1, 2, 3].map(n => (

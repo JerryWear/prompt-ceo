@@ -63,7 +63,7 @@ export async function POST(req) {
       .select('subscription_status, subscription_tier')
       .eq('id', user.id)
       .single()
-    const { canGenerateText } = await import('../../../../lib/subscription.js')
+    const { canGenerateText } = await import('../../../lib/subscription.js')
     if (!canGenerateText(userRow)) {
       return NextResponse.json({ error: 'Subscription required', upgradeRequired: true }, { status: 402 })
     }

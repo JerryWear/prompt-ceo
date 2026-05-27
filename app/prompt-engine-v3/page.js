@@ -38,9 +38,9 @@ const C = {
   subtle:   '#222222',
   mid:      '#2a2a2a',
   primary:  '#e8e4dc',
-  secondary:'#b0aba4',
-  muted:    '#6e6a66',
-  ghost:    '#3a3835',
+  secondary:'#ccc8c2',
+  muted:    '#9e9a96',
+  ghost:    '#6e6a66',
   gold:     '#c8a84b',
   goldDim:  '#7a6428',
   goldGlow: '#c8a84b22',
@@ -3098,7 +3098,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
         {/* ── From Studio Bridge Panel ── */}
         {(s.adCreatorIdentity || s.studioAssets?.length > 0) && (
-          <Panel title="From Studio" hint="Identity and images imported from your Studio session" accent={C.green} defaultOpen={true}>
+          <Panel title="From Studio" hint="Identity and images imported from your Studio session" accent={C.green} defaultOpen={false}>
             {s.adCreatorIdentity && (
               <div style={{ marginBottom: s.studioAssets?.length > 0 ? 10 : 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 5, background: '#081208', border: `1px solid #1a3a1a` }}>
@@ -3153,7 +3153,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         )}
 
         {/* ── Brand Profile ── */}
-        <Panel title="Brand Profile" hint="Active brand injects voice, style & audience into every generation" accent={C.violet} defaultOpen={true}>
+        <Panel title="Brand Profile" hint="Active brand injects voice, style & audience into every generation" accent={C.violet} defaultOpen={false}>
           {activeBrandProfile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ padding: '8px 10px', borderRadius: 5, background: '#0e0818', border: `1px solid ${C.violetDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -11251,7 +11251,7 @@ function Btn({ children, onClick, disabled, variant = 'default', style: sx }) {
   )
 }
 
-function Panel({ title, hint, badge, right, accent, defaultOpen = true, children }) {
+function Panel({ title, hint, badge, right, accent, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div style={{

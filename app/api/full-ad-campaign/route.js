@@ -2,7 +2,21 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
-import { CAMPAIGN_PHASES, getPhaseScheduleDays } from '../../ad-system/phases.js'
+
+const CAMPAIGN_PHASES = [
+  { id: 'attention',            label: 'Attention',            postingDays: [1,2,3,4,5,6,7,8] },
+  { id: 'emotional_connection', label: 'Emotional Connection', postingDays: [9,10,11,12,13,14] },
+  { id: 'desire_escalation',    label: 'Desire Escalation',    postingDays: [15,16,17,18,19,20] },
+  { id: 'conversion',           label: 'Conversion',           postingDays: [21,22,23,24,25,26] },
+  { id: 'retargeting',          label: 'Retargeting',          postingDays: [27,28,29,30] },
+]
+
+function getPhaseScheduleDays() {
+  return CAMPAIGN_PHASES.reduce((acc, phase) => {
+    phase.postingDays.forEach(day => { acc[day] = phase.id })
+    return acc
+  }, {})
+}
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -80,7 +94,7 @@ export async function POST(req) {
       .select('subscription_status, subscription_tier')
       .eq('id', user.id)
       .single()
-    const { canGenerateText } = await import('../../../../lib/subscription.js')
+    const { canGenerateText } = await import('../../../lib/subscription.js')
     if (!canGenerateText(userRow)) {
       return NextResponse.json({ error: 'Subscription required', upgradeRequired: true }, { status: 402 })
     }

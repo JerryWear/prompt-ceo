@@ -2,7 +2,24 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
-import { getWorldList } from '../../day-system/worlds.js'
+
+function getWorldList() {
+  return [
+    { id: 'luxury_penthouse',   name: 'Luxury Penthouse' },
+    { id: 'maldives_villa',     name: 'Maldives Villa' },
+    { id: 'coastal_house',      name: 'Coastal House' },
+    { id: 'urban_apartment',    name: 'Urban Apartment' },
+    { id: 'countryside_estate', name: 'Countryside Estate' },
+    { id: 'dubai_highrise',     name: 'Dubai Highrise' },
+    { id: 'tokyo_apartment',    name: 'Tokyo Apartment' },
+    { id: 'paris_apartment',    name: 'Paris Apartment' },
+    { id: 'bali_villa',         name: 'Bali Villa' },
+    { id: 'greek_islands',      name: 'Greek Islands' },
+    { id: 'ski_chalet',         name: 'Ski Chalet' },
+    { id: 'miami_penthouse',    name: 'Miami Penthouse' },
+    { id: 'minimal_studio',     name: 'Minimal Studio' },
+  ]
+}
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -87,7 +104,7 @@ export async function POST(req) {
       .select('subscription_status, subscription_tier')
       .eq('id', user.id)
       .single()
-    const { canGenerateText } = await import('../../../../lib/subscription.js')
+    const { canGenerateText } = await import('../../../lib/subscription.js')
     if (!canGenerateText(userRow)) {
       return NextResponse.json({ error: 'Subscription required', upgradeRequired: true }, { status: 402 })
     }
