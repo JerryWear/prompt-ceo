@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const maxDuration = 30
+
 function clean(value) {
   return String(value || '').trim()
 }

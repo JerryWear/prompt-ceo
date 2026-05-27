@@ -12311,7 +12311,8 @@ export default function PromptCEOPage() {
       setDirectorPhase('chat')
     }
     setDirectorLoading(false)
-  }, [directorLoading, directorHistory, directorParams, s.hasImage, s.imageDataUrl, s.identityName, s.traits, activeBrandProfile, creatorProfiles, s.activeProjectId, sendToStudio, resetDirector])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directorLoading, directorHistory, directorParams, s.hasImage, s.imageDataUrl, s.identityName, s.traits, activeBrandProfile, creatorProfiles, s.activeProjectId, resetDirector])
 
   // ── Full Day Video™ ──────────────────────────────────────
   const [fullDayResult,   setFullDayResult]   = useState(null)
@@ -13177,13 +13178,37 @@ export default function PromptCEOPage() {
   const scanIdentity = async () => {
     if (!s.imageDataUrl) { merge({ scanError: 'Upload an image first.' }); return }
     merge({ scanState: 'scanning', scanError: '' })
+
+    // Compress image to max 800px before sending (avoids 413 Payload Too Large)
+    let imageToSend = s.imageDataUrl
+    try {
+      const compressed = await new Promise((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          const maxSize = 800
+          let { width, height } = img
+          if (width > maxSize || height > maxSize) {
+            if (width > height) { height = Math.round(height * maxSize / width); width = maxSize }
+            else { width = Math.round(width * maxSize / height); height = maxSize }
+          }
+          const canvas = document.createElement('canvas')
+          canvas.width = width; canvas.height = height
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', 0.85))
+        }
+        img.onerror = () => resolve(s.imageDataUrl)
+        img.src = s.imageDataUrl
+      })
+      imageToSend = compressed
+    } catch {}
+
     let data
     try {
       const res = await fetch('/api/identity/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageDataUrl: s.imageDataUrl, image: s.imageDataUrl,
+          imageDataUrl: imageToSend, image: imageToSend,
           requestFields: ['gender', 'characterMode', 'age', 'ethnicity', 'body_shape', 'eye_color', 'hair', 'identity'],
         }),
       })
