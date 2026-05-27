@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -102,6 +102,7 @@ export default function InstantPage() {
   const [brandProfiles,  setBrandProfiles]  = useState([])
   const [activeBrand,    setActiveBrand]    = useState(null)
   const [brandDropOpen,  setBrandDropOpen]  = useState(false)
+  const brandDropRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -120,6 +121,17 @@ export default function InstantPage() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!brandDropOpen) return
+    const handler = (e) => {
+      if (brandDropRef.current && !brandDropRef.current.contains(e.target)) {
+        setBrandDropOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [brandDropOpen])
 
   const build = async () => {
     if (!productName.trim() || !type || !goal || !style) return
@@ -475,31 +487,36 @@ export default function InstantPage() {
 
         {/* Brand selector */}
         {brandProfiles.length > 0 && (
-          <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div ref={brandDropRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
               onClick={() => setBrandDropOpen(p => !p)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, border: `1px solid ${activeBrand ? C.gold + '44' : C.border}`, background: activeBrand ? 'linear-gradient(180deg,#0d0a04,#080604)' : C.surface, cursor: 'pointer', fontSize: 11, color: activeBrand ? C.gold : C.muted }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, border: `1px solid ${activeBrand ? C.gold + '55' : C.border}`, background: activeBrand ? 'linear-gradient(180deg,#0d0a04,#080604)' : C.surface, cursor: 'pointer', fontSize: 11, color: activeBrand ? C.gold : C.secondary }}
             >
-              <span>◈</span>
-              <span>{activeBrand ? activeBrand.name : 'No Brand'}</span>
-              <span style={{ fontSize: 8 }}>▾</span>
+              <span style={{ fontSize: 10 }}>◈</span>
+              <span style={{ fontWeight: 600 }}>{activeBrand ? activeBrand.name : 'No Brand'}</span>
+              <span style={{ fontSize: 8, opacity: 0.6 }}>{brandDropOpen ? '▲' : '▾'}</span>
             </button>
             {brandDropOpen && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, minWidth: 180, zIndex: 100, overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#0e0e0e', border: `1px solid ${C.border}`, borderRadius: 8, minWidth: 200, zIndex: 200, overflow: 'hidden', boxShadow: '0 8px 24px #00000088' }}>
+                <div style={{ padding: '7px 14px 5px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: 'uppercase' }}>Active Brand</div>
                 <div
                   onClick={() => { setActiveBrand(null); setBrandDropOpen(false) }}
-                  style={{ padding: '9px 14px', fontSize: 12, color: C.muted, cursor: 'pointer', borderBottom: `1px solid ${C.border}` }}
+                  style={{ padding: '9px 14px', fontSize: 12, color: !activeBrand ? C.primary : C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.border}` }}
                 >
-                  No Brand
+                  <span style={{ width: 14, textAlign: 'center', color: C.gold }}>{!activeBrand ? '✓' : ''}</span>
+                  No Brand Context
                 </div>
                 {brandProfiles.map(b => (
                   <div
                     key={b.id}
                     onClick={() => { setActiveBrand(b); setBrandDropOpen(false) }}
-                    style={{ padding: '9px 14px', fontSize: 12, color: b.id === activeBrand?.id ? C.gold : C.primary, cursor: 'pointer', background: b.id === activeBrand?.id ? '#0d0a04' : 'transparent' }}
+                    style={{ padding: '9px 14px', fontSize: 12, color: C.primary, cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, borderTop: `1px solid ${C.border}`, background: b.id === activeBrand?.id ? '#0d0a04' : 'transparent' }}
                   >
-                    {b.name}
-                    {b.target_audience && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{b.target_audience.slice(0, 40)}</div>}
+                    <span style={{ width: 14, textAlign: 'center', color: C.gold, flexShrink: 0, marginTop: 1 }}>{b.id === activeBrand?.id ? '✓' : ''}</span>
+                    <div>
+                      <div style={{ color: b.id === activeBrand?.id ? C.gold : C.primary }}>{b.name}</div>
+                      {b.target_audience && <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{b.target_audience.slice(0, 50)}</div>}
+                    </div>
                   </div>
                 ))}
               </div>
