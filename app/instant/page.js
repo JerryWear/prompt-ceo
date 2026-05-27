@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -102,6 +102,7 @@ export default function InstantPage() {
   const [brandProfiles,  setBrandProfiles]  = useState([])
   const [activeBrand,    setActiveBrand]    = useState(null)
   const [brandDropOpen,  setBrandDropOpen]  = useState(false)
+  const chatInputRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -500,7 +501,12 @@ export default function InstantPage() {
                 {brandProfiles.map(b => (
                   <div
                     key={b.id}
-                    onClick={() => { setActiveBrand(b); setBrandDropOpen(false) }}
+                    onClick={() => {
+                      setActiveBrand(b)
+                      setBrandDropOpen(false)
+                      if (!chatInput.trim()) setChatInput(`Create a full ad campaign for ${b.name}`)
+                      setTimeout(() => chatInputRef.current?.focus(), 50)
+                    }}
                     style={{ padding: '9px 14px', fontSize: 12, color: C.primary, cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, borderTop: `1px solid ${C.border}`, background: b.id === activeBrand?.id ? '#0d0a04' : 'transparent' }}
                   >
                     <span style={{ width: 14, textAlign: 'center', color: C.gold, flexShrink: 0, marginTop: 1 }}>{b.id === activeBrand?.id ? '✓' : ''}</span>
@@ -531,10 +537,11 @@ export default function InstantPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
+              ref={chatInputRef}
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && runChat()}
-              placeholder='e.g. "Create a luxury campaign for my skincare brand targeting women 25–35"'
+              placeholder={activeBrand ? `Tell me what to create for ${activeBrand.name}…` : 'e.g. "Create a full campaign for my brand targeting women 25–35"'}
               style={{
                 flex: 1, padding: '12px 16px', borderRadius: 8,
                 border: `1px solid ${chatInput.trim() ? C.gold + '44' : C.border}`,
