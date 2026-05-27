@@ -12174,6 +12174,40 @@ export default function PromptCEOPage() {
     setFullCampaignLoading(false)
   }, [fullCampaignLoading, fullCampaignProduct, fullCampaignGoal, fullCampaignStyle, fullCampaignPlatform, s.storyWorldId, creatorProfiles, activeBrandProfile, s.activeProjectId])
 
+  // ── Cross-section wiring helpers ────────────────────────
+  // Send any image prompt straight to Studio and switch view
+  const sendToStudio = useCallback((promptText) => {
+    setResult({ finalPrompt: promptText, meta: {}, layers: {}, warnings: [] })
+    setOutputTab('output')
+    set('view', 'studio')
+  }, [set])
+
+  // Send hook/caption straight to Ad Studio as selected context
+  const sendToAdStudio = useCallback((hookText, angleObj = null) => {
+    if (hookText) setSelectedHook(typeof hookText === 'string' ? hookText : String(hookText))
+    if (angleObj) setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
+    set('view', 'ad_studio')
+  }, [set])
+
+  // Load Instant campaign bridge from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('promptceo_instant_bridge')
+      if (!raw) return
+      const data = JSON.parse(raw)
+      sessionStorage.removeItem('promptceo_instant_bridge')
+      if (data.imagePrompts?.[0]) {
+        setResult({ finalPrompt: data.imagePrompts[0], meta: {}, layers: {}, warnings: [] })
+        setOutputTab('output')
+      }
+      if (data.hooks?.[0])  setSelectedHook(data.hooks[0])
+      if (data.angles?.[0]) setSelectedAngle({ title: 'Imported Campaign', hook: data.angles[0] })
+      if (data.imagePrompts?.length || data.hooks?.length) {
+        setConvUnderstood(`✓ Campaign imported — ${data.imagePrompts?.length || 0} image prompts · ${data.hooks?.length || 0} hooks · ${data.captions?.length || 0} captions ready`)
+      }
+    } catch {}
+  }, [])
+
   // ── Studio ↔ Ad Studio Bridge ────────────────────────────
   const [bridgeBannerOpen, setBridgeBannerOpen] = useState(false)
 
@@ -16128,17 +16162,20 @@ export default function PromptCEOPage() {
                           <div>
                             <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 4 }}>Hook</div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, fontFamily: C.display, lineHeight: 1.5 }}>"{moment.hook}"</div>
+                            <button onClick={() => sendToAdStudio(moment.hook)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.gold}44`, background: `${C.gold}11`, color: C.gold }}>→ Use in Ad Studio</button>
                           </div>
                           {/* Image Prompt */}
                           <div>
                             <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 4 }}>Image Prompt</div>
                             <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{moment.imagePrompt}</div>
+                            <button onClick={() => sendToStudio(moment.imagePrompt)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>→ Generate in Studio</button>
                           </div>
                           {/* Caption */}
                           {moment.caption && (
                             <div>
                               <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 4 }}>Caption</div>
                               <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.7 }}>{moment.caption}</div>
+                              <button onClick={() => sendToAdStudio(moment.caption)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>→ Use in Ad Studio</button>
                             </div>
                           )}
                           {/* Video prompt */}
@@ -16265,8 +16302,12 @@ export default function PromptCEOPage() {
                         <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.blueDim}`, background: '#060a10' }}>
                           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 6 }}>{h.archetype?.replace(/_/g,' ')}</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: C.primary, lineHeight: 1.5, fontFamily: C.display }}>"{h.hook || h}"</div>
-                          <button onClick={() => navigator.clipboard.writeText(h.hook || h).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <button onClick={() => navigator.clipboard.writeText(h.hook || h).catch(() => {})}
+                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                            <button onClick={() => sendToAdStudio(h.hook || h)}
+                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.gold}44`, background: `${C.gold}11`, color: C.gold }}>→ Ad Studio</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -16280,8 +16321,12 @@ export default function PromptCEOPage() {
                           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 6 }}>{s.type?.replace(/_/g,' ')}</div>
                           {s.hook && <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, marginBottom: 8, fontFamily: C.display }}>"{s.hook}"</div>}
                           <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{s.script || s}</div>
-                          <button onClick={() => navigator.clipboard.writeText(s.script || s).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <button onClick={() => navigator.clipboard.writeText(s.script || s).catch(() => {})}
+                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                            <button onClick={() => sendToAdStudio(s.hook || (s.script || '').slice(0, 100), { title: s.type?.replace(/_/g,' ') || 'Story', hook: s.hook || '' })}
+                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>→ Ad Studio</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -16294,8 +16339,12 @@ export default function PromptCEOPage() {
                         <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid #3a2a0a`, background: '#0a0800' }}>
                           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension, marginBottom: 6 }}>{p.type?.replace(/_/g,' ')}</div>
                           <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{p.prompt || p}</div>
-                          <button onClick={() => navigator.clipboard.writeText(p.prompt || p).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <button onClick={() => navigator.clipboard.writeText(p.prompt || p).catch(() => {})}
+                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                            <button onClick={() => sendToStudio(p.prompt || p)}
+                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>→ Generate in Studio</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -16337,8 +16386,12 @@ export default function PromptCEOPage() {
                         <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface }}>
                           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 6 }}>{(c.phase || '').replace(/_/g,' ')}</div>
                           <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{c.caption || c}</div>
-                          <button onClick={() => navigator.clipboard.writeText(c.caption || c).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <button onClick={() => navigator.clipboard.writeText(c.caption || c).catch(() => {})}
+                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
+                            <button onClick={() => sendToAdStudio(c.caption || c)}
+                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.gold}44`, background: `${C.gold}11`, color: C.gold }}>→ Ad Studio</button>
+                          </div>
                         </div>
                       ))}
                     </div>
