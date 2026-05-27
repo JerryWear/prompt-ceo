@@ -14106,81 +14106,99 @@ export default function PromptCEOPage() {
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
           {/* ── Grouped nav ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
 
-            {/* CREATE */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Create</span>
+            {/* ─ CREATE ─ */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{
+                fontSize: 7, fontWeight: 900, color: '#2a2825',
+                letterSpacing: 1.5, textTransform: 'uppercase',
+                padding: '0 7px', userSelect: 'none', cursor: 'default',
+                borderRight: `1px solid ${C.hairline}`,
+              }}>CREATE</span>
               {[
                 { id: 'ai_director', label: 'Director', icon: '✦', gold: true },
                 { id: 'studio',      label: 'Studio',   icon: '◧' },
               ].map(v => (
                 <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
-                  border: `1px solid ${s.view === v.id ? (v.gold ? C.goldDim : C.subtle) : C.hairline}`,
-                  background: s.view === v.id ? (v.gold ? '#1a1408' : C.raised) : 'transparent',
-                  color: s.view === v.id ? (v.gold ? C.gold : C.primary) : C.ghost,
+                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                  border: 'none',
+                  borderRight: `1px solid ${C.hairline}`,
+                  borderBottom: `2px solid ${s.view === v.id ? (v.gold ? C.gold : C.primary) : 'transparent'}`,
+                  background: s.view === v.id ? C.raised : 'transparent',
+                  color: s.view === v.id ? (v.gold ? C.gold : C.primary) : '#5a5650',
                   transition: 'all 0.15s',
                 }}>{v.icon} {v.label}</button>
               ))}
               <a href="/instant" style={{
-                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, whiteSpace: 'nowrap', textDecoration: 'none',
-                border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost, transition: 'all 0.15s',
+                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: '2px solid transparent',
+                background: 'transparent', color: '#5a5650', display: 'inline-block',
               }}>⚡ Instant</a>
             </div>
 
-            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
-
-            {/* LIFE */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Life</span>
+            {/* ─ LIFE ─ */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{
+                fontSize: 7, fontWeight: 900, color: '#2a2825',
+                letterSpacing: 1.5, textTransform: 'uppercase',
+                padding: '0 7px', userSelect: 'none', cursor: 'default',
+                borderRight: `1px solid ${C.hairline}`,
+              }}>LIFE</span>
               {[
                 { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
                 { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
                 { id: 'timeline',       label: 'Timeline',    icon: '▤' },
               ].map(v => (
                 <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
-                  border: `1px solid ${s.view === v.id ? C.subtle : C.hairline}`,
+                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                  border: 'none', borderRight: `1px solid ${C.hairline}`,
+                  borderBottom: `2px solid ${s.view === v.id ? C.primary : 'transparent'}`,
                   background: s.view === v.id ? C.raised : 'transparent',
-                  color: s.view === v.id ? C.primary : C.ghost,
+                  color: s.view === v.id ? C.primary : '#5a5650',
                   transition: 'all 0.15s',
                 }}>{v.icon} {v.label}</button>
               ))}
               <a href="/full-day" style={{
-                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, whiteSpace: 'nowrap', textDecoration: 'none',
-                border: '1px solid #2a1a4a', background: 'linear-gradient(135deg, #120a2a, #0a0618)',
-                color: '#9b6fd4', transition: 'all 0.15s',
+                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: '2px solid transparent',
+                background: 'transparent', color: '#7a5abf', display: 'inline-block',
               }}>🌍 Life Engine</a>
             </div>
 
-            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
-
-            {/* CAMPAIGNS */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Campaigns</span>
+            {/* ─ CAMPAIGNS ─ */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{
+                fontSize: 7, fontWeight: 900, color: '#2a2825',
+                letterSpacing: 1.5, textTransform: 'uppercase',
+                padding: '0 7px', userSelect: 'none', cursor: 'default',
+                borderRight: `1px solid ${C.hairline}`,
+              }}>CAMPAIGNS</span>
               <button onClick={switchToAdStudio} style={{
-                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: 'pointer', letterSpacing: 0.4, whiteSpace: 'nowrap',
-                border: `1px solid ${s.view === 'ad_studio' ? '#b44aff' : '#5a2a9a'}`,
-                background: s.view === 'ad_studio' ? 'linear-gradient(135deg,#2a0a4a,#1a0838)' : 'linear-gradient(135deg,#120520,#0a0318)',
-                color: s.view === 'ad_studio' ? '#d580ff' : '#a855f7',
-                boxShadow: s.view === 'ad_studio' ? '0 0 10px #9b2fff33' : 'none',
+                padding: '4px 13px', borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: `2px solid ${s.view === 'ad_studio' ? '#a855f7' : 'transparent'}`,
+                background: s.view === 'ad_studio' ? '#120520' : 'transparent',
+                color: s.view === 'ad_studio' ? '#d580ff' : '#7a4abf',
                 transition: 'all 0.15s',
               }}>📣 Ad Studio</button>
               <button onClick={() => set('view', 'full_campaign')} style={{
-                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
-                border: `1px solid ${s.view === 'full_campaign' ? C.subtle : C.hairline}`,
+                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: `2px solid ${s.view === 'full_campaign' ? C.primary : 'transparent'}`,
                 background: s.view === 'full_campaign' ? C.raised : 'transparent',
-                color: s.view === 'full_campaign' ? C.primary : C.ghost,
+                color: s.view === 'full_campaign' ? C.primary : '#5a5650',
                 transition: 'all 0.15s',
               }}>◈ Full Campaign</button>
             </div>
 
-            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
-
             <a href="/prompt-engine-v3/dashboard" style={{
-              padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
-              border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost,
+              padding: '4px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+              border: 'none', borderRight: `1px solid ${C.hairline}`,
+              borderBottom: '2px solid transparent',
+              background: 'transparent', color: '#3a3632', display: 'inline-block',
             }}>⊞ Hub</a>
           </div>
 
