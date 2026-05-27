@@ -14105,82 +14105,83 @@ export default function PromptCEOPage() {
 
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
-          {/* ── View tabs ── */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            {[
-              { id: 'ai_director',  label: 'AI Director',  icon: '✦' },
-              { id: 'studio',       label: 'Studio',       icon: '◧' },
-              { id: 'timeline',     label: 'Timeline',     icon: '▤' },
-              { id: 'perfect_day',  label: 'Perfect Day',  icon: '☀' },
-              { id: 'full_day_video',label: 'Day Video',   icon: '🎬' },
-              { id: 'full_campaign',label: 'Full Campaign', icon: '◈' },
-            ].map(v => (
-              <button
-                key={v.id}
-                onClick={() => set('view', v.id)}
-                style={{
-                  padding: '5px 14px', borderRadius: 4,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  letterSpacing: 0.4,
-                  border: `1px solid ${s.view === v.id ? C.goldDim : C.subtle}`,
-                  background: s.view === v.id ? '#1a1408' : C.surface,
-                  color: s.view === v.id ? C.gold : '#9a9690',
+          {/* ── Grouped nav ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+
+            {/* CREATE */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Create</span>
+              {[
+                { id: 'ai_director', label: 'Director', icon: '✦', gold: true },
+                { id: 'studio',      label: 'Studio',   icon: '◧' },
+              ].map(v => (
+                <button key={v.id} onClick={() => set('view', v.id)} style={{
+                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
+                  border: `1px solid ${s.view === v.id ? (v.gold ? C.goldDim : C.subtle) : C.hairline}`,
+                  background: s.view === v.id ? (v.gold ? '#1a1408' : C.raised) : 'transparent',
+                  color: s.view === v.id ? (v.gold ? C.gold : C.primary) : C.ghost,
                   transition: 'all 0.15s',
-                }}
-              >
-                {v.icon} {v.label}
-              </button>
-            ))}
+                }}>{v.icon} {v.label}</button>
+              ))}
+              <a href="/instant" style={{
+                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, whiteSpace: 'nowrap', textDecoration: 'none',
+                border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost, transition: 'all 0.15s',
+              }}>⚡ Instant</a>
+            </div>
 
-            {/* Life Engine — standalone page link */}
-            <a
-              href="/full-day"
-              style={{
-                padding: '5px 14px', borderRadius: 4,
-                fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                letterSpacing: 0.4, textDecoration: 'none', whiteSpace: 'nowrap',
-                border: '1px solid #3a2a6a',
-                background: 'linear-gradient(135deg, #1a0f38, #0e0920)',
-                color: '#9b6fd4',
-                transition: 'all 0.15s',
-              }}
-            >
-              🎬 Life Engine
-            </a>
+            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
 
-            {/* Ad Studio — visually distinct, always visible */}
-            <button
-              onClick={switchToAdStudio}
-              style={{
-                padding: '5px 16px', borderRadius: 4,
-                fontSize: 11, fontWeight: 800, cursor: 'pointer',
-                letterSpacing: 0.5,
-                border: `1px solid ${s.view === 'ad_studio' ? '#b44aff' : '#7a3abf'}`,
-                background: s.view === 'ad_studio'
-                  ? 'linear-gradient(135deg, #2a0a4a, #1a0838)'
-                  : 'linear-gradient(135deg, #1a0838, #0e0520)',
+            {/* LIFE */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Life</span>
+              {[
+                { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
+                { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
+                { id: 'timeline',       label: 'Timeline',    icon: '▤' },
+              ].map(v => (
+                <button key={v.id} onClick={() => set('view', v.id)} style={{
+                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
+                  border: `1px solid ${s.view === v.id ? C.subtle : C.hairline}`,
+                  background: s.view === v.id ? C.raised : 'transparent',
+                  color: s.view === v.id ? C.primary : C.ghost,
+                  transition: 'all 0.15s',
+                }}>{v.icon} {v.label}</button>
+              ))}
+              <a href="/full-day" style={{
+                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, whiteSpace: 'nowrap', textDecoration: 'none',
+                border: '1px solid #2a1a4a', background: 'linear-gradient(135deg, #120a2a, #0a0618)',
+                color: '#9b6fd4', transition: 'all 0.15s',
+              }}>🌍 Life Engine</a>
+            </div>
+
+            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
+
+            {/* CAMPAIGNS */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span style={{ fontSize: 8, fontWeight: 800, color: C.ghost, letterSpacing: 1.2, textTransform: 'uppercase', paddingRight: 4, whiteSpace: 'nowrap' }}>Campaigns</span>
+              <button onClick={switchToAdStudio} style={{
+                padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: 'pointer', letterSpacing: 0.4, whiteSpace: 'nowrap',
+                border: `1px solid ${s.view === 'ad_studio' ? '#b44aff' : '#5a2a9a'}`,
+                background: s.view === 'ad_studio' ? 'linear-gradient(135deg,#2a0a4a,#1a0838)' : 'linear-gradient(135deg,#120520,#0a0318)',
                 color: s.view === 'ad_studio' ? '#d580ff' : '#a855f7',
-                boxShadow: s.view === 'ad_studio'
-                  ? '0 0 12px #9b2fff44, inset 0 0 8px #9b2fff18'
-                  : '0 0 6px #7a2fff22',
+                boxShadow: s.view === 'ad_studio' ? '0 0 10px #9b2fff33' : 'none',
                 transition: 'all 0.15s',
-              }}
-            >
-              📣 Ad Studio
-            </button>
+              }}>📣 Ad Studio</button>
+              <button onClick={() => set('view', 'full_campaign')} style={{
+                padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3, whiteSpace: 'nowrap',
+                border: `1px solid ${s.view === 'full_campaign' ? C.subtle : C.hairline}`,
+                background: s.view === 'full_campaign' ? C.raised : 'transparent',
+                color: s.view === 'full_campaign' ? C.primary : C.ghost,
+                transition: 'all 0.15s',
+              }}>◈ Full Campaign</button>
+            </div>
 
-            {/* Dashboard link */}
-            <a
-              href="/prompt-engine-v3/dashboard"
-              style={{
-                padding: '5px 12px', borderRadius: 4,
-                fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${C.subtle}`, background: C.surface,
-                color: C.secondary, textDecoration: 'none', whiteSpace: 'nowrap',
-              }}
-            >
-              📋 Dashboard
-            </a>
+            <div style={{ width: 1, height: 16, background: C.hairline, margin: '0 4px' }} />
+
+            <a href="/prompt-engine-v3/dashboard" style={{
+              padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
+              border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost,
+            }}>⊞ Hub</a>
           </div>
 
           <div style={{ flex: 1 }} />
@@ -14238,36 +14239,9 @@ export default function PromptCEOPage() {
             </div>
           )}
 
-          <a
-            href="/instant"
-            style={{
-              padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
-              border: `1px solid ${C.goldDim}`, background: '#1a1408',
-              color: C.gold, letterSpacing: 0.5, textDecoration: 'none', whiteSpace: 'nowrap',
-            }}
-            title="Switch to PromptCEO Instant™"
-          >
-            ⚡ Instant
-          </a>
-
-          <button
-            onClick={() => window.location.href = '/account'}
-            style={{ padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, letterSpacing: 0.5 }}
-          >
-            Account
-          </button>
-
-          <button
-            onClick={() => setHelpOpen(true)}
-            style={{
-              padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700,
-              cursor: 'pointer', border: `1px solid ${C.goldDim}`,
-              background: C.goldGlow, color: C.gold, letterSpacing: 0.5,
-            }}
-          >
-            ? Help
-          </button>
-          <Btn variant="danger" onClick={rAll}>↺ Reset</Btn>
+          <button onClick={() => setHelpOpen(true)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>?</button>
+          <button onClick={() => window.location.href = '/account'} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>⚙</button>
+          <Btn variant="danger" onClick={rAll}>↺</Btn>
         </div>
 
         {/* ── AI CREATIVE CONVERSATION BAR ────────────────── */}
@@ -15109,8 +15083,32 @@ export default function PromptCEOPage() {
                         {result.finalPrompt}
                       </div>
                     ) : (
-                      <div style={{ background: C.void, border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '12px 13px', fontFamily: C.mono, fontSize: 11, color: C.ghost, fontStyle: 'italic', minHeight: 80 }}>
-                        Press Generate Scene to build a cinematic prompt.
+                      <div style={{ background: 'linear-gradient(160deg, #070707, #050508)', border: `1px solid ${C.hairline}`, borderRadius: 7, padding: '20px 16px', minHeight: 160, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 18 }}>✦</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 2 }}>Creative command center ready</div>
+                            <div style={{ fontSize: 10, color: C.ghost }}>Configure the left panel and generate a scene — or use AI Director above.</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[
+                            { label: '☀ Perfect Day',   view: 'perfect_day',  desc: 'Full lifestyle arc',    color: C.goldDim, text: C.gold },
+                            { label: '📣 Ad Campaign',   action: switchToAdStudio, desc: '30-day funnel', color: '#2a0a4a', text: '#a855f7' },
+                            { label: '✦ AI Director',   view: 'ai_director',  desc: 'Natural language',      color: C.goldDim, text: C.gold },
+                          ].map((btn, i) => (
+                            <button key={i} onClick={() => btn.action ? btn.action() : set('view', btn.view)} style={{
+                              flex: 1, padding: '9px 6px', borderRadius: 5, cursor: 'pointer', textAlign: 'center',
+                              border: `1px solid ${btn.color}`, background: 'transparent', transition: 'all 0.15s',
+                            }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#0f0f0f'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <div style={{ fontSize: 10, fontWeight: 700, color: btn.text, marginBottom: 2 }}>{btn.label}</div>
+                              <div style={{ fontSize: 8, color: C.ghost }}>{btn.desc}</div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {result?.finalPrompt && (() => {
@@ -15698,6 +15696,86 @@ export default function PromptCEOPage() {
 
             {/* ══ RIGHT ══ */}
             <div style={{ borderLeft: `1px solid ${C.hairline}`, overflowY: 'auto', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* ── AI INTELLIGENCE PANEL ── */}
+              <div style={{ borderRadius: 7, border: `1px solid ${C.goldDim}`, background: 'linear-gradient(160deg, #0c0a04, #080806)', overflow: 'hidden' }}>
+                <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13 }}>✦</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 0.5 }}>AI Intelligence</span>
+                  <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}` }} />
+                </div>
+                <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {[
+                    {
+                      label: 'Active world',
+                      value: s.worldId ? s.worldId.replace(/_/g, ' ') : 'No world selected',
+                      color: C.blue,
+                    },
+                    {
+                      label: 'Visual style',
+                      value: s.directorPreset && s.directorPreset !== 'none' ? s.directorPreset.replace(/_/g, ' ') : (s.style || 'cinematic'),
+                      color: C.violet,
+                    },
+                    {
+                      label: 'Platform target',
+                      value: s.platform || 'instagram',
+                      color: C.secondary,
+                    },
+                    {
+                      label: 'Identity',
+                      value: s.hasImage ? (s.identityName || 'Active') : 'No identity',
+                      color: s.hasImage ? C.green : C.ghost,
+                    },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: 9, color: C.ghost, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{row.label}</span>
+                      <span style={{ fontSize: 10, color: row.color, fontWeight: 600, textAlign: 'right', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding: '6px 10px', borderTop: `1px solid ${C.hairline}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  <button onClick={() => set('view', 'ai_director')} style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                    ✦ Ask Director
+                  </button>
+                  <button onClick={() => set('view', 'perfect_day')} style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>
+                    ☀ Perfect Day
+                  </button>
+                </div>
+              </div>
+
+              {/* ── CAMPAIGN FLOW ── shown when no content generated yet */}
+              {!result?.finalPrompt && batch.length === 0 && (
+                <div style={{ borderRadius: 7, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
+                  <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    Campaign Flow
+                  </div>
+                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {[
+                      { icon: '✦', label: 'Director Intent',   desc: 'Natural language command' },
+                      { icon: '↓', label: null },
+                      { icon: '◧', label: 'Identity + World',   desc: 'Visual foundation' },
+                      { icon: '↓', label: null },
+                      { icon: '☀', label: 'Perfect Day',         desc: 'Full lifestyle arc' },
+                      { icon: '↓', label: null },
+                      { icon: '📣', label: 'Ad Campaign',         desc: '30-day funnel' },
+                      { icon: '↓', label: null },
+                      { icon: '◈', label: 'Full Campaign',        desc: 'Hooks + copy + schedule' },
+                      { icon: '↓', label: null },
+                      { icon: '🎬', label: 'Video + Export',       desc: 'Production ready' },
+                    ].map((step, i) => step.label ? (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0' }}>
+                        <span style={{ fontSize: 11, width: 16, textAlign: 'center', flexShrink: 0 }}>{step.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.secondary }}>{step.label}</div>
+                          <div style={{ fontSize: 8, color: C.ghost }}>{step.desc}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={i} style={{ paddingLeft: 20, fontSize: 8, color: C.hairline }}>│</div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ── PROMPT LIBRARY ── */}
               <Panel title="Prompt Library" accent={C.gold} badge={promptLibrary.length > 0 ? <Chip>{promptLibrary.length}</Chip> : null} defaultOpen={false}>
