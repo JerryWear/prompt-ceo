@@ -12144,7 +12144,11 @@ export default function PromptCEOPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           worldId:       perfectDayWorldId,
-          creatorProfile: creatorProfiles[0] || null,
+          creatorProfile: {
+            ...(creatorProfiles[0] || {}),
+            ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}),
+            ...(s.identityName ? { name: s.identityName } : {}),
+          },
           brandProfile:  activeBrandProfile || null,
           style:         perfectDayStyle,
           platform:      perfectDayPlatform,
@@ -12156,7 +12160,7 @@ export default function PromptCEOPage() {
       if (!data.error) setPerfectDayResult(data)
     } catch {}
     setPerfectDayLoading(false)
-  }, [perfectDayLoading, perfectDayWorldId, perfectDayStyle, perfectDayPlatform, creatorProfiles, activeBrandProfile, s.activeProjectId])
+  }, [perfectDayLoading, perfectDayWorldId, perfectDayStyle, perfectDayPlatform, creatorProfiles, activeBrandProfile, s.activeProjectId, s.traits, s.identityName])
 
   // ── Crown Upgrade: Full Ad Campaign™ ────────────────────
   const [fullCampaignResult,   setFullCampaignResult]   = useState(null)
@@ -16109,6 +16113,19 @@ export default function PromptCEOPage() {
                   {['instagram','tiktok','meta_ads','youtube'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
+              {/* Identity status banner */}
+              {s.hasImage ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
+                  <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {s.identityName || 'Your identity'} — images will feature you</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
+                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>upload your photo in Studio</button>
+                  <span style={{ fontSize: 9, color: C.ghost }}>to appear in images</span>
+                </div>
+              )}
               <div style={{ flex: 1 }} />
               <button
                 onClick={generatePerfectDay}
@@ -16129,9 +16146,12 @@ export default function PromptCEOPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
                   <div style={{ fontSize: 40 }}>☀</div>
                   <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Create a cinematic perfect day</div>
-                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>
-                    Choose a world above and generate a full day — 12 moments from waking up to getting ready for bed.<br />
-                    Or type in the conversation bar above: <em>"Perfect day in Maldives for my travel brand"</em>
+                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
+                    Choose a world above and generate a full day — 12 cinematic moments with hooks, image prompts, captions, and video scripts.<br /><br />
+                    {s.hasImage
+                      ? <><span style={{ color: C.gold }}>✓ Identity active</span> — every image prompt will direct the AI to feature <strong style={{ color: C.secondary }}>{s.identityName || 'you'}</strong> in each scene.</>
+                      : <>Want your face in every moment? <button onClick={() => set('view', 'studio')} style={{ fontSize: 11, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upload your photo in Studio</button> first.</>
+                    }
                   </div>
                   <button onClick={generatePerfectDay} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
                     ☀ Generate Perfect Day
@@ -16184,9 +16204,14 @@ export default function PromptCEOPage() {
                           </div>
                           {/* Image Prompt */}
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 4 }}>Image Prompt</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue }}>Image Prompt</div>
+                              {s.hasImage && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ with your identity</span>}
+                            </div>
                             <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{moment.imagePrompt}</div>
-                            <button onClick={() => sendToStudio(moment.imagePrompt)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>→ Generate in Studio</button>
+                            <button onClick={() => sendToStudio(moment.imagePrompt)} style={{ marginTop: 6, padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>
+                              {s.hasImage ? '→ Generate with Identity' : '→ Generate in Studio'}
+                            </button>
                           </div>
                           {/* Caption */}
                           {moment.caption && (
@@ -16199,8 +16224,21 @@ export default function PromptCEOPage() {
                           {/* Video prompt */}
                           {moment.videoPrompt && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green, marginBottom: 4 }}>Video Direction</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green }}>Video Direction</div>
+                                {s.hasImage && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ identity-driven</span>}
+                              </div>
                               <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, fontStyle: 'italic' }}>{moment.videoPrompt}</div>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(moment.videoPrompt).catch(() => {}) }}
+                                  style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}
+                                >copy script</button>
+                                <button
+                                  onClick={() => sendToAdStudio(moment.videoPrompt)}
+                                  style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}
+                                >→ Use in Ad Studio</button>
+                              </div>
                             </div>
                           )}
                         </div>
