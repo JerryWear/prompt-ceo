@@ -84,6 +84,17 @@ const TOOLS = [
     path:  '/prompt-engine-v3',
     query: 'ad_studio',
   },
+  {
+    id:    'life_engine',
+    icon:  '🎬',
+    label: 'Life Engine™',
+    sub:   '5 day types × 15 worlds',
+    desc:  'Perfect Day, Travel World, Creator Day, Fitness Day, Ad Campaign Day — cinematic full-day content.',
+    color: '#7a6fcf',
+    glow:  'rgba(122,111,207,0.1)',
+    path:  '/full-day',
+    query: null,
+  },
 ]
 
 const PROJECT_TYPE_COLOR = {
