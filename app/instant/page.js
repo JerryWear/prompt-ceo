@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -102,7 +102,6 @@ export default function InstantPage() {
   const [brandProfiles,  setBrandProfiles]  = useState([])
   const [activeBrand,    setActiveBrand]    = useState(null)
   const [brandDropOpen,  setBrandDropOpen]  = useState(false)
-  const brandDropRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -122,16 +121,6 @@ export default function InstantPage() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (!brandDropOpen) return
-    const handler = (e) => {
-      if (brandDropRef.current && !brandDropRef.current.contains(e.target)) {
-        setBrandDropOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [brandDropOpen])
 
   const build = async () => {
     if (!productName.trim() || !type || !goal || !style) return
@@ -487,7 +476,7 @@ export default function InstantPage() {
 
         {/* Brand selector */}
         {brandProfiles.length > 0 && (
-          <div ref={brandDropRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
               onClick={() => setBrandDropOpen(p => !p)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, border: `1px solid ${activeBrand ? C.gold + '55' : C.border}`, background: activeBrand ? 'linear-gradient(180deg,#0d0a04,#080604)' : C.surface, cursor: 'pointer', fontSize: 11, color: activeBrand ? C.gold : C.secondary }}
@@ -497,6 +486,8 @@ export default function InstantPage() {
               <span style={{ fontSize: 8, opacity: 0.6 }}>{brandDropOpen ? '▲' : '▾'}</span>
             </button>
             {brandDropOpen && (
+              <>
+              <div onClick={() => setBrandDropOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }} />
               <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#0e0e0e', border: `1px solid ${C.border}`, borderRadius: 8, minWidth: 200, zIndex: 200, overflow: 'hidden', boxShadow: '0 8px 24px #00000088' }}>
                 <div style={{ padding: '7px 14px 5px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: 'uppercase' }}>Active Brand</div>
                 <div
@@ -520,6 +511,7 @@ export default function InstantPage() {
                   </div>
                 ))}
               </div>
+              </>
             )}
           </div>
         )}
