@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
@@ -11786,15 +11786,33 @@ export default function PromptCEOPage() {
     checkSession()
   }, [])
 
-  // Read ?view= and ?tab= from URL on mount — used by Dashboard links
+  // Read ?view= from URL on mount — used by Dashboard tool cards
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const view   = params.get('view')
     const tab    = params.get('tab')
-    if (view === 'ad_studio') {
-      set('view', 'ad_studio')
+    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline']
+    if (view && validViews.includes(view)) {
+      set('view', view)
       if (tab) window.__adStudioInitTab = tab
     }
+    // Pick up chat intent from dashboard
+    try {
+      const raw = sessionStorage.getItem('promptceo_chat_intent')
+      if (raw) {
+        sessionStorage.removeItem('promptceo_chat_intent')
+        const intent = JSON.parse(raw)
+        if (intent.params?.productName) {
+          setFullCampaignProduct(intent.params.productName)
+          setPerfectDayWorldId(intent.params.world || 'luxury_penthouse')
+          setPerfectDayStyle(intent.params.style || 'aspirational_lifestyle')
+          setPerfectDayPlatform(intent.params.platform || 'instagram')
+          setFullCampaignGoal(intent.params.goal || 'sales')
+          setFullCampaignStyle(intent.params.style || 'cinematic')
+          setFullCampaignPlatform(intent.params.platform || 'instagram')
+        }
+      }
+    } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
