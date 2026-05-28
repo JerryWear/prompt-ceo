@@ -266,6 +266,7 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         model:       'grok-3-fast',
+        max_tokens:  8000,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userPrompt   },

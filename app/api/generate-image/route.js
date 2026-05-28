@@ -165,6 +165,7 @@ export async function POST(req) {
     // ── Mode detection ────────────────────────────────────────────────────────
     // mode: 'director' (default) | 'product_ad' | 'personal_brand_ad'
     const mode = clean(body?.mode) || 'director'
+    const projectId = body?.projectId || null
     const isAdMode = mode === 'product_ad' || mode === 'personal_brand_ad'
 
     console.log('GENERATE_IMAGE_MODE:', mode)
@@ -311,6 +312,7 @@ export async function POST(req) {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
             model: 'grok-3',
+            max_tokens: 1000,
             messages: [
               {
                 role: 'system',
@@ -372,6 +374,7 @@ ${identityTraitsBlock}
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
             model: 'grok-3',
+            max_tokens: 1000,
             messages: [
               {
                 role: 'system',
@@ -432,6 +435,7 @@ If anything conflicts with identity, preserve identity first.
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
           body: JSON.stringify({
             model: 'grok-3',
+            max_tokens: 1000,
             messages: [
               {
                 role: 'system',
@@ -512,7 +516,8 @@ If anything conflicts with identity, preserve identity first.
     // 📝 LOG TO generation_logs
     try {
       await admin.from('generation_logs').insert({
-        user_id: user.id,
+        user_id:    user.id,
+        project_id: projectId,
         type: 'image',
         mode,
         prompt: finalPrompt.slice(0, 500),
