@@ -65,6 +65,23 @@ export async function POST(req) {
     const worldData   = WORLDS[resolvedWorldId]   || WORLDS.luxury_penthouse
     const dayTypeData = DAY_TYPES[dayType]         || DAY_TYPES.creator_day
 
+    // Build brand + creator context for prompt injection
+    const brandLines = []
+    if (creatorProfile?.name)            brandLines.push(`Creator: ${creatorProfile.name}`)
+    if (creatorProfile?.creator_type)    brandLines.push(`Creator type: ${creatorProfile.creator_type}`)
+    if (creatorProfile?.style_signature) brandLines.push(`Creator style: ${creatorProfile.style_signature}`)
+    if (creatorProfile?.physical_traits) {
+      const t = creatorProfile.physical_traits
+      const str = Object.entries(t).filter(([,v]) => v).map(([k,v]) => `${k}: ${v}`).join(', ')
+      if (str) brandLines.push(`Appearance: ${str}`)
+    }
+    if (brandProfile?.name)            brandLines.push(`Brand: ${brandProfile.name}`)
+    if (brandProfile?.voice)           brandLines.push(`Brand voice: ${brandProfile.voice}`)
+    if (brandProfile?.style)           brandLines.push(`Brand style: ${brandProfile.style}`)
+    if (brandProfile?.target_audience) brandLines.push(`Target audience: ${brandProfile.target_audience}`)
+    const identityContext = brandLines.length ? brandLines.join('\n') : ''
+    const isAdCampaign = dayType === 'ad_campaign_day'
+
     // Life Engine builds the complete scene skeleton
     const engineScenes = sequenceDay({
       worldId:  resolvedWorldId,
@@ -90,7 +107,15 @@ export async function POST(req) {
 World: ${worldData.name} — ${worldData.env} — ${worldData.light}
 Day type: ${dayTypeData.label}
 Style: ${style.replace(/_/g, ' ')} | Platform: ${platform}
-
+${identityContext ? `\n${identityContext}` : ''}
+${isAdCampaign && brandProfile?.name ? `
+AD CAMPAIGN RULES — CRITICAL:
+- This is a paid ad campaign for "${brandProfile.name}". The brand MUST appear in every scene.
+- Each scene's hook, caption, and action must naturally weave in the brand name or product.
+- The brand should feel organic to the story — not forced. Show how the brand fits into this exact moment of the day.
+- Image and video prompts should include "${brandProfile.name}" product placement where natural.
+- Captions must end with a brand CTA (e.g. "Link in bio", "Shop now", or a branded hashtag).
+` : ''}
 PRE-STRUCTURED SCENES (all ${engineScenes.length} must appear in output):
 ${sceneList}
 
@@ -137,7 +162,7 @@ Return JSON with EXACTLY ${engineScenes.length} scenes — one per pre-structure
         temperature: 0.75,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user',   content: `Direct all ${engineScenes.length} scenes for ${dayTypeData.label} in ${worldData.name}. Output every scene. Do not stop early.` },
+          { role: 'user',   content: `Direct all ${engineScenes.length} scenes for ${dayTypeData.label} in ${worldData.name}.${isAdCampaign && brandProfile?.name ? ` Every scene must serve the "${brandProfile.name}" brand campaign — product woven in naturally.` : ''} Output every scene. Do not stop early.` },
         ],
       }),
     })
