@@ -46,10 +46,10 @@ function OrchestrationProgress({ steps, currentStep, title, color }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28, padding: '40px 28px' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 10, color: accentColor, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+        <div style={{ fontSize: 13, color: accentColor, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
           {title || 'AI Director is working'}
         </div>
-        <div style={{ fontSize: 11, color: C.muted, letterSpacing: 4, fontFamily: C.mono }}>{dots}</div>
+        <div style={{ fontSize: 13, color: C.muted, letterSpacing: 4, fontFamily: C.mono }}>{dots}</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0, width: '100%', maxWidth: 280 }}>
         {steps.map((step, i) => {
@@ -67,7 +67,7 @@ function OrchestrationProgress({ steps, currentStep, title, color }) {
                 <div style={{
                   width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: isDone ? 9 : 10, fontWeight: 800,
+                  fontSize: 12, fontWeight: 800,
                   background: isDone ? C.goldDim + '44' : isActive ? '#1a1030' : C.raised,
                   border: `1px solid ${isDone ? C.goldDim : isActive ? '#7c5fe0' : C.hairline}`,
                   color: isDone ? C.gold : isActive ? '#a78bfa' : C.muted,
@@ -77,12 +77,12 @@ function OrchestrationProgress({ steps, currentStep, title, color }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{
-                    fontSize: 10, fontWeight: isActive ? 700 : 400,
+                    fontSize: 13, fontWeight: isActive ? 700 : 400,
                     color: isDone ? C.secondary : isActive ? C.primary : C.muted,
                     transition: 'color 0.4s',
                   }}>{step.label}</div>
                   {isActive && step.desc && (
-                    <div style={{ fontSize: 8, color: accentColor, marginTop: 2 }}>{step.desc}</div>
+                    <div style={{ fontSize: 11, color: accentColor, marginTop: 2 }}>{step.desc}</div>
                   )}
                 </div>
                 {isActive && (
@@ -335,29 +335,29 @@ export default function FullDayPage() {
 
       {/* ── TOP BAR ── */}
       <div style={{ flexShrink: 0, padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${C.hairline}`, background: C.deep, position: 'sticky', top: 0, zIndex: 100 }}>
-        <button onClick={() => router.push('/dashboard')} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>← Dashboard</button>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 2, textTransform: 'uppercase' }}>
+        <button onClick={() => router.push('/dashboard')} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.secondary }}>← Dashboard</button>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, letterSpacing: 2, textTransform: 'uppercase' }}>
           {activeType.icon} {activeType.label}
         </div>
-        <div style={{ fontSize: 10, color: C.ghost }}>Life Engine™</div>
+        <div style={{ fontSize: 12, color: C.muted }}>Life Engine™</div>
         <div style={{ flex: 1 }} />
 
         {/* Identity badge */}
         {hasIdentity ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d` }}>
             <img src={identity.imageDataUrl} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
-            <span style={{ fontSize: 9, color: C.gold }}>✓ {identity.identityName || 'Identity'} active</span>
+            <span style={{ fontSize: 11, color: C.gold }}>✓ {identity.identityName || 'Identity'} active</span>
           </div>
         ) : (
           <button onClick={() => router.push('/prompt-engine-v3?view=studio')}
-            style={{ padding: '4px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>
+            style={{ padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.secondary }}>
             + Add Identity in Studio
           </button>
         )}
 
         {/* Projects button */}
         <button onClick={() => setShowProjects(!showProjects)}
-          style={{ padding: '4px 12px', borderRadius: 4, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: showProjects ? C.surface : 'none', color: C.secondary }}>
+          style={{ padding: '4px 12px', borderRadius: 4, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: showProjects ? C.surface : 'none', color: C.secondary }}>
           ☰ Projects {projects.length > 0 && `(${projects.length})`}
         </button>
       </div>
@@ -369,7 +369,7 @@ export default function FullDayPage() {
 
           {/* Day Type selector */}
           <div style={{ padding: '16px 16px 0' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 8 }}>Day Type</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 8 }}>Day Type</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {DAY_TYPES.map(dt => (
                 <button key={dt.id} onClick={() => setDayType(dt.id)}
@@ -382,7 +382,7 @@ export default function FullDayPage() {
                   }}>
                   <span style={{ marginRight: 8 }}>{dt.icon}</span>
                   <span>{dt.label}</span>
-                  <div style={{ fontSize: 8, color: dayType === dt.id ? dt.color + 'aa' : C.ghost, fontWeight: 400, marginTop: 2 }}>{dt.description}</div>
+                  <div style={{ fontSize: 11, color: dayType === dt.id ? dt.color + 'aa' : C.muted, fontWeight: 400, marginTop: 2 }}>{dt.description}</div>
                 </button>
               ))}
             </div>
@@ -390,25 +390,25 @@ export default function FullDayPage() {
 
           {/* World */}
           <div style={{ padding: '16px 16px 0' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 6 }}>World</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 6 }}>World</div>
             <select value={worldId} onChange={e => setWorldId(e.target.value)}
-              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 13, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
               {WORLDS.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
 
           {/* Style */}
           <div style={{ padding: '12px 16px 0' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 6 }}>Style</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 6 }}>Style</div>
             <select value={style} onChange={e => setStyle(e.target.value)}
-              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 13, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
               {STYLES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
 
           {/* Platform */}
           <div style={{ padding: '12px 16px 0' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 6 }}>Platform</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 6 }}>Platform</div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {PLATFORMS.map(p => (
                 <button key={p} onClick={() => setPlatform(p)}
@@ -422,9 +422,9 @@ export default function FullDayPage() {
           {/* Brand */}
           {brandProfiles.length > 0 && (
             <div style={{ padding: '12px 16px 0' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 6 }}>Brand</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 6 }}>Brand</div>
               <select value={activeBrand?.id || ''} onChange={e => setActiveBrand(brandProfiles.find(b => b.id === e.target.value) || null)}
-                style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
+                style={{ width: '100%', padding: '6px 8px', borderRadius: 4, fontSize: 13, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none' }}>
                 <option value=''>No brand</option>
                 {brandProfiles.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
@@ -433,23 +433,23 @@ export default function FullDayPage() {
 
           {/* Identity status */}
           <div style={{ padding: '16px', marginTop: 4 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.ghost, marginBottom: 6 }}>Identity</div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: C.secondary, marginBottom: 6 }}>Identity</div>
             {hasIdentity ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d` }}>
                 <img src={identity.imageDataUrl} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
                 <div>
-                  <div style={{ fontSize: 10, color: C.gold, fontWeight: 700 }}>✓ {identity.identityName || 'Identity'}</div>
-                  <div style={{ fontSize: 8, color: C.muted }}>Appears in every scene</div>
+                  <div style={{ fontSize: 13, color: C.gold, fontWeight: 700 }}>✓ {identity.identityName || 'Identity'}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Appears in every scene</div>
                 </div>
               </div>
             ) : (
               <div style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${C.subtle}`, background: C.surface }}>
-                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4 }}>No identity uploaded.</div>
+                <div style={{ fontSize: 12, color: C.secondary, marginBottom: 4 }}>No identity uploaded.</div>
                 <button onClick={() => router.push('/prompt-engine-v3?view=studio')}
-                  style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                  style={{ fontSize: 12, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
                   Upload photo in Studio →
                 </button>
-                <div style={{ fontSize: 8, color: C.ghost, marginTop: 3 }}>Your face will appear in every image prompt.</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>Your face will appear in every image prompt.</div>
               </div>
             )}
           </div>
@@ -458,7 +458,7 @@ export default function FullDayPage() {
           <div style={{ padding: '0 16px 16px', marginTop: 'auto' }}>
             <button onClick={generate} disabled={loading}
               style={{
-                width: '100%', padding: '12px 0', borderRadius: 8, fontSize: 12, fontWeight: 800,
+                width: '100%', padding: '12px 0', borderRadius: 8, fontSize: 14, fontWeight: 800,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 border: `1px solid ${activeType.color}88`,
                 background: loading ? C.raised : `linear-gradient(180deg, ${activeType.color}22, ${activeType.color}0a)`,
@@ -470,7 +470,7 @@ export default function FullDayPage() {
             </button>
             {result && (
               <button onClick={saveProject} disabled={saving}
-                style={{ width: '100%', padding: '8px 0', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: saving ? C.muted : (savedId ? C.green : C.secondary) }}>
+                style={{ width: '100%', padding: '8px 0', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: saving ? C.muted : (savedId ? C.green : C.secondary) }}>
                 {saving ? '⟳ Saving…' : savedId ? '✓ Saved' : '↓ Save Project'}
               </button>
             )}
@@ -483,16 +483,16 @@ export default function FullDayPage() {
           {/* Projects drawer */}
           {showProjects && (
             <div style={{ borderBottom: `1px solid ${C.hairline}`, background: C.surface, padding: '12px 24px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.secondary, marginBottom: 10 }}>Saved Projects</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 10 }}>Saved Projects</div>
               {projects.length === 0 ? (
-                <div style={{ fontSize: 10, color: C.ghost }}>No saved projects yet.</div>
+                <div style={{ fontSize: 13, color: C.secondary }}>No saved projects yet.</div>
               ) : (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {projects.map(p => (
                     <button key={p.id} onClick={() => loadProject(p)}
-                      style={{ padding: '6px 12px', borderRadius: 5, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.raised, color: C.secondary, textAlign: 'left' }}>
+                      style={{ padding: '8px 14px', borderRadius: 5, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.raised, color: C.secondary, textAlign: 'left' }}>
                       <div style={{ fontWeight: 700 }}>{p.title}</div>
-                      <div style={{ fontSize: 8, color: C.ghost }}>{p.day_type?.replace(/_/g,' ')} · {p.world_id?.replace(/_/g,' ')}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{p.day_type?.replace(/_/g,' ')} · {p.world_id?.replace(/_/g,' ')}</div>
                     </button>
                   ))}
                 </div>
@@ -560,14 +560,14 @@ export default function FullDayPage() {
                   <div style={{ display: 'flex', gap: 20, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.hairline}` }}>
                     {result.lightingArc && (
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 3 }}>Lighting Arc</div>
-                        <div style={{ fontSize: 10, color: C.muted }}>{result.lightingArc}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 4 }}>Lighting Arc</div>
+                        <div style={{ fontSize: 13, color: C.secondary }}>{result.lightingArc}</div>
                       </div>
                     )}
                     {result.wardrobeArc && (
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Wardrobe Arc</div>
-                        <div style={{ fontSize: 10, color: C.muted }}>{result.wardrobeArc}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 4 }}>Wardrobe Arc</div>
+                        <div style={{ fontSize: 13, color: C.secondary }}>{result.wardrobeArc}</div>
                       </div>
                     )}
                   </div>
@@ -602,13 +602,13 @@ export default function FullDayPage() {
 
                     {/* Scene header — always visible */}
                     <div onClick={() => setExpandedScene(isOpen ? null : idx)}
-                      style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', background: isOpen ? C.raised : C.surface, transition: 'background 0.15s' }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: activeType.color, minWidth: 44 }}>{sceneTime}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: C.primary, flex: 1 }}>{sceneLabel}</span>
-                      {sceneMood && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, border: `1px solid ${C.subtle}`, color: C.muted }}>{typeof sceneMood === 'string' ? sceneMood.split(',')[0] : sceneMood}</span>}
-                      {clipLength && <span style={{ fontSize: 9, color: C.ghost }}>{clipLength}</span>}
-                      {imgUrl && <span style={{ fontSize: 9, color: C.green }}>✓ img</span>}
-                      <span style={{ fontSize: 10, color: C.ghost }}>{isOpen ? '▲' : '▼'}</span>
+                      style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', background: isOpen ? C.raised : C.surface, transition: 'background 0.15s' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: activeType.color, minWidth: 44 }}>{sceneTime}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: C.primary, flex: 1 }}>{sceneLabel}</span>
+                      {sceneMood && <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 3, border: `1px solid ${C.subtle}`, color: C.secondary }}>{typeof sceneMood === 'string' ? sceneMood.split(',')[0] : sceneMood}</span>}
+                      {clipLength && <span style={{ fontSize: 12, color: C.muted }}>{clipLength}</span>}
+                      {imgUrl && <span style={{ fontSize: 12, color: C.green }}>✓ img</span>}
+                      <span style={{ fontSize: 12, color: C.muted }}>{isOpen ? '▲' : '▼'}</span>
                     </div>
 
                     {/* Scene body — expanded */}
@@ -618,45 +618,45 @@ export default function FullDayPage() {
                         {/* Action + setting row */}
                         {action && (
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 3 }}>Scene</div>
-                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{action}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.secondary, marginBottom: 4 }}>Scene</div>
+                            <div style={{ fontSize: 14, color: C.primary, lineHeight: 1.6 }}>{action}</div>
                           </div>
                         )}
 
                         {/* Camera / Lens / Lighting row */}
                         {(camera || lens || lighting) && (
                           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                            {camera && <div><span style={{ fontSize: 8, fontWeight: 700, color: C.tension, textTransform: 'uppercase' }}>Camera </span><span style={{ fontSize: 10, color: C.secondary }}>{camera}</span></div>}
-                            {lens   && <div><span style={{ fontSize: 8, fontWeight: 700, color: C.tension, textTransform: 'uppercase' }}>Lens </span><span style={{ fontSize: 10, color: C.secondary }}>{lens}</span></div>}
-                            {lighting && <div style={{ flex: 1 }}><span style={{ fontSize: 8, fontWeight: 700, color: C.gold, textTransform: 'uppercase' }}>Lighting </span><span style={{ fontSize: 10, color: C.muted }}>{lighting}</span></div>}
+                            {camera && <div><span style={{ fontSize: 11, fontWeight: 700, color: C.tension, textTransform: 'uppercase' }}>Camera </span><span style={{ fontSize: 13, color: C.secondary }}>{camera}</span></div>}
+                            {lens   && <div><span style={{ fontSize: 11, fontWeight: 700, color: C.tension, textTransform: 'uppercase' }}>Lens </span><span style={{ fontSize: 13, color: C.secondary }}>{lens}</span></div>}
+                            {lighting && <div style={{ flex: 1 }}><span style={{ fontSize: 11, fontWeight: 700, color: C.gold, textTransform: 'uppercase' }}>Lighting </span><span style={{ fontSize: 13, color: C.secondary }}>{lighting}</span></div>}
                           </div>
                         )}
 
                         {/* Wardrobe */}
                         {wardrobe && (
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Wardrobe</div>
-                            <div style={{ fontSize: 10, color: C.secondary }}>{wardrobe}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 4 }}>Wardrobe</div>
+                            <div style={{ fontSize: 13, color: C.primary }}>{wardrobe}</div>
                           </div>
                         )}
 
                         {/* Hook */}
                         {hook && (
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 3 }}>Hook</div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, fontFamily: C.display, lineHeight: 1.5 }}>"{hook}"</div>
-                            <button onClick={() => copyText(hook)} style={{ marginTop: 5, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: `${C.gold}11`, color: C.gold }}>copy</button>
+                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 4 }}>Hook</div>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: C.primary, fontFamily: C.display, lineHeight: 1.5 }}>"{hook}"</div>
+                            <button onClick={() => copyText(hook)} style={{ marginTop: 6, padding: '4px 10px', borderRadius: 3, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: `${C.gold}11`, color: C.gold }}>copy</button>
                           </div>
                         )}
 
                         {/* Image Prompt + inline generation */}
                         {imagePrompt && (
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue }}>Image Prompt</div>
-                              {hasIdentity && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ with your identity</span>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue }}>Image Prompt</div>
+                              {hasIdentity && <span style={{ fontSize: 11, color: C.gold, padding: '2px 6px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ with your identity</span>}
                             </div>
-                            <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono, marginBottom: 8 }}>{imagePrompt}</div>
+                            <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono, marginBottom: 8 }}>{imagePrompt}</div>
 
                             {/* Inline image result */}
                             {imgUrl ? (
@@ -664,9 +664,9 @@ export default function FullDayPage() {
                                 <img src={imgUrl} alt="Generated scene" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }} onClick={() => window.open(imgUrl, '_blank')} />
                                 <div style={{ display: 'flex', gap: 6 }}>
                                   <a href={`/api/download-image?url=${encodeURIComponent(imgUrl)}&name=scene_${idx + 1}.jpg`}
-                                    style={{ flex: 1, padding: '6px 0', borderRadius: 4, fontSize: 9, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}>↓ Download</a>
+                                    style={{ flex: 1, padding: '8px 0', borderRadius: 4, fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', color: C.gold, background: '#1a1408', border: `1px solid ${C.goldDim}`, display: 'block' }}>↓ Download</a>
                                   <button onClick={() => setSceneImages(p => { const n = {...p}; delete n[imgKey]; return n })}
-                                    style={{ padding: '6px 10px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✕</button>
+                                    style={{ padding: '8px 12px', borderRadius: 4, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✕</button>
                                 </div>
                               </div>
                             ) : (
@@ -674,10 +674,10 @@ export default function FullDayPage() {
                                 <button
                                   onClick={() => generateSceneImage(imagePrompt, idx)}
                                   disabled={isGenImg}
-                                  style={{ padding: '7px 16px', borderRadius: 5, fontSize: 10, fontWeight: 700, cursor: isGenImg ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: isGenImg ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)', color: isGenImg ? C.muted : C.gold }}>
-                                  {isGenImg ? '⟳ Generating…' : (hasIdentity ? '🎨 Generate Image' : '🎨 Generate Image')}
+                                  style={{ padding: '9px 18px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: isGenImg ? 'not-allowed' : 'pointer', border: `1px solid ${C.goldDim}`, background: isGenImg ? C.raised : 'linear-gradient(180deg,#1a1408,#0c0a04)', color: isGenImg ? C.muted : C.gold }}>
+                                  {isGenImg ? '⟳ Generating…' : '🎨 Generate Image'}
                                 </button>
-                                <button onClick={() => copyText(imagePrompt)} style={{ padding: '7px 10px', borderRadius: 5, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>copy prompt</button>
+                                <button onClick={() => copyText(imagePrompt)} style={{ padding: '9px 12px', borderRadius: 5, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.secondary }}>copy prompt</button>
                               </div>
                             )}
                             {imgErr && <div style={{ marginTop: 4, fontSize: 9, color: C.tension }}>{imgErr}</div>}
@@ -687,13 +687,13 @@ export default function FullDayPage() {
                         {/* Video Prompt */}
                         {videoPrompt && (
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green }}>Video Direction</div>
-                              {hasIdentity && <span style={{ fontSize: 8, color: C.gold, padding: '1px 5px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ identity-driven</span>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green }}>Video Direction</div>
+                              {hasIdentity && <span style={{ fontSize: 11, color: C.gold, padding: '2px 6px', borderRadius: 3, border: `1px solid ${C.goldDim}`, background: `${C.gold}11` }}>✓ identity-driven</span>}
                             </div>
-                            <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.6, fontStyle: 'italic', marginBottom: 6 }}>{videoPrompt}</div>
+                            <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6, fontStyle: 'italic', marginBottom: 8 }}>{videoPrompt}</div>
                             <div style={{ display: 'flex', gap: 6 }}>
-                              <button onClick={() => copyText(videoPrompt)} style={{ padding: '3px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}>copy script</button>
+                              <button onClick={() => copyText(videoPrompt)} style={{ padding: '5px 12px', borderRadius: 3, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.green}44`, background: `${C.green}11`, color: C.green }}>copy script</button>
                             </div>
                           </div>
                         )}
@@ -701,9 +701,9 @@ export default function FullDayPage() {
                         {/* Caption */}
                         {caption && (
                           <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 3 }}>Caption</div>
-                            <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.7 }}>{caption}</div>
-                            <button onClick={() => copyText(caption)} style={{ marginTop: 5, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>copy</button>
+                            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 4 }}>Caption</div>
+                            <div style={{ fontSize: 14, color: C.primary, lineHeight: 1.7 }}>{caption}</div>
+                            <button onClick={() => copyText(caption)} style={{ marginTop: 6, padding: '4px 10px', borderRadius: 3, fontSize: 12, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>copy</button>
                           </div>
                         )}
 
@@ -716,12 +716,12 @@ export default function FullDayPage() {
               {/* Posting schedule */}
               {(result.postingSchedule?.length > 0 || result.postingStrategy) && (
                 <div style={{ padding: 16, borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised, marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: activeType.color, marginBottom: 10 }}>Posting Plan</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: activeType.color, marginBottom: 10 }}>Posting Plan</div>
                   {result.postingStrategy && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {result.postingStrategy.fullCut && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>FULL CUT </span><span style={{ fontSize: 10, color: C.secondary }}>{result.postingStrategy.fullCut}</span></div>}
-                      {result.postingStrategy.shortFormCuts && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>SHORT CUTS </span><span style={{ fontSize: 10, color: C.secondary }}>{result.postingStrategy.shortFormCuts}</span></div>}
-                      {result.postingStrategy.reelOrder && <div><span style={{ fontSize: 9, color: C.muted, fontWeight: 700 }}>REEL ORDER </span><span style={{ fontSize: 10, color: C.secondary }}>{result.postingStrategy.reelOrder}</span></div>}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {result.postingStrategy.fullCut && <div><span style={{ fontSize: 12, color: C.secondary, fontWeight: 700 }}>FULL CUT </span><span style={{ fontSize: 13, color: C.primary }}>{result.postingStrategy.fullCut}</span></div>}
+                      {result.postingStrategy.shortFormCuts && <div><span style={{ fontSize: 12, color: C.secondary, fontWeight: 700 }}>SHORT CUTS </span><span style={{ fontSize: 13, color: C.primary }}>{result.postingStrategy.shortFormCuts}</span></div>}
+                      {result.postingStrategy.reelOrder && <div><span style={{ fontSize: 12, color: C.secondary, fontWeight: 700 }}>REEL ORDER </span><span style={{ fontSize: 13, color: C.primary }}>{result.postingStrategy.reelOrder}</span></div>}
                     </div>
                   )}
                 </div>
