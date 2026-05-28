@@ -12276,6 +12276,54 @@ export default function PromptCEOPage() {
   const [directorLoading,    setDirectorLoading]    = useState(false)
   const [directorInput,      setDirectorInput]      = useState('')
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
+  const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
+
+  // Load campaign + world memory when Director view is opened
+  useEffect(() => {
+    if (s.view !== 'ai_director' || directorMemory !== null) return
+    const loadMemory = async () => {
+      try {
+        const [camRes, worldRes] = await Promise.all([
+          supabase.from('campaign_memory').select('top_hook_types,top_platforms,top_angles,successful_patterns,created_at').order('created_at', { ascending: false }).limit(20),
+          supabase.from('world_memory').select('world_name,use_count').order('use_count', { ascending: false }).limit(5),
+        ])
+        const campaigns = camRes.data || []
+        const worlds    = worldRes.data || []
+
+        if (campaigns.length === 0 && worlds.length === 0) { setDirectorMemory({}); return }
+
+        // Aggregate hook types
+        const hookCounts = {}
+        campaigns.forEach(c => (c.top_hook_types || []).forEach(h => { hookCounts[h] = (hookCounts[h] || 0) + 1 }))
+        const bestHookType = Object.entries(hookCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || null
+
+        // Aggregate platforms
+        const platCounts = {}
+        campaigns.forEach(c => (c.top_platforms || []).forEach(p => { platCounts[p] = (platCounts[p] || 0) + 1 }))
+        const bestPlatform = Object.entries(platCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || null
+
+        // Recent style
+        const recentStyle = campaigns[0]?.successful_patterns?.style || null
+
+        // Top angles (unique)
+        const seenAngles = new Set()
+        const topAngles = []
+        campaigns.forEach(c => (c.top_angles || []).forEach(a => { if (!seenAngles.has(a) && topAngles.length < 3) { seenAngles.add(a); topAngles.push(a) } }))
+
+        setDirectorMemory({
+          campaignCount: campaigns.length,
+          bestHookType,
+          bestPlatform,
+          recentStyle,
+          topAngles,
+          topWorld: worlds[0]?.world_name || null,
+          topWorldUses: worlds[0]?.use_count || 0,
+        })
+      } catch { setDirectorMemory({}) }
+    }
+    loadMemory()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.view])
 
   const resetDirector = useCallback(() => {
     setDirectorHistory([])
@@ -16544,12 +16592,56 @@ export default function PromptCEOPage() {
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Welcome state */}
               {directorHistory.length === 0 && directorPhase === 'idle' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 24 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 24, maxWidth: 560, margin: '0 auto', width: '100%' }}>
                   <div style={{ fontSize: 32 }}>✦</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: C.display, textAlign: 'center' }}>What would you like to create?</div>
                   <div style={{ fontSize: 12, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>
                     Just tell me in plain language. I'll understand your intent, ask only what I need, and build it through the right engine automatically.
                   </div>
+
+                  {/* Memory panel */}
+                  {directorMemory && (
+                    <div style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.goldDim}40`, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                        <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Remembers</span>
+                        {directorMemory.campaignCount > 0 && (
+                          <span style={{ fontSize: 8, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''} generated</span>
+                        )}
+                      </div>
+                      {directorMemory.campaignCount > 0 ? (
+                        <div style={{ padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {[
+                            { label: 'Best hook type',  value: directorMemory.bestHookType?.replace(/_/g,' '),   icon: '🪝' },
+                            { label: 'Top world',       value: directorMemory.topWorld,                           icon: '🌍' },
+                            { label: 'Best platform',   value: directorMemory.bestPlatform,                       icon: '📱' },
+                            { label: 'Recent style',    value: directorMemory.recentStyle?.replace(/_/g,' '),     icon: '🎨' },
+                          ].map(item => item.value ? (
+                            <div key={item.label} style={{ background: C.surface, borderRadius: 6, padding: '7px 10px', border: `1px solid ${C.hairline}` }}>
+                              <div style={{ fontSize: 8, color: C.muted, marginBottom: 2 }}>{item.icon} {item.label}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, textTransform: 'capitalize' }}>{item.value}</div>
+                            </div>
+                          ) : null)}
+                          {directorMemory.topAngles?.length > 0 && (
+                            <div style={{ gridColumn: '1 / -1', background: C.surface, borderRadius: 6, padding: '7px 10px', border: `1px solid ${C.hairline}` }}>
+                              <div style={{ fontSize: 8, color: C.muted, marginBottom: 4 }}>🎯 Your strongest angles</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {directorMemory.topAngles.map((a, i) => (
+                                  <span key={i} style={{ fontSize: 9, color: C.gold, background: C.goldGlow, border: `1px solid ${C.goldDim}`, borderRadius: 3, padding: '2px 6px' }}>{typeof a === 'string' ? a.slice(0, 40) : (a?.title || '').slice(0, 40)}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '14px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, color: C.secondary, marginBottom: 3 }}>Building your creative profile…</div>
+                          <div style={{ fontSize: 9, color: C.muted }}>Generate a few campaigns and I'll start remembering what works for your audience.</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Quick-start buttons */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 520 }}>
                     {[
