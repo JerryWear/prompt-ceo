@@ -328,30 +328,41 @@ export async function POST(req) {
     const analysis = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState)
 
     const intent = analysis.intent || null
+    // 1. collectedParams wins over AI extraction — user-confirmed answers always take priority
     const extractedParams = {
-      ...collectedParams,
-      ...(analysis.params || {}),
+      ...(analysis.params || {}),  // AI-extracted context — lowest priority
+      ...collectedParams,           // User-confirmed answers always override AI extraction
     }
-    // Strip nulls
+    // Strip nulls from AI extraction (collectedParams values are never null)
     Object.keys(extractedParams).forEach(k => { if (extractedParams[k] === null) delete extractedParams[k] })
 
-    // Auto-apply context from identity + brand (highest priority after explicit user message)
+    // ── Resolution priority 2–5: fill before asking any question ────────────
+    // 2. Active brand profile — overrides AI-extracted placeholder values,
+    //    but never overrides a param the user explicitly confirmed (collectedParams)
     if (identity?.identityName && !extractedParams.creatorName) {
       extractedParams.creatorName = identity.identityName
     }
-    if (brandProfile?.name && !extractedParams.productName) {
+    if (brandProfile?.name && !collectedParams.productName) {
       extractedParams.productName = brandProfile.name
     }
-    if (brandProfile?.style && !extractedParams.style) {
+    if (brandProfile?.style && !collectedParams.style) {
       extractedParams.style = brandProfile.style
     }
-    // Auto-apply from current app state (lower priority than brand profile)
+    // 3. App state — current ad studio settings
     if (appState?.adPlatform && !extractedParams.platform) extractedParams.platform = appState.adPlatform
     if (appState?.adStyle && !extractedParams.style) extractedParams.style = appState.adStyle
-    // Auto-apply from historical memory (lowest priority — only fills what nothing else set)
+    // 4. Director memory — historical patterns
     if (memory?.recentStyle && !extractedParams.style) extractedParams.style = memory.recentStyle
     if (memory?.bestPlatform && !extractedParams.platform) extractedParams.platform = memory.bestPlatform
     if (memory?.topWorld && !extractedParams.world) extractedParams.world = memory.topWorld
+    // 5. Inferred defaults — final fallback before asking
+    //    productName and imagePrompt intentionally omitted — genuinely unknown, must ask
+    if (!extractedParams.goal)     extractedParams.goal     = 'brand_awareness'
+    if (!extractedParams.type)     extractedParams.type     = 'personal_brand'
+    if (!extractedParams.style)    extractedParams.style    = 'cinematic'
+    if (!extractedParams.platform) extractedParams.platform = 'instagram'
+    if (!extractedParams.world)    extractedParams.world    = 'luxury_penthouse'
+    if (!extractedParams.dayType)  extractedParams.dayType  = 'luxury_creator_day'
 
     // If no intent yet, respond with a clarifying opener
     if (!intent) {
