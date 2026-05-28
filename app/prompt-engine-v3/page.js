@@ -16139,7 +16139,7 @@ export default function PromptCEOPage() {
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.primary, letterSpacing: 0.5 }}>Campaign Flow</span>
                     <span style={{ fontSize: 11, color: C.muted, marginLeft: 2 }}>— 6 stages</span>
                   </div>
-                  <div style={{ padding: '6px 10px' }}>
+                  <div style={{ padding: '6px 10px', maxHeight: 210, overflowY: 'auto' }}>
                     {[
                       { num: '01', icon: '✦', label: 'Director Intent',   desc: 'Natural language command', color: C.gold },
                       { num: '02', icon: '◧', label: 'Identity + World',  desc: 'Visual foundation',        color: C.violet },
