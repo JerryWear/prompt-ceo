@@ -85,56 +85,46 @@ export async function POST(req) {
       `  Camera:   ${s.camera} — ${s.lens}`
     )).join('\n\n')
 
-    const systemPrompt = `You are a world-class cinematic video director and production designer. You create full-day video production plans that feel like premium editorial films.
+    const systemPrompt = `You are a world-class cinematic director. Respond ONLY with raw valid JSON — no markdown, no explanation.
 
-World: ${worldData.name} — ${worldData.env}
-Lighting signature: ${worldData.light}
-Vibe: ${worldData.vibe}
-Day type: ${dayTypeData.label} — ${dayTypeData.description}
-Visual style: ${style.replace(/_/g, ' ')}
-Platform: ${platform}
+World: ${worldData.name} — ${worldData.env} — ${worldData.light}
+Day type: ${dayTypeData.label}
+Style: ${style.replace(/_/g, ' ')} | Platform: ${platform}
 
-The Life Engine has pre-structured the day into ${engineScenes.length} scenes. Your job is to direct each one cinematically.
-
-PRE-STRUCTURED SCENES:
+PRE-STRUCTURED SCENES (all ${engineScenes.length} must appear in output):
 ${sceneList}
 
-For each scene, add cinematic direction: exact camera move, dialogue hint, transition, clip length, video prompt, short-form clip cut, and caption hook. Keep the structure the Life Engine gave you — enhance it with director-level detail.
+Return JSON with EXACTLY ${engineScenes.length} scenes — one per pre-structured scene above. Be concise per field (1 sentence max each).
 
-Respond ONLY with raw valid JSON:
 {
   "productionTitle": "short cinematic title",
-  "directorStatement": "2-sentence vision for this day",
-  "lightingArc": "how lighting progresses morning to night",
-  "wardrobeArc": "how wardrobe evolves across the day",
+  "directorStatement": "1-sentence vision",
+  "lightingArc": "1-sentence lighting progression",
+  "wardrobeArc": "1-sentence wardrobe evolution",
   "scenes": [
     {
       "id": "scene_01",
       "time": "06:30",
       "title": "scene title",
-      "setting": "exact location within the world",
-      "action": "what the subject is doing — specific and visual",
-      "cameraMove": "exact camera movement",
-      "lensType": "lens choice and reason",
-      "lightingNote": "specific lighting for this scene",
-      "wardrobe": "exact outfit",
-      "emotion": "dominant emotion and energy",
-      "hook": "social hook line for this scene",
-      "caption": "full caption for this scene",
-      "dialogueHint": "spoken line or sound, or null",
-      "transitionTo": "transition to next scene",
-      "clipLength": "e.g. 8-12 seconds",
-      "videoPrompt": "full AI video generation prompt, 3-5 sentences",
-      "imagePrompt": "full AI image generation prompt, 2-3 sentences",
-      "shortFormClip": "how to cut this into a 3-5 second viral clip",
-      "captionLine": "one hook-style caption line"
+      "setting": "location (1 phrase)",
+      "action": "what subject does (1 sentence)",
+      "cameraMove": "camera move (1 phrase)",
+      "lensType": "lens (1 phrase)",
+      "lightingNote": "lighting (1 phrase)",
+      "wardrobe": "outfit (1 phrase)",
+      "emotion": "emotion (2-3 words)",
+      "hook": "social hook line",
+      "caption": "platform caption with CTA",
+      "clipLength": "e.g. 8 seconds",
+      "videoPrompt": "AI video prompt (2 sentences)",
+      "imagePrompt": "AI image prompt (2 sentences)",
+      "shortFormClip": "viral cut description (1 sentence)"
     }
   ],
   "postingStrategy": {
-    "fullCut": "description of the full-day edit",
-    "highlights": ["scene_01", "scene_05"],
-    "shortFormCuts": "description of viral short clips",
-    "reelOrder": "recommended posting order"
+    "fullCut": "full edit description",
+    "shortFormCuts": "short clips description",
+    "reelOrder": "posting order"
   }
 }`
 
@@ -143,11 +133,11 @@ Respond ONLY with raw valid JSON:
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiApiKey}` },
       body: JSON.stringify({
         model:       'grok-3-fast',
-        max_tokens:  6000,
+        max_tokens:  16000,
         temperature: 0.75,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user',   content: `Direct the full ${dayTypeData.label} in ${worldData.name}. Every scene must feel cinematic. Lighting must progress naturally. Wardrobe must evolve. Emotion must build.` },
+          { role: 'user',   content: `Direct all ${engineScenes.length} scenes for ${dayTypeData.label} in ${worldData.name}. Output every scene. Do not stop early.` },
         ],
       }),
     })
