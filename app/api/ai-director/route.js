@@ -208,15 +208,75 @@ const INTENTS = {
   },
 }
 
-// Grok call for intent + param extraction from conversation
-async function analyzeConversation(apiKey, history, collectedParams, memory, appState) {
+// ── Director intelligence helpers ────────────────────────────────────────────
+
+const WORLD_DISPLAY_NAMES = {
+  luxury_penthouse:   'Luxury Penthouse',
+  maldives_villa:     'Maldives Villa',
+  bali_villa:         'Bali Villa',
+  dubai_highrise:     'Dubai High-Rise',
+  paris_apartment:    'Paris Apartment',
+  greek_islands:      'Greek Islands',
+  miami_penthouse:    'Miami Penthouse',
+  coastal_house:      'Coastal House',
+  ski_chalet:         'Ski Chalet',
+  urban_apartment:    'Urban Apartment',
+  tokyo_apartment:    'Tokyo Apartment',
+  countryside_estate: 'Countryside Estate',
+  monaco:             'Monaco',
+  amalfi:             'Amalfi Coast',
+  london_penthouse:   'London Penthouse',
+}
+
+function buildDirectorSuggestions(memory, brandProfile) {
+  const s = {}
+  if (memory?.topWorld)     s.world    = { value: memory.topWorld,     reason: `top world — used ${memory.topWorldUses || 'most'} times` }
+  if (memory?.recentStyle)  s.style    = { value: memory.recentStyle,  reason: 'most recent style' }
+  if (memory?.bestPlatform) s.platform = { value: memory.bestPlatform, reason: 'best-performing platform' }
+  if (memory?.bestHookType) s.hookType = { value: memory.bestHookType, reason: 'highest-performing hook type' }
+  if (brandProfile?.style && !s.style) s.style = { value: brandProfile.style, reason: `${brandProfile.name} brand style` }
+  return s
+}
+
+function buildReadyMessage(intentLabel, params) {
+  const world   = WORLD_DISPLAY_NAMES[params.world] || (params.world || '').replace(/_/g, ' ')
+  const style   = (params.style || 'cinematic').replace(/_/g, ' ')
+  const platform = params.platform || 'instagram'
+  const product  = params.productName || null
+  switch (intentLabel) {
+    case 'Perfect Day':      return `${world}, ${style} — building the full day now.`
+    case 'Full Day Video':   return `${world}, ${style} video production plan — on it.`
+    case 'Full Ad Campaign': return product ? `30-day campaign for ${product} — ${platform}, ${style} style. Building now.` : `30-day campaign — ${platform}, ${style} style. Building now.`
+    case 'Instant Campaign': return product ? `Quick campaign for ${product}. Running now.` : 'Quick campaign — running now.'
+    case 'Studio Image':     return 'Sending to Studio.'
+    default:                 return `Building your ${intentLabel}.`
+  }
+}
+
+// Grok call for intent + param extraction + Director voice
+async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions) {
   const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
 
   const memoryCtx = memory?.campaignCount > 0
-    ? `\nUser history: ${memory.campaignCount} campaign(s) generated. Best hook type: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld || 'none'}. Best platform: ${memory.bestPlatform || 'none'}. Recent style: ${memory.recentStyle || 'none'}.`
-    : ''
-  const appStateCtx = appState
-    ? `\nApp context: currently on "${appState.view || 'unknown'}" view. Has existing campaign: ${appState.hasCampaign}. Has Perfect Day: ${appState.hasPerfectDay}. Has Full Day Video: ${appState.hasFullDayVideo}. Ad platform: ${appState.adPlatform || 'none'}. Ad style: ${appState.adStyle || 'none'}.`
+    ? `User campaign history: ${memory.campaignCount} campaign(s) generated. Best hook type: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld || 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform || 'none'}. Most recent style: ${memory.recentStyle || 'none'}.`
+    : 'User campaign history: No campaigns yet.'
+
+  const brandCtx = brandProfile?.name
+    ? `Active brand: "${brandProfile.name}". Voice: ${brandProfile.voice || 'not set'}. Target audience: ${brandProfile.target_audience || 'not set'}. Brand style: ${brandProfile.style || 'not set'}.`
+    : 'Active brand: none.'
+
+  const identityCtx = identity?.identityName ? `Creator identity in Studio: "${identity.identityName}".` : ''
+
+  const appStateLines = []
+  if (appState?.view) appStateLines.push(`Current view: ${appState.view.replace(/_/g, ' ')}.`)
+  if (appState?.hasPerfectDay)  appStateLines.push('Has an existing Perfect Day built — a campaign to match it would be a logical next step.')
+  if (appState?.hasFullDayVideo) appStateLines.push('Has a Full Day Video built — could be extended into campaign content.')
+  if ((memory?.campaignCount || 0) >= 5) appStateLines.push(`Strong library of ${memory.campaignCount} campaigns — could evolve the approach or try deliberate contrast.`)
+  if ((memory?.campaignCount || 0) === 0) appStateLines.push('First session — minimize questions, establish strong defaults.')
+  const appCtx = appStateLines.join(' ')
+
+  const suggestionsCtx = Object.keys(suggestions).length > 0
+    ? `Suggested defaults from user history:\n${Object.entries(suggestions).map(([k, v]) => `- ${k}: ${v.value} (${v.reason})`).join('\n')}`
     : ''
 
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -224,28 +284,34 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: 'grok-3-fast',
-      max_tokens: 600,
-      temperature: 0.2,
+      max_tokens: 800,
+      temperature: 0.3,
       messages: [
         {
           role: 'system',
-          content: `You are PromptCEO's AI Conversation Director. Your job is to understand what creative output the user wants and extract parameters from their messages.
+          content: `You are the AI Director for PromptCEO — a creative intelligence layer for content creators and brands.
 
-Available intents:
-- perfect_day: A cinematic full-day lifestyle story (12 moments, image prompts, hooks, captions)
-- full_day_video: A full cinematic video production plan with scenes, camera moves, lighting arc
-- full_campaign: A 30-day strategic ad campaign with 5 phases
-- instant_campaign: A quick ad campaign for rapid deployment
-- studio_image: Generate a specific single image
+Your personality:
+- Strategic and calm. You know what good campaigns look like. You guide, you don't just ask.
+- Reference user history by specific name — not "your top world" but "Maldives Villa" or "Dubai High-Rise".
+- Recommend rather than ask blank questions. "I'd use Maldives here given your history — want that, or somewhere new?" beats "Which world?".
+- Concise: 2 sentences maximum for directorMessage. 3 only for the very first message when there is no campaign history.
+- Never start with affirmations. No "Great!", "Sure!", "Absolutely!", "Got it!", "Perfect!", "Of course!". Start directly with the insight, the recommendation, or the confirmation.
+- Do not explain what PromptCEO does — the user already knows. Just direct the creation.
+- When suggestions exist for a missing param, frame the directorMessage as a recommendation toward that value, not a blank question.
+- Sound like a creative director who has reviewed the user's work — informed, direct, makes calls.
 
-Available worlds: maldives_villa, luxury_penthouse, bali_villa, dubai_highrise, paris_apartment, greek_islands, miami_penthouse, coastal_house, ski_chalet, urban_apartment, tokyo_apartment, countryside_estate
-Available styles: luxury, aspirational_lifestyle, cinematic, soft_feminine, dark_luxury, ugc, emotional, high_status, fitness_motivation, viral, high_energy, corporate_authority, dark_luxury
+${memoryCtx}
+${brandCtx}
+${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected params: ${JSON.stringify(collectedParams)}
+
+Available intents: perfect_day, full_day_video, full_campaign, instant_campaign, studio_image
+Available worlds: luxury_penthouse, maldives_villa, bali_villa, dubai_highrise, paris_apartment, greek_islands, miami_penthouse, coastal_house, ski_chalet, urban_apartment, tokyo_apartment, countryside_estate, monaco, amalfi, london_penthouse
+Available styles: luxury, aspirational_lifestyle, cinematic, soft_feminine, dark_luxury, ugc, emotional, high_status, fitness_motivation, viral, high_energy, corporate_authority
 Available goals: sales, followers, brand_awareness, leads, high_ticket, viral_reach, premium_positioning
 Available platforms: instagram, tiktok, meta_ads, youtube, linkedin
 Available dayTypes: luxury_creator_day, beach_creator_day, wellness_retreat_day, romantic_travel_day, fitness_lifestyle_day, business_power_day, fashion_content_day, foodie_luxury_day
 Available types: product, personal_brand, creator, ecommerce, coaching, saas, fashion, luxury
-
-Already collected params: ${JSON.stringify(collectedParams)}${memoryCtx}${appStateCtx}
 
 Respond with ONLY raw valid JSON — no markdown, no explanation.`,
         },
@@ -257,7 +323,7 @@ ${historyText}
 Extract:
 {
   "intent": "perfect_day" | "full_day_video" | "full_campaign" | "instant_campaign" | "studio_image" | null,
-  "understood": "short confirmation under 12 words",
+  "directorMessage": "2-sentence Director voice response — reference specific history data by name, frame a recommendation toward the next required param if one is needed, no affirmations",
   "params": {
     "productName": "...",
     "world": "...",
@@ -270,7 +336,7 @@ Extract:
   }
 }
 
-Only include params that are clearly stated. Use null for anything uncertain.`,
+Only include params clearly stated or strongly inferable. Use null for anything uncertain.`,
         },
       ],
     }),
@@ -324,8 +390,11 @@ export async function POST(req) {
     // Add latest message to history
     const fullHistory = [...history, { role: 'user', content: message.trim() }]
 
-    // Analyze conversation to extract intent + params
-    const analysis = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState)
+    // Build recommendation suggestions from memory + brand — pure JS, no API call
+    const suggestions = buildDirectorSuggestions(memory, brandProfile)
+
+    // Analyze conversation: intent + params + Director voice
+    const analysis = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions)
 
     const intent = analysis.intent || null
     // 1. collectedParams wins over AI extraction — user-confirmed answers always take priority
@@ -368,14 +437,15 @@ export async function POST(req) {
     if (!intent) {
       return NextResponse.json({
         phase: 'clarify',
-        understood: analysis.understood || "Tell me what you'd like to create",
+        directorMessage: analysis.directorMessage || null,
+        understood: analysis.directorMessage || "Tell me what you'd like to create",
         question: "What would you like to build today?",
         options: [
-          { value: 'perfect_day',    label: '☀ Perfect Day — cinematic full-day story' },
-          { value: 'full_day_video', label: '🎬 Full Day Video — cinematic video production plan' },
-          { value: 'full_campaign',  label: '◈ Full Ad Campaign — 30-day strategic campaign' },
+          { value: 'perfect_day',      label: '☀ Perfect Day — cinematic full-day story' },
+          { value: 'full_day_video',   label: '🎬 Full Day Video — cinematic video production plan' },
+          { value: 'full_campaign',    label: '◈ Full Ad Campaign — 30-day strategic campaign' },
           { value: 'instant_campaign', label: '⚡ Instant Campaign — quick campaign, ready in seconds' },
-          { value: 'studio_image',   label: '◧ Studio Image — generate a specific image' },
+          { value: 'studio_image',     label: '◧ Studio Image — generate a specific image' },
         ],
         intent: null,
         collectedParams: extractedParams,
@@ -395,7 +465,8 @@ export async function POST(req) {
       const q = intentDef.questions[missingParam]
       return NextResponse.json({
         phase: 'clarify',
-        understood: analysis.understood || `Building your ${intentDef.label}`,
+        directorMessage: analysis.directorMessage || null,
+        understood: analysis.directorMessage || `Building your ${intentDef.label}`,
         question: q.text,
         options: q.options || null,
         freeText: q.freeText || false,
@@ -424,9 +495,11 @@ export async function POST(req) {
       }
     }
 
+    const readyMsg = buildReadyMessage(intentDef.label, extractedParams)
     return NextResponse.json({
       phase: 'ready',
-      understood: `Ready — building your ${intentDef.label}`,
+      directorMessage: readyMsg,
+      understood: readyMsg,
       intent,
       engine: intentDef.engine,
       params: finalParams,

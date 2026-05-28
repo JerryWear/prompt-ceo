@@ -11962,6 +11962,46 @@ function OrchestrationPanel({ s, activeBrandProfile }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// AI DIRECTOR — pure JS helpers (no API calls)
+// ─────────────────────────────────────────────────────────────
+
+function buildDirectorOpener(memory, activeBrandProfile) {
+  if (!memory || memory.campaignCount === 0) return null
+  const facts = []
+  if (memory.campaignCount === 1)      facts.push('One campaign in the library.')
+  else if (memory.campaignCount <= 5)  facts.push(`${memory.campaignCount} campaigns built.`)
+  else                                  facts.push(`${memory.campaignCount} campaigns in the library.`)
+  if (memory.topWorld)      facts.push(`${memory.topWorld.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} is your go-to world.`)
+  if (memory.bestHookType)  facts.push(`${memory.bestHookType.replace(/_/g, ' ')} hooks are your strongest.`)
+  if (activeBrandProfile?.name) facts.push(`Working with ${activeBrandProfile.name}.`)
+  return facts.length > 0 ? facts.join(' ') + ' What are we building next?' : null
+}
+
+function buildDirectorQuickStarts(memory, activeBrandProfile) {
+  const starters = []
+  if (memory?.topWorld) {
+    const wLabel = memory.topWorld.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    starters.push({ label: `☀ Perfect Day — ${wLabel}`, msg: `Create a perfect day in ${memory.topWorld.replace(/_/g, ' ')} for my brand` })
+  } else {
+    starters.push({ label: '☀ Perfect Day in Maldives', msg: 'Create a perfect day in Maldives Villa for my luxury lifestyle brand' })
+  }
+  if (activeBrandProfile?.name) {
+    starters.push({ label: `◈ Campaign for ${activeBrandProfile.name}`, msg: `Build a full 30-day ad campaign for ${activeBrandProfile.name}` })
+  } else {
+    starters.push({ label: '◈ Full Ad Campaign', msg: 'Build a full 30-day ad campaign for my brand' })
+  }
+  starters.push({ label: '🎬 Full Day Video', msg: 'Make a full cinematic day video for my personal brand' })
+  if (memory?.bestPlatform && memory.bestPlatform !== 'instagram') {
+    const pLabel = memory.bestPlatform.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    starters.push({ label: `⚡ ${pLabel} Campaign`, msg: `Create a quick ${memory.bestPlatform.replace(/_/g, ' ')} campaign for my brand` })
+  } else {
+    starters.push({ label: '⚡ Instant Campaign', msg: 'Create a quick campaign for my product launch' })
+  }
+  starters.push({ label: '◧ Generate Image', msg: 'Create a cinematic luxury lifestyle image for my feed' })
+  return starters.slice(0, 5)
+}
+
+// ─────────────────────────────────────────────────────────────
 // MAIN PAGE COMPONENT
 // ─────────────────────────────────────────────────────────────
 
@@ -12489,9 +12529,10 @@ export default function PromptCEOPage() {
 
       if (data.phase === 'clarify') {
         // AI is asking a clarifying question
+        const dm = data.directorMessage || data.understood || ''
         setDirectorHistory(h => [...h, {
           role:     'ai',
-          content:  data.understood ? `${data.understood}\n\n${data.question}` : data.question,
+          content:  dm && data.question ? `${dm}\n\n${data.question}` : (dm || data.question || ''),
           options:  data.options || null,
           freeText: data.freeText || false,
           placeholder: data.placeholder || null,
@@ -12501,7 +12542,7 @@ export default function PromptCEOPage() {
 
       } else if (data.phase === 'ready') {
         // All params collected — execute the engine
-        setDirectorHistory(h => [...h, { role: 'ai', content: data.understood }])
+        setDirectorHistory(h => [...h, { role: 'ai', content: data.directorMessage || data.understood }])
         setDirectorPhase('executing')
         setDirectorLoading(false)
 
@@ -16820,9 +16861,12 @@ export default function PromptCEOPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 24, maxWidth: 560, margin: '0 auto', width: '100%' }}>
                   <div style={{ fontSize: 32 }}>✦</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: C.display, textAlign: 'center' }}>What would you like to create?</div>
-                  <div style={{ fontSize: 12, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>
-                    Just tell me in plain language. I'll understand your intent, ask only what I need, and build it through the right engine automatically.
-                  </div>
+                  {(() => {
+                    const opener = buildDirectorOpener(directorMemory, activeBrandProfile)
+                    return opener
+                      ? <div style={{ fontSize: 12, color: C.secondary, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>{opener}</div>
+                      : <div style={{ fontSize: 12, color: C.muted, textAlign: 'center', maxWidth: 400, lineHeight: 1.8 }}>Just tell me in plain language. I'll understand your intent, ask only what I need, and build it through the right engine automatically.</div>
+                  })()}
 
                   {/* Memory panel */}
                   {directorMemory && (
@@ -16872,15 +16916,9 @@ export default function PromptCEOPage() {
                     </div>
                   )}
 
-                  {/* Quick-start buttons */}
+                  {/* Quick-start buttons — personalized from memory */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 520 }}>
-                    {[
-                      { label: '☀ Perfect Day in Bali', msg: 'Create a perfect day in Bali for my luxury lifestyle brand' },
-                      { label: '🎬 Full Day Video', msg: 'Make a full cinematic day video for my personal brand' },
-                      { label: '◈ Full Ad Campaign', msg: 'Build a full 30-day ad campaign for my brand' },
-                      { label: '⚡ Instant Campaign', msg: 'Create a quick campaign for my product launch' },
-                      { label: '◧ Generate Image', msg: 'Create a cinematic luxury lifestyle image for my feed' },
-                    ].map(q => (
+                    {buildDirectorQuickStarts(directorMemory, activeBrandProfile).map(q => (
                       <button key={q.label} onClick={() => { setDirectorInput(q.msg); setTimeout(() => directorSend(q.msg), 50) }}
                         style={{ padding: '8px 14px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
                         onMouseEnter={e => { e.target.style.borderColor = C.goldDim; e.target.style.color = C.gold }}
