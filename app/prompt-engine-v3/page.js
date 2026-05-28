@@ -15767,7 +15767,7 @@ export default function PromptCEOPage() {
                   <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 800, color: C.primary, letterSpacing: 1, textTransform: 'uppercase' }}>
                     Campaign Flow
                   </div>
-                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 220, overflowY: 'auto' }}>
                     {[
                       { icon: '✦', label: 'Director Intent',   desc: 'Natural language command' },
                       { icon: '↓', label: null },
