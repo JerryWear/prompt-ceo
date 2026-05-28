@@ -15764,7 +15764,7 @@ export default function PromptCEOPage() {
               {/* ── CAMPAIGN FLOW ── shown when no content generated yet */}
               {!result?.finalPrompt && batch.length === 0 && (
                 <div style={{ borderRadius: 7, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
-                  <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 800, color: C.primary, letterSpacing: 1, textTransform: 'uppercase' }}>
                     Campaign Flow
                   </div>
                   <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -15784,12 +15784,12 @@ export default function PromptCEOPage() {
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0' }}>
                         <span style={{ fontSize: 11, width: 16, textAlign: 'center', flexShrink: 0 }}>{step.icon}</span>
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: C.secondary }}>{step.label}</div>
-                          <div style={{ fontSize: 8, color: C.ghost }}>{step.desc}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{step.label}</div>
+                          <div style={{ fontSize: 8, color: C.secondary }}>{step.desc}</div>
                         </div>
                       </div>
                     ) : (
-                      <div key={i} style={{ paddingLeft: 20, fontSize: 8, color: C.hairline }}>│</div>
+                      <div key={i} style={{ paddingLeft: 20, fontSize: 8, color: C.muted }}>│</div>
                     ))}
                   </div>
                 </div>
