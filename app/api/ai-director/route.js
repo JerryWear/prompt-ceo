@@ -209,8 +209,15 @@ const INTENTS = {
 }
 
 // Grok call for intent + param extraction from conversation
-async function analyzeConversation(apiKey, history, collectedParams) {
+async function analyzeConversation(apiKey, history, collectedParams, memory, appState) {
   const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
+
+  const memoryCtx = memory?.campaignCount > 0
+    ? `\nUser history: ${memory.campaignCount} campaign(s) generated. Best hook type: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld || 'none'}. Best platform: ${memory.bestPlatform || 'none'}. Recent style: ${memory.recentStyle || 'none'}.`
+    : ''
+  const appStateCtx = appState
+    ? `\nApp context: currently on "${appState.view || 'unknown'}" view. Has existing campaign: ${appState.hasCampaign}. Has Perfect Day: ${appState.hasPerfectDay}. Has Full Day Video: ${appState.hasFullDayVideo}. Ad platform: ${appState.adPlatform || 'none'}. Ad style: ${appState.adStyle || 'none'}.`
+    : ''
 
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -238,7 +245,7 @@ Available platforms: instagram, tiktok, meta_ads, youtube, linkedin
 Available dayTypes: luxury_creator_day, beach_creator_day, wellness_retreat_day, romantic_travel_day, fitness_lifestyle_day, business_power_day, fashion_content_day, foodie_luxury_day
 Available types: product, personal_brand, creator, ecommerce, coaching, saas, fashion, luxury
 
-Already collected params: ${JSON.stringify(collectedParams)}
+Already collected params: ${JSON.stringify(collectedParams)}${memoryCtx}${appStateCtx}
 
 Respond with ONLY raw valid JSON — no markdown, no explanation.`,
         },
@@ -306,6 +313,8 @@ export async function POST(req) {
       brandProfile = null,
       creatorProfile = null,
       projectId = null,
+      memory = null,     // { campaignCount, bestHookType, topWorld, bestPlatform, recentStyle, topAngles }
+      appState = null,   // { view, hasCampaign, hasPerfectDay, hasFullDayVideo, adPlatform, adStyle, adGoal }
     } = body
 
     if (!message?.trim()) {
@@ -316,7 +325,7 @@ export async function POST(req) {
     const fullHistory = [...history, { role: 'user', content: message.trim() }]
 
     // Analyze conversation to extract intent + params
-    const analysis = await analyzeConversation(xaiApiKey, fullHistory, collectedParams)
+    const analysis = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState)
 
     const intent = analysis.intent || null
     const extractedParams = {
@@ -326,7 +335,7 @@ export async function POST(req) {
     // Strip nulls
     Object.keys(extractedParams).forEach(k => { if (extractedParams[k] === null) delete extractedParams[k] })
 
-    // Auto-apply context from identity + brand
+    // Auto-apply context from identity + brand (highest priority after explicit user message)
     if (identity?.identityName && !extractedParams.creatorName) {
       extractedParams.creatorName = identity.identityName
     }
@@ -336,6 +345,13 @@ export async function POST(req) {
     if (brandProfile?.style && !extractedParams.style) {
       extractedParams.style = brandProfile.style
     }
+    // Auto-apply from current app state (lower priority than brand profile)
+    if (appState?.adPlatform && !extractedParams.platform) extractedParams.platform = appState.adPlatform
+    if (appState?.adStyle && !extractedParams.style) extractedParams.style = appState.adStyle
+    // Auto-apply from historical memory (lowest priority — only fills what nothing else set)
+    if (memory?.recentStyle && !extractedParams.style) extractedParams.style = memory.recentStyle
+    if (memory?.bestPlatform && !extractedParams.platform) extractedParams.platform = memory.bestPlatform
+    if (memory?.topWorld && !extractedParams.world) extractedParams.world = memory.topWorld
 
     // If no intent yet, respond with a clarifying opener
     if (!intent) {
