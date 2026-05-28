@@ -19,7 +19,7 @@ function adminClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
-async function ask(apiKey, prompt, maxTokens = 2000) {
+async function ask(apiKey, prompt, maxTokens = 2000, sysPrompt = null) {
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -29,7 +29,7 @@ async function ask(apiKey, prompt, maxTokens = 2000) {
       messages: [
         {
           role: 'system',
-          content: 'You are a world-class advertising strategist and direct-response copywriter. Respond with ONLY raw valid JSON — no markdown, no code fences, no explanation.',
+          content: sysPrompt || 'You are a world-class advertising strategist and direct-response copywriter. Respond with ONLY raw valid JSON — no markdown, no code fences, no explanation.',
         },
         { role: 'user', content: prompt },
       ],
@@ -46,6 +46,35 @@ function tryJSON(text, fallback = []) {
     const match = stripped.match(/[\[{][\s\S]*[\]}]/)
     return match ? JSON.parse(match[0]) : fallback
   } catch { return fallback }
+}
+
+const WORLD_COPY_INSTRUCTIONS = {
+  luxury_penthouse:   'Stillness and precision. Reference silence, space, and light. Luxury means restraint — never loudness.',
+  maldives_villa:     'Sensory immersion — water, heat, endless horizon. Every moment feels like escape from ordinary life.',
+  bali_villa:         'Spiritual depth and natural richness. Inner peace meets outer beauty. Ancient meets modern luxury.',
+  dubai_highrise:     'Ambition and scale. Everything is the most dramatic version. Power and status are the subtext.',
+  paris_apartment:    'Understated European elegance. Cultured references. Time moves differently here. Quality over quantity.',
+  greek_islands:      'Light and contrast — electric blue, white stone, warm evenings. Freedom from complexity.',
+  miami_penthouse:    'Heat and colour. Glamour is unapologetic. Sun always wins. Energy without apology.',
+  coastal_house:      'Natural texture — salt air, raw wood, honest materials. Luxury without pretension.',
+  ski_chalet:         'Warmth earned against cold. The reward inside justified by the mountain outside. Comfort that means something.',
+  urban_apartment:    'Efficiency and edge. City energy. Everything intentional, nothing wasted. Urban confidence.',
+  tokyo_apartment:    'Contrast: quiet zen interior meets neon city outside. Precision and poetry in equal measure.',
+  countryside_estate: 'Deep roots and old confidence. No rush. Legacy over trend. Permanence over flash.',
+  monaco:             'Old-world status and harbour glamour. Exclusivity is the point. Nothing needs explaining.',
+  amalfi:             'Warmth and abundance. Italian light, lemon groves, the Mediterranean slow life.',
+  london_penthouse:   'Grey-gold confidence. British understatement. Power that does not need to announce itself.',
+}
+
+const PLATFORM_COPY_INSTRUCTIONS = {
+  instagram:  'Write for feed scroll. Readers pause and consider. Longer captions work. Aesthetic and evocative language.',
+  tiktok:     'Write for spoken word delivery. Hook lands in the first 2 seconds. Short punchy sentences. Sound-on assumption.',
+  youtube:    'Write for discovery. Hook must earn the click. Educational or surprising angle. One clear promise per piece.',
+  meta:       'Write for cold audience. No brand familiarity assumed. Pain-first or pattern-break opening. Hard CTA required.',
+  facebook:   'Write for cold audience. No brand familiarity assumed. Pain-first or pattern-break opening. Hard CTA required.',
+  twitter:    'Write for text feed. Ideas over aesthetics. Punchy, opinionated, quotable lines.',
+  linkedin:   'Write for professional trust. Outcomes and results. Case study framing. No luxury posturing.',
+  pinterest:  'Write for discovery and aspiration. Search-friendly language. Inspiration-first.',
 }
 
 export async function POST(req) {
@@ -125,6 +154,24 @@ export async function POST(req) {
       creatorProfile?.name ? `Creator: ${creatorProfile.name}` : '',
     ].filter(Boolean).join('\n')
 
+    // ── Intelligence layer: brand voice, world atmosphere, platform tone ─────
+    const systemPrompt = (brandProfile?.voice || brandProfile?.name)
+      ? [
+          brandProfile.name ? `You are writing in the voice of: ${brandProfile.name}.` : null,
+          brandProfile.voice ? `Brand voice: ${brandProfile.voice}.` : null,
+          brandProfile.target_audience ? `Target audience: ${brandProfile.target_audience}.` : null,
+          'Every line must sound like this brand, not generic ad copy.',
+          'Respond with ONLY raw valid JSON — no markdown, no code fences, no explanation.',
+        ].filter(Boolean).join('\n')
+      : null
+
+    const worldInstruction    = WORLD_COPY_INSTRUCTIONS[resolvedWorldId] || ''
+    const platformInstruction = PLATFORM_COPY_INSTRUCTIONS[platform] || ''
+    const copySuffix = [
+      worldInstruction    ? `\nWorld atmosphere: ${worldInstruction}` : '',
+      platformInstruction ? `Platform tone: ${platformInstruction}` : '',
+    ].filter(Boolean).join('\n')
+
     // ── STEP 1 — Parallel: Attention hooks + Story scripts + Desire prompts ──
     const [attentionRaw, storyRaw, desireImageRaw] = await Promise.all([
       ask(xaiApiKey, `
@@ -145,8 +192,8 @@ Write 5 attention hooks, one per archetype:
 5. emotional_open — an emotion the viewer recognizes instantly
 
 Return JSON array: [{"archetype":"pattern_break","hook":"..."},...]
-Each hook under 15 words. No selling.
-`, 800),
+Each hook under 15 words. No selling.${copySuffix}
+`, 800, systemPrompt),
 
       ask(xaiApiKey, `
 Campaign context:
@@ -161,8 +208,8 @@ Write 3 story scripts:
 3. origin_story — why this product exists, the moment it started
 
 Return JSON array: [{"type":"transformation_story","script":"...","hook":"opening line under 12 words"},...]
-Each script 3–5 sentences. First person. Specific details. No marketing language.
-`, 1200),
+Each script 3–5 sentences. First person. Specific details. No marketing language.${copySuffix}
+`, 1200, systemPrompt),
 
       ask(xaiApiKey, `
 Campaign context:
@@ -206,12 +253,13 @@ Write 3 conversion ads:
 3. social_proof — results, numbers, outcomes, testimonial format
 
 Return JSON array: [{"type":"direct_offer","copy":"...","cta":"..."},...]
-Each under 30 words. Hard CTA at the end. Platform: ${platform}.
-`, 800),
+Each under 30 words. Hard CTA at the end. Platform: ${platform}.${copySuffix}
+`, 800, systemPrompt),
 
       ask(xaiApiKey, `
 Campaign context:
 ${ctx}
+This audience already saw earlier campaign content. They are not cold. The campaign opened with a "${attentionHooks[0]?.archetype || 'curiosity'}" hook ("${bestHook}") and a "${storyScripts[0]?.type || 'transformation_story'}" story. Retargeting continues that conversation — do not restart it.
 
 Phase: RETARGETING (Phase 5 of 5)
 Goal: Win back the ones who almost bought. Reinforce, remind, reassure.
@@ -222,8 +270,8 @@ Write 3 retargeting ads:
 3. objection_handle — addresses the most common reason people hesitate
 
 Return JSON array: [{"type":"soft_reminder","copy":"..."},...]
-Human and honest tone. No aggression.
-`, 800),
+Human and honest tone. No aggression.${copySuffix}
+`, 800, systemPrompt),
 
       ask(xaiApiKey, `
 Campaign context:
@@ -235,8 +283,8 @@ Write 10 ${platform} captions for this campaign.
 Mix: 2 awareness (curiosity, no selling), 2 connection (emotional, personal), 3 desire (aspiration, lifestyle), 2 conversion (offer + CTA), 1 retargeting (reminder).
 Vary length: 3 short (under 50 words), 4 medium (50–120 words), 3 long (120–200 words).
 
-Return JSON array: [{"phase":"awareness","caption":"..."},...]
-`, 2500),
+Return JSON array: [{"phase":"awareness","caption":"..."},...]${copySuffix}
+`, 2500, systemPrompt),
 
       ask(xaiApiKey, `
 Campaign context:
@@ -250,8 +298,8 @@ Write 5 short-form video scripts, one per campaign phase:
 5. retargeting (10–20s): familiar and warm, reminder or testimonial, soft close
 
 Return JSON array: [{"phase":"awareness","duration":"0-15s","script":"...","direction":"camera/visual note"},...]
-Scripts in spoken word form. Natural language.
-`, 1500),
+Scripts in spoken word form. Natural language.${copySuffix}
+`, 1500, systemPrompt),
     ])
 
     const conversionAds  = tryJSON(conversionRaw, [])
