@@ -15994,7 +15994,7 @@ export default function PromptCEOPage() {
                 const hasContent = hasAngles || hookTypes > 0
 
                 return (
-                  <div style={{ borderRadius: 8, border: `1px solid ${C.goldDim}`, background: 'linear-gradient(160deg, #0c0a04, #080806)', overflow: 'hidden' }}>
+                  <div style={{ borderRadius: 8, border: `1px solid ${C.goldDim}`, background: 'linear-gradient(160deg, #0c0a04, #080806)', flexShrink: 0 }}>
                     {/* Header */}
                     <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14 }}>✦</span>
@@ -16134,7 +16134,7 @@ export default function PromptCEOPage() {
 
               {/* ── CAMPAIGN FLOW ── shown when no content generated yet */}
               {!result?.finalPrompt && batch.length === 0 && (
-                <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden', background: C.deep }}>
+                <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.deep, flexShrink: 0 }}>
                   <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.primary, letterSpacing: 0.5 }}>Campaign Flow</span>
                     <span style={{ fontSize: 11, color: C.muted, marginLeft: 2 }}>— 6 stages</span>
