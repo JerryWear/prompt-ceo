@@ -147,6 +147,90 @@ const AD_CAMPAIGN_STEPS = [
   { id: 'schedule', icon: '📅', label: 'Building 30-day schedule',      desc: 'Platform-optimised posting plan' },
 ]
 
+// ─────────────────────────────────────────────────────────────
+// 14-MOMENT DAY SKELETON — preview before generation
+// ─────────────────────────────────────────────────────────────
+const DAY_MOMENTS_PREVIEW = [
+  { time: '06:00', label: 'Morning Ritual',   energy: 4, phase: 'dawn',        light: '#2a3a5a' },
+  { time: '07:00', label: 'First Light',      energy: 5, phase: 'dawn',        light: '#6a5a2a' },
+  { time: '08:00', label: 'Fuel + Focus',     energy: 6, phase: 'morning',     light: '#c8a84b' },
+  { time: '09:30', label: 'World Entry',      energy: 7, phase: 'morning',     light: '#d0b060' },
+  { time: '11:00', label: 'Peak Energy',      energy: 9, phase: 'midday',      light: '#e0d8c0' },
+  { time: '13:00', label: 'Midday Reset',     energy: 6, phase: 'midday',      light: '#d8d0b8' },
+  { time: '14:30', label: 'Creation Window',  energy: 8, phase: 'afternoon',   light: '#c8b870' },
+  { time: '16:00', label: 'Golden Connect',   energy: 8, phase: 'afternoon',   light: '#b89840' },
+  { time: '17:30', label: 'Transition',       energy: 6, phase: 'golden',      light: '#e06428' },
+  { time: '18:30', label: 'Golden Hour',      energy: 9, phase: 'golden',      light: '#c84020' },
+  { time: '20:00', label: 'Evening Presence', energy: 7, phase: 'evening',     light: '#4a3878' },
+  { time: '21:30', label: 'Night Ritual',     energy: 5, phase: 'evening',     light: '#2a1a50' },
+  { time: '23:00', label: 'Reflection',       energy: 4, phase: 'night',       light: '#1a1238' },
+  { time: '00:00', label: 'Close of Day',     energy: 3, phase: 'night',       light: '#0a0820' },
+]
+
+function DayTimelinePreview({ title, subtitle, accentColor, onGenerate, btnLabel }) {
+  const maxEnergy = 9
+  return (
+    <div style={{ maxWidth: 580, margin: '0 auto', padding: '8px 0', width: '100%' }}>
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 9, color: accentColor || C.gold, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>14-Moment Day Arc</div>
+        <div style={{ fontSize: 11, color: C.muted }}>{subtitle}</div>
+      </div>
+
+      {/* Lighting gradient bar */}
+      <div style={{ height: 6, borderRadius: 3, marginBottom: 6, background: `linear-gradient(90deg, ${DAY_MOMENTS_PREVIEW.map(m => m.light).join(', ')})`, opacity: 0.7 }} />
+
+      {/* Energy arc bars */}
+      <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 36, marginBottom: 4 }}>
+        {DAY_MOMENTS_PREVIEW.map((m, i) => (
+          <div key={i} title={`${m.time} ${m.label}`} style={{ flex: 1, borderRadius: '2px 2px 0 0', background: m.light, opacity: 0.6 + (m.energy / maxEnergy) * 0.4, height: `${(m.energy / maxEnergy) * 100}%`, transition: 'height 0.3s', minHeight: 4 }} />
+        ))}
+      </div>
+
+      {/* Timeline dots + times */}
+      <div style={{ display: 'flex', gap: 2, alignItems: 'center', marginBottom: 8 }}>
+        {DAY_MOMENTS_PREVIEW.map((m, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: m.light, opacity: 0.8 }} />
+            {(i === 0 || i === 4 || i === 9 || i === 13) && (
+              <div style={{ fontSize: 6, color: C.muted, whiteSpace: 'nowrap' }}>{m.time}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Phase labels */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+        {[
+          { label: 'Dawn',      color: '#3a4a7a', span: 2 },
+          { label: 'Morning',   color: '#c8a84b', span: 2 },
+          { label: 'Midday',    color: '#e0d8c0', span: 2 },
+          { label: 'Afternoon', color: '#c8b870', span: 2 },
+          { label: 'Golden',    color: '#e06428', span: 2 },
+          { label: 'Evening',   color: '#4a3878', span: 2 },
+          { label: 'Night',     color: '#1a1238', span: 2 },
+        ].map(p => (
+          <div key={p.label} style={{ flex: p.span, textAlign: 'center', padding: '3px 0', borderRadius: 3, background: p.color + '28', border: `1px solid ${p.color}40` }}>
+            <span style={{ fontSize: 7, fontWeight: 700, color: p.color, textTransform: 'uppercase', letterSpacing: 0.8 }}>{p.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* What gets generated */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, justifyContent: 'center' }}>
+        {['Hook per scene', 'Image prompt', 'Video direction', 'Caption', 'Posting slot'].map(item => (
+          <span key={item} style={{ fontSize: 9, color: C.secondary, background: C.raised, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 8px' }}>{item}</span>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <button onClick={onGenerate} style={{ padding: '10px 28px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${(accentColor || C.gold) + '80'}`, background: (accentColor || C.gold) + '14', color: accentColor || C.gold, letterSpacing: 0.3 }}>
+          {btnLabel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AdLoadingState({ outputType }) {
   const [lineIndex, setLineIndex] = useState(0)
   const [tick, setTick] = useState(0)
@@ -12237,6 +12321,7 @@ export default function PromptCEOPage() {
   // ── Crown Upgrade: Perfect Day™ ─────────────────────────
   const [perfectDayResult,    setPerfectDayResult]    = useState(null)
   const [perfectDayLoading,   setPerfectDayLoading]   = useState(false)
+  const [perfectDayOrchStep,  setPerfectDayOrchStep]  = useState('world')
   const [perfectDayWorldId,   setPerfectDayWorldId]   = useState('luxury_penthouse')
   const [perfectDayPlatform,  setPerfectDayPlatform]  = useState('instagram')
   const [perfectDayStyle,     setPerfectDayStyle]     = useState('aspirational_lifestyle')
@@ -12245,6 +12330,10 @@ export default function PromptCEOPage() {
   const generatePerfectDay = useCallback(async () => {
     if (perfectDayLoading) return
     setPerfectDayLoading(true)
+    setPerfectDayOrchStep('world')
+    let pa = setTimeout(() => setPerfectDayOrchStep('sequence'), 1500)
+    let pb = setTimeout(() => setPerfectDayOrchStep('cinematic'), 4000)
+    let pc = setTimeout(() => setPerfectDayOrchStep('hooks'), 7000)
     try {
       const res = await fetch('/api/perfect-day', {
         method: 'POST',
@@ -12266,6 +12355,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (!data.error) setPerfectDayResult(data)
     } catch {}
+    clearTimeout(pa); clearTimeout(pb); clearTimeout(pc)
     setPerfectDayLoading(false)
   }, [perfectDayLoading, perfectDayWorldId, perfectDayStyle, perfectDayPlatform, creatorProfiles, activeBrandProfile, s.activeProjectId, s.traits, s.identityName])
 
@@ -12472,6 +12562,7 @@ export default function PromptCEOPage() {
   // ── Full Day Video™ ──────────────────────────────────────
   const [fullDayResult,   setFullDayResult]   = useState(null)
   const [fullDayLoading,  setFullDayLoading]  = useState(false)
+  const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
   const [fullDayStyle,    setFullDayStyle]    = useState('cinematic')
@@ -12481,6 +12572,10 @@ export default function PromptCEOPage() {
   const generateFullDay = useCallback(async () => {
     if (fullDayLoading) return
     setFullDayLoading(true)
+    setFullDayOrchStep('world')
+    let fa = setTimeout(() => setFullDayOrchStep('sequence'), 1500)
+    let fb = setTimeout(() => setFullDayOrchStep('cinematic'), 4000)
+    let fc = setTimeout(() => setFullDayOrchStep('hooks'), 7000)
     try {
       const res = await fetch('/api/full-day-generate', {
         method: 'POST',
@@ -12502,6 +12597,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (!data.error) setFullDayResult(data)
     } catch {}
+    clearTimeout(fa); clearTimeout(fb); clearTimeout(fc)
     setFullDayLoading(false)
   }, [fullDayLoading, fullDayWorld, fullDayType, fullDayStyle, fullDayPlatform, creatorProfiles, s.traits, s.identityName, activeBrandProfile, s.activeProjectId])
 
@@ -16799,25 +16895,20 @@ export default function PromptCEOPage() {
             {/* Content */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
               {!fullDayResult && !fullDayLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
-                  <div style={{ fontSize: 36 }}>🎬</div>
-                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Full cinematic day video production</div>
-                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
-                    12 directed scenes with camera moves, lighting arc, wardrobe progression, video prompts, and short-form cuts.
-                    {s.hasImage
-                      ? <><br /><span style={{ color: C.gold }}>✓ {s.identityName || 'Your identity'} will appear in every scene.</span></>
-                      : <><br />Upload your photo in Studio for identity-driven video direction.</>}
-                  </div>
-                  <button onClick={generateFullDay} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
-                    🎬 Direct Full Day
-                  </button>
-                </div>
+                <DayTimelinePreview
+                  subtitle="14 directed scenes — each gets camera moves, lens choice, lighting direction, wardrobe, video prompt, and short-form cut."
+                  accentColor={C.violet}
+                  onGenerate={generateFullDay}
+                  btnLabel="🎬 Direct Full Day"
+                />
               )}
               {fullDayLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
-                  <div style={{ fontSize: 28, animation: 'spin 2s linear infinite' }}>⟳</div>
-                  <div style={{ fontSize: 12 }}>Directing your cinematic day…</div>
-                  <div style={{ fontSize: 10, color: C.ghost }}>12 scenes · camera moves · lighting arc · wardrobe · video prompts</div>
+                <div style={{ display: 'flex', height: '100%' }}>
+                  <OrchestrationProgress
+                    steps={FULL_DAY_STEPS}
+                    currentStep={fullDayOrchStep}
+                    title="Directing your cinematic day"
+                  />
                 </div>
               )}
               {fullDayResult && !fullDayLoading && (
@@ -17004,26 +17095,20 @@ export default function PromptCEOPage() {
             {/* Content */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
               {!perfectDayResult && !perfectDayLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
-                  <div style={{ fontSize: 40 }}>☀</div>
-                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Create a cinematic perfect day</div>
-                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
-                    Choose a world above and generate a full day — 12 cinematic moments with hooks, image prompts, captions, and video scripts.<br /><br />
-                    {s.hasImage
-                      ? <><span style={{ color: C.gold }}>✓ Identity active</span> — every image prompt will direct the AI to feature <strong style={{ color: C.secondary }}>{s.identityName || 'you'}</strong> in each scene.</>
-                      : <>Want your face in every moment? <button onClick={() => set('view', 'studio')} style={{ fontSize: 11, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Upload your photo in Studio</button> first.</>
-                    }
-                  </div>
-                  <button onClick={generatePerfectDay} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
-                    ☀ Generate Perfect Day
-                  </button>
-                </div>
+                <DayTimelinePreview
+                  subtitle="Choose your world above, then generate a full day — each of the 14 moments gets a hook, image prompt, caption, and video script."
+                  accentColor={C.gold}
+                  onGenerate={generatePerfectDay}
+                  btnLabel="☀ Generate Perfect Day"
+                />
               )}
               {perfectDayLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
-                  <div style={{ fontSize: 28, animation: 'spin 2s linear infinite' }}>⟳</div>
-                  <div style={{ fontSize: 12 }}>Directing your cinematic day…</div>
-                  <div style={{ fontSize: 10, color: C.ghost }}>12 moments · hooks · captions · image prompts · video scripts</div>
+                <div style={{ display: 'flex', height: '100%' }}>
+                  <OrchestrationProgress
+                    steps={FULL_DAY_STEPS}
+                    currentStep={perfectDayOrchStep}
+                    title="Directing your Perfect Day"
+                  />
                 </div>
               )}
               {perfectDayResult && !perfectDayLoading && (
