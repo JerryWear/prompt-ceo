@@ -16139,7 +16139,7 @@ export default function PromptCEOPage() {
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.primary, letterSpacing: 0.5 }}>Campaign Flow</span>
                     <span style={{ fontSize: 11, color: C.muted, marginLeft: 2 }}>— 6 stages</span>
                   </div>
-                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 230, overflowY: 'auto' }}>
                     {[
                       { num: '01', icon: '✦', label: 'Director Intent',   desc: 'Natural language command', color: C.gold },
                       { num: '02', icon: '◧', label: 'Identity + World',  desc: 'Visual foundation',        color: C.violet },
@@ -16149,18 +16149,18 @@ export default function PromptCEOPage() {
                       { num: '06', icon: '🎬', label: 'Video + Export',      desc: 'Production ready',        color: C.secondary },
                     ].map((step, i, arr) => (
                       <div key={i}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 6, background: step.color + '18', border: `1px solid ${step.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <span style={{ fontSize: 13 }}>{step.icon}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                          <div style={{ width: 22, height: 22, borderRadius: 5, background: step.color + '18', border: `1px solid ${step.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 11 }}>{step.icon}</span>
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, lineHeight: 1.3 }}>{step.label}</div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{step.desc}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, lineHeight: 1.3 }}>{step.label}</div>
+                            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{step.desc}</div>
                           </div>
-                          <span style={{ fontSize: 11, color: step.color, fontWeight: 800, opacity: 0.7 }}>{step.num}</span>
+                          <span style={{ fontSize: 10, color: step.color, fontWeight: 800, opacity: 0.6 }}>{step.num}</span>
                         </div>
                         {i < arr.length - 1 && (
-                          <div style={{ marginLeft: 13, width: 2, height: 10, background: `linear-gradient(${C.hairline}, ${C.hairline})`, borderRadius: 1 }} />
+                          <div style={{ marginLeft: 10, width: 1, height: 8, background: C.hairline }} />
                         )}
                       </div>
                     ))}
