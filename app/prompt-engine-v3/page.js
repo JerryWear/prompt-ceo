@@ -12463,12 +12463,8 @@ export default function PromptCEOPage() {
           appState: {
             view:            s.view || null,
             activeProjectId: s.activeProjectId || null,
-            hasCampaign:     !!fullCampaignResult,
             hasPerfectDay:   !!perfectDayResult,
             hasFullDayVideo: !!fullDayResult,
-            adPlatform:      adPlatform || null,
-            adStyle:         adStyle || null,
-            adGoal:          adGoal || null,
           },
         }),
       })
@@ -12568,7 +12564,7 @@ export default function PromptCEOPage() {
     }
     setDirectorLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [directorLoading, directorHistory, directorParams, s.hasImage, s.imageDataUrl, s.identityName, s.traits, activeBrandProfile, creatorProfiles, s.activeProjectId, resetDirector, directorMemory, fullCampaignResult, perfectDayResult, adPlatform, adStyle, adGoal, s.view])
+  }, [directorLoading, directorHistory, directorParams, s.hasImage, s.imageDataUrl, s.identityName, s.traits, activeBrandProfile, creatorProfiles, s.activeProjectId, resetDirector])
 
   // ── Full Day Video™ ──────────────────────────────────────
   const [fullDayResult,   setFullDayResult]   = useState(null)
