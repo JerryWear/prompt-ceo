@@ -15994,51 +15994,54 @@ export default function PromptCEOPage() {
                 const hasContent = hasAngles || hookTypes > 0
 
                 return (
-                  <div style={{ borderRadius: 7, border: `1px solid ${C.goldDim}`, background: 'linear-gradient(160deg, #0c0a04, #080806)', overflow: 'hidden' }}>
+                  <div style={{ borderRadius: 8, border: `1px solid ${C.goldDim}`, background: 'linear-gradient(160deg, #0c0a04, #080806)', overflow: 'hidden' }}>
                     {/* Header */}
-                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13 }}>✦</span>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 0.5 }}>AI Intelligence</span>
-                      <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}` }} />
+                    <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>✦</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: C.gold, letterSpacing: 0.5 }}>AI Intelligence</span>
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 11, color: C.green }}>Live</span>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, boxShadow: `0 0 8px ${C.green}` }} />
+                      </div>
                     </div>
 
                     {/* Active session */}
-                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5, borderBottom: `1px solid ${C.hairline}` }}>
+                    <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, borderBottom: `1px solid ${C.hairline}` }}>
                       {[
-                        { label: 'World',     value: s.worldId ? s.worldId.replace(/_/g,' ') : 'None',           color: s.worldId ? C.blue : C.ghost },
-                        { label: 'Style',     value: (s.directorPreset && s.directorPreset !== 'none' ? s.directorPreset : (s.style||'cinematic')).replace(/_/g,' '), color: C.violet },
-                        { label: 'Platform',  value: s.platform || 'instagram',                                   color: C.secondary },
-                        { label: 'Identity',  value: s.hasImage ? (s.identityName || 'Active') : 'Missing',      color: s.hasImage ? C.green : C.tension },
+                        { label: 'Active World',     value: s.worldId ? s.worldId.replace(/_/g,' ') : 'No world selected',  color: s.worldId ? C.blue : C.ghost },
+                        { label: 'Visual Style',     value: (s.directorPreset && s.directorPreset !== 'none' ? s.directorPreset : (s.style||'cinematic')).replace(/_/g,' '), color: C.violet },
+                        { label: 'Platform Target',  value: s.platform || 'instagram',                                       color: C.secondary },
+                        { label: 'Identity',         value: s.hasImage ? (s.identityName || 'Active') : 'No identity',       color: s.hasImage ? C.green : C.tension },
                       ].map(row => (
-                        <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <span style={{ fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{row.label}</span>
-                          <span style={{ fontSize: 10, color: row.color, fontWeight: 600, textAlign: 'right', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</span>
+                        <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase' }}>{row.label}</span>
+                          <span style={{ fontSize: 12, color: row.color, fontWeight: 700, textAlign: 'right', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</span>
                         </div>
                       ))}
                     </div>
 
                     {/* Director suggests */}
-                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.hairline}` }}>
-                      <div style={{ fontSize: 8, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Director suggests</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: 12, flexShrink: 0, lineHeight: 1.4 }}>{rec.icon}</span>
-                        <span style={{ fontSize: 10, color: C.secondary, lineHeight: 1.5 }}>{rec.text}</span>
+                    <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 7 }}>Director Suggests</div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 6, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                        <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.3 }}>{rec.icon}</span>
+                        <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.55 }}>{rec.text}</span>
                       </div>
                     </div>
 
                     {/* Continuity locks */}
-                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.hairline}` }}>
-                      <div style={{ fontSize: 8, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Continuity</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                    <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Continuity</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
                         {[
                           { label: 'Identity',     locked: s.hasImage,               color: C.green },
                           { label: 'World',        locked: !!s.worldId,              color: C.blue },
-                          { label: 'Brand voice',  locked: !!activeBrandProfile,     color: C.violet },
+                          { label: 'Brand Voice',  locked: !!activeBrandProfile,     color: C.violet },
                           { label: 'Style',        locked: !!(s.style || s.directorPreset), color: C.secondary },
                         ].map(item => (
-                          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', borderRadius: 4, background: item.locked ? item.color + '0f' : C.raised, border: `1px solid ${item.locked ? item.color + '30' : C.hairline}` }}>
-                            <span style={{ fontSize: 8, color: item.locked ? item.color : C.muted }}>{item.locked ? '●' : '○'}</span>
-                            <span style={{ fontSize: 8, color: item.locked ? item.color : C.muted, fontWeight: item.locked ? 700 : 400 }}>{item.label}</span>
+                          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 5, background: item.locked ? item.color + '12' : C.raised, border: `1px solid ${item.locked ? item.color + '40' : C.hairline}` }}>
+                            <span style={{ fontSize: 11, color: item.locked ? item.color : C.muted }}>{item.locked ? '●' : '○'}</span>
+                            <span style={{ fontSize: 11, color: item.locked ? item.color : C.muted, fontWeight: item.locked ? 700 : 400 }}>{item.label}</span>
                           </div>
                         ))}
                       </div>
@@ -16046,21 +16049,21 @@ export default function PromptCEOPage() {
 
                     {/* Session pacing — shows when content is generated */}
                     {hasContent && (
-                      <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.hairline}` }}>
-                        <div style={{ fontSize: 8, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Session pacing</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Session Pacing</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {[
-                            { label: 'Angles',    done: hasAngles,          color: C.blue },
-                            { label: 'Hooks',     done: hookTypes > 0,      color: C.violet,  sub: hookTypes > 0 ? `${hookTypes} type${hookTypes > 1 ? 's' : ''}` : null },
-                            { label: 'Captions',  done: hasCaptions,        color: C.green },
-                            { label: 'UGC Scripts', done: hasUGC,           color: C.tension },
+                            { label: 'Angles',      done: hasAngles,    color: C.blue },
+                            { label: 'Hooks',       done: hookTypes > 0, color: C.violet, sub: hookTypes > 0 ? `${hookTypes} type${hookTypes > 1 ? 's' : ''}` : null },
+                            { label: 'Captions',    done: hasCaptions,  color: C.green },
+                            { label: 'UGC Scripts', done: hasUGC,       color: C.tension },
                           ].map(item => (
-                            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <div style={{ width: 14, height: 14, borderRadius: '50%', border: `1px solid ${item.done ? item.color : C.hairline}`, background: item.done ? item.color + '20' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <span style={{ fontSize: 7, color: item.done ? item.color : C.muted }}>{item.done ? '✓' : '·'}</span>
+                            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 18, height: 18, borderRadius: '50%', border: `1px solid ${item.done ? item.color : C.hairline}`, background: item.done ? item.color + '20' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <span style={{ fontSize: 10, color: item.done ? item.color : C.muted }}>{item.done ? '✓' : '·'}</span>
                               </div>
-                              <span style={{ fontSize: 9, color: item.done ? item.color : C.muted, flex: 1 }}>{item.label}</span>
-                              {item.sub && <span style={{ fontSize: 8, color: C.muted }}>{item.sub}</span>}
+                              <span style={{ fontSize: 12, color: item.done ? item.color : C.muted, flex: 1 }}>{item.label}</span>
+                              {item.sub && <span style={{ fontSize: 11, color: C.muted }}>{item.sub}</span>}
                             </div>
                           ))}
                         </div>
@@ -16068,60 +16071,60 @@ export default function PromptCEOPage() {
                     )}
 
                     {/* Performance signal from memory */}
-                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.hairline}` }}>
-                      <div style={{ fontSize: 8, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Performance signal</div>
+                    <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 7 }}>Performance Signal</div>
                       {directorMemory?.campaignCount > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {directorMemory.bestHookType && (
-                            <div style={{ fontSize: 9, color: C.secondary }}>
+                            <div style={{ fontSize: 12, color: C.secondary }}>
                               <span style={{ color: C.muted }}>Best hook: </span>
                               <span style={{ color: C.primary, fontWeight: 700, textTransform: 'capitalize' }}>{directorMemory.bestHookType.replace(/_/g,' ')}</span>
                             </div>
                           )}
                           {directorMemory.topWorld && (
-                            <div style={{ fontSize: 9, color: C.secondary }}>
+                            <div style={{ fontSize: 12, color: C.secondary }}>
                               <span style={{ color: C.muted }}>Top world: </span>
                               <span style={{ color: C.primary, fontWeight: 700, textTransform: 'capitalize' }}>{directorMemory.topWorld} ({directorMemory.topWorldUses}×)</span>
                             </div>
                           )}
                           {directorMemory.bestPlatform && (
-                            <div style={{ fontSize: 9, color: C.secondary }}>
+                            <div style={{ fontSize: 12, color: C.secondary }}>
                               <span style={{ color: C.muted }}>Best platform: </span>
                               <span style={{ color: C.primary, fontWeight: 700 }}>{directorMemory.bestPlatform}</span>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.5 }}>Generate campaigns to unlock performance patterns. Memory builds over time.</div>
+                        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Generate campaigns to unlock performance patterns.</div>
                       )}
                     </div>
 
                     {/* Hook type benchmarks */}
-                    <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.hairline}` }}>
-                      <div style={{ fontSize: 8, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Hook type strength</div>
+                    <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}` }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Hook Type Strength</div>
                       {[
-                        { label: 'Curiosity',      strength: 0.88, color: C.violet },
-                        { label: 'Desire',         strength: 0.78, color: C.tension },
-                        { label: 'Social proof',   strength: 0.65, color: C.blue },
-                        { label: 'Pain point',     strength: 0.58, color: C.secondary },
-                        { label: 'Direct offer',   strength: 0.42, color: C.muted },
+                        { label: 'Curiosity',     strength: 0.88, color: C.violet },
+                        { label: 'Desire',        strength: 0.78, color: C.tension },
+                        { label: 'Social proof',  strength: 0.65, color: C.blue },
+                        { label: 'Pain point',    strength: 0.58, color: C.secondary },
+                        { label: 'Direct offer',  strength: 0.42, color: C.muted },
                       ].map(h => (
-                        <div key={h.label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                          <span style={{ fontSize: 8, color: C.muted, width: 68, flexShrink: 0 }}>{h.label}</span>
-                          <div style={{ flex: 1, height: 3, borderRadius: 2, background: C.hairline, overflow: 'hidden' }}>
+                        <div key={h.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                          <span style={{ fontSize: 11, color: C.secondary, width: 78, flexShrink: 0 }}>{h.label}</span>
+                          <div style={{ flex: 1, height: 4, borderRadius: 2, background: C.hairline, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${h.strength * 100}%`, background: h.color, borderRadius: 2 }} />
                           </div>
+                          <span style={{ fontSize: 11, color: C.muted, width: 28, textAlign: 'right' }}>{Math.round(h.strength * 100)}%</span>
                         </div>
                       ))}
-                      <div style={{ fontSize: 7, color: C.ghost, marginTop: 4 }}>typical platform benchmarks</div>
                     </div>
 
                     {/* Action buttons */}
-                    <div style={{ padding: '6px 10px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <button onClick={() => set('view', 'ai_director')} style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                    <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
+                      <button onClick={() => set('view', 'ai_director')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
                         ✦ Ask Director
                       </button>
-                      <button onClick={() => set('view', 'perfect_day')} style={{ flex: 1, padding: '5px 0', borderRadius: 3, fontSize: 9, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>
+                      <button onClick={() => set('view', 'perfect_day')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>
                         ☀ Perfect Day
                       </button>
                     </div>
@@ -16131,33 +16134,35 @@ export default function PromptCEOPage() {
 
               {/* ── CAMPAIGN FLOW ── shown when no content generated yet */}
               {!result?.finalPrompt && batch.length === 0 && (
-                <div style={{ borderRadius: 7, border: `1px solid ${C.hairline}`, overflow: 'hidden' }}>
-                  <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.hairline}`, fontSize: 9, fontWeight: 800, color: C.primary, letterSpacing: 1, textTransform: 'uppercase' }}>
-                    Campaign Flow
+                <div style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, overflow: 'hidden', background: C.deep }}>
+                  <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.primary, letterSpacing: 0.5 }}>Campaign Flow</span>
+                    <span style={{ fontSize: 11, color: C.muted, marginLeft: 2 }}>— 6 stages</span>
                   </div>
-                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 220, overflowY: 'auto' }}>
+                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 0 }}>
                     {[
-                      { icon: '✦', label: 'Director Intent',   desc: 'Natural language command' },
-                      { icon: '↓', label: null },
-                      { icon: '◧', label: 'Identity + World',   desc: 'Visual foundation' },
-                      { icon: '↓', label: null },
-                      { icon: '☀', label: 'Perfect Day',         desc: 'Full lifestyle arc' },
-                      { icon: '↓', label: null },
-                      { icon: '📣', label: 'Ad Campaign',         desc: '30-day funnel' },
-                      { icon: '↓', label: null },
-                      { icon: '◈', label: 'Full Campaign',        desc: 'Hooks + copy + schedule' },
-                      { icon: '↓', label: null },
-                      { icon: '🎬', label: 'Video + Export',       desc: 'Production ready' },
-                    ].map((step, i) => step.label ? (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0' }}>
-                        <span style={{ fontSize: 11, width: 16, textAlign: 'center', flexShrink: 0 }}>{step.icon}</span>
-                        <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: C.primary }}>{step.label}</div>
-                          <div style={{ fontSize: 8, color: C.secondary }}>{step.desc}</div>
+                      { num: '01', icon: '✦', label: 'Director Intent',   desc: 'Natural language command', color: C.gold },
+                      { num: '02', icon: '◧', label: 'Identity + World',  desc: 'Visual foundation',        color: C.violet },
+                      { num: '03', icon: '☀', label: 'Perfect Day',        desc: 'Full lifestyle arc',       color: C.blue },
+                      { num: '04', icon: '📣', label: 'Ad Campaign',        desc: '30-day content funnel',   color: C.tension },
+                      { num: '05', icon: '◈', label: 'Full Campaign',       desc: 'Hooks · copy · schedule', color: C.green },
+                      { num: '06', icon: '🎬', label: 'Video + Export',      desc: 'Production ready',        color: C.secondary },
+                    ].map((step, i, arr) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 6, background: step.color + '18', border: `1px solid ${step.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 13 }}>{step.icon}</span>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, lineHeight: 1.3 }}>{step.label}</div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{step.desc}</div>
+                          </div>
+                          <span style={{ fontSize: 11, color: step.color, fontWeight: 800, opacity: 0.7 }}>{step.num}</span>
                         </div>
+                        {i < arr.length - 1 && (
+                          <div style={{ marginLeft: 13, width: 2, height: 10, background: `linear-gradient(${C.hairline}, ${C.hairline})`, borderRadius: 1 }} />
+                        )}
                       </div>
-                    ) : (
-                      <div key={i} style={{ paddingLeft: 20, fontSize: 8, color: C.muted }}>│</div>
                     ))}
                   </div>
                 </div>
