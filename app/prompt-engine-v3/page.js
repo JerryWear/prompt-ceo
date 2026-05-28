@@ -878,7 +878,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       merge({ adTextGenerating: true, adTextType: type, adTextError: '' })
       const res = await fetch('/api/generate-ad-text', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, hookType: hookType || null, adConfig: config }),
+        body: JSON.stringify({ type, hookType: hookType || null, adConfig: config, brandProfile: activeBrandProfile || null }),
       })
       const data = await res.json()
       merge({ adTextGenerating: false })
@@ -981,7 +981,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     try {
       const res = await fetch('/api/full-campaign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product: productName, platform: adPlatform, projectId: s.activeProjectId }),
+        body: JSON.stringify({ product: productName, platform: adPlatform, projectId: s.activeProjectId, brandProfile: activeBrandProfile || null, creatorProfile: null }),
       })
       setFullCampaignStep('schedule')
       const data = await res.json()

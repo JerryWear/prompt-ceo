@@ -49,10 +49,20 @@ export async function POST(req) {
     if (!canGenerateText(userRow)) return NextResponse.json({ error: 'Subscription required', upgradeRequired: true }, { status: 402 })
 
     const body = await req.json()
-    const { product, platform = 'instagram', projectId } = body
+    const { product, platform = 'instagram', projectId, brandProfile = null, creatorProfile = null } = body
     if (!product) return NextResponse.json({ error: 'product is required' }, { status: 400 })
 
-    const ctx = `Product/Creator: ${product}\nPlatform: ${platform}`
+    const brandLines = []
+    if (brandProfile?.name)             brandLines.push(`Brand: ${brandProfile.name}`)
+    if (brandProfile?.voice)            brandLines.push(`Brand Voice: ${brandProfile.voice}`)
+    if (brandProfile?.style)            brandLines.push(`Brand Style: ${brandProfile.style}`)
+    if (brandProfile?.target_audience)  brandLines.push(`Target Audience: ${brandProfile.target_audience}`)
+    if (creatorProfile?.name)           brandLines.push(`Creator: ${creatorProfile.name}`)
+    if (creatorProfile?.creator_type)   brandLines.push(`Creator Type: ${creatorProfile.creator_type}`)
+    if (creatorProfile?.style_signature) brandLines.push(`Creator Style: ${creatorProfile.style_signature}`)
+    const identityContext = brandLines.length ? `\n${brandLines.join('\n')}` : ''
+
+    const ctx = `Product/Creator: ${product}\nPlatform: ${platform}${identityContext}`
 
     // Step 1 — parallel: angles + hooks + image prompts
     const [anglesRaw, hooksRaw, promptsRaw] = await Promise.all([

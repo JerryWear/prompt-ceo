@@ -112,6 +112,7 @@ export async function POST(req) {
     const ctx = [
       `Product: ${productName.trim()}`,
       productDescription ? `Description: ${productDescription}` : '',
+      brandProfile?.name ? `Brand: ${brandProfile.name}` : '',
       `Type: ${type.replace(/_/g, ' ')}`,
       `Goal: ${goal.replace(/_/g, ' ')}`,
       `Style: ${style.replace(/_/g, ' ')}`,
@@ -119,6 +120,7 @@ export async function POST(req) {
       `World: ${engine.meta.world} — ${engine.meta.worldVibe}`,
       pricePoint ? `Price Point: ${pricePoint.replace(/_/g, ' ')}` : '',
       brandProfile?.voice ? `Brand Voice: ${brandProfile.voice}` : '',
+      brandProfile?.style ? `Brand Style: ${brandProfile.style}` : '',
       brandProfile?.target_audience ? `Target Audience: ${brandProfile.target_audience}` : '',
       creatorProfile?.name ? `Creator: ${creatorProfile.name}` : '',
     ].filter(Boolean).join('\n')
