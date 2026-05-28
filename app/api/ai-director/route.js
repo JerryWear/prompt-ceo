@@ -18,7 +18,54 @@ function adminClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
-// ── System knowledge base ────────────────────────────────────────────────────
+// ── Creative intelligence knowledge base ─────────────────────────────────────
+
+const WORLD_PSYCHOLOGY = {
+  maldives_villa:     'Water, heat, infinite horizon. Earned freedom and sensory immersion. The arrival that says you made it differently — not power, but peace.',
+  luxury_penthouse:   'City-above-it-all. Achievement, power, arrival. The view that proves you built something real. Ambition with stillness at the top.',
+  bali_villa:         'Nature-meets-wealth. Spiritual luxury, conscious success, feminine transformation energy. For brands that say "I chose a different kind of rich."',
+  dubai_highrise:     'Unapologetic scale. Fastest ascent, ambition made visible, ultra-modern dominance. For creators who want to signal they play a bigger game.',
+  paris_apartment:    'Intellectual elegance. Curated taste, old-money sophistication, creative prestige. The world that says you have refined taste — not just money.',
+  greek_islands:      'Sun-drenched freedom. Mediterranean ease, light luxury, romantic summer energy. Aspirational lightness — the life that looks effortless.',
+  miami_penthouse:    'Bold, vibrant, high-energy glamour. Luxury that shows up and commands attention. High-status with heat and color.',
+  coastal_house:      'Quiet wealth. Clean luxury, understated success, premium minimalism. For brands that want to signal taste over flash.',
+  ski_chalet:         'Alpine exclusivity. Winter wealth, adventure luxury, seasonal prestige. A world for the elite who also have adventures.',
+  urban_apartment:    'City mastery. Creative sophistication, modern ambition, everyday luxury. For the creator who has made the city their world.',
+  tokyo_apartment:    'Clean futurism. Precision luxury, urban mastery, modern minimalism done at its best. For brands with sharp, intelligent aesthetics.',
+  countryside_estate: 'Generational wealth. Land, space, timeless prestige. Success that lasts beyond trends.',
+  monaco:             'Racing royalty. Status, speed, old European luxury — the peak of a certain kind of game.',
+  amalfi:             'Cliffside elegance. Italian luxury, sun and sea, slow beauty at scale. The dream life, fully realized.',
+  london_penthouse:   'Financial district power. Intellectual prestige, rainy-day luxury, serious money with serious taste.',
+}
+
+const HOOK_PSYCHOLOGY = {
+  curiosity_gap:      'Opens a loop the brain cannot close without clicking. High CTR on cold traffic. Best opener: "The one thing nobody tells you about X."',
+  transformation:     'Identity shift promise. "From X to Y in N days/weeks." Works best for coaching, fitness, creator lifestyle brands. The strongest long-form hook type.',
+  authority:          'Establishes expertise through evidence. "After 10 years / 500 clients / $2M generated..." Best for high-ticket. Trust-first, sell second.',
+  pattern_interrupt:  'Breaks the scroll with an unexpected opening — visually or verbally. Dominates TikTok and Reels. The hook is the surprise itself.',
+  social_proof:       'Safety in numbers. "Why everyone is switching to X." Best for cold e-commerce and competitive markets. Removes risk perception.',
+  pain_point:         'Names the exact struggle the viewer is experiencing. Instant resonance. Best for solution-based products and services.',
+  aspiration:         '"Imagine waking up to..." Pulls toward desired identity before mentioning product. Best for luxury, lifestyle, and creator brands.',
+  status:             'Shows the identity endpoint they want. "This is what [desired life] looks like." Premium positioning and luxury brands.',
+}
+
+const PLATFORM_PSYCHOLOGY = {
+  instagram:  'Visual-first. Hook lives in the image or first caption line. Aesthetic consistency IS the brand. Aspiration, status, and transformation hooks dominate. Carousel and Reels for reach.',
+  tiktok:     'Audio-first. First spoken word is the hook. Energy and authenticity beat polish. Pattern interrupt and pain point dominate. Trending audio multiplies reach.',
+  meta_ads:   '3-second rule. Headline + visual + CTA must land immediately. Test hooks ruthlessly. Segmentation by audience temperature (cold/warm/retarget) is critical for CAC.',
+  youtube:    'Long-form trust. First 30 seconds set expectations. Authority + story arc + payoff. Best channel for high-ticket conversion and complex products.',
+  linkedin:   'Insight-driven. Professional transformation. Contrarian takes + proven results + expert positioning. Text-heavy performs. Niche authority compounds.',
+}
+
+const INTENT_BRANCHES = {
+  luxury_campaign:    'Aspirational/luxury positioning detected. Key decisions: world atmosphere (penthouse power vs tropical escapism), emotional depth vs authority credibility, creator-led identity vs product showcase, cinematic story arc vs fast-converting direct response.',
+  fast_conversions:   'Direct response / fast conversions detected. Key decisions: audience temperature (cold acquisition vs warm retargeting), ticket size (impulse vs considered purchase), urgency mechanism (scarcity/time) vs authority close, UGC authenticity vs premium cinematic.',
+  authority_building: 'Expert/thought leadership positioning detected. Key decisions: platform selection for audience quality, results-first credibility vs behind-the-scenes process, data/proof vs story/experience, speaking directly to peers vs to aspirants.',
+  creator_lifestyle:  'Creator identity and audience growth detected. Key decisions: world aesthetic that matches creator identity, day-in-the-life narrative vs product showcase, hook style for growth vs engagement, platform-native content approach.',
+  product_launch:     'Product or offer launch detected. Key decisions: awareness phase vs conversion-first approach, audience size and warming strategy, urgency window and launch sequence, problem/solution narrative vs desire/aspiration.',
+  brand_awareness:    'Long-term brand building detected. Key decisions: core brand emotional register (warmth, authority, aspiration, disruption), consistency vs variation approach, platform mix for reach and depth, identity reinforcement without direct selling.',
+}
+
 const PROMPTCEO_SYSTEMS = {
   perfect_day: {
     label: 'Perfect Day™',
@@ -59,11 +106,10 @@ const PROMPTCEO_SYSTEMS = {
     label: 'Ad Studio™',
     engine: 'ad_studio',
     bestFor: 'Manual control over every ad parameter — mood, world, CTA, audience, pacing, emotional direction, visual atmosphere.',
-    whenToRecommend: 'User is dissatisfied with AI output and wants full creative control, or wants to build ads step-by-step with direct parameter control.',
+    whenToRecommend: 'User is dissatisfied with AI output and wants full creative control, or wants to build ads step-by-step.',
   },
 }
 
-// Intent param definitions
 const INTENTS = {
   perfect_day: {
     label: 'Perfect Day',
@@ -264,22 +310,60 @@ const WORLD_DISPLAY_NAMES = {
   london_penthouse:   'London Penthouse',
 }
 
-// Map freeform discovery question IDs to actual param keys
 const DISCOVERY_PARAM_MAP = {
-  product:       'productName',
-  brand:         'productName',
-  productname:   'productName',
-  platform:      'platform',
-  style:         'style',
-  feel:          'style',
-  campaignfeel:  'style',
-  goal:          'goal',
-  world:         'world',
-  location:      'world',
-  type:          'type',
-  day:           'dayType',
-  daytype:       'dayType',
-  imageprompt:   'imagePrompt',
+  product:      'productName',
+  brand:        'productName',
+  productname:  'productName',
+  platform:     'platform',
+  style:        'style',
+  feel:         'style',
+  goal:         'goal',
+  world:        'world',
+  location:     'world',
+  type:         'type',
+  day:          'dayType',
+  daytype:      'dayType',
+  imageprompt:  'imagePrompt',
+}
+
+const HOOK_RECOMMENDATIONS_BY_STYLE = {
+  cinematic:              'Aspiration + status hooks — luxury identity at the endpoint',
+  luxury:                 'Status + aspiration hooks — "this is what arrival looks like"',
+  ugc:                    'Pain point + social proof hooks — real and relatable wins',
+  emotional:              'Transformation + pain point hooks — story before the sell',
+  viral:                  'Pattern interrupt + curiosity gap hooks — break the scroll first',
+  fitness_motivation:     'Transformation + challenge hooks — before/after identity shift',
+  corporate_authority:    'Authority + social proof hooks — results and credentials first',
+  dark_luxury:            'Status + exclusivity hooks — not for everyone',
+  aspirational_lifestyle: 'Aspiration + curiosity gap hooks — "imagine this life"',
+  soft_feminine:          'Aspiration + transformation hooks — beauty and becoming',
+  high_status:            'Status + authority hooks — the identity endpoint, clearly shown',
+  high_energy:            'Pattern interrupt + energy hooks — fast, bold, unmissable',
+}
+
+const ATTENTION_BY_STYLE = {
+  cinematic:              'Cinematic scroll-stopping imagery — visual quality that demands a pause',
+  luxury:                 'High-status luxury visuals — aspiration and arrival before the caption',
+  ugc:                    'Authentic creator-led content — relatable, real, immediate',
+  emotional:              'Story-first emotional opening — resonance before the offer',
+  viral:                  'Pattern interrupt and entertainment — stop the scroll fast and hold',
+  fitness_motivation:     'Before/after transformation energy — visual contrast with identity hook',
+  corporate_authority:    'Authority-first positioning — results, credentials, proven expertise',
+  dark_luxury:            'Moody exclusive imagery — prestige without mass-market appeal',
+  aspirational_lifestyle: 'Aspirational lifestyle hook — the life they want, clearly visible',
+  soft_feminine:          'Soft romantic aesthetic — warmth and beauty as the first signal',
+  high_status:            'High-status visual signals — the identity endpoint on screen immediately',
+  high_energy:            'High-energy visual pacing — fast cuts, bold imagery, instant engagement',
+}
+
+const CONVERSION_BY_GOAL = {
+  sales:               'Direct CTA with urgency and proof — remove hesitation, lower perceived risk',
+  followers:           'Identity-driven CTA — follow for more of this life and content',
+  brand_awareness:     'Soft brand reinforcement — name and feeling lodge in memory',
+  leads:               'Lead magnet CTA — offer something valuable, collect before the sale',
+  high_ticket:         'Authority close — trust, exclusivity, transformation proof. Never discount.',
+  viral_reach:         'Shareable moment creation — something they want to send to someone',
+  premium_positioning: 'Brand elevation — show what you stand for, not just what you sell',
 }
 
 function buildCapabilities(userRow) {
@@ -322,13 +406,76 @@ function buildReadyMessage(intentLabel, params) {
   }
 }
 
+function buildCampaignPreview(intent, params, brandProfile) {
+  const world    = WORLD_DISPLAY_NAMES[params.world] || (params.world || '').replace(/_/g, ' ')
+  const style    = (params.style || 'cinematic').replace(/_/g, ' ')
+  const platform = params.platform || 'instagram'
+  const goal     = (params.goal || 'brand_awareness').replace(/_/g, ' ')
+  const product  = params.productName || brandProfile?.name || 'Your brand'
+  const audience = brandProfile?.target_audience || null
+
+  const attentionStrategy = ATTENTION_BY_STYLE[params.style] || `${world} imagery with scroll-stopping hooks`
+  const conversionStrategy = CONVERSION_BY_GOAL[params.goal] || 'Authority-based CTA with social proof'
+  const hookStrategy = HOOK_RECOMMENDATIONS_BY_STYLE[params.style] || 'Transformation + aspiration hooks'
+  const worldAtmosphere = WORLD_PSYCHOLOGY[params.world] || `${world} visual atmosphere`
+
+  if (intent === 'full_day_video') {
+    return {
+      product,
+      platform,
+      style,
+      world,
+      goal,
+      audience,
+      hookStrategy,
+      visualDirection: worldAtmosphere,
+      phases: [
+        { phase: 'Opening',     time: 'Scene 1–3',    strategy: `${attentionStrategy} — establishing the world and the creator's presence` },
+        { phase: 'Morning',     time: 'Scene 4–6',    strategy: 'Rising energy — routine, ritual, beauty of the day beginning' },
+        { phase: 'Midday',      time: 'Scene 7–9',    strategy: `${world} atmosphere at its peak — aspiration and desire building` },
+        { phase: 'Golden Hour', time: 'Scene 10–11',  strategy: 'Cinematic peak — the emotional high point of the day' },
+        { phase: 'Night',       time: 'Scene 12',     strategy: 'Closing scene — reflection, identity, the full picture' },
+      ],
+      outputs: '12 cinematic scenes · shot lists · camera directions · lighting guide · wardrobe arc',
+    }
+  }
+
+  return {
+    product,
+    platform,
+    style,
+    world,
+    goal,
+    audience,
+    hookStrategy,
+    visualDirection: worldAtmosphere,
+    phases: [
+      { phase: 'Attention',   days: 'Days 1–6',    strategy: attentionStrategy },
+      { phase: 'Story',       days: 'Days 7–12',   strategy: 'Emotional narrative arc — building identity, trust, and emotional investment' },
+      { phase: 'Desire',      days: 'Days 13–18',  strategy: `Aspiration at its peak — ${world} lifestyle fully realized, desire intensified` },
+      { phase: 'Conversion',  days: 'Days 19–24',  strategy: conversionStrategy },
+      { phase: 'Retargeting', days: 'Days 25–30',  strategy: 'Warm audience re-engagement — identity proof, final urgency, emotional familiarity' },
+    ],
+    outputs: '30 attention hooks · 30 image prompts · 30 captions · 30-day posting schedule',
+  }
+}
+
 // ── PromptCEO GPT Runtime ────────────────────────────────────────────────────
 async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities) {
   const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
 
   const memoryCtx = memory?.campaignCount > 0
-    ? `Campaign history: ${memory.campaignCount} campaign(s). Best hook: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || memory.topWorld) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform || 'none'}. Recent style: ${memory.recentStyle || 'none'}.`
+    ? `Campaign history: ${memory.campaignCount} campaign(s). Best hook type: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || memory.topWorld) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform || 'none'}. Recent style: ${memory.recentStyle || 'none'}.`
     : 'Campaign history: No campaigns yet — first session.'
+
+  const memoryPersonality = memory?.campaignCount >= 3
+    ? [
+        memory.bestHookType   ? `This user's strongest hook type is ${memory.bestHookType.replace(/_/g,' ')} hooks.` : '',
+        memory.topWorld       ? `They consistently perform best in ${WORLD_DISPLAY_NAMES[memory.topWorld] || memory.topWorld} world.` : '',
+        memory.bestPlatform   ? `Their best-performing platform is ${memory.bestPlatform}.` : '',
+        memory.recentStyle    ? `Their most recent creative style was ${memory.recentStyle.replace(/_/g,' ')}.` : '',
+      ].filter(Boolean).join(' ')
+    : ''
 
   const brandCtx = brandProfile?.name
     ? `Active brand: "${brandProfile.name}". Voice: ${brandProfile.voice || 'not set'}. Audience: ${brandProfile.target_audience || 'not set'}. Style: ${brandProfile.style || 'not set'}.`
@@ -338,21 +485,37 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
 
   const appStateLines = []
   if (appState?.view)            appStateLines.push(`Current view: ${appState.view.replace(/_/g, ' ')}.`)
-  if (appState?.hasPerfectDay)   appStateLines.push('Existing Perfect Day result — campaign to match it is a logical next step.')
+  if (appState?.hasPerfectDay)   appStateLines.push('Existing Perfect Day result — a matching campaign is a natural next step.')
   if (appState?.hasFullDayVideo) appStateLines.push('Existing Full Day Video — could extend into ad content.')
-  if (appState?.hasCampaign)     appStateLines.push('Existing campaign result visible.')
+  if (appState?.hasCampaign)     appStateLines.push('Existing campaign result in view.')
   const appCtx = appStateLines.join(' ')
 
   const capCtx = capabilities
-    ? `User tier: ${capabilities.tier}. Full Campaigns: ${capabilities.canUseFullCampaigns}. Video: ${capabilities.canUseVideoGeneration}. Ad Studio: ${capabilities.canUseAdStudio}.`
+    ? `User tier: ${capabilities.tier} (active: ${capabilities.isActive}). Full Campaigns: ${capabilities.canUseFullCampaigns}. Video: ${capabilities.canUseVideoGeneration}. Ad Studio: ${capabilities.canUseAdStudio}.${!capabilities.isActive ? ' Suggest upgrade for generation features.' : ''}`
     : ''
 
   const suggestionsCtx = Object.keys(suggestions).length > 0
-    ? `Memory-derived defaults:\n${Object.entries(suggestions).map(([k, v]) => `- ${k}: ${v.value} (${v.reason})`).join('\n')}`
+    ? `Memory-derived smart defaults:\n${Object.entries(suggestions).map(([k, v]) => `- ${k}: ${v.value} (${v.reason})`).join('\n')}`
     : ''
 
   const systemsKnowledge = Object.entries(PROMPTCEO_SYSTEMS)
     .map(([k, v]) => `${k}: ${v.label} — ${v.bestFor} | Recommend when: ${v.whenToRecommend}`)
+    .join('\n')
+
+  const worldsKnowledge = Object.entries(WORLD_PSYCHOLOGY)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n')
+
+  const hooksKnowledge = Object.entries(HOOK_PSYCHOLOGY)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n')
+
+  const platformsKnowledge = Object.entries(PLATFORM_PSYCHOLOGY)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n')
+
+  const intentBranchKnowledge = Object.entries(INTENT_BRANCHES)
+    .map(([k, v]) => `${k}: ${v}`)
     .join('\n')
 
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -360,52 +523,73 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: 'grok-3-fast',
-      max_tokens: 1000,
-      temperature: 0.3,
+      max_tokens: 1200,
+      temperature: 0.4,
       messages: [
         {
           role: 'system',
-          content: `You are PromptCEO GPT — the conversational operating system for PromptCEO. Not a chatbot. A strategic creative intelligence that directs campaign and content creation.
+          content: `You are PromptCEO GPT — the conversational operating system and creative intelligence layer inside PromptCEO. You are NOT a generic AI assistant. You are a world-class creative strategist who understands branding, advertising, campaign psychology, emotional sequencing, luxury positioning, creator marketing, and every PromptCEO system deeply.
 
-## Personality
-- Strategic, calm, direct. You know what good campaigns look like.
-- Reference history by specific name: "Maldives Villa" not "your top world".
-- Recommend rather than ask blank questions.
-- Never start with affirmations: no "Great!", "Sure!", "Absolutely!", "Got it!", "Perfect!".
-- 2 sentences max per directorMessage. 3 only on the very first exchange when there is no campaign history.
-- Sound like a creative director who has reviewed the user's work.
+## PERSONALITY
+- Strategic, calm, direct. You know what good campaigns look like and why they work.
+- Reference history by specific name: "Maldives Villa" not "your top world". "Your transformation hooks" not "your hook preference".
+- Recommend rather than ask blank questions. "Maldives would be right here given your history — want that or somewhere different?" beats "Which world?".
+- Never start with affirmations: no "Great!", "Sure!", "Absolutely!", "Got it!", "Perfect!", "Of course!".
+- 2 sentences max per directorMessage. 3 only on the very first message when there is no campaign history.
+- Sound like a creative director who has reviewed this person's portfolio and understands their brand.
+- When the user asks a strategy question ("why isn't this converting?", "what hooks work for luxury?", "should I use Ad Studio?"), answer it directly and intelligently. You have the knowledge. Use it.
 
 ## RUNTIME MODES — pick exactly ONE
 
-**discovery** — Use when the request is vague and needs context before routing. Generate 3-5 specific questions (product, emotional goal, platform, campaign feel, execution speed). NEVER execute a vague "create a campaign for my brand" request immediately.
+**discovery** — Use when the request is vague and needs context before routing. Generate 3-5 ADAPTIVE questions that branch based on detected intent. NEVER use generic questions — questions must be tailored to the intent branch. Never execute a vague "create a campaign" request.
 
-**routing** — Use when intent is clear but one specific param is missing. Ask for that single param with options.
+**routing** — Use when intent is clear but one specific param is missing. Single focused question.
 
-**execution** — Use when intent is clear, all required params exist, and the user has confirmed intent to proceed. Do NOT trigger on a vague first message.
+**execution** — Use when intent is clear + all required params exist + user has confirmed intent. Do NOT trigger on a vague first message.
 
-**recommendation** — Use when user expresses dissatisfaction with output, asks what to do differently, or needs a specific system explained. Name the system and list what it enables.
+**recommendation** — User is dissatisfied, asking what to do differently, or needs a system explained. Name the system, explain why it fits, list what it enables.
 
-**explanation** — User asks how a system or feature works. Explain clearly and briefly.
+**explanation** — User asks a strategy question or how something works. Answer directly with real domain expertise. Do NOT route to generation unless they ask to build.
 
-**workflow_suggestion** — You detect a logical next step from existing work. Suggest it with a specific reason.
+**workflow_suggestion** — You detect a logical next step from their existing work. Suggest it with a specific reason.
 
-**continuation** — Conversational back-and-forth not yet routing to execution.
+**continuation** — Conversational exchange not yet routing. Can include your own intelligent opinion or recommendation.
 
-## PromptCEO Systems
+## ADAPTIVE BRANCHING RULES
+When mode=discovery, detect the intent branch and generate questions SPECIFIC to that branch:
+${intentBranchKnowledge}
+
+Luxury branch questions should be different from fast-conversion branch questions. Creator questions differ from B2B questions. Never use the same 5 questions for everyone.
+
+## WORLD PSYCHOLOGY — use this for recommendations
+${worldsKnowledge}
+
+## HOOK PSYCHOLOGY — use this for strategy advice
+${hooksKnowledge}
+
+## PLATFORM PSYCHOLOGY — use this for routing and advice
+${platformsKnowledge}
+
+## PROMPTCEO SYSTEMS
 ${systemsKnowledge}
 
-## Execution rules
+## MEMBERSHIP INTELLIGENCE
+${capCtx}
+If tier is free or inactive, gently reference upgrade when recommending premium features. Never block the conversation — just note what's available at their tier.
+
+## EXECUTION GATE
 ONLY use mode=execution when:
 1. Intent is completely clear (not vague)
 2. All required params exist OR memory-derived defaults fully cover them
-3. The user has said something confirming they want to proceed now (not just described an interest)
+3. The conversation confirms the user wants to build now
 
-## Context
+## USER CONTEXT
 ${memoryCtx}
+${memoryPersonality ? `\nCreative profile: ${memoryPersonality}` : ''}
 ${brandCtx}
-${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${capCtx ? capCtx + '\n' : ''}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected: ${JSON.stringify(collectedParams)}
+${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected: ${JSON.stringify(collectedParams)}
 
-Available values —
+Available params —
 worlds: luxury_penthouse, maldives_villa, bali_villa, dubai_highrise, paris_apartment, greek_islands, miami_penthouse, coastal_house, ski_chalet, urban_apartment, tokyo_apartment, countryside_estate, monaco, amalfi, london_penthouse
 styles: luxury, aspirational_lifestyle, cinematic, soft_feminine, dark_luxury, ugc, emotional, high_status, fitness_motivation, viral, high_energy, corporate_authority
 goals: sales, followers, brand_awareness, leads, high_ticket, viral_reach, premium_positioning
@@ -413,7 +597,7 @@ platforms: instagram, tiktok, meta_ads, youtube, linkedin
 dayTypes: luxury_creator_day, beach_creator_day, wellness_retreat_day, romantic_travel_day, fitness_lifestyle_day, business_power_day, fashion_content_day, foodie_luxury_day
 types: product, personal_brand, creator, ecommerce, coaching, saas, fashion, luxury
 
-For discoveryQuestions: use IDs matching param names when possible (productName, platform, style, goal, world, dayType, type, imagePrompt). Use descriptive IDs for context questions (emotionalGoal, campaignFeel, executionSpeed).
+For discoveryQuestions: use IDs matching param names when the answer directly maps (productName, platform, style, goal, world, dayType, type, imagePrompt). Use descriptive IDs for context questions (emotionalGoal, audienceType, contentPace, etc.).
 
 Respond with ONLY raw valid JSON — no markdown, no explanation.`,
         },
@@ -425,18 +609,18 @@ ${historyText}
 Return:
 {
   "mode": "discovery" | "routing" | "execution" | "recommendation" | "explanation" | "workflow_suggestion" | "continuation",
-  "directorMessage": "2-sentence Director voice response — direct, no affirmations, specific",
+  "directorMessage": "2-sentence strategic Director response — direct, no affirmations, specific to this user's history",
   "intent": "perfect_day" | "full_day_video" | "full_campaign" | "instant_campaign" | "studio_image" | null,
   "discoveryQuestions": [
-    { "id": "paramKeyOrDescriptive", "question": "Question text", "freeText": true, "placeholder": "hint text", "options": null }
+    { "id": "paramKeyOrDescriptive", "question": "Adaptive question text based on detected intent branch", "freeText": true, "placeholder": "hint", "options": null }
     OR
-    { "id": "paramKey", "question": "Question text", "freeText": false, "placeholder": null, "options": [{"value":"v","label":"l"}] }
+    { "id": "paramKey", "question": "Focused question", "freeText": false, "placeholder": null, "options": [{"value":"v","label":"l"}] }
   ],
   "systemRecommendation": {
     "system": "system_key",
     "label": "Display Name",
-    "reason": "Why this system addresses the issue",
-    "capabilities": ["mood", "world", "CTA", "audience", "pacing", "emotional direction"]
+    "reason": "Specific reason for this user",
+    "capabilities": ["precise", "capability", "list"]
   },
   "params": {
     "productName": null, "world": null, "style": null, "goal": null,
@@ -444,7 +628,9 @@ Return:
   }
 }
 
-Include discoveryQuestions only when mode=discovery. Include systemRecommendation only when mode=recommendation. Only include params clearly stated or strongly inferable.`,
+Include discoveryQuestions only when mode=discovery (3-5 adaptive questions based on detected intent branch).
+Include systemRecommendation only when mode=recommendation.
+Only include params clearly stated or strongly inferable from context.`,
         },
       ],
     }),
@@ -504,8 +690,8 @@ export async function POST(req) {
       .join(', ')
 
     const fullHistory = [...history, { role: 'user', content: userMessage }]
-    const suggestions = buildDirectorSuggestions(memory, brandProfile)
-    const analysis   = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities)
+    const suggestions  = buildDirectorSuggestions(memory, brandProfile)
+    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities)
 
     const mode   = analysis.mode || 'continuation'
     const intent = analysis.intent || null
@@ -515,7 +701,6 @@ export async function POST(req) {
       ...(analysis.params || {}),
       ...collectedParams,
     }
-    // Map discovery answers to param keys
     if (discoveryAnswers) {
       Object.entries(discoveryAnswers).forEach(([k, v]) => {
         if (!v) return
@@ -579,7 +764,7 @@ export async function POST(req) {
         mode,
         phase:           'clarify',
         directorMessage: analysis.directorMessage || null,
-        options:         mode === 'continuation' && !intent ? [
+        options:         (!intent && mode === 'continuation') ? [
           { value: 'perfect_day',      label: '☀ Perfect Day' },
           { value: 'full_day_video',   label: '🎬 Full Day Video' },
           { value: 'full_campaign',    label: '◈ Full Ad Campaign' },
@@ -612,11 +797,10 @@ export async function POST(req) {
       })
     }
 
-    const intentDef = INTENTS[intent]
+    const intentDef    = INTENTS[intent]
     if (!intentDef) return NextResponse.json({ error: `Unknown intent: ${intent}` }, { status: 400 })
 
     const missingParam = intentDef.required.find(p => !extractedParams[p])
-
     if (missingParam) {
       const q = intentDef.questions[missingParam]
       return NextResponse.json({
@@ -636,7 +820,28 @@ export async function POST(req) {
       })
     }
 
-    // All params present — execute
+    // All params present — check for campaign preview gate
+    const confirmedPreview = collectedParams.confirmedPreview === true ||
+                             discoveryAnswers?.confirmedPreview === true
+
+    const previewIntents = ['full_campaign', 'full_day_video']
+    if (previewIntents.includes(intent) && !confirmedPreview) {
+      const preview = buildCampaignPreview(intent, extractedParams, brandProfile)
+      const world   = WORLD_DISPLAY_NAMES[extractedParams.world] || extractedParams.world
+      const style   = (extractedParams.style || 'cinematic').replace(/_/g, ' ')
+      return NextResponse.json({
+        mode:            'preview',
+        phase:           'preview',
+        directorMessage: analysis.directorMessage || `${world}, ${style} — here's the strategic direction before I build.`,
+        campaignPreview: preview,
+        intent,
+        collectedParams: { ...extractedParams, confirmedPreview: false },
+        history:         fullHistory,
+        capabilities,
+      })
+    }
+
+    // Confirmed — execute
     const finalParams = {
       ...extractedParams,
       creatorProfile: creatorProfile || null,

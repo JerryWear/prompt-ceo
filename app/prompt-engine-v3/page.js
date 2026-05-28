@@ -12549,6 +12549,19 @@ export default function PromptCEOPage() {
         }])
         setDirectorPhase('chat')
 
+      } else if (responseMode === 'preview') {
+        setDirectorHistory(h => [...h, {
+          role:           'ai',
+          content:        data.directorMessage || 'Campaign direction is ready.',
+          mode:           'preview',
+          campaignPreview: data.campaignPreview,
+          collectedParams: data.collectedParams,
+          intent:         data.intent,
+        }])
+        // Store preview's collectedParams so confirm can use them
+        if (data.collectedParams) setDirectorParams(data.collectedParams)
+        setDirectorPhase('chat')
+
       } else if (responseMode === 'routing' || (data.question && responseMode !== 'execution')) {
         const dm = data.directorMessage || data.understood || ''
         setDirectorHistory(h => [...h, {
@@ -17011,6 +17024,102 @@ export default function PromptCEOPage() {
                       >Build this →</button>
                     </div>
                   )}
+
+                  {/* Campaign Direction Preview card */}
+                  {msg.role === 'ai' && msg.mode === 'preview' && msg.campaignPreview && idx === directorHistory.length - 1 && (() => {
+                    const p = msg.campaignPreview
+                    const phaseColors = [C.blue, C.violet, C.gold, C.green, C.tension]
+                    return (
+                      <div style={{ width: '88%', borderRadius: 16, border: `1px solid ${C.goldDim}60`, background: '#070707', overflow: 'hidden' }}>
+                        {/* Header */}
+                        <div style={{ padding: '18px 24px', borderBottom: `1px solid ${C.hairline}`, background: '#0d0d0d', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
+                          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: C.gold, textTransform: 'uppercase' }}>Campaign Direction Ready</div>
+                        </div>
+
+                        {/* Meta grid */}
+                        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, borderBottom: `1px solid ${C.hairline}` }}>
+                          {[
+                            { label: 'Product',   value: p.product },
+                            { label: 'Platform',  value: p.platform },
+                            { label: 'Style',     value: p.style },
+                            { label: 'World',     value: p.world },
+                            { label: 'Goal',      value: p.goal?.replace(/_/g,' ') },
+                            p.audience ? { label: 'Audience', value: p.audience } : null,
+                          ].filter(Boolean).map(item => (
+                            <div key={item.label} style={{ background: C.raised, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
+                              <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{item.label}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', textTransform: 'capitalize' }}>{item.value}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Campaign Architecture */}
+                        <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: C.muted, textTransform: 'uppercase', marginBottom: 16 }}>Campaign Architecture</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {(p.phases || []).map((ph, i) => (
+                              <div key={ph.phase} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                                <div style={{ width: 3, borderRadius: 2, background: phaseColors[i] || C.muted, alignSelf: 'stretch', flexShrink: 0 }} />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: phaseColors[i] || C.muted }}>{ph.phase}</span>
+                                    <span style={{ fontSize: 10, color: C.ghost }}>{ph.days || ph.time}</span>
+                                  </div>
+                                  <div style={{ fontSize: 13, color: '#d0d0d0', lineHeight: 1.6 }}>{ph.strategy}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Strategy insights */}
+                        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${C.hairline}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Hook Strategy</div>
+                            <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.5 }}>{p.hookStrategy}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Visual Direction</div>
+                            <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.5 }}>{p.visualDirection?.slice(0, 100)}</div>
+                          </div>
+                        </div>
+
+                        {/* Output estimate */}
+                        <div style={{ padding: '12px 24px', borderBottom: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 11, color: C.muted }}>{p.outputs}</div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ padding: '16px 24px', display: 'flex', gap: 10 }}>
+                          <button
+                            onClick={() => {
+                              const confirmedParams = { ...(msg.collectedParams || directorParams), confirmedPreview: true }
+                              setDirectorParams(confirmedParams)
+                              directorSend('Confirmed. Build this campaign.', null, null, { confirmedPreview: true })
+                            }}
+                            disabled={directorLoading}
+                            style={{
+                              flex: 1, padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700,
+                              cursor: 'pointer', border: `1px solid ${C.goldDim}`,
+                              background: 'linear-gradient(180deg,#1a1408,#0e0a04)', color: C.gold,
+                              opacity: directorLoading ? 0.5 : 1,
+                            }}
+                          >Build this campaign →</button>
+                          <button
+                            onClick={() => directorSend('Let me adjust the settings')}
+                            disabled={directorLoading}
+                            style={{
+                              padding: '14px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                              cursor: 'pointer', border: `1px solid ${C.subtle}`,
+                              background: C.surface, color: '#aaa',
+                              opacity: directorLoading ? 0.5 : 1,
+                            }}
+                          >Adjust</button>
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {/* Recommendation card */}
                   {msg.role === 'ai' && msg.mode === 'recommendation' && msg.systemRecommendation && idx === directorHistory.length - 1 && (
