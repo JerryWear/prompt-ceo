@@ -17399,262 +17399,372 @@ export default function PromptCEOPage() {
         )}
 
         {/* ══ FULL CAMPAIGN VIEW ══ */}
-        {s.view === 'full_campaign' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>◈ Full Campaign™</span>
-              <input
-                value={fullCampaignProduct}
-                onChange={e => setFullCampaignProduct(e.target.value)}
-                placeholder={activeBrandProfile?.name || 'Product or brand name…'}
-                style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', width: 180 }}
-                onFocus={e => e.target.style.borderColor = C.goldDim}
-                onBlur={e => e.target.style.borderColor = C.subtle}
-              />
-              <select value={fullCampaignGoal} onChange={e => setFullCampaignGoal(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
-                {['sales','leads','followers','brand_awareness','high_ticket','viral_reach','premium_positioning'].map(g => (
-                  <option key={g} value={g}>{g.replace(/_/g,' ')}</option>
-                ))}
-              </select>
-              <select value={fullCampaignStyle} onChange={e => setFullCampaignStyle(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
-                {['cinematic','luxury','ugc','emotional','viral','dark_luxury','high_energy','corporate_authority','fitness_motivation','aspirational_lifestyle'].map(st => (
-                  <option key={st} value={st}>{st.replace(/_/g,' ')}</option>
-                ))}
-              </select>
-              <select value={fullCampaignPlatform} onChange={e => setFullCampaignPlatform(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
-                {['instagram','tiktok','meta_ads','youtube','linkedin'].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <div style={{ flex: 1 }} />
-              <button
-                onClick={() => generateFullCampaign(fullCampaignProduct)}
-                disabled={fullCampaignLoading}
-                style={{
-                  padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: fullCampaignLoading ? 'not-allowed' : 'pointer',
-                  border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg, #1a1408, #120e04)',
-                  color: C.gold, opacity: fullCampaignLoading ? 0.6 : 1,
-                }}
-              >
-                {fullCampaignLoading ? '⟳ Building Campaign…' : '◈ Generate Full Campaign'}
-              </button>
-            </div>
+        {s.view === 'full_campaign' && (() => {
+          const FCR = fullCampaignResult
 
-            {/* Phase tabs */}
-            {fullCampaignResult && (
-              <div style={{ flexShrink: 0, display: 'flex', gap: 0, borderBottom: `1px solid ${C.hairline}`, background: C.void }}>
-                {[
-                  { id: 'attention',            label: 'Attention',    sub: 'Days 1–6',   color: C.blue },
-                  { id: 'emotional_connection',  label: 'Story',        sub: 'Days 7–12',  color: C.violet },
-                  { id: 'desire_escalation',     label: 'Desire',       sub: 'Days 13–20', color: C.tension },
-                  { id: 'conversion',            label: 'Conversion',   sub: 'Days 21–26', color: C.green },
-                  { id: 'retargeting',           label: 'Retargeting',  sub: 'Days 27–30', color: C.gold },
-                  { id: 'captions',              label: 'Captions',     sub: '30 total',   color: C.secondary },
-                  { id: 'schedule',              label: 'Schedule',     sub: '30 days',    color: C.muted },
-                ].map(tab => (
-                  <button key={tab.id} onClick={() => setFullCampaignPhase(tab.id)}
-                    style={{
-                      flex: 1, padding: '7px 4px', cursor: 'pointer',
-                      border: 'none', borderBottom: `2px solid ${fullCampaignPhase === tab.id ? tab.color : 'transparent'}`,
-                      background: fullCampaignPhase === tab.id ? C.surface : 'transparent',
-                      transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                    }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: fullCampaignPhase === tab.id ? tab.color : C.secondary, letterSpacing: 0.3 }}>{tab.label}</span>
-                    <span style={{ fontSize: 7, color: fullCampaignPhase === tab.id ? tab.color + 'aa' : C.muted }}>{tab.sub}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          // Phase definitions — full design language + data access (fixes awareness/connection/desire key mismatch)
+          const FC_PHASES = [
+            {
+              id: 'attention', label: 'Attention', sub: 'Days 1–6', num: 1,
+              color: C.blue, bg: '#02080f',
+              emotion: 'Stop the scroll.',
+              narration: 'Scroll-stopping hooks across 5 psychological archetypes. No selling — pure interruption. Pattern breaks, curiosity gaps, bold claims, visual hooks, emotional openers.',
+              data: () => FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || [],
+              isPrompt: false,
+              actionLabel: '→ Ad Studio',
+              onAction: (text) => sendToAdStudio(text),
+            },
+            {
+              id: 'emotional_connection', label: 'Story', sub: 'Days 7–12', num: 2,
+              color: C.violet, bg: '#05020e',
+              emotion: 'Make them feel something.',
+              narration: 'Three story scripts that build emotional trust. Transformation, a day in the life, the origin moment. First person, specific details — no marketing language.',
+              data: () => FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || [],
+              isPrompt: false,
+              actionLabel: '→ Ad Studio',
+              onAction: (text) => sendToAdStudio(text),
+            },
+            {
+              id: 'desire_escalation', label: 'Desire', sub: 'Days 13–20', num: 3,
+              color: C.tension, bg: '#0a0600',
+              emotion: 'Make them want the life.',
+              narration: 'Five cinematic image prompts to build aspiration. Luxury lifestyle, product hero, creator natural, world elevated, transformation arc.',
+              data: () => FCR?.phases?.desire?.imagePrompts || FCR?.phases?.desire_escalation?.imagePrompts || [],
+              isPrompt: true,
+              actionLabel: '→ Generate in Studio',
+              onAction: (text) => sendToStudio(text),
+            },
+            {
+              id: 'conversion', label: 'Conversion', sub: 'Days 21–26', num: 4,
+              color: C.green, bg: '#020a04',
+              emotion: 'Ask for the sale.',
+              narration: 'Three direct conversion ads — offer clear, CTA hard, friction removed. Built from the strongest hook and most resonant story angle.',
+              data: () => FCR?.phases?.conversion?.ads || [],
+              isPrompt: false,
+              actionLabel: null,
+              onAction: null,
+            },
+            {
+              id: 'retargeting', label: 'Retargeting', sub: 'Days 27–30', num: 5,
+              color: C.gold, bg: '#080600',
+              emotion: 'Welcome them back.',
+              narration: 'Three warm re-engagement ads for audiences who saw the campaign but did not convert. Soft reminder, specific testimonial, objection handled. No aggression.',
+              data: () => FCR?.phases?.retargeting?.ads || [],
+              isPrompt: false,
+              actionLabel: null,
+              onAction: null,
+            },
+          ]
+          const phaseVideoMap = { attention: 'awareness', emotional_connection: 'connection', desire_escalation: 'desire', conversion: 'conversion', retargeting: 'retargeting' }
+          const activePhase = FC_PHASES.find(p => p.id === fullCampaignPhase)
 
-            {/* Content */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
-              {!fullCampaignResult && !fullCampaignLoading && (
-                <div style={{ maxWidth: 520, margin: '0 auto', padding: '8px 0' }}>
-                  <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                    <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>5-Phase Campaign Architecture</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>Enter your product above and generate a complete 30-day campaign</div>
-                  </div>
+          return (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-                  {[
-                    { phase: 1, label: 'ATTENTION',   days: 'Days 1–6',   color: C.blue,    goal: 'Stop the scroll. Zero selling.',     output: 'Scroll-stopping hooks · curiosity openers · pattern interrupts', width: '100%' },
-                    { phase: 2, label: 'CONNECTION',  days: 'Days 7–12',  color: C.violet,  goal: 'Build emotional trust.',             output: 'Story scripts · lifestyle scenes · brand narrative',            width: '90%'  },
-                    { phase: 3, label: 'DESIRE',      days: 'Days 13–20', color: C.tension, goal: 'Make them want it.',                 output: 'Problem reveal · transformation · desire escalation',          width: '78%'  },
-                    { phase: 4, label: 'CONVERSION',  days: 'Days 21–26', color: C.green,   goal: 'Ask for the sale.',                  output: 'Offer scripts · urgency · social proof · direct CTA',          width: '66%'  },
-                    { phase: 5, label: 'RETARGETING', days: 'Days 27–30', color: C.gold,    goal: 'Re-engage warm audiences.',          output: '5 retargeting angles · objection handling · FOMO',             width: '54%'  },
-                  ].map((p, i) => (
-                    <div key={p.phase}>
-                      <div style={{ width: p.width, margin: '0 auto', background: p.color + '09', border: `1px solid ${p.color}28`, borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                          <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: p.color }}>Phase {p.phase} — {p.label}</div>
-                          <div style={{ marginLeft: 'auto', fontSize: 8, color: C.muted }}>{p.days}</div>
-                        </div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: C.primary, marginBottom: 3 }}>{p.goal}</div>
-                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{p.output}</div>
-                      </div>
-                      {i < 4 && (
-                        <div style={{ textAlign: 'center', fontSize: 10, color: C.muted, margin: '2px 0' }}>↓</div>
-                      )}
-                    </div>
+              {/* ── Header controls ── */}
+              <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8, background: C.deep, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>◈ Full Campaign™</span>
+                <input
+                  value={fullCampaignProduct}
+                  onChange={e => setFullCampaignProduct(e.target.value)}
+                  placeholder={activeBrandProfile?.name || 'Product or brand name…'}
+                  style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, background: C.surface, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', width: 180 }}
+                  onFocus={e => e.target.style.borderColor = C.goldDim}
+                  onBlur={e => e.target.style.borderColor = C.subtle}
+                />
+                <select value={fullCampaignGoal} onChange={e => setFullCampaignGoal(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                  {['sales','leads','followers','brand_awareness','high_ticket','viral_reach','premium_positioning'].map(g => (
+                    <option key={g} value={g}>{g.replace(/_/g,' ')}</option>
                   ))}
+                </select>
+                <select value={fullCampaignStyle} onChange={e => setFullCampaignStyle(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                  {['cinematic','luxury','ugc','emotional','viral','dark_luxury','high_energy','corporate_authority','fitness_motivation','aspirational_lifestyle'].map(st => (
+                    <option key={st} value={st}>{st.replace(/_/g,' ')}</option>
+                  ))}
+                </select>
+                <select value={fullCampaignPlatform} onChange={e => setFullCampaignPlatform(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                  {['instagram','tiktok','meta_ads','youtube','linkedin'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <div style={{ flex: 1 }} />
+                <button
+                  onClick={() => generateFullCampaign(fullCampaignProduct)}
+                  disabled={fullCampaignLoading}
+                  style={{
+                    padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: fullCampaignLoading ? 'not-allowed' : 'pointer',
+                    border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg, #1a1408, #120e04)',
+                    color: C.gold, opacity: fullCampaignLoading ? 0.6 : 1,
+                  }}
+                >
+                  {fullCampaignLoading ? '⟳ Building Campaign…' : '◈ Generate Full Campaign'}
+                </button>
+              </div>
 
-                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                    {[
-                      { icon: '📝', label: '30 Captions',     sub: 'Platform-optimised' },
-                      { icon: '📅', label: '30-Day Schedule', sub: 'Timed for reach' },
-                      { icon: '🎯', label: '5 Retargeting Angles', sub: 'Warm audiences' },
-                    ].map(item => (
-                      <div key={item.label} style={{ flex: 1, background: C.raised, border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary, marginBottom: 2 }}>{item.icon} {item.label}</div>
-                        <div style={{ fontSize: 8, color: C.muted }}>{item.sub}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 6, background: C.raised, border: `1px solid ${C.goldDim}40`, textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: C.gold, marginBottom: 3 }}>Or use AI Director</div>
-                    <div style={{ fontSize: 10, color: C.muted, fontStyle: 'italic' }}>"Full campaign for my black hoodie targeting luxury women on TikTok"</div>
+              {/* ── Campaign timeline bar ── */}
+              {FCR && !fullCampaignLoading && (
+                <div style={{ flexShrink: 0, padding: '0 20px', background: C.deep, borderBottom: `1px solid ${C.hairline}` }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    {FC_PHASES.map((ph, i) => {
+                      const active = fullCampaignPhase === ph.id
+                      return (
+                        <React.Fragment key={ph.id}>
+                          <button
+                            onClick={() => setFullCampaignPhase(ph.id)}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 6px 10px', cursor: 'pointer', background: 'none', border: 'none', position: 'relative', flex: '1 1 0', minWidth: 0 }}
+                          >
+                            <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${active ? ph.color : ph.color + '35'}`, background: active ? ph.color + '18' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
+                              <div style={{ width: 7, height: 7, borderRadius: '50%', background: active ? ph.color : ph.color + '45', transition: 'all 0.18s' }} />
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: active ? ph.color : C.secondary, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>{ph.label}</span>
+                            <span style={{ fontSize: 7, color: active ? ph.color + 'aa' : C.muted, whiteSpace: 'nowrap' }}>{ph.sub}</span>
+                            {active && <div style={{ position: 'absolute', bottom: 0, left: '15%', right: '15%', height: 2, background: ph.color, borderRadius: '2px 2px 0 0' }} />}
+                          </button>
+                          {i < FC_PHASES.length - 1 && (
+                            <div style={{ width: 20, height: 1, background: `linear-gradient(90deg, ${ph.color}30, ${FC_PHASES[i+1].color}30)`, alignSelf: 'center', marginTop: -10, flexShrink: 0 }} />
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
+                    <div style={{ width: 1, background: C.hairline, margin: '10px 6px 8px', alignSelf: 'stretch', flexShrink: 0 }} />
+                    {[{ id: 'captions', label: 'Captions', sub: '10 total' }, { id: 'schedule', label: 'Schedule', sub: '30 days' }].map(tab => {
+                      const active = fullCampaignPhase === tab.id
+                      return (
+                        <button key={tab.id} onClick={() => setFullCampaignPhase(tab.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '14px 10px 10px', cursor: 'pointer', background: 'none', border: 'none', position: 'relative', flexShrink: 0 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: active ? C.secondary : C.muted }}>{tab.label}</span>
+                          <span style={{ fontSize: 7, color: C.ghost }}>{tab.sub}</span>
+                          {active && <div style={{ position: 'absolute', bottom: 0, left: '15%', right: '15%', height: 2, background: C.subtle, borderRadius: '2px 2px 0 0' }} />}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
-              {fullCampaignLoading && (
-                <div style={{ display: 'flex', height: '100%' }}>
-                  <OrchestrationProgress
-                    steps={AD_CAMPAIGN_STEPS}
-                    currentStep={fullCampaignOrchStep}
-                    title="Building 5-phase ad campaign"
-                  />
-                </div>
-              )}
-              {fullCampaignResult && !fullCampaignLoading && (
-                <div>
-                  {/* Attention phase */}
-                  {fullCampaignPhase === 'attention' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Stop the scroll. Zero selling. 5 hook archetypes.</div>
-                      {(fullCampaignResult.phases?.attention?.hooks || []).map((h, i) => (
-                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.blueDim}`, background: '#060a10' }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.blue, marginBottom: 6 }}>{h.archetype?.replace(/_/g,' ')}</div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: C.primary, lineHeight: 1.5, fontFamily: C.display }}>"{h.hook || h}"</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => navigator.clipboard.writeText(h.hook || h).catch(() => {})}
-                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                            <button onClick={() => sendToAdStudio(h.hook || h)}
-                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.gold}44`, background: `${C.gold}11`, color: C.gold }}>→ Ad Studio</button>
+
+              {/* ── Scroll content ── */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: '#070707' }}>
+
+                {/* Empty state */}
+                {!FCR && !fullCampaignLoading && (
+                  <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 24px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                      <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 10 }}>5-Phase Campaign Architecture</div>
+                      <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.75 }}>A 30-day content campaign built around the psychology of conversion. Enter your product above and generate.</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {FC_PHASES.map(ph => (
+                        <div key={ph.id} style={{ padding: '14px 18px', borderRadius: 8, border: `1px solid ${ph.color}18`, background: `${ph.color}05` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: ph.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: ph.color }}>Phase {ph.num} — {ph.label}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 8, color: C.muted }}>{ph.sub}</span>
                           </div>
+                          <div style={{ fontSize: 12, color: C.primary, paddingLeft: 16 }}>{ph.emotion}</div>
                         </div>
                       ))}
                     </div>
-                  )}
-                  {/* Emotional connection */}
-                  {fullCampaignPhase === 'emotional_connection' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Build trust. Tell the story. Make them feel something.</div>
-                      {(fullCampaignResult.phases?.emotional_connection?.scripts || []).map((s, i) => (
-                        <div key={i} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${C.violetDim}`, background: '#0a0810' }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.violet, marginBottom: 6 }}>{s.type?.replace(/_/g,' ')}</div>
-                          {s.hook && <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, marginBottom: 8, fontFamily: C.display }}>"{s.hook}"</div>}
-                          <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{s.script || s}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => navigator.clipboard.writeText(s.script || s).catch(() => {})}
-                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                            <button onClick={() => sendToAdStudio(s.hook || (s.script || '').slice(0, 100), { title: s.type?.replace(/_/g,' ') || 'Story', hook: s.hook || '' })}
-                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.violet}44`, background: `${C.violet}11`, color: C.violet }}>→ Ad Studio</button>
+                    <div style={{ marginTop: 24, padding: '14px 18px', borderRadius: 8, background: C.raised, border: `1px solid ${C.goldDim}28`, textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: C.gold, marginBottom: 4 }}>Or describe it to AI Director</div>
+                      <div style={{ fontSize: 10, color: C.muted, fontStyle: 'italic' }}>"Full campaign for my black hoodie targeting luxury women on TikTok"</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading */}
+                {fullCampaignLoading && (
+                  <div style={{ display: 'flex', height: '100%' }}>
+                    <OrchestrationProgress steps={AD_CAMPAIGN_STEPS} currentStep={fullCampaignOrchStep} title="Building 5-phase ad campaign" />
+                  </div>
+                )}
+
+                {/* Results */}
+                {FCR && !fullCampaignLoading && (() => {
+
+                  // ── 5 campaign phases ──
+                  if (activePhase) {
+                    const items = activePhase.data()
+                    return (
+                      <div style={{ padding: '32px 28px 56px', maxWidth: 760, margin: '0 auto' }}>
+
+                        {/* Phase narration header */}
+                        <div style={{ marginBottom: 32 }}>
+                          <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+                            <div style={{ width: 2, background: `linear-gradient(180deg, ${activePhase.color}, transparent)`, borderRadius: 2, flexShrink: 0, minHeight: 80, marginTop: 3 }} />
+                            <div>
+                              <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase', color: activePhase.color, marginBottom: 7 }}>Phase {activePhase.num} · {activePhase.label} · {activePhase.sub}</div>
+                              <div style={{ fontSize: 24, fontWeight: 700, color: C.primary, fontFamily: C.display, lineHeight: 1.25, marginBottom: 12, letterSpacing: -0.3 }}>{activePhase.emotion}</div>
+                              <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.8, maxWidth: 520 }}>{activePhase.narration}</div>
+                            </div>
                           </div>
+                          <div style={{ marginTop: 24, height: 1, background: `linear-gradient(90deg, ${activePhase.color}28, transparent)` }} />
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Desire escalation */}
-                  {fullCampaignPhase === 'desire_escalation' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>5 image prompts — aspirational, cinematic, desire-building.</div>
-                      {(fullCampaignResult.phases?.desire_escalation?.imagePrompts || []).map((p, i) => (
-                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid #3a2a0a`, background: '#0a0800' }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.tension, marginBottom: 6 }}>{p.type?.replace(/_/g,' ')}</div>
-                          <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.7, fontFamily: C.mono }}>{p.prompt || p}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => navigator.clipboard.writeText(p.prompt || p).catch(() => {})}
-                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                            <button onClick={() => sendToStudio(p.prompt || p)}
-                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.blue}44`, background: `${C.blue}11`, color: C.blue }}>→ Generate in Studio</button>
+
+                        {/* Cards */}
+                        {items.length === 0 ? (
+                          <div style={{ padding: '40px 0', textAlign: 'center', color: C.muted, fontSize: 12 }}>No {activePhase.label.toLowerCase()} content — regenerate to include this phase.</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {items.map((item, i) => {
+                              const label    = (item.archetype || item.type || '').replace(/_/g, ' ')
+                              const headline = activePhase.id === 'attention' ? (item.hook ? `"${item.hook}"` : null)
+                                             : activePhase.id === 'emotional_connection' ? (item.hook ? `"${item.hook}"` : null)
+                                             : null
+                              const body     = activePhase.id === 'emotional_connection' ? (item.script || null)
+                                             : activePhase.id === 'desire_escalation'    ? (item.prompt || null)
+                                             : activePhase.id === 'conversion'           ? (item.copy || null)
+                                             : activePhase.id === 'retargeting'          ? (item.copy || null)
+                                             : null
+                              const mainText = headline || (activePhase.id === 'attention' ? (typeof item === 'string' ? `"${item}"` : null) : null)
+                              const copyText = activePhase.id === 'conversion'
+                                ? (item.copy || item) + (item.cta ? `\n→ ${item.cta}` : '')
+                                : (item.hook || item.script || item.prompt || item.copy || (typeof item === 'string' ? item : ''))
+
+                              return (
+                                <div key={i} style={{ borderRadius: 12, border: `1px solid ${activePhase.color}1e`, background: activePhase.bg, overflow: 'hidden' }}>
+                                  {/* Card header strip */}
+                                  <div style={{ padding: '10px 22px', borderBottom: `1px solid ${activePhase.color}10`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ width: 3, height: 14, borderRadius: 2, background: activePhase.color, flexShrink: 0 }} />
+                                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: activePhase.color }}>{label || `${activePhase.label} ${i + 1}`}</span>
+                                  </div>
+                                  {/* Card body */}
+                                  <div style={{ padding: '22px 22px 14px' }}>
+                                    {mainText && (
+                                      <div style={{ fontSize: activePhase.isPrompt ? 12 : 20, fontWeight: 700, color: C.primary, lineHeight: 1.42, fontFamily: C.display, marginBottom: body ? 14 : 0, letterSpacing: -0.2 }}>
+                                        {mainText}
+                                      </div>
+                                    )}
+                                    {body && (
+                                      <div style={{ fontSize: activePhase.isPrompt ? 11 : 13, color: activePhase.isPrompt ? C.secondary : (mainText ? C.secondary : C.primary), lineHeight: 1.8, fontFamily: activePhase.isPrompt ? C.mono : 'inherit' }}>
+                                        {body}
+                                      </div>
+                                    )}
+                                    {item.cta && (
+                                      <div style={{ marginTop: 16, fontSize: 13, fontWeight: 700, color: activePhase.color, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ width: 18, height: 1, background: activePhase.color }} />{item.cta}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Action strip */}
+                                  <div style={{ padding: '10px 22px 16px', display: 'flex', gap: 8, borderTop: `1px solid ${activePhase.color}0a` }}>
+                                    <button onClick={() => navigator.clipboard.writeText(String(copyText)).catch(() => {})}
+                                      style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted, fontWeight: 600 }}>copy</button>
+                                    {activePhase.actionLabel && (
+                                      <button onClick={() => activePhase.onAction(String(copyText))}
+                                        style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${activePhase.color}40`, background: `${activePhase.color}0e`, color: activePhase.color, fontWeight: 600 }}>{activePhase.actionLabel}</button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Conversion */}
-                  {fullCampaignPhase === 'conversion' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Direct offer. Remove friction. Hard CTA.</div>
-                      {(fullCampaignResult.phases?.conversion?.ads || []).map((a, i) => (
-                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.greenDim}`, background: '#040a06' }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.green, marginBottom: 6 }}>{a.type?.replace(/_/g,' ')}</div>
-                          <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7 }}>{a.copy || a}</div>
-                          {a.cta && <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: C.green }}>→ {a.cta}</div>}
-                          <button onClick={() => navigator.clipboard.writeText((a.copy || a) + (a.cta ? `\n→ ${a.cta}` : '')).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Retargeting */}
-                  {fullCampaignPhase === 'retargeting' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Win back. Remind. Reassure. No pressure.</div>
-                      {(fullCampaignResult.phases?.retargeting?.ads || []).map((a, i) => (
-                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.goldDim}`, background: '#0a0900' }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.gold, marginBottom: 6 }}>{a.type?.replace(/_/g,' ')}</div>
-                          <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7 }}>{a.copy || a}</div>
-                          <button onClick={() => navigator.clipboard.writeText(a.copy || a).catch(() => {})}
-                            style={{ marginTop: 8, padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Captions */}
-                  {fullCampaignPhase === 'captions' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>10 platform-optimized captions across all phases.</div>
-                      {(fullCampaignResult.captions || []).map((c, i) => (
-                        <div key={i} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, marginBottom: 6 }}>{(c.phase || '').replace(/_/g,' ')}</div>
-                          <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.8 }}>{c.caption || c}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => navigator.clipboard.writeText(c.caption || c).catch(() => {})}
-                              style={{ padding: '2px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted }}>copy</button>
-                            <button onClick={() => sendToAdStudio(c.caption || c)}
-                              style={{ padding: '2px 9px', borderRadius: 3, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.gold}44`, background: `${C.gold}11`, color: C.gold }}>→ Ad Studio</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Schedule */}
-                  {fullCampaignPhase === 'schedule' && (
-                    <div>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>30-day posting schedule — phase-sequenced for maximum campaign effectiveness.</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
-                        {(fullCampaignResult.schedule || []).map((day) => {
-                          const phaseColors = { attention: C.blue, emotional_connection: C.violet, desire_escalation: C.tension, conversion: C.green, retargeting: C.gold }
-                          const col = phaseColors[day.phase] || C.muted
+                        )}
+
+                        {/* Video script for this phase — bonus section */}
+                        {(() => {
+                          const vp = phaseVideoMap[activePhase.id]
+                          const vs = (FCR.videoScripts || []).find(v => v.phase === vp)
+                          if (!vs) return null
                           return (
-                            <div key={day.day} style={{ padding: '8px', borderRadius: 6, border: `1px solid ${col}22`, background: `${col}08` }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: col }}>Day {day.day}</div>
-                              <div style={{ fontSize: 9, color: C.muted }}>{day.phaseLabel}</div>
-                              <div style={{ fontSize: 9, color: C.ghost }}>{day.postTime} · {day.contentType}</div>
+                            <div style={{ marginTop: 36 }}>
+                              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.muted, marginBottom: 14 }}>Video Script · {vs.duration}</div>
+                              <div style={{ borderRadius: 12, border: `1px solid ${activePhase.color}15`, background: activePhase.bg, padding: '22px', display: 'flex', gap: 16 }}>
+                                <div style={{ width: 2, background: activePhase.color + '55', borderRadius: 2, flexShrink: 0, alignSelf: 'stretch' }} />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.85, marginBottom: 12 }}>{vs.script}</div>
+                                  {vs.direction && <div style={{ fontSize: 9, color: C.muted, fontStyle: 'italic', marginBottom: 12 }}>🎬 {vs.direction}</div>}
+                                  <button onClick={() => navigator.clipboard.writeText(vs.script).catch(() => {})}
+                                    style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted, fontWeight: 600 }}>copy</button>
+                                </div>
+                              </div>
                             </div>
                           )
-                        })}
+                        })()}
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )
+                  }
+
+                  // ── Captions tab ──
+                  if (fullCampaignPhase === 'captions') {
+                    const caps = FCR.captions || []
+                    const pColors = { awareness: C.blue, connection: C.violet, desire: C.tension, conversion: C.green, retargeting: C.gold }
+                    const pLabels = { awareness: 'Attention', connection: 'Story', desire: 'Desire', conversion: 'Conversion', retargeting: 'Retargeting' }
+                    const pOrder  = ['awareness','connection','desire','conversion','retargeting']
+                    const grouped = {}
+                    caps.forEach(c => { const ph = c.phase || 'awareness'; if (!grouped[ph]) grouped[ph] = []; grouped[ph].push(c) })
+                    return (
+                      <div style={{ padding: '32px 28px 56px', maxWidth: 760, margin: '0 auto' }}>
+                        <div style={{ marginBottom: 32 }}>
+                          <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Captions · {caps.length} total</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: C.primary, fontFamily: C.display, marginBottom: 6, letterSpacing: -0.3 }}>Platform-optimised for each phase.</div>
+                          <div style={{ height: 1, background: `linear-gradient(90deg, ${C.hairline}, transparent)` }} />
+                        </div>
+                        {caps.length === 0 ? (
+                          <div style={{ textAlign: 'center', color: C.muted, fontSize: 12, padding: '40px 0' }}>No captions in this campaign.</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                            {pOrder.filter(ph => grouped[ph]?.length).map(ph => (
+                              <div key={ph}>
+                                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: pColors[ph] || C.muted, marginBottom: 12 }}>{pLabels[ph] || ph}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                  {grouped[ph].map((c, i) => (
+                                    <div key={i} style={{ borderRadius: 10, border: `1px solid ${(pColors[ph] || C.hairline)}18`, background: '#060606', padding: '18px 22px' }}>
+                                      <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.85, marginBottom: 14 }}>{c.caption || c}</div>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        <button onClick={() => navigator.clipboard.writeText(c.caption || c).catch(() => {})}
+                                          style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted, fontWeight: 600 }}>copy</button>
+                                        <button onClick={() => sendToAdStudio(c.caption || c)}
+                                          style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${(pColors[ph] || C.gold)}40`, background: `${(pColors[ph] || C.gold)}0e`, color: pColors[ph] || C.gold, fontWeight: 600 }}>→ Ad Studio</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  // ── Schedule tab ──
+                  if (fullCampaignPhase === 'schedule') {
+                    const sched = FCR.schedule || []
+                    const sColors = { attention: C.blue, emotional_connection: C.violet, desire_escalation: C.tension, conversion: C.green, retargeting: C.gold, awareness: C.blue, connection: C.violet, desire: C.tension }
+                    return (
+                      <div style={{ padding: '32px 28px 56px', maxWidth: 760, margin: '0 auto' }}>
+                        <div style={{ marginBottom: 32 }}>
+                          <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Schedule · 30 days</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: C.primary, fontFamily: C.display, marginBottom: 6, letterSpacing: -0.3 }}>Phase-sequenced for maximum reach.</div>
+                          <div style={{ height: 1, background: `linear-gradient(90deg, ${C.hairline}, transparent)` }} />
+                        </div>
+                        {sched.length === 0 ? (
+                          <div style={{ textAlign: 'center', color: C.muted, fontSize: 12, padding: '40px 0' }}>No schedule in this campaign.</div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                            {sched.map(day => {
+                              const col = sColors[day.phase] || C.muted
+                              return (
+                                <div key={day.day} style={{ padding: '12px 14px', borderRadius: 8, border: `1px solid ${col}1e`, background: `${col}06` }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: col, marginBottom: 3 }}>Day {day.day}</div>
+                                  <div style={{ fontSize: 9, color: C.secondary, marginBottom: 2 }}>{day.phaseLabel}</div>
+                                  <div style={{ fontSize: 8, color: C.muted }}>{day.postTime}</div>
+                                  {day.contentType && <div style={{ fontSize: 8, color: C.ghost, marginTop: 2 }}>{day.contentType}</div>}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  return null
+                })()}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
 
