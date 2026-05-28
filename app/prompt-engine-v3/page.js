@@ -17097,23 +17097,23 @@ export default function PromptCEOPage() {
             {fullCampaignResult && (
               <div style={{ flexShrink: 0, display: 'flex', gap: 0, borderBottom: `1px solid ${C.hairline}`, background: C.void }}>
                 {[
-                  { id: 'attention',            label: 'Attention',    color: C.blue },
-                  { id: 'emotional_connection',  label: 'Story',        color: C.violet },
-                  { id: 'desire_escalation',     label: 'Desire',       color: C.tension },
-                  { id: 'conversion',            label: 'Conversion',   color: C.green },
-                  { id: 'retargeting',           label: 'Retargeting',  color: C.gold },
-                  { id: 'captions',              label: 'Captions',     color: C.secondary },
-                  { id: 'schedule',              label: 'Schedule',     color: C.muted },
+                  { id: 'attention',            label: 'Attention',    sub: 'Days 1–6',   color: C.blue },
+                  { id: 'emotional_connection',  label: 'Story',        sub: 'Days 7–12',  color: C.violet },
+                  { id: 'desire_escalation',     label: 'Desire',       sub: 'Days 13–20', color: C.tension },
+                  { id: 'conversion',            label: 'Conversion',   sub: 'Days 21–26', color: C.green },
+                  { id: 'retargeting',           label: 'Retargeting',  sub: 'Days 27–30', color: C.gold },
+                  { id: 'captions',              label: 'Captions',     sub: '30 total',   color: C.secondary },
+                  { id: 'schedule',              label: 'Schedule',     sub: '30 days',    color: C.muted },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setFullCampaignPhase(tab.id)}
                     style={{
-                      flex: 1, padding: '8px 4px', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      flex: 1, padding: '7px 4px', cursor: 'pointer',
                       border: 'none', borderBottom: `2px solid ${fullCampaignPhase === tab.id ? tab.color : 'transparent'}`,
                       background: fullCampaignPhase === tab.id ? C.surface : 'transparent',
-                      color: fullCampaignPhase === tab.id ? tab.color : C.ghost,
-                      letterSpacing: 0.5, transition: 'all 0.15s',
+                      transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                     }}>
-                    {tab.label}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: fullCampaignPhase === tab.id ? tab.color : C.secondary, letterSpacing: 0.3 }}>{tab.label}</span>
+                    <span style={{ fontSize: 7, color: fullCampaignPhase === tab.id ? tab.color + 'aa' : C.muted }}>{tab.sub}</span>
                   </button>
                 ))}
               </div>
@@ -17122,12 +17122,50 @@ export default function PromptCEOPage() {
             {/* Content */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
               {!fullCampaignResult && !fullCampaignLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: C.ghost }}>
-                  <div style={{ fontSize: 40 }}>◈</div>
-                  <div style={{ fontSize: 14, color: C.secondary, textAlign: 'center', fontFamily: C.display }}>Generate a complete 5-phase ad campaign</div>
-                  <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 440, lineHeight: 1.8 }}>
-                    Enter your product name above and hit Generate.<br />
-                    Or type in the conversation bar: <em>"Full campaign for my black hoodie targeting luxury women on TikTok"</em>
+                <div style={{ maxWidth: 520, margin: '0 auto', padding: '8px 0' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                    <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>5-Phase Campaign Architecture</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>Enter your product above and generate a complete 30-day campaign</div>
+                  </div>
+
+                  {[
+                    { phase: 1, label: 'ATTENTION',   days: 'Days 1–6',   color: C.blue,    goal: 'Stop the scroll. Zero selling.',     output: 'Scroll-stopping hooks · curiosity openers · pattern interrupts', width: '100%' },
+                    { phase: 2, label: 'CONNECTION',  days: 'Days 7–12',  color: C.violet,  goal: 'Build emotional trust.',             output: 'Story scripts · lifestyle scenes · brand narrative',            width: '90%'  },
+                    { phase: 3, label: 'DESIRE',      days: 'Days 13–20', color: C.tension, goal: 'Make them want it.',                 output: 'Problem reveal · transformation · desire escalation',          width: '78%'  },
+                    { phase: 4, label: 'CONVERSION',  days: 'Days 21–26', color: C.green,   goal: 'Ask for the sale.',                  output: 'Offer scripts · urgency · social proof · direct CTA',          width: '66%'  },
+                    { phase: 5, label: 'RETARGETING', days: 'Days 27–30', color: C.gold,    goal: 'Re-engage warm audiences.',          output: '5 retargeting angles · objection handling · FOMO',             width: '54%'  },
+                  ].map((p, i) => (
+                    <div key={p.phase}>
+                      <div style={{ width: p.width, margin: '0 auto', background: p.color + '09', border: `1px solid ${p.color}28`, borderRadius: 8, padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                          <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: p.color }}>Phase {p.phase} — {p.label}</div>
+                          <div style={{ marginLeft: 'auto', fontSize: 8, color: C.muted }}>{p.days}</div>
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.primary, marginBottom: 3 }}>{p.goal}</div>
+                        <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.6 }}>{p.output}</div>
+                      </div>
+                      {i < 4 && (
+                        <div style={{ textAlign: 'center', fontSize: 10, color: C.muted, margin: '2px 0' }}>↓</div>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    {[
+                      { icon: '📝', label: '30 Captions',     sub: 'Platform-optimised' },
+                      { icon: '📅', label: '30-Day Schedule', sub: 'Timed for reach' },
+                      { icon: '🎯', label: '5 Retargeting Angles', sub: 'Warm audiences' },
+                    ].map(item => (
+                      <div key={item.label} style={{ flex: 1, background: C.raised, border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.secondary, marginBottom: 2 }}>{item.icon} {item.label}</div>
+                        <div style={{ fontSize: 8, color: C.muted }}>{item.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 6, background: C.raised, border: `1px solid ${C.goldDim}40`, textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: C.gold, marginBottom: 3 }}>Or use AI Director</div>
+                    <div style={{ fontSize: 10, color: C.muted, fontStyle: 'italic' }}>"Full campaign for my black hoodie targeting luxury women on TikTok"</div>
                   </div>
                 </div>
               )}
