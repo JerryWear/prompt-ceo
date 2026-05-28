@@ -12126,7 +12126,14 @@ export default function PromptCEOPage() {
   useEffect(() => {
     fetch('/api/brand-profiles')
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) { setBrandProfiles(d); setBrandProfilesLoaded(true) } })
+      .then(d => {
+        if (Array.isArray(d)) {
+          setBrandProfiles(d)
+          setBrandProfilesLoaded(true)
+          // Auto-select most recently used profile — only if nothing is already active
+          if (d.length > 0) setActiveBrandProfile(p => p || d[0])
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -16823,6 +16830,11 @@ export default function PromptCEOPage() {
                       <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                         <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Remembers</span>
+                        {activeBrandProfile && (
+                          <span style={{ fontSize: 9, color: C.violet, fontWeight: 700, background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '1px 6px' }}>
+                            {activeBrandProfile.name}
+                          </span>
+                        )}
                         {directorMemory.campaignCount > 0 && (
                           <span style={{ fontSize: 8, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''} generated</span>
                         )}
