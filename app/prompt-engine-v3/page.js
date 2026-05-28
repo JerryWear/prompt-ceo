@@ -119,6 +119,34 @@ const LOADING_LINES = [
   'Finalising your ad creative…',
 ]
 
+// ─────────────────────────────────────────────────────────────
+// ORCHESTRATION STEPS — per generation type
+// ─────────────────────────────────────────────────────────────
+
+const FULL_CAMPAIGN_STEPS = [
+  { id: 'world',    icon: '◧', label: 'Building world context',     desc: 'Life Engine selecting world + day type' },
+  { id: 'angles',   icon: '📐', label: 'Generating angles + hooks',  desc: 'Finding the strongest positions' },
+  { id: 'captions', icon: '📝', label: 'Writing captions',           desc: '30 platform-optimised captions' },
+  { id: 'schedule', icon: '📅', label: 'Building 30-day schedule',   desc: 'Phase-sequenced posting plan' },
+  { id: 'saving',   icon: '💾', label: 'Saving to project',          desc: 'Campaign stored to memory' },
+]
+
+const BUILD_PROJECT_STEPS = [
+  { id: 'angles',   icon: '📐', label: 'Generating angles',          desc: 'Psychological positioning strategies' },
+  { id: 'hooks',    icon: '🪝', label: 'Generating hooks',           desc: '5 emotional hook types' },
+  { id: 'captions', icon: '📝', label: 'Writing captions',           desc: '6 platform caption styles' },
+  { id: 'ugc',      icon: '🎤', label: 'Writing UGC scripts',        desc: 'Talking head + testimonials' },
+  { id: 'saving',   icon: '💾', label: 'Finalising project',         desc: 'Everything saved to campaign' },
+]
+
+const AD_CAMPAIGN_STEPS = [
+  { id: 'intent',   icon: '✦',  label: 'Routing through AI Director', desc: 'Understanding your creative intent' },
+  { id: 'world',    icon: '🌍', label: 'Building world context',       desc: 'Life Engine — selecting world + arc' },
+  { id: 'sequence', icon: '☀',  label: 'Sequencing 14 moments',        desc: 'Morning-to-midnight lifestyle arc' },
+  { id: 'phases',   icon: '📐', label: 'Generating 5-phase campaign',  desc: 'Attention → Connection → Desire → Conversion → Retargeting' },
+  { id: 'schedule', icon: '📅', label: 'Building 30-day schedule',      desc: 'Platform-optimised posting plan' },
+]
+
 function AdLoadingState({ outputType }) {
   const [lineIndex, setLineIndex] = useState(0)
   const [tick, setTick] = useState(0)
@@ -139,6 +167,71 @@ function AdLoadingState({ outputType }) {
       </div>
       <div style={{ padding: '8px 16px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}`, fontSize: 10, color: C.muted }}>
         {outputType === 'video' ? '🎬 Video takes ~2 minutes' : '🖼 Image takes ~30 seconds'}
+      </div>
+    </div>
+  )
+}
+
+function OrchestrationProgress({ steps, currentStep, title }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 500)
+    return () => clearInterval(t)
+  }, [])
+  const dots = ['   ', '.  ', '.. ', '...'][(tick % 4)]
+  const currentIdx = steps.findIndex(s => s.id === currentStep)
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '40px 28px' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 10, color: C.gold, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+          {title || 'AI Director is working'}
+        </div>
+        <div style={{ fontSize: 11, color: C.muted, letterSpacing: 4, fontFamily: C.mono }}>{dots}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, width: '100%', maxWidth: 280 }}>
+        {steps.map((step, i) => {
+          const isDone   = i < currentIdx
+          const isActive = i === currentIdx
+          return (
+            <div key={step.id}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
+                borderRadius: 6,
+                background: isActive ? C.raised : 'transparent',
+                border: `1px solid ${isActive ? C.subtle : 'transparent'}`,
+                transition: 'all 0.4s',
+              }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: isDone ? 9 : 10, fontWeight: 800,
+                  background: isDone ? C.goldGlow : isActive ? '#1a1030' : C.raised,
+                  border: `1px solid ${isDone ? C.goldDim : isActive ? C.violet : C.hairline}`,
+                  color: isDone ? C.gold : isActive ? C.violet : C.muted,
+                  transition: 'all 0.4s',
+                }}>
+                  {isDone ? '✓' : step.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: isActive ? 700 : 400,
+                    color: isDone ? C.secondary : isActive ? C.primary : C.muted,
+                    transition: 'color 0.4s',
+                  }}>{step.label}</div>
+                  {isActive && step.desc && (
+                    <div style={{ fontSize: 8, color: C.gold, marginTop: 2 }}>{step.desc}</div>
+                  )}
+                </div>
+                {isActive && (
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.violet, opacity: tick % 2 === 0 ? 1 : 0.2, transition: 'opacity 0.5s' }} />
+                )}
+              </div>
+              {i < steps.length - 1 && (
+                <div style={{ paddingLeft: 19, fontSize: 8, color: isDone ? C.goldDim : C.hairline, lineHeight: '12px' }}>│</div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -172,6 +265,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [selectedAngle,    setSelectedAngle]    = useState(null)
   const [selectedHook,     setSelectedHook]     = useState(null)
   const [buildingProject,  setBuildingProject]  = useState(false)
+  const [buildProjectStep, setBuildProjectStep] = useState('')
   const [projectSaved,     setProjectSaved]     = useState(false)
   const [fullCampaignLoading, setFullCampaignLoading] = useState(false)
   const [fullCampaignStep,    setFullCampaignStep]    = useState('')
@@ -713,28 +807,33 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
     try {
       // Step 1 — Angles
+      setBuildProjectStep('angles')
       const angles = await runStep('angles', baseConfig)
       const bestAngle = angles?.[0] || null
       if (bestAngle) setSelectedAngle(bestAngle)
 
       // Step 2 — Hooks (using selected angle)
+      setBuildProjectStep('hooks')
       const configWithAngle = { ...baseConfig, selectedAngle: bestAngle }
       const hooksResult = await runStep('hooks', configWithAngle, 'pain')
       const bestHook = (Array.isArray(hooksResult?.hooks) ? hooksResult.hooks : hooksResult)?.[0] || null
       if (bestHook) setSelectedHook(bestHook)
 
       // Step 3 — Captions + UGC in parallel
+      setBuildProjectStep('captions')
       const configFull = { ...configWithAngle, selectedHook: bestHook }
       await Promise.all([
         runStep('captions', configFull),
         runStep('ugc_scripts', configFull),
       ])
 
+      setBuildProjectStep('saving')
       setAdOutputTab('angles')
     } catch (err) {
       merge({ adTextError: err.message, adTextGenerating: false })
     } finally {
       setBuildingProject(false)
+      setBuildProjectStep('')
       merge({ adTextGenerating: false })
     }
   }
@@ -790,15 +889,20 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     if (!productName.trim() || fullCampaignLoading) return
     setFullCampaignLoading(true)
     setFullCampaignResult(null)
-    setFullCampaignStep('Generating angles, hooks + 30 image prompts…')
+    setFullCampaignStep('world')
+    // eslint-disable-next-line prefer-const
+    let t1 = setTimeout(() => setFullCampaignStep('angles'), 1800)
+    // eslint-disable-next-line prefer-const
+    let t2 = setTimeout(() => setFullCampaignStep('captions'), 5000)
     try {
       const res = await fetch('/api/full-campaign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: productName, platform: adPlatform, projectId: s.activeProjectId }),
       })
-      setFullCampaignStep('Building captions + 30-day schedule…')
+      setFullCampaignStep('schedule')
       const data = await res.json()
       if (data.error) throw new Error(data.error)
+      setFullCampaignStep('saving')
       setFullCampaignResult(data)
       // Inject top results into existing state
       if (data.angles?.[0])  setSelectedAngle(data.angles[0])
@@ -813,10 +917,11 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         activeProjectName: data.projectId ? `${productName} — Full Campaign` : s.activeProjectName,
       })
       setAdOutputTab('angles')
-      setFullCampaignStep('Done')
+      setFullCampaignStep('')
     } catch (err) {
-      setFullCampaignStep('Error: ' + err.message)
+      setFullCampaignStep('')
     } finally {
+      clearTimeout(t1); clearTimeout(t2)
       setFullCampaignLoading(false)
     }
   }
@@ -4643,9 +4748,11 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               </button>
             )}
             {buildingProject && (
-              <div style={{ fontSize: 10, color: C.gold, maxWidth: 280, lineHeight: 1.6 }}>
-                Generating angles → selecting best → hooks → captions + UGC. Results appear in each tab.
-              </div>
+              <OrchestrationProgress
+                steps={BUILD_PROJECT_STEPS}
+                currentStep={buildProjectStep}
+                title="Building full ad project"
+              />
             )}
 
             {/* One-Button Full Campaign */}
@@ -4663,7 +4770,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}
               >
-                {fullCampaignLoading ? `⟳ ${fullCampaignStep}` : '🚀 Generate Full Campaign — 30 Prompts + Captions + Schedule'}
+                {fullCampaignLoading ? '⟳ Generating…' : '🚀 Generate Full Campaign — 30 Prompts + Captions + Schedule'}
               </button>
             )}
 
@@ -12355,6 +12462,7 @@ export default function PromptCEOPage() {
   // ── Crown Upgrade: Full Ad Campaign™ ────────────────────
   const [fullCampaignResult,   setFullCampaignResult]   = useState(null)
   const [fullCampaignLoading,  setFullCampaignLoading]  = useState(false)
+  const [fullCampaignOrchStep, setFullCampaignOrchStep] = useState('intent')
   const [fullCampaignProduct,  setFullCampaignProduct]  = useState('')
   const [fullCampaignGoal,     setFullCampaignGoal]     = useState('sales')
   const [fullCampaignStyle,    setFullCampaignStyle]    = useState('cinematic')
@@ -12364,6 +12472,10 @@ export default function PromptCEOPage() {
   const generateFullCampaign = useCallback(async (productName) => {
     if (fullCampaignLoading) return
     setFullCampaignLoading(true)
+    setFullCampaignOrchStep('intent')
+    let ta = setTimeout(() => setFullCampaignOrchStep('world'), 1200)
+    let tb = setTimeout(() => setFullCampaignOrchStep('sequence'), 3000)
+    let tc = setTimeout(() => setFullCampaignOrchStep('phases'), 6000)
     try {
       const res = await fetch('/api/full-ad-campaign', {
         method: 'POST',
@@ -12380,9 +12492,11 @@ export default function PromptCEOPage() {
           projectId:      s.activeProjectId || null,
         }),
       })
+      setFullCampaignOrchStep('schedule')
       const data = await res.json()
       if (!data.error) { setFullCampaignResult(data); setFullCampaignPhase('attention') }
     } catch {}
+    clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
     setFullCampaignLoading(false)
   }, [fullCampaignLoading, fullCampaignProduct, fullCampaignGoal, fullCampaignStyle, fullCampaignPlatform, s.storyWorldId, creatorProfiles, activeBrandProfile, s.activeProjectId])
 
@@ -17018,10 +17132,12 @@ export default function PromptCEOPage() {
                 </div>
               )}
               {fullCampaignLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: C.muted }}>
-                  <div style={{ fontSize: 28 }}>⟳</div>
-                  <div style={{ fontSize: 12 }}>Building your full campaign…</div>
-                  <div style={{ fontSize: 10, color: C.ghost }}>5 phases · hooks · stories · desire · conversion · retargeting · 30-day schedule</div>
+                <div style={{ display: 'flex', height: '100%' }}>
+                  <OrchestrationProgress
+                    steps={AD_CAMPAIGN_STEPS}
+                    currentStep={fullCampaignOrchStep}
+                    title="Building 5-phase ad campaign"
+                  />
                 </div>
               )}
               {fullCampaignResult && !fullCampaignLoading && (

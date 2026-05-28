@@ -26,6 +26,80 @@ const C = {
   mono:    '"SF Mono", "Fira Code", monospace',
 }
 
+// ── Orchestration steps ───────────────────────────────────────────────────────
+const FULL_DAY_STEPS = [
+  { id: 'world',     icon: '🌍', label: 'Building world context',      desc: 'Setting scene, atmosphere + identity' },
+  { id: 'sequence',  icon: '☀',  label: 'Sequencing 14 moments',       desc: 'Morning to midnight arc' },
+  { id: 'cinematic', icon: '🎬', label: 'Adding cinematic direction',   desc: 'Camera, lens, lighting, wardrobe' },
+  { id: 'hooks',     icon: '🪝', label: 'Writing hooks + captions',    desc: 'Platform-optimised copy for each scene' },
+]
+
+function OrchestrationProgress({ steps, currentStep, title, color }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 500)
+    return () => clearInterval(t)
+  }, [])
+  const dots = ['   ', '.  ', '.. ', '...'][(tick % 4)]
+  const currentIdx = steps.findIndex(s => s.id === currentStep)
+  const accentColor = color || C.gold
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28, padding: '40px 28px' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 10, color: accentColor, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+          {title || 'AI Director is working'}
+        </div>
+        <div style={{ fontSize: 11, color: C.muted, letterSpacing: 4, fontFamily: C.mono }}>{dots}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, width: '100%', maxWidth: 280 }}>
+        {steps.map((step, i) => {
+          const isDone   = i < currentIdx
+          const isActive = i === currentIdx
+          return (
+            <div key={step.id}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
+                borderRadius: 6,
+                background: isActive ? C.raised : 'transparent',
+                border: `1px solid ${isActive ? C.subtle : 'transparent'}`,
+                transition: 'all 0.4s',
+              }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: isDone ? 9 : 10, fontWeight: 800,
+                  background: isDone ? C.goldDim + '44' : isActive ? '#1a1030' : C.raised,
+                  border: `1px solid ${isDone ? C.goldDim : isActive ? '#7c5fe0' : C.hairline}`,
+                  color: isDone ? C.gold : isActive ? '#a78bfa' : C.muted,
+                  transition: 'all 0.4s',
+                }}>
+                  {isDone ? '✓' : step.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: isActive ? 700 : 400,
+                    color: isDone ? C.secondary : isActive ? C.primary : C.muted,
+                    transition: 'color 0.4s',
+                  }}>{step.label}</div>
+                  {isActive && step.desc && (
+                    <div style={{ fontSize: 8, color: accentColor, marginTop: 2 }}>{step.desc}</div>
+                  )}
+                </div>
+                {isActive && (
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', opacity: tick % 2 === 0 ? 1 : 0.2, transition: 'opacity 0.5s' }} />
+                )}
+              </div>
+              {i < steps.length - 1 && (
+                <div style={{ paddingLeft: 19, fontSize: 8, color: isDone ? C.goldDim : C.hairline, lineHeight: '12px' }}>│</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Day type config ────────────────────────────────────────────────────────────
 const DAY_TYPES = [
   { id: 'perfect_day',     label: 'Perfect Day',     icon: '☀', color: C.gold,   description: 'Believable full-day lifestyle story' },
@@ -86,6 +160,7 @@ export default function FullDayPage() {
   // Generation
   const [result,    setResult]    = useState(null)
   const [loading,   setLoading]   = useState(false)
+  const [orchStep,  setOrchStep]  = useState('world')
   const [error,     setError]     = useState('')
 
   // Inline image generation per scene
@@ -134,8 +209,12 @@ export default function FullDayPage() {
   const generate = useCallback(async () => {
     if (loading) return
     setLoading(true)
+    setOrchStep('world')
     setError('')
     setResult(null)
+    let ta = setTimeout(() => setOrchStep('sequence'), 1500)
+    let tb = setTimeout(() => setOrchStep('cinematic'), 4000)
+    let tc = setTimeout(() => setOrchStep('hooks'), 7000)
     setSceneImages({})
     setSavedId(null)
 
@@ -162,12 +241,13 @@ export default function FullDayPage() {
         body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (data.error) { setError(data.error); setLoading(false); return }
+      if (data.error) { setError(data.error); setLoading(false); clearTimeout(ta); clearTimeout(tb); clearTimeout(tc); return }
       setResult({ ...data, dayType, worldId, style, platform, isPerfectDay })
       setExpandedScene(0)
     } catch (err) {
       setError(err.message || 'Generation failed')
     }
+    clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
     setLoading(false)
   }, [loading, dayType, worldId, style, platform, identity, activeCreator, activeBrand])
 
@@ -445,10 +525,13 @@ export default function FullDayPage() {
 
           {/* Loading */}
           {loading && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-              <div style={{ fontSize: 32, animation: 'spin 2s linear infinite', color: activeType.color }}>{activeType.icon}</div>
-              <div style={{ fontSize: 14, color: C.secondary }}>Directing your {activeType.label}…</div>
-              <div style={{ fontSize: 10, color: C.ghost }}>14 scenes · image prompts · video direction · hooks · captions</div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <OrchestrationProgress
+                steps={FULL_DAY_STEPS}
+                currentStep={orchStep}
+                title={`Directing your ${activeType.label}`}
+                color={activeType.color}
+              />
             </div>
           )}
 
