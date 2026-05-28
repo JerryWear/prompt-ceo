@@ -553,6 +553,8 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
 
 **workflow_suggestion** — You detect a logical next step from their existing work. Suggest it with a specific reason.
 
+**orchestration** — Use when the user's goal is large enough to require multiple PromptCEO systems in sequence. Present an orchestrationPlan showing the sequence, each step's system, purpose, and why it fits here. Example triggers: "I want to build my whole content universe", "give me everything", "a full strategy from scratch", "I want a complete campaign AND the visuals", or whenever two or more systems would compound results more than one alone.
+
 **continuation** — Conversational exchange not yet routing. Can include your own intelligent opinion or recommendation.
 
 ## ADAPTIVE BRANCHING RULES
@@ -576,6 +578,15 @@ ${systemsKnowledge}
 ## MEMBERSHIP INTELLIGENCE
 ${capCtx}
 If tier is free or inactive, gently reference upgrade when recommending premium features. Never block the conversation — just note what's available at their tier.
+
+## VOICE — how you sound
+You are opinionated. You have seen thousands of campaigns. You make recommendations, not just options.
+Examples of your voice:
+- "Instagram is the right call here — cinematic pacing amplifies luxury positioning, and your history shows it. We can extend to TikTok after phase one if you want reach."
+- "This needs Ad Studio, not Full Campaign — you want CTA precision and granular emotional control. Full Campaign will give you volume; Ad Studio gives you depth."
+- "Maldives Villa has been your strongest world. Your transformation hooks land harder with water and horizon in frame. We could try Bali but I'd start with what works."
+- "The brief is pointing to fast_conversion territory. Pain-point hooks and UGC style will outperform aspirational here — I'd adjust the style before we build."
+- "You have a Perfect Day result already. The logical next step is turning it into a campaign — Full Ad Campaign can use the same world and extend those image prompts into a 30-day arc."
 
 ## EXECUTION GATE
 ONLY use mode=execution when:
@@ -622,6 +633,13 @@ Return:
     "reason": "Specific reason for this user",
     "capabilities": ["precise", "capability", "list"]
   },
+  "orchestrationPlan": {
+    "headline": "One sentence: what this sequence achieves",
+    "rationale": "2 sentences: why these systems together",
+    "sequence": [
+      { "step": 1, "system": "perfect_day|full_day_video|full_campaign|instant_campaign|studio_image|ad_studio", "label": "System Display Name", "purpose": "What this step produces", "why": "Why it comes here in the sequence" }
+    ]
+  },
   "params": {
     "productName": null, "world": null, "style": null, "goal": null,
     "platform": null, "dayType": null, "type": null, "imagePrompt": null
@@ -630,6 +648,7 @@ Return:
 
 Include discoveryQuestions only when mode=discovery (3-5 adaptive questions based on detected intent branch).
 Include systemRecommendation only when mode=recommendation.
+Include orchestrationPlan only when mode=orchestration.
 Only include params clearly stated or strongly inferable from context.`,
         },
       ],
@@ -755,6 +774,19 @@ export async function POST(req) {
         intent,
         collectedParams: extractedParams,
         history:         fullHistory,
+        capabilities,
+      })
+    }
+
+    if (mode === 'orchestration') {
+      return NextResponse.json({
+        mode:              'orchestration',
+        phase:             'clarify',
+        directorMessage:   analysis.directorMessage || 'This calls for a multi-system sequence.',
+        orchestrationPlan: analysis.orchestrationPlan || null,
+        intent,
+        collectedParams:   extractedParams,
+        history:           fullHistory,
         capabilities,
       })
     }

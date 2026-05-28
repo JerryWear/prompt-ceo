@@ -12414,7 +12414,26 @@ export default function PromptCEOPage() {
   const [directorInput,      setDirectorInput]      = useState('')
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
   const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
-  const [discoveryAnswers,   setDiscoveryAnswers]   = useState({})        // answers to current discovery form
+  const [discoveryAnswers,   setDiscoveryAnswers]   = useState({})     // answers to current discovery form
+  const [thinkingMsg,        setThinkingMsg]        = useState('')     // rotating execution message
+
+  const DIRECTOR_THINKING_MSGS = {
+    full_campaign:    ['Analyzing emotional direction…','Building narrative architecture…','Mapping campaign psychology…','Optimizing hooks for platform retention…','Constructing 5-phase conversion sequence…','Calibrating world atmosphere…','Sequencing emotional pacing…','Building posting schedule…'],
+    perfect_day:      ['Building cinematic world…','Sequencing 12 moments…','Crafting emotional arc…','Writing scene hooks…','Calibrating lighting direction…','Composing caption sequence…'],
+    full_day_video:   ['Building production plan…','Sequencing cinematic scenes…','Calibrating camera directions…','Writing scene-by-scene direction…','Composing wardrobe arc…','Finalizing shot list…'],
+    instant_campaign: ['Analyzing brand positioning…','Generating hook variations…','Building angle matrix…','Optimizing for platform…'],
+  }
+
+  const REFINEMENT_OPTIONS = [
+    { value: 'stronger_hooks',    label: 'Stronger hooks' },
+    { value: 'more_emotional',    label: 'More emotional' },
+    { value: 'more_luxury',       label: 'More luxury' },
+    { value: 'more_viral',        label: 'More viral' },
+    { value: 'stronger_cta',      label: 'Stronger CTA' },
+    { value: 'faster_pacing',     label: 'Faster pacing' },
+    { value: 'higher_conversion', label: 'Higher conversion' },
+    { value: 'new_session',       label: 'Start new session' },
+  ]
 
   // Load campaign + world memory on mount (powers both Director welcome + right panel)
   useEffect(() => {
@@ -12462,6 +12481,17 @@ export default function PromptCEOPage() {
     loadMemory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Rotating thinking messages during execution
+  useEffect(() => {
+    if (directorPhase !== 'executing') { setThinkingMsg(''); return }
+    const msgs = DIRECTOR_THINKING_MSGS[directorIntent] || ['Generating your campaign…', 'Building creative direction…', 'Optimizing strategy…']
+    let i = 0
+    setThinkingMsg(msgs[0])
+    const interval = setInterval(() => { i = (i + 1) % msgs.length; setThinkingMsg(msgs[i]) }, 2500)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directorPhase, directorIntent])
 
   const resetDirector = useCallback(() => {
     setDirectorHistory([])
@@ -12558,8 +12588,16 @@ export default function PromptCEOPage() {
           collectedParams: data.collectedParams,
           intent:         data.intent,
         }])
-        // Store preview's collectedParams so confirm can use them
         if (data.collectedParams) setDirectorParams(data.collectedParams)
+        setDirectorPhase('chat')
+
+      } else if (responseMode === 'orchestration') {
+        setDirectorHistory(h => [...h, {
+          role:              'ai',
+          content:           data.directorMessage || '',
+          mode:              'orchestration',
+          orchestrationPlan: data.orchestrationPlan || null,
+        }])
         setDirectorPhase('chat')
 
       } else if (responseMode === 'routing' || (data.question && responseMode !== 'execution')) {
@@ -12582,6 +12620,7 @@ export default function PromptCEOPage() {
 
         const p = data.params
         const engine = data.engine
+        let offerRefinement = false
 
         if (engine === 'studio') {
           sendToStudio(p.imagePrompt)
@@ -12596,7 +12635,8 @@ export default function PromptCEOPage() {
           const rd = await r.json()
           if (!rd.error) { setPerfectDayResult(rd); set('view', 'perfect_day') }
           setPerfectDayLoading(false)
-          resetDirector()
+          setDirectorHistory(h => [...h, { role: 'ai', content: 'Perfect Day is live. What would you like to refine?', mode: 'refinement', options: REFINEMENT_OPTIONS }])
+          offerRefinement = true
 
         } else if (engine === '/api/full-day-generate') {
           setFullDayLoading(true)
@@ -12607,7 +12647,8 @@ export default function PromptCEOPage() {
           const rd = await r.json()
           if (!rd.error) { setFullDayResult(rd); set('view', 'full_day_video') }
           setFullDayLoading(false)
-          resetDirector()
+          setDirectorHistory(h => [...h, { role: 'ai', content: 'Full Day Video is live. What would you like to refine?', mode: 'refinement', options: REFINEMENT_OPTIONS }])
+          offerRefinement = true
 
         } else if (engine === '/api/full-ad-campaign') {
           setFullCampaignLoading(true)
@@ -12618,7 +12659,8 @@ export default function PromptCEOPage() {
           const rd = await r.json()
           if (!rd.error) { setFullCampaignResult(rd); setFullCampaignPhase('attention'); set('view', 'full_campaign') }
           setFullCampaignLoading(false)
-          resetDirector()
+          setDirectorHistory(h => [...h, { role: 'ai', content: 'Full Ad Campaign is live. What would you like to refine?', mode: 'refinement', options: REFINEMENT_OPTIONS }])
+          offerRefinement = true
 
         } else if (engine === '/api/instant-campaign') {
           setInstantLoading(true)
@@ -12634,9 +12676,11 @@ export default function PromptCEOPage() {
             set('view', 'full_campaign')
           }
           setInstantLoading(false)
-          resetDirector()
+          setDirectorHistory(h => [...h, { role: 'ai', content: 'Campaign is live. What would you like to refine?', mode: 'refinement', options: REFINEMENT_OPTIONS }])
+          offerRefinement = true
         }
-        setDirectorPhase('done')
+
+        setDirectorPhase(offerRefinement ? 'chat' : 'done')
         return
 
       } else {
@@ -17155,6 +17199,79 @@ export default function PromptCEOPage() {
                     </div>
                   )}
 
+                  {/* Refinement offer card */}
+                  {msg.role === 'ai' && msg.mode === 'refinement' && idx === directorHistory.length - 1 && (
+                    <div style={{ maxWidth: '82%' }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: 'uppercase', marginBottom: 14 }}>Refine</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {(msg.options || []).map(opt => (
+                          <button key={opt.value}
+                            onClick={() => {
+                              if (opt.value === 'new_session') { resetDirector(); return }
+                              directorSend(`Refine the campaign — ${opt.label.toLowerCase()}`, null, null)
+                            }}
+                            disabled={directorLoading}
+                            style={{
+                              padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                              border: `1px solid ${opt.value === 'new_session' ? C.subtle : C.green + '50'}`,
+                              background: opt.value === 'new_session' ? C.surface : '#030d03',
+                              color: opt.value === 'new_session' ? '#888' : C.green,
+                              opacity: directorLoading ? 0.5 : 1, transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => { if (!directorLoading && opt.value !== 'new_session') { e.currentTarget.style.background = '#061206'; e.currentTarget.style.borderColor = C.green } }}
+                            onMouseLeave={e => { if (opt.value !== 'new_session') { e.currentTarget.style.background = '#030d03'; e.currentTarget.style.borderColor = C.green + '50' } }}
+                          >{opt.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Orchestration plan card */}
+                  {msg.role === 'ai' && msg.mode === 'orchestration' && msg.orchestrationPlan && idx === directorHistory.length - 1 && (() => {
+                    const plan = msg.orchestrationPlan
+                    const sysColors = { perfect_day: C.gold, full_day_video: C.violet, full_campaign: C.blue, instant_campaign: C.green, studio_image: C.gold, ad_studio: C.tension }
+                    return (
+                      <div style={{ width: '88%', borderRadius: 14, border: `1px solid ${C.violet}40`, background: '#060410', overflow: 'hidden' }}>
+                        <div style={{ padding: '16px 22px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.violet, flexShrink: 0 }} />
+                          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: C.violet, textTransform: 'uppercase' }}>Multi-System Sequence</div>
+                        </div>
+                        {plan.headline && <div style={{ padding: '16px 22px 6px', fontSize: 16, fontWeight: 700, color: '#ffffff', lineHeight: 1.4 }}>{plan.headline}</div>}
+                        {plan.rationale && <div style={{ padding: '0 22px 18px', fontSize: 13, color: C.secondary, lineHeight: 1.7 }}>{plan.rationale}</div>}
+                        <div style={{ padding: '0 22px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {(plan.sequence || []).map((step, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '12px 16px', borderRadius: 10, background: '#08060e', border: `1px solid ${C.hairline}` }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', border: `2px solid ${sysColors[step.system] || C.muted}40`, background: `${sysColors[step.system] || C.muted}10`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: sysColors[step.system] || C.muted }}>{i + 1}</span>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: sysColors[step.system] || C.muted, marginBottom: 3 }}>{step.label || step.system?.replace(/_/g,' ')}</div>
+                                <div style={{ fontSize: 13, color: '#d0d0d0', lineHeight: 1.6 }}>{step.purpose}</div>
+                                {step.why && <div style={{ fontSize: 11, color: C.ghost, marginTop: 4, fontStyle: 'italic' }}>{step.why}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.hairline}`, display: 'flex', gap: 10 }}>
+                          <button
+                            onClick={() => {
+                              const first = plan.sequence?.[0]
+                              if (!first) return
+                              directorSend(`Start the sequence — begin with ${first.label || first.system?.replace(/_/g,' ')}`, null, null)
+                            }}
+                            disabled={directorLoading}
+                            style={{ flex: 1, padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.violet}60`, background: '#060410', color: C.violet, opacity: directorLoading ? 0.5 : 1 }}
+                          >Start sequence →</button>
+                          <button
+                            onClick={() => directorSend('Just run the most important one first', null, null)}
+                            disabled={directorLoading}
+                            style={{ padding: '13px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: '#aaa', opacity: directorLoading ? 0.5 : 1 }}
+                          >Just one</button>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Routing / continuation option buttons */}
                   {msg.role === 'ai' && msg.options && (msg.mode === 'routing' || msg.mode === 'continuation' || !msg.mode) && idx === directorHistory.length - 1 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '82%' }}>
@@ -17187,10 +17304,12 @@ export default function PromptCEOPage() {
 
               {/* Executing state */}
               {directorPhase === 'executing' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: 40, color: C.gold }}>
-                  <div style={{ fontSize: 28, animation: 'spin 2s linear infinite' }}>✦</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff' }}>Building your {directorIntent?.replace(/_/g, ' ')}…</div>
-                  <div style={{ fontSize: 13, color: C.muted }}>This takes 10–30 seconds</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '48px 40px', color: C.gold }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'spin 3s linear infinite' }}>
+                    <div style={{ fontSize: 22 }}>✦</div>
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 600, color: '#ffffff', textAlign: 'center', minHeight: 26, transition: 'opacity 0.4s', letterSpacing: -0.2 }}>{thinkingMsg}</div>
+                  <div style={{ fontSize: 12, color: C.ghost }}>10–30 seconds</div>
                 </div>
               )}
             </div>
