@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
 import { buildPromptV3 } from './index.js'
 import MusicSelector from './components/MusicSelector.js'
 import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMusicRecommendationForStage } from './ad-system/musicIntelligence.js'
@@ -17817,7 +17817,7 @@ export default function PromptCEOPage() {
                     {FC_PHASES.map((ph, i) => {
                       const active = fullCampaignPhase === ph.id
                       return (
-                        <React.Fragment key={ph.id}>
+                        <Fragment key={ph.id}>
                           <button
                             onClick={() => setFullCampaignPhase(ph.id)}
                             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 6px 10px', cursor: 'pointer', background: 'none', border: 'none', position: 'relative', flex: '1 1 0', minWidth: 0 }}
@@ -17832,7 +17832,7 @@ export default function PromptCEOPage() {
                           {i < FC_PHASES.length - 1 && (
                             <div style={{ width: 20, height: 1, background: `linear-gradient(90deg, ${ph.color}30, ${FC_PHASES[i+1].color}30)`, alignSelf: 'center', marginTop: -10, flexShrink: 0 }} />
                           )}
-                        </React.Fragment>
+                        </Fragment>
                       )
                     })}
                     <div style={{ width: 1, background: C.hairline, margin: '10px 6px 8px', alignSelf: 'stretch', flexShrink: 0 }} />
