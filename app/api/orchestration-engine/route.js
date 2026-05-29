@@ -184,11 +184,12 @@ export async function POST(req) {
     const db = admin()
 
     // ── Load user intelligence ──────────────────────────────
-    const [{ data: perfLogs }, { data: worldMem }, { data: brandProfiles }, { data: campMem }] = await Promise.all([
+    const [{ data: perfLogs }, { data: worldMem }, { data: brandProfiles }, { data: campMem }, { data: signals }] = await Promise.all([
       db.from('performance_logs').select('hook_type, world_id, liked, ctr').eq('user_id', user.id).limit(100),
       db.from('world_memory').select('world_id, use_count, like_count').eq('user_id', user.id),
       db.from('brand_profiles').select('voice, style').eq('user_id', user.id).order('last_used_at', { ascending: false }).limit(1),
       db.from('campaign_memory').select('successful_patterns, top_hook_types, top_platforms').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
+      db.from('signal_logs').select('event_type, weight, metadata').eq('user_id', user.id).gte('weight', 4).order('created_at', { ascending: false }).limit(50),
     ])
 
     // Derive signals
@@ -212,6 +213,13 @@ export async function POST(req) {
     })
     const topCampStyles = Object.entries(campStyleCount).sort((a, b) => b[1] - a[1]).map(([k]) => k)
 
+    const signalStyleScore = {}
+    ;(signals || []).forEach(sig => {
+      const style = sig.metadata?.style
+      if (style) signalStyleScore[style] = (signalStyleScore[style] || 0) + sig.weight
+    })
+    const topSignalStyles = Object.entries(signalStyleScore).sort((a, b) => b[1] - a[1]).map(([k]) => k)
+
     // ── Score all goal × style combos for this type ─────────
     const GOALS = ['sales', 'leads', 'followers', 'brand_awareness', 'app_installs', 'creator_growth', 'high_ticket', 'viral_reach', 'premium_positioning']
     const STYLES = ['luxury', 'cinematic', 'ugc', 'emotional', 'viral', 'dark_luxury', 'high_energy', 'soft_feminine', 'corporate_authority', 'fitness_motivation', 'high_status', 'aspirational_lifestyle']
@@ -224,6 +232,10 @@ export async function POST(req) {
         if (topCampStyles[0] === style) score += 20
         else if (topCampStyles[1] === style) score += 12
         else if (topCampStyles.includes(style)) score += 6
+        // Signal boost: styles with high engagement weight score higher
+        if (topSignalStyles[0] === style) score += 25
+        else if (topSignalStyles[1] === style) score += 15
+        else if (topSignalStyles.includes(style)) score += 8
         combos.push({ type, goal, style, score })
       }
     }
@@ -251,6 +263,7 @@ export async function POST(req) {
           confidence: c.score >= 60 ? 'high' : c.score >= 35 ? 'medium' : 'low',
           hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice || topCampStyles.length > 0,
           fromCampaignHistory: topCampStyles.includes(c.style),
+          fromSignalData: topSignalStyles.includes(c.style),
         })
       }
     }
