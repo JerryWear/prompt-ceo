@@ -64,6 +64,7 @@ export async function POST(req) {
     const variationType   = clean(body?.variationType)    // e.g. 'luxury', 'emotional'
     const variationContentType = clean(body?.variationContentType) // 'hook' | 'caption' | etc.
     const brandProfile         = body?.brandProfile || null
+    const projectId            = clean(body?.projectId || body?.adConfig?.projectId)
 
     // quality_score skips productName requirement
     if (type !== 'quality_score' && !clean(adConfig?.productName)) {
@@ -145,8 +146,41 @@ export async function POST(req) {
       if (parts.length) brandProfileContext = `ACTIVE BRAND PROFILE — write specifically for this brand:\n${parts.map(p => `• ${p}`).join('\n')}\n\n`
     }
 
+    // ── Project Brain™ context ──────────────────────────────
+    let brainContext = ''
+    if (projectId) {
+      try {
+        const { data: brainRow } = await admin
+          .from('project_brain')
+          .select('campaign_stage, best_hook_types, best_styles, audience_temperature, fatigue_score')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (brainRow) {
+          const parts = []
+          if (brainRow.campaign_stage) {
+            parts.push(`Current campaign stage: ${brainRow.campaign_stage.replace(/_/g, ' ')} — optimize content for this phase.`)
+          }
+          if (brainRow.best_hook_types?.length) {
+            parts.push(`This creator's best hook types: ${brainRow.best_hook_types.join(', ')} — lean into these patterns.`)
+          }
+          if (brainRow.best_styles?.length) {
+            parts.push(`Top performing styles for this project: ${brainRow.best_styles.slice(0, 3).join(', ')}.`)
+          }
+          if (brainRow.audience_temperature) {
+            parts.push(`Audience temperature: ${brainRow.audience_temperature} — adjust warmth of messaging accordingly.`)
+          }
+          if ((brainRow.fatigue_score || 0) > 70) {
+            parts.push(`Creative fatigue is high (${brainRow.fatigue_score}/100) — maximize novelty and pattern-breaks.`)
+          }
+          if (parts.length) brainContext = '\n\nProject intelligence:\n' + parts.join('\n')
+        }
+      } catch {}
+    }
+
     // ── Build prompt ────────────────────────────────────────
-    let systemPrompt = 'You are a world-class advertising strategist and direct-response copywriter. CRITICAL RULE: respond with ONLY raw valid JSON — no markdown, no code fences, no preamble, no explanation. Your entire response must start with [ or { and end with ] or }. Never add text before or after the JSON.'
+    let systemPrompt = `You are a world-class advertising strategist and direct-response copywriter. CRITICAL RULE: respond with ONLY raw valid JSON — no markdown, no code fences, no preamble, no explanation. Your entire response must start with [ or { and end with ] or }. Never add text before or after the JSON.${brainContext}`
     let userPrompt   = ''
 
     // Platform instruction appended to all content-generating types
