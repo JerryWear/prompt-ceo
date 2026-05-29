@@ -12720,6 +12720,7 @@ export default function PromptCEOPage() {
   // ── Full Day Video™ ──────────────────────────────────────
   const [fullDayResult,   setFullDayResult]   = useState(null)
   const [fullDayLoading,  setFullDayLoading]  = useState(false)
+  const [projectBrain, setProjectBrain] = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -12801,6 +12802,14 @@ export default function PromptCEOPage() {
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
     setFullCampaignLoading(false)
   }, [fullCampaignLoading, fullCampaignProduct, fullCampaignGoal, fullCampaignStyle, fullCampaignPlatform, s.storyWorldId, creatorProfiles, activeBrandProfile, s.activeProjectId])
+
+  useEffect(() => {
+    if (!s.activeProjectId) { setProjectBrain(null); return }
+    fetch(`/api/project-brain/${s.activeProjectId}`)
+      .then(r => r.json())
+      .then(d => { if (d.brain) setProjectBrain(d.brain) })
+      .catch(() => {})
+  }, [s.activeProjectId])
 
   // ── Cross-section wiring helpers ────────────────────────
   // Send any image prompt straight to Studio and switch view
@@ -15423,6 +15432,56 @@ export default function PromptCEOPage() {
                   </div>
                   {studioCoherence.recommendation && <div style={{ fontSize: 9, color: C.gold, fontStyle: 'italic' }}>→ {studioCoherence.recommendation}</div>}
                   {studioCoherence.directorNote && <div style={{ fontSize: 9, color: C.primary, fontStyle: 'italic', borderLeft: `2px solid ${C.goldDim}`, paddingLeft: 6 }}>"{studioCoherence.directorNote}"</div>}
+                </div>
+              )}
+
+              {/* Project Brain™ status bar */}
+              {projectBrain && s.activeProjectId && (
+                <div style={{ padding: '6px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Stage</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue, textTransform: 'capitalize' }}>
+                      {(projectBrain.campaign_stage || 'attention').replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Fatigue</span>
+                    <div style={{ width: 60, height: 4, borderRadius: 2, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: 2, transition: 'width 0.4s',
+                        width: `${projectBrain.fatigue_score || 0}%`,
+                        background: (projectBrain.fatigue_score || 0) > 70 ? C.tension : (projectBrain.fatigue_score || 0) > 40 ? C.gold : C.green,
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 8, color: C.muted }}>{projectBrain.fatigue_score || 0}</span>
+                  </div>
+                  {(projectBrain.fatigue_score || 0) > 70 && (
+                    <span style={{ fontSize: 8, color: C.tension, fontWeight: 700 }}>⚠ High fatigue — try a new style</span>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (!projectBrain) return
+                      const stage   = (projectBrain.campaign_stage || 'attention').replace(/_/g, ' ')
+                      const hooks   = (projectBrain.best_hook_types || []).join(', ') || 'pain, curiosity'
+                      const fatigue = projectBrain.fatigue_score || 0
+                      try {
+                        const r = await fetch('/api/ai-director', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            message: `My campaign is at ${stage} stage. Best hooks: ${hooks}. Fatigue score: ${fatigue}/100. In one sentence, what single thing should I generate next?`,
+                            history: [],
+                            collectedParams: {},
+                          }),
+                        })
+                        const d = await r.json()
+                        if (d.directorMessage) alert(`Project Brain suggests: ${d.directorMessage}`)
+                      } catch {}
+                    }}
+                    style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: 'none', color: C.blue }}
+                  >
+                    What next? ✦
+                  </button>
                 </div>
               )}
 
