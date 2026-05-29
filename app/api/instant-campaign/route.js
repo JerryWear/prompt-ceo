@@ -76,6 +76,21 @@ export async function POST(req) {
 
     const orch = orchestrate(type, goal, style, productName.trim())
 
+    // Auto-Learning: override static world with user's most-used world
+    try {
+      const { data: topWorld } = await admin
+        .from('world_memory')
+        .select('world_id, use_count')
+        .eq('user_id', user.id)
+        .order('use_count', { ascending: false })
+        .limit(1)
+        .single()
+      if (topWorld?.world_id) {
+        orch.suggestedWorld          = topWorld.world_id
+        orch.adConfig.suggestedWorld = topWorld.world_id
+      }
+    } catch {}
+
     // Life Engine builds the world-specific scene skeleton
     const engineScenes = sequenceDay({
       worldId:  orch.lifeEngineWorldId,
