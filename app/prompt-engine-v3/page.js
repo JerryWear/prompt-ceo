@@ -17026,57 +17026,23 @@ export default function PromptCEOPage() {
                     }}>{msg.content}</div>
                   )}
 
-                  {/* Discovery form — Creative Brief */}
-                  {msg.role === 'ai' && msg.mode === 'discovery' && msg.discoveryQuestions?.length > 0 && idx === directorHistory.length - 1 && (
-                    <div style={{ width: '82%', padding: '24px 28px', borderRadius: 14, border: `1px solid ${C.goldDim}50`, background: '#0a0a0a' }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: C.gold, textTransform: 'uppercase', marginBottom: 24 }}>Creative Brief</div>
-                      {msg.discoveryQuestions.map(q => (
-                        <div key={q.id} style={{ marginBottom: 24 }}>
-                          <div style={{ fontSize: 15, color: '#ffffff', marginBottom: 12, fontWeight: 500, lineHeight: 1.5 }}>{q.question}</div>
-                          {q.freeText ? (
-                            <input
-                              value={discoveryAnswers[q.id] || ''}
-                              onChange={e => setDiscoveryAnswers(a => ({ ...a, [q.id]: e.target.value }))}
-                              placeholder={q.placeholder || ''}
-                              style={{ width: '100%', padding: '11px 16px', borderRadius: 8, fontSize: 14, background: C.surface, border: `1px solid ${C.subtle}`, color: '#fff', outline: 'none', boxSizing: 'border-box' }}
-                              onFocus={e => e.target.style.borderColor = C.goldDim}
-                              onBlur={e => e.target.style.borderColor = C.subtle}
-                            />
-                          ) : (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                              {(q.options || []).map(opt => (
-                                <button key={opt.value}
-                                  onClick={() => setDiscoveryAnswers(a => ({ ...a, [q.id]: opt.value }))}
-                                  style={{
-                                    padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                                    border: `1px solid ${discoveryAnswers[q.id] === opt.value ? C.gold : C.subtle}`,
-                                    background: discoveryAnswers[q.id] === opt.value ? '#1a1408' : C.surface,
-                                    color: discoveryAnswers[q.id] === opt.value ? C.gold : '#ccc',
-                                    transition: 'all 0.15s',
-                                  }}
-                                >{opt.label}</button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                  {/* Single discovery question chips */}
+                  {msg.role === 'ai' && msg.mode === 'discovery' && msg.discoveryQuestion?.options?.length > 0 && idx === directorHistory.length - 1 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '78%' }}>
+                      {(msg.discoveryQuestion.options || []).slice(0, 3).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => { if (!directorLoading) directorSend(opt.label) }}
+                          disabled={directorLoading}
+                          style={{
+                            padding: '8px 16px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                            border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary,
+                            transition: 'all 0.15s', opacity: directorLoading ? 0.5 : 1,
+                          }}
+                          onMouseEnter={e => { if (!directorLoading) { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold } }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
+                        >{opt.label}</button>
                       ))}
-                      <button
-                        onClick={() => {
-                          const payload = { ...discoveryAnswers }
-                          const filled = Object.entries(payload).filter(([, v]) => v)
-                          if (!filled.length) return
-                          const text = filled.map(([k, v]) => `${k}: ${v}`).join(', ')
-                          setDiscoveryAnswers({})
-                          directorSend(text, null, null, payload)
-                        }}
-                        disabled={directorLoading || !Object.values(discoveryAnswers).some(Boolean)}
-                        style={{
-                          width: '100%', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                          border: `1px solid ${C.goldDim}`, background: 'linear-gradient(180deg,#1a1408,#0e0a04)',
-                          color: C.gold, opacity: (directorLoading || !Object.values(discoveryAnswers).some(Boolean)) ? 0.4 : 1,
-                          marginTop: 4,
-                        }}
-                      >Build this →</button>
                     </div>
                   )}
 
@@ -17151,7 +17117,7 @@ export default function PromptCEOPage() {
                             onClick={() => {
                               const confirmedParams = { ...(msg.collectedParams || directorParams), confirmedPreview: true }
                               setDirectorParams(confirmedParams)
-                              directorSend('Confirmed. Build this campaign.', null, null, { confirmedPreview: true })
+                              directorSend('Confirmed. Build this campaign.')
                             }}
                             disabled={directorLoading}
                             style={{
@@ -17284,7 +17250,7 @@ export default function PromptCEOPage() {
                   })()}
 
                   {/* Routing / continuation option buttons */}
-                  {msg.role === 'ai' && msg.options && (msg.mode === 'routing' || msg.mode === 'continuation' || !msg.mode) && idx === directorHistory.length - 1 && (
+                  {msg.role === 'ai' && msg.options && (msg.mode === 'routing' || msg.mode === 'continuation' || msg.mode === 'orientation' || !msg.mode) && idx === directorHistory.length - 1 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '82%' }}>
                       {msg.options.map(opt => (
                         <button key={opt.value}
