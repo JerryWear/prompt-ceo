@@ -12414,7 +12414,6 @@ export default function PromptCEOPage() {
   const [directorInput,      setDirectorInput]      = useState('')
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
   const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
-  const [discoveryAnswers,   setDiscoveryAnswers]   = useState({})     // answers to current discovery form
   const [thinkingMsg,        setThinkingMsg]        = useState('')     // rotating execution message
 
   const DIRECTOR_THINKING_MSGS = {
@@ -12501,10 +12500,10 @@ export default function PromptCEOPage() {
     setDirectorPhase('idle')
   }, [])
 
-  const directorSend = useCallback(async (messageText, paramValue = null, paramKey = null, discoveryPayload = null) => {
+  const directorSend = useCallback(async (messageText, paramValue = null, paramKey = null) => {
     if (directorLoading) return
     const msgText = messageText?.trim()
-    if (!msgText && !paramValue && !discoveryPayload) return
+    if (!msgText && !paramValue) return
 
     const newParams = { ...directorParams }
     if (paramKey && paramValue !== null) {
@@ -12544,7 +12543,7 @@ export default function PromptCEOPage() {
             hasFullDayVideo: !!fullDayResult,
             hasCampaign:     !!fullCampaignResult,
           },
-          discoveryAnswers: discoveryPayload || null,
+          isNewUser:      !directorMemory || (directorMemory.campaignCount === 0),
         }),
       })
       const data = await res.json()
@@ -12562,10 +12561,22 @@ export default function PromptCEOPage() {
 
       if (responseMode === 'discovery') {
         setDirectorHistory(h => [...h, {
-          role:               'ai',
-          content:            data.directorMessage || '',
-          mode:               'discovery',
-          discoveryQuestions: data.discoveryQuestions || [],
+          role:              'ai',
+          content:           data.directorMessage || '',
+          mode:              'discovery',
+          discoveryQuestion: data.discoveryQuestion || null,
+        }])
+        setDirectorPhase('chat')
+
+      } else if (responseMode === 'orientation') {
+        setDirectorHistory(h => [...h, {
+          role:    'ai',
+          content: data.directorMessage || "Hey — I'm PromptCEO GPT. Have you used PromptCEO before?",
+          mode:    'orientation',
+          options: data.options || [
+            { value: 'experienced', label: 'Yes, I know it' },
+            { value: 'new',         label: 'No, show me around' },
+          ],
         }])
         setDirectorPhase('chat')
 
