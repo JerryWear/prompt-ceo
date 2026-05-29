@@ -15435,55 +15435,117 @@ export default function PromptCEOPage() {
                 </div>
               )}
 
-              {/* Project Brain™ status bar */}
-              {projectBrain && s.activeProjectId && (
-                <div style={{ padding: '6px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Stage</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: C.blueGlow, border: `1px solid ${C.blueDim}`, color: C.blue, textTransform: 'capitalize' }}>
-                      {(projectBrain.campaign_stage || 'attention').replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted }}>Fatigue</span>
-                    <div style={{ width: 60, height: 4, borderRadius: 2, background: C.raised, overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', borderRadius: 2, transition: 'width 0.4s',
-                        width: `${projectBrain.fatigue_score || 0}%`,
-                        background: (projectBrain.fatigue_score || 0) > 70 ? C.tension : (projectBrain.fatigue_score || 0) > 40 ? C.gold : C.green,
-                      }} />
+              {/* Project Brain™ — Campaign Evolution Phase Bar */}
+              {projectBrain && s.activeProjectId && (() => {
+                const PHASES = [
+                  { id: 'attention',            label: 'Attention',   num: 1, color: '#3b82f6', threshold: 5  },
+                  { id: 'emotional_connection', label: 'Connection',  num: 2, color: '#8b5cf6', threshold: 10 },
+                  { id: 'desire_escalation',    label: 'Desire',      num: 3, color: '#f59e0b', threshold: 15 },
+                  { id: 'conversion',           label: 'Conversion',  num: 4, color: '#10b981', threshold: 20 },
+                  { id: 'retargeting',          label: 'Retargeting', num: 5, color: '#f97316', threshold: null },
+                ]
+                const PHASE_HINTS = {
+                  attention:            'Stop the scroll. Cold audience — no context assumed.',
+                  emotional_connection: 'They know you. Make them feel something real.',
+                  desire_escalation:    'Paint the life they want. Make the gap feel urgent.',
+                  conversion:           'Remove every objection. Make buying obvious.',
+                  retargeting:          'Win them back. Proof + urgency. Final push.',
+                }
+                const currentStage   = projectBrain.campaign_stage || 'attention'
+                const totalGens      = projectBrain.total_generations || 0
+                const currentPhase   = PHASES.find(p => p.id === currentStage) || PHASES[0]
+                const nextPhase      = PHASES.find(p => p.num === currentPhase.num + 1)
+                const threshold      = currentPhase.threshold
+                const readyToAdvance = threshold !== null && totalGens >= threshold
+                const hint           = PHASE_HINTS[currentStage] || ''
+
+                return (
+                  <div style={{ padding: '8px 16px 6px', borderBottom: `1px solid ${C.hairline}`, flexShrink: 0 }}>
+                    {/* Phase steps */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                      {PHASES.map((ph, i) => {
+                        const done   = ph.num < currentPhase.num
+                        const active = ph.id === currentStage
+                        const locked = ph.num > currentPhase.num
+                        return (
+                          <Fragment key={ph.id}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: '1 1 0', minWidth: 0 }}>
+                              <div style={{
+                                width: 20, height: 20, borderRadius: '50%',
+                                background: done ? ph.color : active ? ph.color + '22' : C.raised,
+                                border: `2px solid ${done || active ? ph.color : C.hairline}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s',
+                              }}>
+                                {done
+                                  ? <span style={{ fontSize: 8, color: '#fff', fontWeight: 900 }}>✓</span>
+                                  : <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? ph.color : C.hairline }} />
+                                }
+                              </div>
+                              <span style={{ fontSize: 7, fontWeight: active ? 800 : 500, color: active ? ph.color : locked ? C.muted : C.secondary, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
+                                {ph.label}
+                              </span>
+                            </div>
+                            {i < PHASES.length - 1 && (
+                              <div style={{ height: 1, flex: '0 0 12px', background: done ? currentPhase.color + '60' : C.hairline, marginBottom: 12 }} />
+                            )}
+                          </Fragment>
+                        )
+                      })}
                     </div>
-                    <span style={{ fontSize: 8, color: C.muted }}>{projectBrain.fatigue_score || 0}</span>
+
+                    {/* Bottom row: hint + fatigue + advance */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 8, color: C.secondary, flex: 1, minWidth: 0 }}>{hint}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: 7, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: C.muted }}>Fatigue</span>
+                        <div style={{ width: 44, height: 3, borderRadius: 2, background: C.raised, overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', borderRadius: 2,
+                            width: `${projectBrain.fatigue_score || 0}%`,
+                            background: (projectBrain.fatigue_score || 0) > 70 ? C.tension : (projectBrain.fatigue_score || 0) > 40 ? C.gold : C.green,
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 7, color: C.muted }}>{projectBrain.fatigue_score || 0}</span>
+                      </div>
+                      {nextPhase && (
+                        <button
+                          disabled={!readyToAdvance}
+                          onClick={async () => {
+                            if (!readyToAdvance) return
+                            try {
+                              const r = await fetch('/api/campaign-next-phase', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ projectId: s.activeProjectId }),
+                              })
+                              const d = await r.json()
+                              if (d.brain) setProjectBrain(d.brain)
+                            } catch {}
+                          }}
+                          title={readyToAdvance
+                            ? `Advance to ${nextPhase.label} phase`
+                            : `Generate ${threshold !== null ? Math.max(0, threshold - totalGens) : 0} more to unlock ${nextPhase.label}`
+                          }
+                          style={{
+                            fontSize: 8, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
+                            cursor: readyToAdvance ? 'pointer' : 'not-allowed',
+                            border: `1px solid ${readyToAdvance ? currentPhase.color : C.hairline}`,
+                            background: readyToAdvance ? currentPhase.color + '18' : 'none',
+                            color: readyToAdvance ? currentPhase.color : C.muted,
+                            transition: 'all 0.2s', flexShrink: 0,
+                          }}
+                        >
+                          {readyToAdvance ? `→ ${nextPhase.label}` : `${Math.max(0, (threshold || 0) - totalGens)} more to unlock`}
+                        </button>
+                      )}
+                      {!nextPhase && (
+                        <span style={{ fontSize: 8, color: C.gold, fontWeight: 700, flexShrink: 0 }}>✦ Campaign complete</span>
+                      )}
+                    </div>
                   </div>
-                  {(projectBrain.fatigue_score || 0) > 70 && (
-                    <span style={{ fontSize: 8, color: C.tension, fontWeight: 700 }}>⚠ High fatigue — try a new style</span>
-                  )}
-                  <button
-                    onClick={async () => {
-                      if (!projectBrain) return
-                      const stage   = (projectBrain.campaign_stage || 'attention').replace(/_/g, ' ')
-                      const hooks   = (projectBrain.best_hook_types || []).join(', ') || 'pain, curiosity'
-                      const fatigue = projectBrain.fatigue_score || 0
-                      try {
-                        const r = await fetch('/api/ai-director', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            message: `My campaign is at ${stage} stage. Best hooks: ${hooks}. Fatigue score: ${fatigue}/100. In one sentence, what single thing should I generate next?`,
-                            history: [],
-                            collectedParams: {},
-                          }),
-                        })
-                        const d = await r.json()
-                        if (d.directorMessage) alert(`Project Brain suggests: ${d.directorMessage}`)
-                      } catch {}
-                    }}
-                    style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${C.blueDim}`, background: 'none', color: C.blue }}
-                  >
-                    What next? ✦
-                  </button>
-                </div>
-              )}
+                )
+              })()}
 
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
