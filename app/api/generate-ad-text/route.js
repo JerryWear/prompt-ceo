@@ -146,8 +146,17 @@ export async function POST(req) {
       if (parts.length) brandProfileContext = `ACTIVE BRAND PROFILE — write specifically for this brand:\n${parts.map(p => `• ${p}`).join('\n')}\n\n`
     }
 
-    // ── Project Brain™ context ──────────────────────────────
+    // ── Project Brain™ context (Campaign Evolution) ──────────
+    const PHASE_DETAIL = {
+      attention:            { hook_type: 'pattern-break', cta_type: 'curiosity click',  audience_state: 'cold — no prior relationship',    instruction: 'Stop the scroll. No context assumed. Hit hard in the first frame.' },
+      emotional_connection: { hook_type: 'story',         cta_type: 'empathy follow',   audience_state: 'aware — seen you before',          instruction: 'They know you. Make them feel something real. No hard sell.' },
+      desire_escalation:    { hook_type: 'desire',        cta_type: 'want this',        audience_state: 'warming — interested',             instruction: 'Paint the life they want. Make the gap between now and that life feel urgent.' },
+      conversion:           { hook_type: 'pain',          cta_type: 'buy now',          audience_state: 'hot — ready to act',               instruction: 'Remove every objection. Make buying the obvious next step.' },
+      retargeting:          { hook_type: 'social proof',  cta_type: 'last chance',      audience_state: 'fatigued — saw it, didn\'t act',   instruction: "Win them back with proof and urgency. Acknowledge they've seen this before." },
+    }
+
     let brainContext = ''
+    let brainCampaignPhase = null
     if (projectId) {
       try {
         const { data: brainRow } = await admin
@@ -158,23 +167,24 @@ export async function POST(req) {
           .single()
 
         if (brainRow) {
-          const parts = []
-          if (brainRow.campaign_stage) {
-            parts.push(`Current campaign stage: ${brainRow.campaign_stage.replace(/_/g, ' ')} — optimize content for this phase.`)
-          }
+          brainCampaignPhase = brainRow.campaign_stage || 'attention'
+          const phaseDetail = PHASE_DETAIL[brainCampaignPhase] || PHASE_DETAIL.attention
+          const parts = [
+            `Campaign phase: ${brainCampaignPhase.replace(/_/g, ' ').toUpperCase()} — ${phaseDetail.instruction}`,
+            `Required hook type for this phase: ${phaseDetail.hook_type}.`,
+            `CTA style: ${phaseDetail.cta_type}.`,
+            `Audience state: ${phaseDetail.audience_state}.`,
+          ]
           if (brainRow.best_hook_types?.length) {
-            parts.push(`This creator's best hook types: ${brainRow.best_hook_types.join(', ')} — lean into these patterns.`)
+            parts.push(`This creator's proven hook types: ${brainRow.best_hook_types.join(', ')}.`)
           }
           if (brainRow.best_styles?.length) {
-            parts.push(`Top performing styles for this project: ${brainRow.best_styles.slice(0, 3).join(', ')}.`)
-          }
-          if (brainRow.audience_temperature) {
-            parts.push(`Audience temperature: ${brainRow.audience_temperature} — adjust warmth of messaging accordingly.`)
+            parts.push(`Top performing styles: ${brainRow.best_styles.slice(0, 3).join(', ')}.`)
           }
           if ((brainRow.fatigue_score || 0) > 70) {
             parts.push(`Creative fatigue is high (${brainRow.fatigue_score}/100) — maximize novelty and pattern-breaks.`)
           }
-          if (parts.length) brainContext = '\n\nProject intelligence:\n' + parts.join('\n')
+          brainContext = '\n\nProject intelligence:\n' + parts.join('\n')
         }
       } catch {}
     }
@@ -359,6 +369,18 @@ export async function POST(req) {
         { status: 500 }
       )
     }
+
+    // ── Log generation ──────────────────────────────────────
+    try {
+      await admin.from('generation_logs').insert({
+        user_id:        user.id,
+        project_id:     projectId || null,
+        type,
+        input:          { type, hookType: hookType || null, productName: adConfig?.productName || null, platform: adConfig?.platform || null },
+        output:         { count: Array.isArray(parsed) ? parsed.length : 1 },
+        campaign_phase: brainCampaignPhase,
+      })
+    } catch {}
 
     return NextResponse.json({
       status:        'complete',
