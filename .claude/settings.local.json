@@ -24,7 +24,11 @@
       "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/boudoir.js\")",
       "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/rockstar.js\")",
       "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/power-ceo.js\")",
-      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/after-dark.js\")"
+      "Bash(node --check \"c:/Users/Work/OneDrive/Desktop/prompt-ceo/app/prompt-v2/story-worlds/after-dark.js\")",
+      "Bash(grep -n \"import\\(\" /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/instant-campaign/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/full-day-generate/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/full-ad-campaign/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/generate-ad-text/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/generate-image/route.js /c/Users/Work/OneDrive\\\\Desktop\\\\prompt-ceo/app/api/performance-insights/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/save-ad-project/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/load-ad-projects/route.js)",
+      "Read(//c/Users/Work/OneDriveDesktopprompt-ceo/app/api/performance-insights/**)",
+      "WebSearch",
+      "Bash(grep -n \"APP_KNOWLEDGE\\\\|systemPrompt\\\\|system_prompt\\\\|\\\\${APP\")"
     ]
   }
 }
