@@ -90,6 +90,7 @@ export default function InstantPage() {
   const [expanded,        setExpanded]        = useState({})
   const [recommendations, setRecommendations] = useState([])
   const [recsLoading,     setRecsLoading]     = useState(false)
+  const [userMemory,      setUserMemory]      = useState({ topTypes: [], topGoals: [], topStyles: [], topWorlds: [], total: 0 })
 
   // AI Chat mode
   const [chatInput,   setChatInput]   = useState('')
@@ -119,6 +120,13 @@ export default function InstantPage() {
           setActiveBrand(d[0])
         }
       })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/campaign-memory-summary')
+      .then(r => r.json())
+      .then(d => { if (d.topTypes) setUserMemory(d) })
       .catch(() => {})
   }, [])
 
@@ -673,18 +681,29 @@ export default function InstantPage() {
         )}
 
         {/* Option grid */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
-          {items.map(item => (
-            <OptionCard
-              key={item.id}
-              icon={item.icon}
-              label={item.label}
-              desc={item.desc}
-              selected={selected === item.id}
-              onSelect={() => setSelected(item.id)}
-            />
-          ))}
-        </div>
+        {(() => {
+          const memList = step === 1 ? userMemory.topTypes : step === 2 ? userMemory.topGoals : userMemory.topStyles
+          const sortedItems = [...items].sort((a, b) => {
+            const aCount = memList.find(m => m.id === a.id)?.count || 0
+            const bCount = memList.find(m => m.id === b.id)?.count || 0
+            return bCount - aCount
+          })
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
+              {sortedItems.map(item => (
+                <OptionCard
+                  key={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  desc={item.desc}
+                  selected={selected === item.id}
+                  onSelect={() => setSelected(item.id)}
+                  memCount={memList.find(m => m.id === item.id)?.count || 0}
+                />
+              ))}
+            </div>
+          )
+        })()}
 
         {/* Error */}
         {error && (
@@ -722,7 +741,7 @@ export default function InstantPage() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function OptionCard({ icon, label, desc, selected, onSelect }) {
+function OptionCard({ icon, label, desc, selected, onSelect, memCount = 0 }) {
   const [hover, setHover] = useState(false)
   const active = selected || hover
 
@@ -738,8 +757,14 @@ function OptionCard({ icon, label, desc, selected, onSelect }) {
         background: selected ? 'linear-gradient(180deg,#1a1408,#0c0a04)' : hover ? C.surface : 'transparent',
         cursor: 'pointer', transition: 'all 0.15s',
         display: 'flex', flexDirection: 'column', gap: 6,
+        position: 'relative',
       }}
     >
+      {memCount > 0 && (
+        <div style={{ position: 'absolute', top: 6, right: 8, fontSize: 8, fontWeight: 700, color: '#c4a45a', letterSpacing: 0.5 }}>
+          ★ {memCount}×
+        </div>
+      )}
       <div style={{ fontSize: 22 }}>{icon}</div>
       <div style={{ fontSize: 12, fontWeight: 700, color: selected ? C.gold : active ? C.secondary : C.muted }}>{label}</div>
       <div style={{ fontSize: 10, color: C.ghost, lineHeight: 1.4 }}>{desc}</div>
