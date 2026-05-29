@@ -173,6 +173,38 @@ export async function POST(req) {
       }
     } catch {}
 
+    // Step 7 — update project_brain
+    try {
+      if (projectId) {
+        const { data: currentBrain } = await admin
+          .from('project_brain')
+          .select('total_generations, fatigue_score, best_hook_types, best_worlds, best_styles, best_platform')
+          .eq('project_id', projectId)
+          .single()
+
+        const prevTotal   = currentBrain?.total_generations || 0
+        const prevFatigue = currentBrain?.fatigue_score || 0
+        const newFatigue  = Math.min(100, prevFatigue >= 50 ? prevFatigue - 2 + 8 : prevFatigue + 8)
+
+        const mergeArr = (existing = [], newVal) => {
+          if (!newVal) return existing
+          return [newVal, ...(existing || []).filter(v => v !== newVal)].slice(0, 5)
+        }
+
+        await admin.from('project_brain').upsert({
+          project_id:        projectId,
+          user_id:           user.id,
+          total_generations: prevTotal + 1,
+          fatigue_score:     newFatigue,
+          best_hook_types:   mergeArr(currentBrain?.best_hook_types, orch.hookType),
+          best_worlds:       mergeArr(currentBrain?.best_worlds, orch.suggestedWorld),
+          best_styles:       mergeArr(currentBrain?.best_styles, style),
+          best_platform:     orch.platform,
+          last_updated_at:   new Date().toISOString(),
+        }, { onConflict: 'project_id' })
+      }
+    } catch {}
+
     return NextResponse.json({
       hooks,
       angles,
