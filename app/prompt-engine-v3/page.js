@@ -17035,7 +17035,7 @@ export default function PromptCEOPage() {
                           onClick={() => { if (!directorLoading) directorSend(opt.label) }}
                           disabled={directorLoading}
                           style={{
-                            padding: '8px 16px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                            padding: '8px 16px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: directorLoading ? 'not-allowed' : 'pointer',
                             border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary,
                             transition: 'all 0.15s', opacity: directorLoading ? 0.5 : 1,
                           }}
