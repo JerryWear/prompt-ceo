@@ -44,7 +44,14 @@ function tryJSON(text, fallback = []) {
   try {
     const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
     const match = stripped.match(/[\[{][\s\S]*[\]}]/)
-    return match ? JSON.parse(match[0]) : fallback
+    if (!match) return fallback
+    const parsed = JSON.parse(match[0])
+    // If fallback is an array, ensure we return an array (unwrap {items:[...]} wrapping)
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) {
+      const vals = Object.values(parsed)
+      return Array.isArray(vals[0]) ? vals[0] : fallback
+    }
+    return parsed
   } catch { return fallback }
 }
 

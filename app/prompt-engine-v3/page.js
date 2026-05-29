@@ -17887,7 +17887,8 @@ export default function PromptCEOPage() {
 
                   // ── 5 campaign phases ──
                   if (activePhase) {
-                    const items = activePhase.data()
+                    const rawItems = activePhase.data()
+                    const items = (Array.isArray(rawItems) ? rawItems : []).filter(Boolean)
                     return (
                       <div style={{ padding: '32px 28px 56px', maxWidth: 760, margin: '0 auto' }}>
 
