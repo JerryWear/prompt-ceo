@@ -4080,7 +4080,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   { value: 'ugc',        label: 'UGC',        icon: '📱', desc: 'Creator feel' },
                   { value: 'cinematic',  label: 'Cinematic',  icon: '🎬', desc: 'Wide scene' },
                 ].map(st => (
-                  <button key={st.value} onClick={() => { if (!lockedVisualStyle) setAdStyle(st.value) }} style={{
+                  <button key={st.value} onClick={() => { if (!lockedVisualStyle) { setAdStyle(st.value); fetch('/api/signal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_type: 'style_changed', metadata: { style: st.value } }) }).catch(() => {}) } }} style={{
                     borderRadius: 4, padding: '8px 6px', textAlign: 'left',
                     cursor: lockedVisualStyle ? 'default' : 'pointer',
                     transition: 'all 0.12s', ...cardBorder(adStyle === st.value),
@@ -12009,6 +12009,19 @@ export default function PromptCEOPage() {
   const router   = useRouter()
   const supabase = createClient()
 
+  const fireSignal = (event_type, metadata = {}) => {
+    fetch('/api/signal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type, metadata, project_id: s.activeProjectId || null }),
+    }).catch(() => {})
+  }
+
+  useEffect(() => {
+    const t = setTimeout(() => fireSignal('session_length_20min'), 20 * 60 * 1000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession()
@@ -13767,6 +13780,7 @@ export default function PromptCEOPage() {
     await copyText(text)
     setCopied(key)
     setTimeout(() => setCopied(''), 1600)
+    fireSignal('result_copied', { key })
   }
 
   const saveResult = () => {
@@ -14009,6 +14023,7 @@ export default function PromptCEOPage() {
           adTextGenerating: false,
           adTextResults: { ...(s.adTextResults || {}), [type + (hookType ? `_${hookType}` : '')]: data.data },
         })
+        fireSignal('generation_completed', { type, style: s.adStyle || '' })
       } else {
         // Show upgrade modal instead of error for credit/subscription issues
         const msg = data?.message || ''
@@ -15527,7 +15542,10 @@ export default function PromptCEOPage() {
                                 body: JSON.stringify({ projectId: s.activeProjectId }),
                               })
                               const d = await r.json()
-                              if (d.brain) setProjectBrain(d.brain)
+                              if (d.brain) {
+                                setProjectBrain(d.brain)
+                                fireSignal('phase_advanced', { stage: s.campaignStage, nextStage: d.brain?.campaign_stage })
+                              }
                             } catch {}
                           }}
                           title={readyToAdvance
