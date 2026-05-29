@@ -16294,10 +16294,9 @@ export default function PromptCEOPage() {
                   if (!s.hasImage && !s.worldId) return { icon: '◧', text: 'Upload your photo in Studio + select a world. These two unlock identity-driven generation.' }
                   if (!s.hasImage) return { icon: '◧', text: `World set to ${(s.worldId||'').replace(/_/g,' ')}. Upload your photo to appear in every scene.` }
                   if (!s.worldId) return { icon: '🌍', text: `Identity active (${s.identityName||'you'}). Select a world to lock in the visual environment.` }
-                  if (selectedAngle && selectedHook) return { icon: '✓', text: `Brief complete — ${selectedAngle.title?.slice(0,30)} + hook locked. Generate your image for maximum coherence.` }
-                  if (selectedAngle) return { icon: '🪝', text: `Angle locked: "${selectedAngle.title?.slice(0,28)}". Generate hooks to find your strongest opening line.` }
-                  if (s.adTextResults?.angles?.length > 0) return { icon: '🎯', text: 'Angles ready. Select your strongest angle then generate hooks to complete the brief.' }
-                  return { icon: '📐', text: `${s.identityName||'You'} in ${s.worldId.replace(/_/g,' ')}. Generate angles first — they set the psychological frame for all copy.` }
+                  if (s.adTextResults?.angles?.length > 0 && s.adTextResults?.hooks_pain?.length > 0) return { icon: '✓', text: 'Brief complete — angles and hooks ready. Generate your image for maximum coherence.' }
+                  if (s.adTextResults?.angles?.length > 0) return { icon: '🎯', text: 'Angles ready. Generate hooks to complete the brief — then your image will have full context.' }
+                  return { icon: '📐', text: `${s.identityName||'You'} in ${(s.worldId||'').replace(/_/g,' ')}. Generate angles first — they set the psychological frame for all copy.` }
                 })()
 
                 // Pacing signals from generated content
