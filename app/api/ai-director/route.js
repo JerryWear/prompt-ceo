@@ -522,24 +522,47 @@ function buildCampaignPreview(intent, params, brandProfile) {
 }
 
 // ── PromptCEO GPT Runtime ────────────────────────────────────────────────────
+
+// Convert internal snake_case field values to human-readable language
+function h(str) {
+  if (!str) return ''
+  const overrides = {
+    brand_awareness: 'brand awareness', viral_reach: 'viral reach',
+    high_ticket: 'high-ticket clients', premium_positioning: 'premium positioning',
+    pattern_break: 'pattern-break', curiosity_gap: 'curiosity gap',
+    pain_point: 'pain point', social_proof: 'social proof',
+    aspirational_lifestyle: 'aspirational lifestyle', soft_feminine: 'soft feminine',
+    dark_luxury: 'dark luxury', high_status: 'high status',
+    fitness_motivation: 'fitness & motivation', corporate_authority: 'corporate authority',
+    meta_ads: 'Meta Ads', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn',
+    instagram: 'Instagram', ugc: 'authentic UGC',
+    luxury_creator_day: 'luxury creator day', beach_creator_day: 'beach creator day',
+    wellness_retreat_day: 'wellness retreat day', romantic_travel_day: 'romantic travel day',
+    fitness_lifestyle_day: 'fitness lifestyle day', business_power_day: 'business power day',
+    fashion_content_day: 'fashion content day', foodie_luxury_day: 'foodie luxury day',
+    personal_brand: 'personal brand', ecommerce: 'ecommerce',
+  }
+  return overrides[str] || str.replace(/_/g, ' ').replace(/-/g, ' ')
+}
+
 async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser) {
   const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
 
   const memoryCtx = memory?.campaignCount > 0
-    ? `Campaign history: ${memory.campaignCount} campaign(s). Best hook type: ${memory.bestHookType || 'none'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || memory.topWorld) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform || 'none'}. Recent style: ${memory.recentStyle || 'none'}.`
+    ? `Campaign history: ${memory.campaignCount} campaign${memory.campaignCount !== 1 ? 's' : ''}. Best hook type: ${memory.bestHookType ? h(memory.bestHookType) + ' hooks' : 'none yet'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || h(memory.topWorld)) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform ? h(memory.bestPlatform) : 'none'}. Recent style: ${memory.recentStyle ? h(memory.recentStyle) : 'none'}.`
     : 'Campaign history: No campaigns yet — first session.'
 
   const memoryPersonality = memory?.campaignCount >= 3
     ? [
-        memory.bestHookType   ? `This user's strongest hook type is ${memory.bestHookType.replace(/_/g,' ')} hooks.` : '',
-        memory.topWorld       ? `They consistently perform best in ${WORLD_DISPLAY_NAMES[memory.topWorld] || memory.topWorld} world.` : '',
-        memory.bestPlatform   ? `Their best-performing platform is ${memory.bestPlatform}.` : '',
-        memory.recentStyle    ? `Their most recent creative style was ${memory.recentStyle.replace(/_/g,' ')}.` : '',
+        memory.bestHookType   ? `Their strongest hook type is ${h(memory.bestHookType)} hooks — these outperform everything else in their history.` : '',
+        memory.topWorld       ? `They consistently get the best results in ${WORLD_DISPLAY_NAMES[memory.topWorld] || h(memory.topWorld)} — use this world as the default.` : '',
+        memory.bestPlatform   ? `Their best-performing platform is ${h(memory.bestPlatform)} — lead recommendations there.` : '',
+        memory.recentStyle    ? `Their most recent creative direction was ${h(memory.recentStyle)} style.` : '',
       ].filter(Boolean).join(' ')
     : ''
 
   const brandCtx = brandProfile?.name
-    ? `Active brand: "${brandProfile.name}". Voice: ${brandProfile.voice || 'not set'}. Audience: ${brandProfile.target_audience || 'not set'}. Style: ${brandProfile.style || 'not set'}.`
+    ? `Active brand: "${brandProfile.name}". Voice: ${brandProfile.voice || 'not set'}. Audience: ${brandProfile.target_audience || 'not set'}. Style: ${brandProfile.style ? h(brandProfile.style) : 'not set'}. Goal: ${brandProfile.goal ? h(brandProfile.goal) : 'not set'}. Platform: ${brandProfile.platform ? h(brandProfile.platform) : 'not set'}.`
     : 'Active brand: none.'
 
   const identityCtx = identity?.identityName ? `Creator identity: "${identity.identityName}".` : ''
@@ -599,18 +622,30 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
 
 **Expert Mode** (use when: memory.campaignCount > 0 OR message shows clear creative intent like "luxury TikTok campaign"):
 - Strategic, direct, opinionated — 2 sentences max per directorMessage
-- Reference history by specific name ("Your Maldives campaigns", "Your transformation hooks")
-- Make recommendations, skip unnecessary questions
+- Reference history by specific name: "Your Maldives campaigns", "Your pattern-break hooks", "Your best platform is Instagram"
+- Make ONE clear recommendation — do not list options, do not say "it depends", do not ask which they prefer
+- Skip questions when memory or brand profile already has the answer
 - No empty affirmations ever (no "Great!", "Sure!", "Absolutely!", "Perfect!", "Of course!", "Got it!")
 
 **Guide Mode** (use when: isNewUser=true OR message contains "help", "confused", "don't understand", "what is", "I'm new", "where do I start", "what does this do"):
 - Warm, simple, zero jargon — explain terms before using them
 - Break things into steps, one at a time
 - Sound like a smart friend, not a creative director
-- Still opinionated — recommend clearly — just explain simply
+- Still opinionated — one clear recommendation — just explain it simply
 - Can shift to expert mode mid-conversation as the user gains confidence
 
 **Universal rule (both modes):** Never open with "Great!", "Sure!", "Absolutely!", "Perfect!", "Of course!", "Got it!". Just respond.
+
+**LANGUAGE RULE (strict):** Never use internal param names in responses. Use natural language only:
+- NOT "brand_awareness" → SAY "brand awareness"
+- NOT "pattern_break" → SAY "pattern-break hooks"
+- NOT "aspirational_lifestyle" → SAY "aspirational lifestyle"
+- NOT "meta_ads" → SAY "Meta Ads"
+- NOT "tiktok" → SAY "TikTok"
+- NOT "high_ticket" → SAY "high-ticket clients"
+- NOT "ugc" → SAY "authentic UGC"
+- NOT "dark_luxury" → SAY "dark luxury"
+When referencing what worked in the past: say "Your curiosity-gap hooks" not "Your curiosity_gap hooks".
 
 ## RUNTIME MODES — pick exactly ONE
 
@@ -655,11 +690,13 @@ ${systemsKnowledge}
 ${capCtx}
 If tier is free or inactive, gently reference upgrade when recommending premium features. Never block the conversation.
 
-## VOICE EXAMPLES
-- "Instagram is the right call here — cinematic pacing amplifies luxury positioning, and your history shows it. We can extend to TikTok after phase one if you want reach."
-- "This needs Ad Studio, not Full Campaign — you want CTA precision and granular emotional control."
+## VOICE EXAMPLES (notice: natural language, strong opinion, no snake_case)
+- "Instagram is the right call here — cinematic pacing amplifies luxury positioning, and your history backs it. We extend to TikTok after phase one if you want reach."
+- "This needs Ad Studio, not Full Campaign — you want CTA precision and granular emotional control over every parameter."
 - "Maldives Villa has been your strongest world. Your transformation hooks land harder with water and horizon in frame."
-- "The brief is pointing to fast_conversion territory. Pain-point hooks and UGC style will outperform aspirational here."
+- "This is conversion territory — pain-point hooks with authentic UGC style will outperform aspirational content here."
+- "Dark luxury. That's your brand's register — Penthouse or Monaco, cinematic pace, no narration over visuals."
+- "You've run 8 campaigns. Pattern-break hooks are your highest performer. We lead with that."
 
 ## EXECUTION GATE
 ONLY use mode=execution when: intent is completely clear, all required params exist OR memory defaults cover them, and the conversation confirms the user wants to build now.
