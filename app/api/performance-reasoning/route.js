@@ -73,7 +73,7 @@ export async function GET() {
       totalLogs: all.length,
       likeRate,
       topHooks:     byHook.slice(0, 3),
-      worstHooks:   byHook.slice(-2).reverse(),
+      worstHooks:   byHook.length > 3 ? byHook.slice(-2).reverse() : [],
       topPlatforms: byPlatform.slice(0, 2),
       topWorlds:    byWorld.slice(0, 3),
       topAssets:    byAsset.slice(0, 2),
@@ -87,25 +87,32 @@ export async function GET() {
     const systemPrompt = `You are a creative performance analyst. Given aggregated ad performance data, return exactly 5 plain-English insights in JSON. Each insight must be specific, actionable, and reference actual numbers from the data. Be direct — no fluff. CRITICAL: respond ONLY with a JSON array, no markdown.`
     const userPrompt = `Performance data:\n${JSON.stringify(summary, null, 2)}\n\nReturn a JSON array of exactly 5 objects with shape:\n[{"text": "one sentence insight", "confidence": 0.0–1.0, "dimension": "hooks|platforms|worlds|assets|overall"}]`
 
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiKey}` },
-      body: JSON.stringify({
-        model: 'grok-3-fast',
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        temperature: 0.3,
-      }),
-    })
-
-    const json = await res.json()
-    const raw  = json.choices?.[0]?.message?.content || '[]'
-
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 10000)
     let insights = []
     try {
-      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-      insights = Array.isArray(parsed) ? parsed.slice(0, 5) : []
-    } catch {
-      insights = []
+      const res  = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiKey}` },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          temperature: 0.3,
+        }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (res.ok) {
+        const json = await res.json()
+        const raw  = json.choices?.[0]?.message?.content || '[]'
+        const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+        if (Array.isArray(parsed)) insights = parsed.slice(0, 5)
+      } else {
+        console.error('[performance-reasoning] xAI error', res.status)
+      }
+    } catch (e) {
+      clearTimeout(timeoutId)
+      console.error('[performance-reasoning] xAI fetch failed', e?.message)
     }
 
     if (!insights.length) {
