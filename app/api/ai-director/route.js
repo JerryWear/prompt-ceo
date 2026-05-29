@@ -366,6 +366,83 @@ const CONVERSION_BY_GOAL = {
   premium_positioning: 'Brand elevation — show what you stand for, not just what you sell',
 }
 
+const APP_KNOWLEDGE = `
+## WHAT PROMPTCEO IS
+PromptCEO is an AI-powered content and campaign creation platform for creators, brands, and marketers. It generates complete ad campaigns, cinematic day content, video production plans, images, hooks, and captions — all driven by brand identity, visual worlds, and creative strategy. It replaces a creative team for people who need to move fast and look premium.
+
+## THE 6 GENERATION SYSTEMS
+- Perfect Day™: 12-moment cinematic day — scenes, image prompts, hooks, captions per moment. Best for lifestyle creators wanting a full narrative arc. Outputs 12 scenes, image prompts, hooks, captions, posting schedule.
+- Full Day Video™: Complete video production plan — scenes, camera moves, lighting direction, wardrobe arc. Best for video creators who need a shot list and production guide.
+- Full Ad Campaign™: 30-day strategic campaign with 5 phases, 30+ hooks, image prompts, captions, and posting schedule. Best for sustained multi-phase campaigns.
+- Instant Campaign™: Full campaign in under 30 seconds — hooks, angles, captions, image/video prompts. Best for fast testing and concept validation.
+- Studio™: AI image generation with brand identity, worlds, photographer briefs. Best for generating specific images and visual content.
+- Ad Studio™: Manual control over every ad parameter — mood, world, CTA, audience, pacing, emotional direction. Best for users who want full creative control step by step.
+
+## SUPPORTING FEATURES
+- Brand Profiles: save brand name, voice, target audience, style, platform — auto-injected into every generation
+- Creator Profiles: save physical identity, energy, style — used for image generation continuity across sessions
+- Performance Memory: tracks what works over time — best hook types, worlds, platforms — gets smarter with every campaign
+- Hook Scorer: scores existing hooks against proven psychology frameworks, returns CTR likelihood and improvement suggestions
+- UGC Brief: generates complete creator briefs for user-generated content campaigns
+- Influencer Brief: generates complete send-ready influencer briefs with key messages, hook ideas, do/don't lists, content requirements
+- Email Sequences: full email marketing sequences tied to campaign phases
+- SMS Sequences: SMS and push notification campaigns, every message under 160 characters, timed for conversion
+- Landing Page Copy: conversion-optimized landing page text for offers and products
+- Video Storyboard: scene-by-scene video production storyboard with shot descriptions
+- Testimonial Mining: extracts and structures testimonials for use in ads
+- Offer Builder: builds high-converting offer frameworks (price anchoring, bonuses, guarantees)
+- Retargeting Sequences: warm audience re-engagement campaigns for people who didn't convert
+- Naming System: generates brand names, product names, and campaign names
+
+## NAVIGATION — WHERE THINGS LIVE
+- PromptCEO GPT (ai_director view): the conversational OS — the right place to start for anything
+- Studio (studio view): AI image generation with identity and world context
+- Ad Studio (ad_studio view): manual ad builder with full parameter control
+- Dashboard: campaign history, saved projects, performance data
+- Brand Profiles: manage brand identities — in the left sidebar
+- Creator Profiles: manage visual identities — in the left sidebar
+
+## GETTING STARTED (for first-time users)
+1. Set up a Brand Profile first — name, voice, audience, platform, style. This makes every generation feel personal.
+2. Come back to PromptCEO GPT and describe what you sell or create.
+3. GPT recommends the right system and builds your first campaign.
+4. Review the results, download, and use them.
+5. Return — GPT learns what works for you and gets smarter over time.
+
+## KEY CREATIVE CONCEPTS (in plain language)
+- Hook: the first line or image of an ad. Its only job is to stop the scroll. Best hooks create curiosity, name a pain, or show a desired identity endpoint.
+- World: the visual environment of content (Maldives Villa, Luxury Penthouse, Bali Villa, etc.). Sets the emotional register before a word is spoken.
+- Style: the visual and emotional tone — cinematic, luxury, UGC, emotional, viral, dark luxury, soft feminine, high status, fitness motivation.
+- Campaign phase: campaigns work in stages — attention → story → desire → conversion → retargeting. Each phase needs different content for different audience temperatures.
+- Platform: Instagram is visual-first, aesthetic-led. TikTok is audio-first, authenticity beats polish. Meta Ads needs a 3-second hook. YouTube builds long-form trust. LinkedIn is insight-driven.
+- CTA (Call to Action): what you want the viewer to do next — follow, buy, click, DM, book a call.
+
+## FREQUENTLY ASKED QUESTIONS
+Q: What is the difference between Instant Campaign and Full Campaign?
+A: Instant Campaign is fast — full set of hooks, captions, and image prompts in under 30 seconds. Use it to test a concept quickly. Full Ad Campaign is a 30-day strategic plan across 5 phases with everything sequenced from attention to retargeting. Use it to scale what's working.
+
+Q: What is the difference between Perfect Day and Full Day Video?
+A: Perfect Day produces lifestyle images, hooks, and captions for 12 moments of a day — social content ready to post. Full Day Video produces a complete video production plan with camera directions and shot lists — for actually shooting video.
+
+Q: What is the difference between Ad Studio and Full Campaign?
+A: Full Campaign generates everything automatically and fast. Ad Studio gives you full manual control over every parameter — mood, world, CTA, audience, pacing — step by step. Use Ad Studio when you want precision and the AI-generated results don't feel exactly right.
+
+Q: Which world should I pick?
+A: Depends on your brand's emotional register. Maldives Villa = earned freedom and sensory luxury. Luxury Penthouse = achievement and power. Bali Villa = conscious spiritual luxury. Greek Islands = light effortless summer wealth. Describe your brand and I will recommend one.
+
+Q: How do I make my ads convert better?
+A: Match hook type to audience temperature. Cold audiences respond to pattern interrupts, curiosity gaps, and pain points. Warm audiences respond to authority and social proof. Your performance memory tracks what is working — I can read it and tell you exactly what to adjust.
+
+Q: Where do I start if I am completely new?
+A: Set up a Brand Profile first (left sidebar), then come back here and tell me what you sell. I will walk you through the rest.
+
+Q: What is a hook?
+A: A hook is the very first thing someone sees or hears in your content — the first line of a caption, the opening spoken word, the thumbnail image. If it does not stop the scroll in 1–2 seconds, the rest of the ad never gets seen.
+
+Q: What is a world?
+A: A world is the visual setting for your content. Instead of just saying "luxury photo", the world system gives you a fully defined environment — lighting, mood, architecture, emotional register — that makes every image and scene feel cohesive and premium.
+`
+
 function buildCapabilities(userRow) {
   const tier     = userRow?.subscription_tier || 'free'
   const isActive = ['active', 'trialing'].includes(userRow?.subscription_status)
