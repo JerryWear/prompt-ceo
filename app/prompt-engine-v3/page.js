@@ -12721,6 +12721,7 @@ export default function PromptCEOPage() {
   const [fullDayResult,   setFullDayResult]   = useState(null)
   const [fullDayLoading,  setFullDayLoading]  = useState(false)
   const [projectBrain, setProjectBrain] = useState(null)
+  const [perfInsights, setPerfInsights] = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -12810,6 +12811,13 @@ export default function PromptCEOPage() {
       .then(d => { if (d.brain) setProjectBrain(d.brain) })
       .catch(() => {})
   }, [s.activeProjectId])
+
+  useEffect(() => {
+    fetch('/api/performance-reasoning')
+      .then(r => r.json())
+      .then(d => { if (d.ready && d.insights?.length) setPerfInsights(d.insights) })
+      .catch(() => {})
+  }, [])
 
   // ── Cross-section wiring helpers ────────────────────────
   // Send any image prompt straight to Studio and switch view
@@ -15548,6 +15556,34 @@ export default function PromptCEOPage() {
               })()}
 
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* YOUR CREATIVE INTELLIGENCE — Build 3 */}
+              {perfInsights && perfInsights.length > 0 && (() => {
+                const top3 = perfInsights.slice(0, 3)
+                const confColor = (c) => c >= 0.8 ? '#10b981' : c >= 0.6 ? '#f59e0b' : '#6b7280'
+                const confLabel = (c) => c >= 0.8 ? 'High' : c >= 0.6 ? 'Med' : 'Low'
+                return (
+                  <div style={{ background: C.raised, borderRadius: 8, padding: '10px 12px', border: `1px solid ${C.hairline}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', color: C.secondary }}>Your Creative Intelligence</span>
+                      <div style={{ flex: 1, height: 1, background: C.hairline }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {top3.map((ins, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                          <div style={{
+                            flexShrink: 0, fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 4,
+                            background: confColor(ins.confidence) + '22', color: confColor(ins.confidence), whiteSpace: 'nowrap',
+                          }}>
+                            {confLabel(ins.confidence)}
+                          </div>
+                          <span style={{ fontSize: 10, color: C.primary, lineHeight: 1.4 }}>{ins.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* PROGRESSION */}
               <Panel title="Progression" accent={pc(progLevel)}
