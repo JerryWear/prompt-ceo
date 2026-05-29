@@ -310,22 +310,6 @@ const WORLD_DISPLAY_NAMES = {
   london_penthouse:   'London Penthouse',
 }
 
-const DISCOVERY_PARAM_MAP = {
-  product:      'productName',
-  brand:        'productName',
-  productname:  'productName',
-  platform:     'platform',
-  style:        'style',
-  feel:         'style',
-  goal:         'goal',
-  world:        'world',
-  location:     'world',
-  type:         'type',
-  day:          'dayType',
-  daytype:      'dayType',
-  imageprompt:  'imagePrompt',
-}
-
 const HOOK_RECOMMENDATIONS_BY_STYLE = {
   cinematic:              'Aspiration + status hooks — luxury identity at the endpoint',
   luxury:                 'Status + aspiration hooks — "this is what arrival looks like"',
