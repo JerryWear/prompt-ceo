@@ -133,8 +133,8 @@ export async function POST(req) {
         const topWorld = best(worldMap)
         const parts = []
         if (topHook)  parts.push(`"${topHook.k}" hooks are this creator's top performer (avg ${topHook.avg.toFixed(1)}% CTR over ${topHook.n} ads) — bias toward this style`)
-        if (topPlat)  parts.push(`${topPlat.k} drives best results — optimise copy and CTA for that platform`)
-        if (topWorld) parts.push(`"${topWorld.k}" visual world has highest engagement — reference it in visual descriptions`)
+        if (topPlat)  parts.push(`${topPlat.k} drives best results (avg ${topPlat.avg.toFixed(1)}% CTR over ${topPlat.n} ads) — optimise copy and CTA for that platform`)
+        if (topWorld) parts.push(`"${topWorld.k}" visual world has highest engagement (avg ${topWorld.avg.toFixed(1)}% CTR over ${topWorld.n} ads) — reference it in visual descriptions`)
         if (parts.length) performanceBias = `\n\nCREATOR PERFORMANCE INTELLIGENCE (real data — apply as soft bias): ${parts.join('. ')}.`
       }
     } catch {}
