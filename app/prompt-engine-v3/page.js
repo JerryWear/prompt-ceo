@@ -12721,7 +12721,6 @@ export default function PromptCEOPage() {
   const [fullDayResult,   setFullDayResult]   = useState(null)
   const [fullDayLoading,  setFullDayLoading]  = useState(false)
   const [projectBrain, setProjectBrain] = useState(null)
-  const [perfInsights, setPerfInsights] = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
