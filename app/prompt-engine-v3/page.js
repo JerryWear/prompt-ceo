@@ -12734,6 +12734,8 @@ export default function PromptCEOPage() {
   const [fullDayResult,   setFullDayResult]   = useState(null)
   const [fullDayLoading,  setFullDayLoading]  = useState(false)
   const [projectBrain, setProjectBrain] = useState(null)
+  const [campaignTimeline, setCampaignTimeline] = useState(null)
+  const [timelineLoading,  setTimelineLoading]  = useState(false)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -12823,6 +12825,16 @@ export default function PromptCEOPage() {
       .then(d => { if (d.brain) setProjectBrain(d.brain) })
       .catch(() => {})
   }, [s.activeProjectId])
+
+  useEffect(() => {
+    if (s.view !== 'campaign_journey' || !s.activeProjectId) return
+    setTimelineLoading(true)
+    fetch(`/api/campaign-timeline/${s.activeProjectId}`)
+      .then(r => r.json())
+      .then(d => { if (d.phases) setCampaignTimeline(d) })
+      .catch(() => {})
+      .finally(() => setTimelineLoading(false))
+  }, [s.view, s.activeProjectId])
 
   useEffect(() => {
     fetch('/api/performance-reasoning')
@@ -14639,6 +14651,14 @@ export default function PromptCEOPage() {
                 color: s.view === 'full_campaign' ? C.primary : '#5a5650',
                 transition: 'all 0.15s',
               }}>◈ Full Campaign</button>
+              <button onClick={() => set('view', 'campaign_journey')} style={{
+                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: `2px solid ${s.view === 'campaign_journey' ? C.gold : 'transparent'}`,
+                background: s.view === 'campaign_journey' ? '#0e0c08' : 'transparent',
+                color: s.view === 'campaign_journey' ? C.gold : '#5a5650',
+                transition: 'all 0.15s',
+              }}>◉ Journey</button>
             </div>
 
             <a href="/prompt-engine-v3/dashboard" style={{
@@ -18244,6 +18264,154 @@ export default function PromptCEOPage() {
                   return null
                 })()}
               </div>
+            </div>
+          )
+        })()}
+
+        {/* ══ CAMPAIGN JOURNEY VIEW ══ */}
+        {s.view === 'campaign_journey' && (() => {
+          const JOURNEY_PHASES = [
+            { id: 'attention',            label: 'Attention',   num: 1, color: '#3b82f6', hint: 'Stop the scroll. Cold audience — no context assumed.' },
+            { id: 'emotional_connection', label: 'Connection',  num: 2, color: '#8b5cf6', hint: 'They know you. Make them feel something real.' },
+            { id: 'desire_escalation',    label: 'Desire',      num: 3, color: '#f59e0b', hint: 'Paint the life they want. Make the gap feel urgent.' },
+            { id: 'conversion',           label: 'Conversion',  num: 4, color: '#10b981', hint: 'Remove every objection. Make buying obvious.' },
+            { id: 'retargeting',          label: 'Retargeting', num: 5, color: '#f97316', hint: 'Win them back. Proof + urgency. Final push.' },
+          ]
+          const [expandedPhases, setExpandedPhases] = React.useState(() => {
+            const initial = {}
+            JOURNEY_PHASES.forEach(p => { initial[p.id] = false })
+            return initial
+          })
+          const togglePhase = (id) => setExpandedPhases(prev => ({ ...prev, [id]: !prev[id] }))
+
+          const formatDate = (iso) => {
+            if (!iso) return ''
+            const d = new Date(iso)
+            return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+          }
+
+          const formatType = (type) => (type || 'generation').replace(/_/g, ' ')
+
+          return (
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px' }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 4 }}>
+                  Campaign Journey
+                </div>
+                {!s.activeProjectId && (
+                  <div style={{ fontSize: 12, color: C.muted }}>Select a project to view its campaign journey.</div>
+                )}
+                {s.activeProjectId && campaignTimeline?.brain && (
+                  <div style={{ fontSize: 10, color: C.secondary, display: 'flex', gap: 16 }}>
+                    <span>{campaignTimeline.brain.total_generations} generations</span>
+                    <span>Fatigue: {campaignTimeline.brain.fatigue_score}%</span>
+                  </div>
+                )}
+                {s.activeProjectId && timelineLoading && (
+                  <div style={{ fontSize: 11, color: C.muted }}>Loading…</div>
+                )}
+              </div>
+
+              {s.activeProjectId && campaignTimeline?.phases && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {campaignTimeline.phases.map(phase => {
+                    const isExpanded = expandedPhases[phase.id] || phase.isCurrent
+                    const phaseHint  = JOURNEY_PHASES.find(p => p.id === phase.id)?.hint || ''
+                    return (
+                      <div key={phase.id} style={{
+                        borderRadius: 8,
+                        border: `1px solid ${phase.isCurrent ? phase.color + '55' : C.hairline}`,
+                        background: phase.isCurrent ? phase.color + '0a' : C.raised,
+                        opacity: phase.isUnlocked ? 1 : 0.5,
+                        overflow: 'hidden',
+                      }}>
+                        <div
+                          onClick={() => phase.isUnlocked && togglePhase(phase.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: phase.isUnlocked ? 'pointer' : 'default' }}
+                        >
+                          <div style={{
+                            flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+                            background: phase.isUnlocked ? phase.color : C.hairline,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 800, color: phase.isUnlocked ? '#fff' : C.muted,
+                          }}>{phase.num}</div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: phase.isCurrent ? phase.color : C.primary }}>
+                                {phase.label}
+                              </span>
+                              {phase.isCurrent && (
+                                <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+                                  padding: '2px 5px', borderRadius: 3, background: phase.color + '22', color: phase.color }}>
+                                  Current
+                                </span>
+                              )}
+                              {!phase.isUnlocked && (
+                                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+                                  padding: '2px 5px', borderRadius: 3, background: C.hairline, color: C.muted }}>
+                                  Locked
+                                </span>
+                              )}
+                            </div>
+                            {phase.isUnlocked && (
+                              <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>{phaseHint}</div>
+                            )}
+                            {!phase.isUnlocked && phase.unlockCondition && (
+                              <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{phase.unlockCondition}</div>
+                            )}
+                          </div>
+
+                          {phase.isUnlocked && (
+                            <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: C.secondary }}>
+                              {phase.generationCount} gen{phase.generationCount !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                          {phase.isUnlocked && (
+                            <div style={{ flexShrink: 0, fontSize: 10, color: C.muted, transition: 'transform 0.2s',
+                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</div>
+                          )}
+                        </div>
+
+                        {phase.isUnlocked && isExpanded && (
+                          <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '10px 14px 12px' }}>
+                            {phase.recentGenerations.length === 0 ? (
+                              <div style={{ fontSize: 10, color: C.muted }}>No generations yet in this phase.</div>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase',
+                                  color: C.muted, marginBottom: 8 }}>Recent</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  {phase.recentGenerations.map(gen => (
+                                    <div key={gen.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ fontSize: 9, fontWeight: 600, color: C.primary, minWidth: 90 }}>
+                                        {formatType(gen.type)}
+                                      </span>
+                                      {gen.world_id && (
+                                        <span style={{ fontSize: 8, color: C.secondary }}>
+                                          {gen.world_id.replace(/_/g, ' ')}
+                                        </span>
+                                      )}
+                                      <span style={{ marginLeft: 'auto', fontSize: 8, color: C.muted, whiteSpace: 'nowrap' }}>
+                                        {formatDate(gen.created_at)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {phase.generationCount > 5 && (
+                                    <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>
+                                      +{phase.generationCount - 5} more
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )
         })()}
