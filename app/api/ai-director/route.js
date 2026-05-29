@@ -784,21 +784,18 @@ export async function POST(req) {
       projectId = null,
       memory = null,
       appState = null,
-      discoveryAnswers = null,
+      isNewUser = false,
     } = body
 
-    if (!message?.trim() && !discoveryAnswers) {
+    if (!message?.trim()) {
       return NextResponse.json({ error: 'message is required' }, { status: 400 })
     }
 
-    const userMessage = message?.trim() || Object.entries(discoveryAnswers || {})
-      .filter(([, v]) => v)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(', ')
+    const userMessage = message?.trim()
 
     const fullHistory = [...history, { role: 'user', content: userMessage }]
     const suggestions  = buildDirectorSuggestions(memory, brandProfile)
-    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities)
+    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser)
 
     const mode   = analysis.mode || 'continuation'
     const intent = analysis.intent || null
@@ -807,13 +804,6 @@ export async function POST(req) {
     const extractedParams = {
       ...(analysis.params || {}),
       ...collectedParams,
-    }
-    if (discoveryAnswers) {
-      Object.entries(discoveryAnswers).forEach(([k, v]) => {
-        if (!v) return
-        const key = DISCOVERY_PARAM_MAP[k.toLowerCase()] || k
-        if (!extractedParams[key]) extractedParams[key] = v
-      })
     }
     Object.keys(extractedParams).forEach(k => { if (extractedParams[k] === null) delete extractedParams[k] })
 
@@ -835,15 +825,31 @@ export async function POST(req) {
 
     // ── Mode routing ──────────────────────────────────────────────────────────
 
+    if (mode === 'orientation') {
+      return NextResponse.json({
+        mode:            'orientation',
+        phase:           'clarify',
+        directorMessage: analysis.directorMessage || "Hey — I'm PromptCEO GPT. I know everything about this app and I can help you build campaigns, create content, or figure out where to start. Have you used PromptCEO before?",
+        options: [
+          { value: 'experienced', label: 'Yes, I know it' },
+          { value: 'new',         label: 'No, show me around' },
+        ],
+        intent:          null,
+        collectedParams: extractedParams,
+        history:         fullHistory,
+        capabilities,
+      })
+    }
+
     if (mode === 'discovery') {
       return NextResponse.json({
-        mode:               'discovery',
-        phase:              'clarify',
-        directorMessage:    analysis.directorMessage || 'Tell me more so I can route this correctly.',
-        discoveryQuestions: analysis.discoveryQuestions || [],
+        mode:              'discovery',
+        phase:             'clarify',
+        directorMessage:   analysis.directorMessage || 'Tell me more so I can route this correctly.',
+        discoveryQuestion: analysis.discoveryQuestion || null,
         intent,
-        collectedParams:    extractedParams,
-        history:            fullHistory,
+        collectedParams:   extractedParams,
+        history:           fullHistory,
         capabilities,
       })
     }
@@ -941,8 +947,7 @@ export async function POST(req) {
     }
 
     // All params present — check for campaign preview gate
-    const confirmedPreview = collectedParams.confirmedPreview === true ||
-                             discoveryAnswers?.confirmedPreview === true
+    const confirmedPreview = collectedParams.confirmedPreview === true
 
     const previewIntents = ['full_campaign', 'full_day_video']
     if (previewIntents.includes(intent) && !confirmedPreview) {
