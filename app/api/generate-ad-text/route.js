@@ -111,7 +111,7 @@ export async function POST(req) {
       )
     }
 
-    // ── Performance bias (Upgrade 5) ─────────────────────────
+    // ── Performance bias (Build 3 — Performance Reasoning™) ──
     let performanceBias = ''
     try {
       const { data: perfLogs } = await admin
@@ -119,17 +119,23 @@ export async function POST(req) {
         .select('hook_type, platform, world_id, ctr')
         .eq('user_id', user.id)
         .not('ctr', 'is', null)
-        .order('ctr', { ascending: false })
-        .limit(50)
+        .limit(100)
       if (perfLogs?.length >= 5) {
-        const topHook = perfLogs[0]?.hook_type
-        const topPlatform = perfLogs[0]?.platform
-        const topWorld = perfLogs.find(l => l.world_id)?.world_id
+        const hookMap = {}, platMap = {}, worldMap = {}
+        perfLogs.forEach(l => {
+          if (l.hook_type) { hookMap[l.hook_type]  = hookMap[l.hook_type]  || []; hookMap[l.hook_type].push(l.ctr)  }
+          if (l.platform)  { platMap[l.platform]   = platMap[l.platform]   || []; platMap[l.platform].push(l.ctr)   }
+          if (l.world_id)  { worldMap[l.world_id]  = worldMap[l.world_id]  || []; worldMap[l.world_id].push(l.ctr)  }
+        })
+        const best = (m) => Object.entries(m).map(([k, v]) => ({ k, avg: v.reduce((s,x)=>s+x,0)/v.length, n: v.length })).filter(x => x.n >= 2).sort((a,b)=>b.avg-a.avg)[0]
+        const topHook  = best(hookMap)
+        const topPlat  = best(platMap)
+        const topWorld = best(worldMap)
         const parts = []
-        if (topHook) parts.push(`User data shows ${topHook} hooks perform best — bias toward this style`)
-        if (topPlatform) parts.push(`Optimise for ${topPlatform}`)
-        if (topWorld) parts.push(`${topWorld} visual world drives highest engagement for this user`)
-        if (parts.length) performanceBias = `\n\nUSER PERFORMANCE DATA: ${parts.join('. ')}.`
+        if (topHook)  parts.push(`"${topHook.k}" hooks are this creator's top performer (avg ${topHook.avg.toFixed(1)}% CTR over ${topHook.n} ads) — bias toward this style`)
+        if (topPlat)  parts.push(`${topPlat.k} drives best results — optimise copy and CTA for that platform`)
+        if (topWorld) parts.push(`"${topWorld.k}" visual world has highest engagement — reference it in visual descriptions`)
+        if (parts.length) performanceBias = `\n\nCREATOR PERFORMANCE INTELLIGENCE (real data — apply as soft bias): ${parts.join('. ')}.`
       }
     } catch {}
 
