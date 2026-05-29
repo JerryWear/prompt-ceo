@@ -12553,7 +12553,7 @@ export default function PromptCEOPage() {
         return
       }
 
-      if (data.history)         setDirectorHistory(data.history)
+      if (Array.isArray(data.history)) setDirectorHistory(data.history)
       if (data.collectedParams) setDirectorParams(data.collectedParams)
       if (data.intent)          setDirectorIntent(data.intent)
 
@@ -12629,7 +12629,7 @@ export default function PromptCEOPage() {
         setDirectorPhase('executing')
         setDirectorLoading(false)
 
-        const p = data.params
+        const p = data.params || {}
         const engine = data.engine
         let offerRefinement = false
 
@@ -12708,6 +12708,10 @@ export default function PromptCEOPage() {
     } catch (err) {
       setDirectorHistory(h => [...h, { role: 'ai', content: 'Something went wrong. Try again.' }])
       setDirectorPhase('chat')
+      setFullCampaignLoading(false)
+      setFullDayLoading(false)
+      setPerfectDayLoading(false)
+      setInstantLoading(false)
     }
     setDirectorLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -18034,7 +18038,7 @@ export default function PromptCEOPage() {
 
                   // ── Schedule tab ──
                   if (fullCampaignPhase === 'schedule') {
-                    const sched = FCR.schedule || []
+                    const sched = Array.isArray(FCR.schedule) ? FCR.schedule : FCR.engine?.schedule ? Object.values(FCR.engine.schedule) : []
                     const sColors = { attention: C.blue, emotional_connection: C.violet, desire_escalation: C.tension, conversion: C.green, retargeting: C.gold, awareness: C.blue, connection: C.violet, desire: C.tension }
                     return (
                       <div style={{ padding: '32px 28px 56px', maxWidth: 760, margin: '0 auto' }}>

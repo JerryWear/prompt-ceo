@@ -546,7 +546,7 @@ function h(str) {
 }
 
 async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser) {
-  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
+  const historyText = (Array.isArray(history) ? history : []).map(m => `${(m.role || 'unknown').toUpperCase()}: ${m.content || ''}`).join('\n')
 
   const memoryCtx = memory?.campaignCount > 0
     ? `Campaign history: ${memory.campaignCount} campaign${memory.campaignCount !== 1 ? 's' : ''}. Best hook type: ${memory.bestHookType ? h(memory.bestHookType) + ' hooks' : 'none yet'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || h(memory.topWorld)) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform ? h(memory.bestPlatform) : 'none'}. Recent style: ${memory.recentStyle ? h(memory.recentStyle) : 'none'}.`
