@@ -120,6 +120,7 @@ export async function PATCH(req) {
       .from('project_brain')
       .update({ campaign_stage: phase.next, last_updated_at: new Date().toISOString() })
       .eq('project_id', projectId)
+      .eq('user_id', user.id)
       .select()
       .single()
 
