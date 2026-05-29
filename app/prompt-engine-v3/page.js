@@ -12543,7 +12543,7 @@ export default function PromptCEOPage() {
             hasFullDayVideo: !!fullDayResult,
             hasCampaign:     !!fullCampaignResult,
           },
-          isNewUser:      !directorMemory || (directorMemory.campaignCount === 0),
+          isNewUser:      !directorMemory || directorMemory.campaignCount == null || directorMemory.campaignCount === 0,
         }),
       })
       const data = await res.json()
