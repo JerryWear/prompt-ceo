@@ -12500,12 +12500,12 @@ export default function PromptCEOPage() {
     setDirectorPhase('idle')
   }, [])
 
-  const directorSend = useCallback(async (messageText, paramValue = null, paramKey = null) => {
+  const directorSend = useCallback(async (messageText, paramValue = null, paramKey = null, overrideParams = null) => {
     if (directorLoading) return
     const msgText = messageText?.trim()
     if (!msgText && !paramValue) return
 
-    const newParams = { ...directorParams }
+    const newParams = { ...(overrideParams || directorParams) }
     if (paramKey && paramValue !== null) {
       newParams[paramKey] = paramValue
       setDirectorParams(newParams)
@@ -17117,7 +17117,7 @@ export default function PromptCEOPage() {
                             onClick={() => {
                               const confirmedParams = { ...(msg.collectedParams || directorParams), confirmedPreview: true }
                               setDirectorParams(confirmedParams)
-                              directorSend('Confirmed. Build this campaign.')
+                              directorSend('Confirmed. Build this campaign.', null, null, confirmedParams)
                             }}
                             disabled={directorLoading}
                             style={{
