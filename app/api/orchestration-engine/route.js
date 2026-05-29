@@ -173,8 +173,13 @@ export async function POST(req) {
     const user = await getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { type, goal: hintGoal, productName } = await req.json()
+    const { type, goal: hintGoal, style, productName, brandProfile, creatorProfile, projectId } = await req.json()
     if (!type) return NextResponse.json({ error: 'type is required' }, { status: 400 })
+
+    // ── Static config signals (overridable by Project Brain™) ──
+    let hookType      = TYPE_HOOK[type] || 'pain'
+    let suggestedWorld = TYPE_WORLDS[type]?.[0] || 'luxury_penthouse'
+    let platform      = GOAL_PLATFORM[hintGoal] || 'instagram'
 
     const db = admin()
 
@@ -250,7 +255,31 @@ export async function POST(req) {
       }
     }
 
-    return NextResponse.json({ recommendations: top3, hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice })
+    // ── Project Brain™ override ─────────────────────────────
+    let brainMeta = null
+    if (projectId) {
+      try {
+        const { data: brain } = await admin()
+          .from('project_brain')
+          .select('best_hook_types, best_worlds, best_platform, campaign_stage, fatigue_score, audience_temperature, pacing_profile')
+          .eq('project_id', projectId)
+          .single()
+
+        if (brain) {
+          if (brain.best_hook_types?.[0]) hookType       = brain.best_hook_types[0]
+          if (brain.best_worlds?.[0])     suggestedWorld  = brain.best_worlds[0]
+          if (brain.best_platform)        platform        = brain.best_platform
+          brainMeta = {
+            campaign_stage:       brain.campaign_stage,
+            fatigue_score:        brain.fatigue_score,
+            audience_temperature: brain.audience_temperature,
+            pacing_profile:       brain.pacing_profile,
+          }
+        }
+      } catch {}
+    }
+
+    return NextResponse.json({ recommendations: top3, hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice, brainMeta })
   } catch (err) {
     console.error('orchestration-engine error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
