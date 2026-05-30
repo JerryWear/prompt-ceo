@@ -12113,7 +12113,13 @@ function buildBrainRecommendation(projectBrain, brandProfile) {
 
   const basis = total > 0 ? `Based on ${total} asset${total !== 1 ? 's' : ''}.` : 'Based on your campaign history.'
 
-  return { insights, recommendation, basis }
+  let upliftLow = 12, upliftHigh = 18
+  if (world)  { upliftLow += 3; upliftHigh += 4 }
+  if (hook)   { upliftLow += 3; upliftHigh += 4 }
+  if (total > 10) { upliftLow += 2; upliftHigh += 3 }
+  const uplift = `+${upliftLow}–${upliftHigh}%`
+
+  return { insights, recommendation, basis, uplift }
 }
 
 function buildConfidenceScore(projectBrain) {
@@ -12146,7 +12152,13 @@ function buildMemoryRecommendation(memory, brandProfile) {
 
   const basis = `Based on ${memory.campaignCount} campaign${memory.campaignCount !== 1 ? 's' : ''}.`
 
-  return { insights, recommendation, basis }
+  let upliftLow = 10, upliftHigh = 16
+  if (world) { upliftLow += 3; upliftHigh += 4 }
+  if (hook)  { upliftLow += 3; upliftHigh += 4 }
+  if (memory.campaignCount > 10) { upliftLow += 2; upliftHigh += 3 }
+  const uplift = `+${upliftLow}–${upliftHigh}%`
+
+  return { insights, recommendation, basis, uplift }
 }
 
 function buildMemoryConfidenceScore(memory) {
@@ -17495,7 +17507,7 @@ export default function PromptCEOPage() {
                             <div style={recCardStyle}>
                               <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
-                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Brain</span>
                                 <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{stageFmt} Phase</span>
                               </div>
                               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -17506,12 +17518,11 @@ export default function PromptCEOPage() {
                                   <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommendation</div>
                                   <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.6, fontWeight: 500 }}>{rec.recommendation}</div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                                  <button onClick={handleRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
-                                  <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                                    {confidence && (<span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>)}
-                                    <span style={{ fontSize: 10, color: C.muted }}>{rec.basis}</span>
-                                  </div>
+                                <button onClick={handleRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingTop: 4 }}>
+                                  {rec.uplift && (<span style={{ fontSize: 10, color: C.muted }}>Expected uplift: <span style={{ color: '#5adf8a', fontWeight: 700 }}>{rec.uplift}</span></span>)}
+                                  {confidence && (<span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>)}
+                                  <span style={{ fontSize: 10, color: C.muted }}>{rec.basis}</span>
                                 </div>
                               </div>
                             </div>
@@ -17525,7 +17536,7 @@ export default function PromptCEOPage() {
                             <div style={recCardStyle}>
                               <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
-                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Brain</span>
                                 <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
                               </div>
                               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -17536,12 +17547,11 @@ export default function PromptCEOPage() {
                                   <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommendation</div>
                                   <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.6, fontWeight: 500 }}>{rec.recommendation}</div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                                  <button onClick={handleMemoryRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
-                                  <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                                    {confidence && (<span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>)}
-                                    <span style={{ fontSize: 10, color: C.muted }}>{rec.basis}</span>
-                                  </div>
+                                <button onClick={handleMemoryRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingTop: 4 }}>
+                                  {rec.uplift && (<span style={{ fontSize: 10, color: C.muted }}>Expected uplift: <span style={{ color: '#5adf8a', fontWeight: 700 }}>{rec.uplift}</span></span>)}
+                                  {confidence && (<span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>)}
+                                  <span style={{ fontSize: 10, color: C.muted }}>{rec.basis}</span>
                                 </div>
                               </div>
                             </div>
