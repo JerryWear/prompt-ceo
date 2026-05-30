@@ -13252,8 +13252,9 @@ export default function PromptCEOPage() {
   const sendToAdStudio = useCallback((hookText, angleObj = null) => {
     if (hookText) setSelectedHook(typeof hookText === 'string' ? hookText : String(hookText))
     if (angleObj) setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
-    setTimeout(() => set('view', 'ad_studio'), 400)
-  }, [set])
+    setPreviousView(s.view)
+    set('view', 'ad_studio')
+  }, [set, s.view])
 
   // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
   useEffect(() => {
@@ -15213,6 +15214,17 @@ export default function PromptCEOPage() {
               <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#7a4abf' }}>📣 Ad Studio</span>
             </div>
+            {/* Hook received banner */}
+            {selectedHook && !productName.trim() && (
+              <div style={{ flexShrink: 0, padding: '8px 16px', background: 'linear-gradient(90deg, #1a0a2a, #0e0618)', borderBottom: `1px solid #3a1a5a`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12 }}>✓</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#d580ff' }}>Hook received: </span>
+                  <span style={{ fontSize: 11, color: '#b8a0df' }}>"{selectedHook.slice(0, 80)}{selectedHook.length > 80 ? '…' : ''}"</span>
+                </div>
+                <span style={{ fontSize: 10, color: '#7a5a9a' }}>Enter a product name below to use it →</span>
+              </div>
+            )}
             {/* Studio Bridge Banner */}
             {bridgeBannerOpen && s.adCreatorIdentity && (
               <div style={{
@@ -18995,14 +19007,7 @@ export default function PromptCEOPage() {
                                     <button onClick={() => navigator.clipboard.writeText(String(copyText)).catch(() => {})}
                                       style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted, fontWeight: 600 }}>copy</button>
                                     {activePhase.actionLabel && (
-                                      <button onClick={(e) => {
-                                        const btn = e.currentTarget
-                                        const orig = btn.textContent
-                                        btn.textContent = '✓ Sending...'
-                                        btn.disabled = true
-                                        activePhase.onAction(String(copyText))
-                                        setTimeout(() => { btn.textContent = orig; btn.disabled = false }, 1200)
-                                      }}
+                                      <button onClick={() => activePhase.onAction(String(copyText))}
                                         style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${activePhase.color}40`, background: `${activePhase.color}0e`, color: activePhase.color, fontWeight: 600 }}>{activePhase.actionLabel}</button>
                                     )}
                                   </div>
