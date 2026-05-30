@@ -354,13 +354,34 @@ const APP_KNOWLEDGE = `
 ## WHAT PROMPTCEO IS
 PromptCEO is an AI-powered content and campaign creation platform for creators, brands, and marketers. It generates complete ad campaigns, cinematic day content, video production plans, images, hooks, and captions — all driven by brand identity, visual worlds, and creative strategy. It replaces a creative team for people who need to move fast and look premium.
 
-## THE 6 GENERATION SYSTEMS
-- Perfect Day™: 12-moment cinematic day — scenes, image prompts, hooks, captions per moment. Best for lifestyle creators wanting a full narrative arc. Outputs 12 scenes, image prompts, hooks, captions, posting schedule.
+## THE GENERATION SYSTEMS
+- Perfect Day™: 12-moment cinematic day — scenes, image prompts, hooks, captions per moment. Best for lifestyle creators wanting a full narrative arc.
 - Full Day Video™: Complete video production plan — scenes, camera moves, lighting direction, wardrobe arc. Best for video creators who need a shot list and production guide.
 - Full Ad Campaign™: 30-day strategic campaign with 5 phases, 30+ hooks, image prompts, captions, and posting schedule. Best for sustained multi-phase campaigns.
 - Instant Campaign™: Full campaign in under 30 seconds — hooks, angles, captions, image/video prompts. Best for fast testing and concept validation.
 - Studio™: AI image generation with brand identity, worlds, photographer briefs. Best for generating specific images and visual content.
 - Ad Studio™: Manual control over every ad parameter — mood, world, CTA, audience, pacing, emotional direction. Best for users who want full creative control step by step.
+
+## THE INTELLIGENCE SYSTEMS (built into the platform — reference these when relevant)
+- Project Brain™: Live intelligence per project. Tracks campaign_stage (the 5-phase arc), fatigue_score (0–100), audience_temperature (cold/warming/hot/fatigued), pacing_profile, best hook types, best worlds, best platform. Updates automatically after every generation. When a user has an active project, you have access to this data — use it.
+- Campaign Evolution System™: 5-phase campaign arc that every project moves through automatically:
+  * attention — cold audience, hook-first, pattern interrupt, stop the scroll
+  * emotional_connection — story arc, identity building, audience warming
+  * desire_escalation — aspiration at peak, world immersion, desire before the ask
+  * conversion — CTA clarity, proof, urgency, close the sale
+  * retargeting — warm re-engagement, identity familiarity, final push
+  Each phase requires completely different creative strategy. You know which phase the user is in — tell them what it means for their next content.
+- Visual Intelligence System™: 4 pacing types applied to every image and video generation:
+  * Fast Cut — high energy, rapid transitions. Best for attention and retargeting phases.
+  * Cinematic — slow, deliberate, wide shots. Best for luxury and aspirational content.
+  * Tension — building suspense, tight frames. Best for dark luxury, emotional, desire escalation.
+  * Story Driven — linear narrative flow. Best for UGC and conversion phases.
+  Users set their pacing in the Visual Profile panel in Studio. If you know their pacing preference, reference it.
+- AI Creative Director™: Instruction bar below the generate button in Ad Studio. User types a natural language direction ("make it more premium", "shift to TikTok energy") — it maps to a config delta (style, pacing, platform, hook type) and applies with one click. Direct users here when they want to quickly adjust creative direction.
+- Cross-Platform Adaptation™: Platforms tab in the campaign nav. One click rewrites all existing ad content natively for Instagram, TikTok, Meta Ads, and YouTube — platform-specific tone, hook length, CTA style, hashtags. Recommend this after any full campaign generation.
+- Studio Timeline™ / Campaign Journey: Journey tab in the campaign nav. Shows the 5-phase timeline with generation history per phase, current phase highlighted, locked phases showing the generation count needed to unlock. Direct users here when they ask "where am I in my campaign" or "what's next."
+- AI Feedback Loop™: Silent signal tracking. Every generation, download, copy, phase advance, and style change is recorded. The Orchestration Engine reads this to make smarter recommendations over time.
+- Orchestration Engine™: Scores and ranks campaign type/style/goal combinations using the user's personal data — best hook types, most-used worlds, brand voice, signal weights, and campaign stage. Powers "Based on your data" badges and recommendation logic throughout.
 
 ## SUPPORTING FEATURES
 - Brand Profiles: save brand name, voice, target audience, style, platform — auto-injected into every generation
@@ -426,6 +447,49 @@ A: A hook is the very first thing someone sees or hears in your content — the 
 Q: What is a world?
 A: A world is the visual setting for your content. Instead of just saying "luxury photo", the world system gives you a fully defined environment — lighting, mood, architecture, emotional register — that makes every image and scene feel cohesive and premium.
 `
+
+function buildIntelligenceContext(projectBrain, memory) {
+  if (!projectBrain && (!memory || memory.campaignCount === 0)) return ''
+
+  const lines = []
+
+  if (projectBrain) {
+    const stage = projectBrain.campaign_stage || 'attention'
+    const stageGuidance = {
+      attention:            'hook-first content, cold audience — stop the scroll before anything else',
+      emotional_connection: 'story arc, identity building — warm the audience before the ask',
+      desire_escalation:    'aspiration at peak — intensify the world and dream before the conversion push',
+      conversion:           'CTA clarity, proof, urgency — close the sale now',
+      retargeting:          'warm re-engagement — identity familiarity, final push for non-converters',
+    }
+    lines.push(`Campaign stage: ${stage} — ${stageGuidance[stage] || stage}`)
+
+    const fatigue = projectBrain.fatigue_score ?? null
+    if (fatigue !== null) {
+      const fatigueNote = fatigue > 70
+        ? 'HIGH — recommend rotating world, style, or hook type immediately'
+        : fatigue > 40 ? 'moderate — monitor but no action needed yet'
+        : 'low — keep current direction, full speed ahead'
+      lines.push(`Fatigue: ${fatigue}/100 — ${fatigueNote}`)
+    }
+
+    if (projectBrain.audience_temperature) lines.push(`Audience temperature: ${projectBrain.audience_temperature}`)
+    if (projectBrain.pacing_profile)       lines.push(`Pacing profile: ${projectBrain.pacing_profile}`)
+    if (projectBrain.best_hook_types?.[0]) lines.push(`Best hook type: ${projectBrain.best_hook_types[0]} (highest signal weight — lead with this)`)
+    if (projectBrain.best_worlds?.[0])     lines.push(`Best world: ${projectBrain.best_worlds[0]} (top performer — default to this unless user has a reason to change)`)
+    if (projectBrain.best_platform)        lines.push(`Best platform: ${projectBrain.best_platform}`)
+    if (projectBrain.total_generations)    lines.push(`Total generations this project: ${projectBrain.total_generations}`)
+  }
+
+  if (memory?.campaignCount > 0 && !projectBrain) {
+    lines.push(`Campaign history: ${memory.campaignCount} campaign${memory.campaignCount !== 1 ? 's' : ''} total`)
+    if (memory.bestHookType) lines.push(`Best hook type (all time): ${memory.bestHookType}`)
+    if (memory.topWorld)     lines.push(`Top world (all time): ${memory.topWorld} (${memory.topWorldUses || 0} uses)`)
+    if (memory.bestPlatform) lines.push(`Best platform (all time): ${memory.bestPlatform}`)
+  }
+
+  return lines.length > 0 ? `\n## ACTIVE INTELLIGENCE STATE\n${lines.join('\n')}\n` : ''
+}
 
 function buildCapabilities(userRow) {
   const tier     = userRow?.subscription_tier || 'free'
