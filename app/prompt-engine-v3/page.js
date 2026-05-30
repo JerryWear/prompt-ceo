@@ -12285,7 +12285,7 @@ export default function PromptCEOPage() {
     const params = new URLSearchParams(window.location.search)
     const view   = params.get('view')
     const tab    = params.get('tab')
-    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video', 'campaign_journey', 'cross_platform']
+    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video', 'campaign_journey', 'cross_platform', 'life_engine']
     if (view && validViews.includes(view)) {
       set('view', view)
       if (tab) window.__adStudioInitTab = tab
@@ -14888,7 +14888,7 @@ export default function PromptCEOPage() {
           {/* ── Grouped nav ── */}
           {(() => {
             const inCampaigns = ['full_campaign','campaign_journey','timeline','cross_platform'].includes(s.view)
-            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio'].includes(s.view)
+            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine'].includes(s.view)
             const dropStyle   = { position: 'absolute', top: 48, left: 0, zIndex: 200, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: '0 6px 6px 6px', minWidth: 196, boxShadow: '0 8px 24px #00000088', padding: '4px 0' }
             const itemBase    = (active, activeColor) => ({ width: '100%', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', border: 'none', borderLeft: `2px solid ${active ? activeColor : 'transparent'}`, background: active ? 'rgba(255,255,255,0.04)' : 'transparent', color: active ? activeColor : C.secondary, transition: 'all 0.1s' })
             const hoverOn     = (e, active) => { if (!active) { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary } }
@@ -14955,20 +14955,26 @@ export default function PromptCEOPage() {
                   </button>
                   {navOpenGroup === 'studio' && (
                     <div style={dropStyle}>
-                      {[
-                        { id: 'studio',         label: 'Studio',      icon: '◧' },
-                        { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
-                        { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
-                      ].map(v => {
-                        const active = s.view === v.id
+                      {(() => {
+                        const active = s.view === 'studio'
                         return (
-                          <button key={v.id} onClick={() => { set('view', v.id); setNavOpenGroup(null) }}
+                          <button onClick={() => { set('view', 'studio'); setNavOpenGroup(null) }}
                             style={itemBase(active, C.primary)}
                             onMouseEnter={e => hoverOn(e, active)}
                             onMouseLeave={e => hoverOff(e, active)}
-                          ><span style={{ fontSize: 11 }}>{v.icon}</span>{v.label}</button>
+                          ><span style={{ fontSize: 11 }}>◧</span>Studio</button>
                         )
-                      })}
+                      })()}
+                      {(() => {
+                        const active = s.view === 'life_engine' || s.view === 'perfect_day' || s.view === 'full_day_video'
+                        return (
+                          <button onClick={() => { set('view', 'life_engine'); setNavOpenGroup(null) }}
+                            style={itemBase(active, C.gold)}
+                            onMouseEnter={e => hoverOn(e, active)}
+                            onMouseLeave={e => hoverOff(e, active)}
+                          ><span style={{ fontSize: 11 }}>🌍</span>Life Engine</button>
+                        )
+                      })()}
                       {(() => {
                         const active = s.view === 'ad_studio'
                         return (
@@ -14984,10 +14990,6 @@ export default function PromptCEOPage() {
                         onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.secondary }}
                       ><span style={{ fontSize: 11 }}>⚡</span>Quick Create</a>
-                      <a href="/full-day" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: '#9a7adf', borderLeft: '2px solid transparent' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = '#b89aff' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9a7adf' }}
-                      ><span style={{ fontSize: 11 }}>🌍</span>Life Engine</a>
                     </div>
                   )}
                 </div>
@@ -18237,6 +18239,103 @@ export default function PromptCEOPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ══ LIFE ENGINE™ HUB ══ */}
+        {s.view === 'life_engine' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flexShrink: 0, padding: '12px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>🌍 Life Engine™</span>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '48px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 40 }}>
+              <div style={{ textAlign: 'center', maxWidth: 520 }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.5, marginBottom: 12 }}>Life Engine™</div>
+                <div style={{ fontSize: 15, color: C.muted, lineHeight: 1.7 }}>One day. Every format. Choose a mode and the AI builds your entire day as a campaign — moments, hooks, captions, and image prompts.</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, width: '100%', maxWidth: 780 }}>
+                {[
+                  {
+                    id:      'perfect_day',
+                    icon:    '☀',
+                    label:   'Perfect Day',
+                    desc:    'Morning to midnight aspirational lifestyle — 12 cinematic moments, hooks, and captions.',
+                    active:  true,
+                    color:   C.gold,
+                  },
+                  {
+                    id:      'full_day_video',
+                    icon:    '🎬',
+                    label:   'Creator Day',
+                    desc:    'Behind-the-scenes creator content — 14 scenes with cinematic direction and shot lists.',
+                    active:  true,
+                    color:   C.primary,
+                  },
+                  {
+                    id:      null,
+                    icon:    '✈',
+                    label:   'Travel Day',
+                    desc:    'Explore the world in cinematic style — destinations, culture, and lifestyle moments.',
+                    active:  false,
+                    color:   C.blue,
+                  },
+                  {
+                    id:      null,
+                    icon:    '🏋',
+                    label:   'Fitness Day',
+                    desc:    'Training, nutrition, and recovery — performance lifestyle from 5am to midnight.',
+                    active:  false,
+                    color:   C.green,
+                  },
+                  {
+                    id:      null,
+                    icon:    '📦',
+                    label:   'Product Day',
+                    desc:    'A full day told through your product — unboxing, use, lifestyle, and results.',
+                    active:  false,
+                    color:   C.secondary,
+                  },
+                  {
+                    id:      null,
+                    icon:    '📣',
+                    label:   'Campaign Day',
+                    desc:    'One campaign phase as a day — attention, desire, and conversion in 12 moments.',
+                    active:  false,
+                    color:   C.violet,
+                  },
+                ].map(mode => (
+                  <div
+                    key={mode.label}
+                    onClick={() => mode.active && set('view', mode.id)}
+                    style={{
+                      borderRadius: 14,
+                      border: `1px solid ${mode.active ? (mode.color + '40') : C.hairline}`,
+                      background: mode.active ? 'linear-gradient(135deg, #0e0c08 0%, #0a0a0a 100%)' : C.raised,
+                      padding: '24px 20px',
+                      cursor: mode.active ? 'pointer' : 'default',
+                      opacity: mode.active ? 1 : 0.45,
+                      display: 'flex', flexDirection: 'column', gap: 12,
+                      transition: 'all 0.15s',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={e => { if (mode.active) { e.currentTarget.style.borderColor = mode.color + '80'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+                    onMouseLeave={e => { if (mode.active) { e.currentTarget.style.borderColor = mode.color + '40'; e.currentTarget.style.transform = 'none' } }}
+                  >
+                    {!mode.active && (
+                      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', background: C.surface, borderRadius: 3, padding: '2px 6px', border: `1px solid ${C.hairline}` }}>Soon</div>
+                    )}
+                    <div style={{ fontSize: 22 }}>{mode.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: mode.active ? mode.color : C.muted, marginBottom: 6 }}>{mode.label}</div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{mode.desc}</div>
+                    </div>
+                    {mode.active && (
+                      <div style={{ fontSize: 11, fontWeight: 600, color: mode.color, marginTop: 4 }}>Launch →</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
