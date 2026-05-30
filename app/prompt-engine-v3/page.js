@@ -12188,31 +12188,59 @@ function formatTimeAgo(ts) {
 function formatSignalEntry(signal) {
   const { event_type, metadata, created_at } = signal
   const time = formatTimeAgo(created_at)
-  const intentLabels = {
-    full_campaign:    'Generated Full Campaign',
-    perfect_day:      'Generated Perfect Day',
-    full_day_video:   'Generated Day Video',
-    ad_campaign:      'Generated Ad Campaign',
-    instant_campaign: 'Generated Quick Campaign',
+  const m    = metadata || {}
+  const w    = v => v?.replace(/_/g, ' ')
+
+  const MAP = {
+    brain_recommendation_accepted: () => 'Accepted Brain recommendation',
+    brain_recommendation_rejected: () => 'Reviewed Brain recommendation',
+    phase_advanced:               () => (m.phase || m.stage) ? `Advanced to ${w(m.phase || m.stage)} phase` : 'Campaign phase advanced',
+    campaign_created:             () => m.name ? `Created campaign: ${m.name}` : 'Created campaign',
+    campaign_completed:           () => 'Completed campaign',
+    campaign_published:           () => 'Published campaign',
+    generation_completed:         () => ({ full_campaign: 'Generated Full Campaign', perfect_day: 'Generated Perfect Day', full_day_video: 'Generated Day Video', ad_campaign: 'Generated Ad Campaign', instant_campaign: 'Generated Instant Campaign' })[m.intent || m.type] || 'Generated content',
+    image_generated:              () => m.world ? `Generated image — ${w(m.world)}` : 'Generated image',
+    video_generated:              () => m.world ? `Generated video — ${w(m.world)}` : 'Generated video',
+    perfect_day_generated:        () => m.world ? `Generated Perfect Day — ${w(m.world)}` : 'Generated Perfect Day',
+    perfect_day_completed:        () => 'Completed Perfect Day campaign',
+    ad_studio_generated:          () => 'Generated Ad Studio content',
+    ad_campaign_created:          () => 'Created Ad Campaign',
+    ad_campaign_completed:        () => 'Completed Ad Campaign',
+    world_selected:               () => m.world ? `Selected ${w(m.world)} world` : 'Selected world',
+    hook_selected:                () => m.hook  ? `Selected ${w(m.hook)} hook` : 'Selected hook type',
+    hook_changed:                 () => m.hook  ? `Changed hook to ${w(m.hook)}` : 'Changed hook type',
+    platform_selected:            () => m.platform ? `Selected ${m.platform}` : 'Selected platform',
+    platform_changed:             () => m.platform ? `Changed platform to ${m.platform}` : 'Changed platform',
+    style_selected:               () => m.style ? `Selected ${w(m.style)} style` : 'Selected style',
+    style_changed:                () => m.style ? `Changed style to ${w(m.style)}` : 'Changed style',
+    creative_dir_used:            () => 'Used Creative Director',
+    result_downloaded:            () => 'Downloaded result',
+    result_copied:                () => 'Copied result',
+    result_re_run:                () => 'Re-ran generation',
   }
-  switch (event_type) {
-    case 'generation_completed': {
-      const label = intentLabels[metadata?.intent || metadata?.type] || 'Generated content'
-      return { label, time }
-    }
-    case 'brain_recommendation_accepted':
-      return { label: 'Accepted Brain recommendation', time }
-    case 'phase_advanced': {
-      const phase = (metadata?.phase || metadata?.stage || '').replace(/_/g, ' ')
-      return { label: phase ? `Advanced to ${phase} phase` : 'Campaign phase advanced', time }
-    }
-    case 'creative_dir_used':
-      return { label: 'Used Creative Director', time }
-    case 'result_downloaded':
-      return { label: 'Downloaded result', time }
-    default:
-      return null
-  }
+
+  const fn = MAP[event_type]
+  if (!fn) return null
+  return { label: fn(), time }
+}
+
+function groupSignalsByDate(signals) {
+  const now        = new Date()
+  const todayTs    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterdayTs = todayTs - 86400000
+  const map        = new Map()
+
+  signals.forEach(signal => {
+    const entry = formatSignalEntry(signal)
+    if (!entry) return
+    const d      = new Date(signal.created_at)
+    const dayTs  = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    const bucket = dayTs === todayTs ? 'Today' : dayTs === yesterdayTs ? 'Yesterday' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    if (!map.has(bucket)) map.set(bucket, [])
+    map.get(bucket).push(entry)
+  })
+
+  return Array.from(map.entries()).map(([label, entries]) => ({ label, entries }))
 }
 
 function buildDirectorOpener(memory, activeBrandProfile) {
@@ -12664,7 +12692,10 @@ export default function PromptCEOPage() {
         }),
       })
       const data = await res.json()
-      if (!data.error) setPerfectDayResult(data)
+      if (!data.error) {
+        setPerfectDayResult(data)
+        fireSignal('perfect_day_generated', { world: perfectDayWorldId, platform: perfectDayPlatform, style: perfectDayStyle })
+      }
     } catch {}
     clearTimeout(pa); clearTimeout(pb); clearTimeout(pc)
     setPerfectDayLoading(false)
@@ -13062,7 +13093,10 @@ export default function PromptCEOPage() {
         }),
       })
       const data = await res.json()
-      if (!data.error) setFullDayResult(data)
+      if (!data.error) {
+        setFullDayResult(data)
+        fireSignal('video_generated', { world: fullDayWorld, type: fullDayType, platform: fullDayPlatform })
+      }
     } catch {}
     clearTimeout(fa); clearTimeout(fb); clearTimeout(fc)
     setFullDayLoading(false)
@@ -17645,26 +17679,32 @@ export default function PromptCEOPage() {
 
                         {/* Brain Memory */}
                         {(() => {
-                          const entries = (brainMemory || []).map(formatSignalEntry).filter(Boolean).slice(0, 5)
+                          const groups = groupSignalsByDate(brainMemory || [])
+                          const total  = (brainMemory || []).filter(s => formatSignalEntry(s)).length
                           return (
-                            <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
-                              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                                 <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Brain Memory</span>
-                                <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>Recent decisions</span>
+                                {total > 0 && <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{total} event{total !== 1 ? 's' : ''}</span>}
                               </div>
-                              <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column' }}>
-                                {entries.length > 0 ? entries.map((entry, i) => (
-                                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <span style={{ color: C.gold, fontSize: 10 }}>✓</span>
-                                      <span style={{ fontSize: 12, color: C.secondary }}>{entry.label}</span>
-                                    </div>
-                                    <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 8 }}>{entry.time}</span>
+                              <div style={{ padding: '8px 16px', overflowY: 'auto', maxHeight: 260 }}>
+                                {groups.length > 0 ? groups.map(group => (
+                                  <div key={group.label}>
+                                    <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', padding: '8px 0 4px' }}>{group.label}</div>
+                                    {group.entries.map((entry, i) => (
+                                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${C.hairline}` }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <span style={{ color: C.gold, fontSize: 10, flexShrink: 0 }}>✓</span>
+                                          <span style={{ fontSize: 12, color: C.secondary }}>{entry.label}</span>
+                                        </div>
+                                        <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 8 }}>{entry.time}</span>
+                                      </div>
+                                    ))}
                                   </div>
                                 )) : (
-                                  <div style={{ padding: '16px 0', textAlign: 'center' }}>
-                                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Actions appear here as you generate campaigns and accept Brain recommendations.</div>
+                                  <div style={{ padding: '20px 0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>Every world you select, campaign you build, and recommendation you act on appears here. This is everything the Brain has learned from you.</div>
                                   </div>
                                 )}
                               </div>

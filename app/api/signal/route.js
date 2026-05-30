@@ -19,15 +19,41 @@ async function getUser() {
 }
 
 const EVENT_WEIGHTS = {
+  // Brain
+  brain_recommendation_accepted: 9,
+  brain_recommendation_rejected: 3,
+
+  // Campaigns
+  campaign_created:              5,
+  campaign_completed:            7,
+  campaign_published:            8,
+  phase_advanced:                8,
+
+  // Generation
   generation_completed:          2,
+  image_generated:               3,
+  video_generated:               5,
+  perfect_day_generated:         5,
+  perfect_day_completed:         6,
+  ad_studio_generated:           4,
+  ad_campaign_created:           6,
+  ad_campaign_completed:         7,
+
+  // Choices that teach the Brain
+  world_selected:                2,
+  hook_selected:                 2,
+  hook_changed:                  2,
+  platform_selected:             2,
+  platform_changed:              2,
+  style_selected:                2,
+  style_changed:                 3,
+
+  // Engagement
   result_downloaded:             5,
   result_copied:                 4,
   result_re_run:                 6,
-  phase_advanced:                8,
   creative_dir_used:             7,
   session_length_20min:          8,
-  style_changed:                 3,
-  brain_recommendation_accepted: 9,
 }
 
 export async function GET() {
@@ -39,9 +65,8 @@ export async function GET() {
       .from('signal_logs')
       .select('event_type, metadata, created_at')
       .eq('user_id', user.id)
-      .in('event_type', ['generation_completed', 'brain_recommendation_accepted', 'phase_advanced', 'creative_dir_used', 'result_downloaded'])
       .order('created_at', { ascending: false })
-      .limit(12)
+      .limit(100)
 
     if (error) throw error
     return NextResponse.json({ ok: true, signals: data || [] })
