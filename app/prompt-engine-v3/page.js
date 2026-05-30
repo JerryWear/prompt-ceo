@@ -17704,7 +17704,7 @@ export default function PromptCEOPage() {
                                   </div>
                                 )) : (
                                   <div style={{ padding: '20px 0', textAlign: 'center' }}>
-                                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>Every world you select, campaign you build, and recommendation you act on appears here. This is everything the Brain has learned from you.</div>
+                                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>The Brain is currently learning from your worlds, campaigns, styles, platforms, hooks, and generation decisions. Your learning history will appear here.</div>
                                   </div>
                                 )}
                               </div>
