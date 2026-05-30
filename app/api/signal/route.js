@@ -30,6 +30,27 @@ const EVENT_WEIGHTS = {
   brain_recommendation_accepted: 9,
 }
 
+export async function GET() {
+  try {
+    const user = await getUser()
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 })
+
+    const { data, error } = await adminClient()
+      .from('signal_logs')
+      .select('event_type, metadata, created_at')
+      .eq('user_id', user.id)
+      .in('event_type', ['generation_completed', 'brain_recommendation_accepted', 'phase_advanced', 'creative_dir_used', 'result_downloaded'])
+      .order('created_at', { ascending: false })
+      .limit(12)
+
+    if (error) throw error
+    return NextResponse.json({ ok: true, signals: data || [] })
+  } catch (err) {
+    console.error('[signal GET]', err)
+    return NextResponse.json({ ok: false, signals: [] })
+  }
+}
+
 export async function POST(req) {
   try {
     const user = await getUser()

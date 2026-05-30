@@ -12172,6 +12172,49 @@ function buildMemoryConfidenceScore(memory) {
   return Math.min(score, 88)
 }
 
+function formatTimeAgo(ts) {
+  if (!ts) return ''
+  const diff  = Date.now() - new Date(ts).getTime()
+  const mins  = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(diff / 86400000)
+  if (mins < 2)   return 'just now'
+  if (mins < 60)  return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days === 1) return 'yesterday'
+  return `${days}d ago`
+}
+
+function formatSignalEntry(signal) {
+  const { event_type, metadata, created_at } = signal
+  const time = formatTimeAgo(created_at)
+  const intentLabels = {
+    full_campaign:    'Generated Full Campaign',
+    perfect_day:      'Generated Perfect Day',
+    full_day_video:   'Generated Day Video',
+    ad_campaign:      'Generated Ad Campaign',
+    instant_campaign: 'Generated Quick Campaign',
+  }
+  switch (event_type) {
+    case 'generation_completed': {
+      const label = intentLabels[metadata?.intent || metadata?.type] || 'Generated content'
+      return { label, time }
+    }
+    case 'brain_recommendation_accepted':
+      return { label: 'Accepted Brain recommendation', time }
+    case 'phase_advanced': {
+      const phase = (metadata?.phase || metadata?.stage || '').replace(/_/g, ' ')
+      return { label: phase ? `Advanced to ${phase} phase` : 'Campaign phase advanced', time }
+    }
+    case 'creative_dir_used':
+      return { label: 'Used Creative Director', time }
+    case 'result_downloaded':
+      return { label: 'Downloaded result', time }
+    default:
+      return null
+  }
+}
+
 function buildDirectorOpener(memory, activeBrandProfile) {
   if (!memory || memory.campaignCount === 0) return null
   const facts = []
@@ -12635,6 +12678,7 @@ export default function PromptCEOPage() {
   const [directorInput,      setDirectorInput]      = useState('')
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
   const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
+  const [brainMemory,        setBrainMemory]        = useState(null)   // loaded from signal_logs
   const [thinkingMsg,        setThinkingMsg]        = useState('')     // rotating execution message
 
   const DIRECTOR_THINKING_MSGS = {
@@ -12700,6 +12744,14 @@ export default function PromptCEOPage() {
     }
     loadMemory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (brainMemory !== null) return
+    fetch('/api/signal')
+      .then(r => r.json())
+      .then(d => setBrainMemory(d.signals || []))
+      .catch(() => setBrainMemory([]))
   }, [])
 
   // Rotating thinking messages during execution
@@ -17511,11 +17563,12 @@ export default function PromptCEOPage() {
                                 <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{stageFmt} Phase</span>
                               </div>
                               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 }}>Insight</div>
                                 {rec.insights.map((line, i) => (
                                   <div key={i} style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6 }}>{line}</div>
                                 ))}
                                 <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 12 }}>
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommendation</div>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommended Action</div>
                                   <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.6, fontWeight: 500 }}>{rec.recommendation}</div>
                                 </div>
                                 <button onClick={handleRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
@@ -17540,11 +17593,12 @@ export default function PromptCEOPage() {
                                 <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
                               </div>
                               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 }}>Insight</div>
                                 {rec.insights.map((line, i) => (
                                   <div key={i} style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6 }}>{line}</div>
                                 ))}
                                 <div style={{ borderTop: `1px solid ${C.hairline}`, paddingTop: 12 }}>
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommendation</div>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Recommended Action</div>
                                   <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.6, fontWeight: 500 }}>{rec.recommendation}</div>
                                 </div>
                                 <button onClick={handleMemoryRecommendationAccept} disabled={recommendationAccepted} style={btnStyle(recommendationAccepted)}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
@@ -17583,6 +17637,32 @@ export default function PromptCEOPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Brain Memory */}
+                      {brainMemory && brainMemory.length > 0 && (() => {
+                        const entries = brainMemory.map(formatSignalEntry).filter(Boolean).slice(0, 6)
+                        if (entries.length === 0) return null
+                        return (
+                          <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                            <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                              <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Brain Memory</span>
+                              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>Recent decisions</span>
+                            </div>
+                            <div style={{ padding: '10px 18px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                              {entries.map((entry, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ color: C.gold, fontSize: 10 }}>✓</span>
+                                    <span style={{ fontSize: 12, color: C.secondary }}>{entry.label}</span>
+                                  </div>
+                                  <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 12 }}>{entry.time}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {/* Quick starts for returning users */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 580 }}>
