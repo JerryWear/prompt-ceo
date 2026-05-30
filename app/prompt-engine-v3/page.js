@@ -13236,6 +13236,22 @@ export default function PromptCEOPage() {
             _shotZone: shotDir.zone,
           }
         }
+        // Inject scene rhythm arc for Visual Intelligence™
+        {
+          const rhythmArcs = {
+            fast_cut:     ['explosive opener, dynamic motion, handheld energy', 'rapid kinetic energy, high movement', 'peak intensity, maximum kinetic energy', 'sustained momentum, sharp decisive framing', 'strong closing energy, definitive final frame'],
+            cinematic:    ['wide establishing shot, environmental context revealed', 'medium shot, subject entering the scene', 'intimate framing, emotional close proximity', 'wide with scale and aspiration restored', 'final wide establishing, full world revealed'],
+            tension:      ['extreme close-up, compressed maximum tension', 'tight medium shot, pressure building', 'peak tension, claustrophobic framing', 'slight release, medium shot breathing room', 'final reveal, broader context unveiled'],
+            story_driven: ['wide observational establishing shot', 'medium documentary framing, candid', 'close intimate moment, genuine emotion visible', 'reaction or consequence shot', 'wide resolution, full context restored'],
+          }
+          const pacing     = s.visualPacing || 'cinematic'
+          const arc        = rhythmArcs[pacing] || rhythmArcs.cinematic
+          const arcIdx     = Math.min(Math.floor((i / Math.max(total - 1, 1)) * (arc.length - 1)), arc.length - 1)
+          const rhythmNote = arc[arcIdx]
+          if (r.finalPrompt && rhythmNote) {
+            r = { ...r, finalPrompt: `${r.finalPrompt}, ${rhythmNote}` }
+          }
+        }
         // Inject visual anchor consistency if set
         if (s.visualAnchor?.description && r.finalPrompt) {
           r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
@@ -14884,6 +14900,49 @@ export default function PromptCEOPage() {
                     </div>
                   </div>
                 )}
+              </Panel>
+
+              <Panel title="Visual Profile" hint="Cinematographic pacing applied to every scene in the batch" accent={C.violet} defaultOpen={false}>
+                {(() => {
+                  const PACING_OPTIONS = [
+                    { id: 'fast_cut',     label: 'Fast Cut',     desc: 'High energy, rapid transitions' },
+                    { id: 'cinematic',    label: 'Cinematic',    desc: 'Slow, deliberate, wide shots' },
+                    { id: 'tension',      label: 'Tension',      desc: 'Tight frames, building pressure' },
+                    { id: 'story_driven', label: 'Story Driven', desc: 'Natural narrative flow' },
+                  ]
+                  const STAGE_THUMB = {
+                    attention:            { label: 'Eye Contact',     desc: 'Direct gaze stops scroll' },
+                    emotional_connection: { label: 'Emotional Face',  desc: 'Genuine emotion drives empathy' },
+                    desire_escalation:    { label: 'Tension Framing', desc: 'Off-balance creates curiosity' },
+                    conversion:           { label: 'Contrast Led',    desc: 'Bold contrast focuses attention' },
+                    retargeting:          { label: 'Eye Contact',     desc: 'Direct gaze re-engages audience' },
+                  }
+                  const active   = s.visualPacing || 'cinematic'
+                  const thumbHint = projectBrain?.campaign_stage ? STAGE_THUMB[projectBrain.campaign_stage] : null
+                  return (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 8 }}>
+                        {PACING_OPTIONS.map(p => (
+                          <button key={p.id} onClick={() => set('visualPacing', p.id)} style={{
+                            padding: '6px 8px', borderRadius: 4, textAlign: 'left', cursor: 'pointer',
+                            border: `1px solid ${active === p.id ? C.violet : C.hairline}`,
+                            background: active === p.id ? '#05020e' : C.raised,
+                            transition: 'all 0.12s',
+                          }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: active === p.id ? C.violet : C.primary }}>{p.label}</div>
+                            <div style={{ fontSize: 7, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{p.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                      {thumbHint && (
+                        <div style={{ padding: '5px 8px', borderRadius: 4, background: '#0e0c01', border: `1px solid #3a2e0a`, fontSize: 8, color: C.gold }}>
+                          <span style={{ fontWeight: 700 }}>★ {projectBrain.campaign_stage.replace(/_/g, ' ')} phase</span>
+                          {' → '}{thumbHint.label}: {thumbHint.desc}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </Panel>
 
               <Panel title="Scene Presets" hint="Save & restore complete studio setups" accent={C.violet} defaultOpen={false}>
