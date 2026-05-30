@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { postGeneration } from '../../../lib/server/postGeneration.js'
 
 import { buildAnglesPrompt }           from '../../prompt-engine-v3/ad-system/adAngles.js'
 import { buildHooksPrompt }            from '../../prompt-engine-v3/ad-system/adHooks.js'
@@ -376,17 +377,14 @@ export async function POST(req) {
       )
     }
 
-    // ── Log generation ──────────────────────────────────────
-    try {
-      await admin.from('generation_logs').insert({
-        user_id:        user.id,
-        project_id:     projectId || null,
-        type,
-        input:          { type, hookType: hookType || null, productName: adConfig?.productName || null, platform: adConfig?.platform || null },
-        output:         { count: Array.isArray(parsed) ? parsed.length : 1 },
-        campaign_phase: brainCampaignPhase,
-      })
-    } catch {}
+    // ── Log generation (central pipeline) ───────────────────
+    await postGeneration(admin, {
+      userId:        user.id,
+      projectId:     projectId || null,
+      prompt:        `${type}${hookType ? ` (${hookType})` : ''} — ${adConfig?.productName || 'unnamed'} — ${adConfig?.platform || 'general'}`,
+      worldId:       adConfig?.world || adConfig?.storyWorldId || '',
+      campaignPhase: brainCampaignPhase || 'attention',
+    })
 
     return NextResponse.json({
       status:        'complete',

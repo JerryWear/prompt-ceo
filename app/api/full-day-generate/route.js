@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { sequenceDay } from '../../life-engine/lifeSequencer.js'
 import { WORLDS, DAY_TYPES } from '../../../lib/life-engine/worldDayAdapters.js'
+import { postGeneration } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -198,15 +199,13 @@ Return JSON with EXACTLY ${engineScenes.length} scenes — one per pre-structure
     result.platform      = platform
     result.engineScenes  = engineScenes
 
-    try {
-      await admin.from('generation_logs').insert({
-        user_id:    user.id,
-        project_id: projectId || null,
-        type:       'full_day_video',
-        input:      { worldId: resolvedWorldId, dayType, style, platform },
-        output:     { productionTitle: result.productionTitle, sceneCount: result.scenes?.length },
-      })
-    } catch {}
+    await postGeneration(admin, {
+      userId:   user.id,
+      projectId,
+      prompt:   `Full Day Video — ${WORLDS[resolvedWorldId]?.name || resolvedWorldId} — ${platform}`,
+      worldId:  resolvedWorldId,
+      campaignPhase: 'attention',
+    })
 
     return NextResponse.json(result)
   } catch (err) {

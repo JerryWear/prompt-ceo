@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { postGeneration } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -252,16 +253,14 @@ Return a JSON object:
       })
     } catch {}
 
-    // Log generation
-    try {
-      await admin.from('generation_logs').insert({
-        user_id: user.id,
-        project_id: savedProjectId,
-        type: 'perfect_day',
-        input: { worldId, style, platform, momentIds: selectedMomentIds, creatorProfile: creatorProfile?.id, brandProfile: brandProfile?.id },
-        output: { momentCount: generatedMoments.length, dayTitle: dayMeta.dayTitle },
-      })
-    } catch {}
+    // Log generation (central pipeline)
+    await postGeneration(admin, {
+      userId:   user.id,
+      projectId: savedProjectId,
+      prompt:   `Perfect Day — ${world.name} — ${platform}`,
+      worldId,
+      campaignPhase: 'attention',
+    })
 
     // Track world memory
     try {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { postGeneration } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -229,6 +230,14 @@ Return JSON only:
       momentResults.push(...batch)
       if (i + 4 < moments.length) await new Promise(r => setTimeout(r, 300))
     }
+
+    await postGeneration(admin, {
+      userId:   user.id,
+      projectId,
+      prompt:   `${modeData.label} — ${world.name} — ${platform}`,
+      worldId:  worldKey,
+      campaignPhase: 'attention',
+    })
 
     return NextResponse.json({
       mode,

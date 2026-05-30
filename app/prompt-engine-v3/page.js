@@ -22,6 +22,7 @@ import {
 import { STORY_WORLDS }    from '../prompt-v2/story-worlds/index.js'
 import { STORY_CHAPTERS }  from '../prompt-v2/story-chapters/index.js'
 import { SIGNATURE_PACKS } from '../prompt-v2/signature-packs/index.js'
+import { createGenerationPipeline, readCachedOutput, clearProjectCache } from './lib/pipeline.js'
 
 // ─────────────────────────────────────────────────────────────
 // DESIGN TOKENS — Cinematic Dark Studio
@@ -321,7 +322,7 @@ function OrchestrationProgress({ steps, currentStep, title }) {
   )
 }
 
-function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon, quickLog, quickFeedback, brandProfiles, activeBrandProfile, setActiveBrandProfile, brandProfileDrop, setBrandProfileDrop, brandModalOpen, setBrandModalOpen, deleteBrandProfile }) {
+function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generateAdText, hasMusicAddon, quickLog, quickFeedback, brandProfiles, activeBrandProfile, setActiveBrandProfile, brandProfileDrop, setBrandProfileDrop, brandModalOpen, setBrandModalOpen, deleteBrandProfile, fireSignal }) {
   const [adMode, setAdMode]             = useState('product_ad')
   const [adOutputType, setAdOutputType] = useState('image')
   const [adFormat, setAdFormat]         = useState('feed')
@@ -3788,7 +3789,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               { value: 'facebook',  label: 'Facebook'  },
               { value: 'general',   label: 'Universal' },
             ].map(p => (
-              <button key={p.value} onClick={() => setAdPlatform(p.value)} style={{
+              <button key={p.value} onClick={() => { setAdPlatform(p.value); fireSignal?.('platform_selected', { platform: p.value }) }} style={{
                 padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700,
                 cursor: 'pointer', transition: 'all 0.12s', whiteSpace: 'nowrap',
                 ...cardBorder(adPlatform === p.value),
@@ -4098,7 +4099,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                   { value: 'ugc',        label: 'UGC',        icon: '📱', desc: 'Creator feel' },
                   { value: 'cinematic',  label: 'Cinematic',  icon: '🎬', desc: 'Wide scene' },
                 ].map(st => (
-                  <button key={st.value} onClick={() => { if (!lockedVisualStyle) { setAdStyle(st.value); fetch('/api/signal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_type: 'style_changed', metadata: { style: st.value } }) }).catch(() => {}) } }} style={{
+                  <button key={st.value} onClick={() => { if (!lockedVisualStyle) { setAdStyle(st.value); fireSignal?.('style_selected', { style: st.value }) } }} style={{
                     borderRadius: 4, padding: '8px 6px', textAlign: 'left',
                     cursor: lockedVisualStyle ? 'default' : 'pointer',
                     transition: 'all 0.12s', ...cardBorder(adStyle === st.value),
@@ -5314,7 +5315,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
                 const hasList = (s.adTextResults?.[`hooks_${h.id}`]?.hooks || []).length > 0
                 const count   = s.adTextResults?.[`hooks_${h.id}`]?.hooks?.length || 0
                 return (
-                  <button key={h.id} onClick={() => setActiveHookType(h.id)} style={{
+                  <button key={h.id} onClick={() => { setActiveHookType(h.id); fireSignal?.('hook_selected', { hook: h.id }) }} style={{
                     padding: '7px 4px', borderRadius: 4, fontSize: 9, fontWeight: 700,
                     textAlign: 'center', cursor: 'pointer', transition: 'all 0.12s',
                     border: `1px solid ${activeHookType === h.id ? C.goldDim : hasList ? '#2a4a2a' : C.hairline}`,
@@ -12327,6 +12328,9 @@ export default function PromptCEOPage() {
       .catch(() => {})
   }
 
+  // Central generation pipeline — every generator calls onGenerationComplete after success
+  const { onGenerationComplete } = createGenerationPipeline({ fireSignal })
+
   useEffect(() => {
     const t = setTimeout(() => fireSignal('session_length_20min'), 20 * 60 * 1000)
     return () => clearTimeout(t)
@@ -12383,6 +12387,34 @@ export default function PromptCEOPage() {
   const [projectDropOpen,   setProjectDropOpen]   = useState(false)
   const [navOpenGroup,      setNavOpenGroup]      = useState(null)
 
+  // Restore active project from localStorage on mount (survives page refresh)
+  useEffect(() => {
+    try {
+      const id   = localStorage.getItem('pce_activeProjectId')
+      const name = localStorage.getItem('pce_activeProjectName') || ''
+      const type = localStorage.getItem('pce_activeProjectType') || 'creator'
+      if (id) merge({ activeProjectId: id, activeProjectName: name, activeProjectType: type })
+    } catch {}
+  }, [])
+
+  // Hydration: restore generator outputs from localStorage when project loads/changes (24h TTL)
+  useEffect(() => {
+    if (!s.activeProjectId) return
+    const id = s.activeProjectId
+    const restore = (key, setter) => {
+      const cached = readCachedOutput(id, key)
+      if (cached) setter(cached)
+    }
+    restore('perfectDay',   setPerfectDayResult)
+    restore('fullCampaign', setFullCampaignResult)
+    restore('fullDayVideo', setFullDayResult)
+    // Life Engine modes — restore last used mode
+    ;['travel_day','fitness_day','product_day','campaign_day'].forEach(mode =>
+      restore(`lifeEngine_${mode}`, setLeResult)
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.activeProjectId])
+
   // Load projects on mount
   useEffect(() => {
     setProjectsLoading(true)
@@ -12406,12 +12438,25 @@ export default function PromptCEOPage() {
       merge({ activeProjectId: d.project.id, activeProjectName: d.project.name, activeProjectType: d.project.type })
       setProjectModalOpen(false)
       setProjectModalName('')
+      try {
+        localStorage.setItem('pce_activeProjectId',   d.project.id)
+        localStorage.setItem('pce_activeProjectName', d.project.name)
+        localStorage.setItem('pce_activeProjectType', d.project.type || 'creator')
+      } catch {}
     }
   }
 
   const switchProject = (proj) => {
     merge({ activeProjectId: proj.id, activeProjectName: proj.name, activeProjectType: proj.type })
     setProjectDropOpen(false)
+    // Persist active project so it survives page refresh
+    try {
+      localStorage.setItem('pce_activeProjectId',   proj.id)
+      localStorage.setItem('pce_activeProjectName', proj.name)
+      localStorage.setItem('pce_activeProjectType', proj.type || 'creator')
+    } catch {}
+    // Clear stale output cache for the newly selected project (it may have fresh data)
+    clearProjectCache(proj.id)
   }
 
   // ── Memory Stats (Build 5) ───────────────────────────────
@@ -12726,7 +12771,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (!data.error) {
         setPerfectDayResult(data)
-        fireSignal('perfect_day_generated', { world: perfectDayWorldId, platform: perfectDayPlatform, style: perfectDayStyle })
+        onGenerationComplete({ eventType: 'perfect_day_generated', metadata: { world: perfectDayWorldId, platform: perfectDayPlatform, style: perfectDayStyle }, outputKey: 'perfectDay', projectId: s.activeProjectId, output: data })
       }
     } catch {}
     clearTimeout(pa); clearTimeout(pb); clearTimeout(pc)
@@ -12763,9 +12808,8 @@ export default function PromptCEOPage() {
     { value: 'new_session',       label: 'Start new session' },
   ]
 
-  // Load campaign + world memory on mount (powers both Director welcome + right panel)
+  // Load campaign + world memory — reloads whenever a signal fires (brainMemoryTick)
   useEffect(() => {
-    if (directorMemory !== null) return
     const loadMemory = async () => {
       try {
         const [camRes, worldRes] = await Promise.all([
@@ -12808,7 +12852,7 @@ export default function PromptCEOPage() {
     }
     loadMemory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [brainMemoryTick])
 
   useEffect(() => {
     fetch('/api/signal')
@@ -13134,7 +13178,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (!data.error) {
         setLeResult(data)
-        fireSignal('video_generated', { world: leWorld, mode: leMode, platform: lePlatform })
+        onGenerationComplete({ eventType: 'video_generated', metadata: { world: leWorld, mode: leMode, platform: lePlatform }, outputKey: `lifeEngine_${leMode}`, projectId: s.activeProjectId, output: data })
       }
     } catch {}
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
@@ -13169,7 +13213,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (!data.error) {
         setFullDayResult(data)
-        fireSignal('video_generated', { world: fullDayWorld, type: fullDayType, platform: fullDayPlatform })
+        onGenerationComplete({ eventType: 'video_generated', metadata: { world: fullDayWorld, type: fullDayType, platform: fullDayPlatform }, outputKey: 'fullDayVideo', projectId: s.activeProjectId, output: data })
       }
     } catch {}
     clearTimeout(fa); clearTimeout(fb); clearTimeout(fc)
@@ -13216,7 +13260,7 @@ export default function PromptCEOPage() {
       if (!data.error) {
         setFullCampaignResult(data)
         setFullCampaignPhase('attention')
-        fireSignal('campaign_created', { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform })
+        onGenerationComplete({ eventType: 'campaign_created', metadata: { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform }, outputKey: 'fullCampaign', projectId: s.activeProjectId, output: data })
       }
     } catch {}
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
@@ -13229,7 +13273,8 @@ export default function PromptCEOPage() {
       .then(r => r.json())
       .then(d => { if (d.brain) setProjectBrain(d.brain) })
       .catch(() => {})
-  }, [s.activeProjectId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.activeProjectId, brainMemoryTick])
 
   useEffect(() => {
     if (s.view !== 'campaign_journey' || !s.activeProjectId) return
@@ -13690,7 +13735,8 @@ export default function PromptCEOPage() {
     }
     setBatchRun(false)
     set('view', 'timeline')
-  }, [s])
+    onGenerationComplete({ eventType: 'generation_completed', metadata: { type: 'batch', count: res.length, world: s.worldId || s.storyWorldId }, outputKey: 'studioBatch', projectId: s.activeProjectId, output: res })
+  }, [s, onGenerationComplete])
 
   // ── Studio Intelligence Functions ─────────────────────────
 
@@ -14400,7 +14446,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ generatedImage: data.imageUrl, imageGenerating: false })
-        fireSignal('image_generated', { world: s.worldId || s.storyWorldId, style: s.adStyle })
+        onGenerationComplete({ eventType: 'image_generated', metadata: { world: s.worldId || s.storyWorldId, style: s.adStyle }, outputKey: 'studioImage', projectId: s.activeProjectId, output: { imageUrl: data.imageUrl } })
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough') || msg.toLowerCase().includes('limit')) {
@@ -14992,7 +15038,7 @@ export default function PromptCEOPage() {
                 </div>
                 {s.activeProjectId && (
                   <div
-                    onClick={() => { merge({ activeProjectId: null, activeProjectName: '', activeProjectType: 'creator' }); setProjectDropOpen(false) }}
+                    onClick={() => { merge({ activeProjectId: null, activeProjectName: '', activeProjectType: 'creator' }); setProjectDropOpen(false); try { localStorage.removeItem('pce_activeProjectId'); localStorage.removeItem('pce_activeProjectName'); localStorage.removeItem('pce_activeProjectType') } catch {} }}
                     style={{ padding: '5px 12px', cursor: 'pointer', fontSize: 10, color: C.muted }}
                     onMouseEnter={e => e.currentTarget.style.color = C.primary}
                     onMouseLeave={e => e.currentTarget.style.color = C.muted}
@@ -15278,6 +15324,7 @@ export default function PromptCEOPage() {
               brandModalOpen={brandModalOpen}
               setBrandModalOpen={setBrandModalOpen}
               deleteBrandProfile={deleteBrandProfile}
+              fireSignal={fireSignal}
             />
           </div>
         )}
@@ -15850,7 +15897,7 @@ export default function PromptCEOPage() {
                   <select
                     style={{ width: '100%', background: C.deep, color: C.primary, border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '6px 8px', fontSize: 11 }}
                     value={s.worldId}
-                    onChange={e => { set('worldId', e.target.value); if (e.target.value) set('worldControlMode', 'manual') }}
+                    onChange={e => { set('worldId', e.target.value); if (e.target.value) { set('worldControlMode', 'manual'); fireSignal('world_selected', { world: e.target.value }) } }}
                   >
                     <option value="">(auto from story world)</option>
                     <optgroup label="Locations">
