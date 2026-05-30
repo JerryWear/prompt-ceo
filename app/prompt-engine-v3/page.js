@@ -917,6 +917,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
       setBuildProjectStep('saving')
       setAdOutputTab('angles')
+      fireSignal('ad_campaign_created', { product: productName, platform: s.adPlatform })
     } catch (err) {
       merge({ adTextError: err.message, adTextGenerating: false })
     } finally {
@@ -4604,8 +4605,20 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         </div>
 
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
-          <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.secondary, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
-            ← Enter a product name to generate
+          <div style={{ padding: '24px 20px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.primary }}>Start your ad campaign</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { step: '1', text: 'Enter your brand or product name in the field above' },
+                { step: '2', text: 'Select a platform and goal in the left panel' },
+                { step: '3', text: 'Generate hooks, captions, angles, or a full campaign' },
+              ].map(s => (
+                <div key={s.step} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: '#7a4abf', background: '#1a0a2a', border: '1px solid #3a1a5a', borderRadius: 3, padding: '1px 5px', flexShrink: 0, marginTop: 1 }}>{s.step}</span>
+                  <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.5 }}>{s.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -14437,6 +14450,7 @@ export default function PromptCEOPage() {
           adTextResults: { ...(s.adTextResults || {}), [type + (hookType ? `_${hookType}` : '')]: data.data },
         })
         fireSignal('generation_completed', { type, style: s.adStyle || '' })
+        fireSignal('ad_studio_generated', { type, platform: s.adPlatform || 'instagram' })
       } else {
         // Show upgrade modal instead of error for credit/subscription issues
         const msg = data?.message || ''
@@ -14475,6 +14489,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ adGeneratedImage: data.imageUrl, adGenerating: false })
+        fireSignal('image_generated', { source: 'ad_studio', platform: s.adPlatform || 'instagram' })
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough')) {
