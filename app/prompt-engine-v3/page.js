@@ -13011,6 +13011,10 @@ export default function PromptCEOPage() {
   }, [s.view, s.activeProjectId])
 
   useEffect(() => {
+    if (s.view === 'ai_director') setRecommendationAccepted(false)
+  }, [s.view])
+
+  useEffect(() => {
     fetch('/api/performance-reasoning')
       .then(r => r.json())
       .then(d => { if (d.ready && d.insights?.length) setPerfInsights(d.insights) })
