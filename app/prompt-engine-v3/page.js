@@ -19104,7 +19104,33 @@ export default function PromptCEOPage() {
                   Campaign Journey
                 </div>
                 {!s.activeProjectId && (
-                  <div style={{ fontSize: 12, color: C.muted }}>Select a project to view its campaign journey.</div>
+                  <div style={{ marginTop: 24 }}>
+                    {projects.length > 0 ? (
+                      <>
+                        <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Choose a project to view its campaign journey:</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 480 }}>
+                          {projects.map(p => (
+                            <div key={p.id} onClick={() => switchProject(p)} style={{ padding: '12px 16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = '#1a1408' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.raised }}
+                            >
+                              <span style={{ fontSize: 16 }}>{p.type === 'brand' ? '🏷' : p.type === 'campaign' ? '📣' : '🎬'}</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{p.name}</div>
+                                <div style={{ fontSize: 11, color: C.muted, textTransform: 'capitalize' }}>{p.type || 'creator'}</div>
+                              </div>
+                              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.gold }}>View Journey →</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 400 }}>
+                        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>Campaign Journey tracks your campaign phases, fatigue, and Brain signals over time. Create a project to get started.</div>
+                        <button onClick={() => setProjectModalOpen(true)} style={{ padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, width: 'fit-content' }}>+ Create Project</button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {s.activeProjectId && campaignTimeline?.brain && (
                   <div style={{ fontSize: 10, color: C.secondary, display: 'flex', gap: 16 }}>
