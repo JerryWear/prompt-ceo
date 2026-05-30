@@ -12266,6 +12266,7 @@ export default function PromptCEOPage() {
   const [projectModalName,  setProjectModalName]  = useState('')
   const [projectModalType,  setProjectModalType]  = useState('creator')
   const [projectDropOpen,   setProjectDropOpen]   = useState(false)
+  const [navOpenGroup,      setNavOpenGroup]      = useState(null)
 
   // Load projects on mount
   useEffect(() => {
@@ -14821,103 +14822,123 @@ export default function PromptCEOPage() {
           <div style={{ width: 1, height: 20, background: C.hairline }} />
 
           {/* ── Grouped nav ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {(() => {
+            const inCampaigns = ['full_campaign','campaign_journey','timeline','cross_platform'].includes(s.view)
+            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio'].includes(s.view)
+            const dropStyle   = { position: 'absolute', top: 48, left: 0, zIndex: 200, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: '0 6px 6px 6px', minWidth: 196, boxShadow: '0 8px 24px #00000088', padding: '4px 0' }
+            const itemBase    = (active, activeColor) => ({ width: '100%', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', border: 'none', borderLeft: `2px solid ${active ? activeColor : 'transparent'}`, background: active ? 'rgba(255,255,255,0.04)' : 'transparent', color: active ? activeColor : C.secondary, transition: 'all 0.1s' })
+            const hoverOn     = (e, active) => { if (!active) { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary } }
+            const hoverOff    = (e, active, color) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = color || C.secondary } }
 
-            {/* ─ HOME ─ */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{
-                fontSize: 7, fontWeight: 900, color: '#2a2825',
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                padding: '0 7px', userSelect: 'none', cursor: 'default',
-                borderRight: `1px solid ${C.hairline}`,
-              }}>HOME</span>
-              <button onClick={() => set('view', 'ai_director')} style={{
-                padding: '4px 13px', borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
-                background: s.view === 'ai_director' ? '#0e0c08' : 'transparent',
-                color: s.view === 'ai_director' ? C.gold : '#5a5650',
-                transition: 'all 0.15s',
-              }}>✦ Home</button>
-            </div>
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
 
-            {/* ─ CAMPAIGNS ─ */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{
-                fontSize: 7, fontWeight: 900, color: '#2a2825',
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                padding: '0 7px', userSelect: 'none', cursor: 'default',
-                borderRight: `1px solid ${C.hairline}`,
-              }}>CAMPAIGNS</span>
-              {[
-                { id: 'full_campaign',    label: 'Campaign Builder', icon: '◈' },
-                { id: 'campaign_journey', label: 'Campaign Journey', icon: '◉', gold: true },
-                { id: 'timeline',         label: 'Timeline',         icon: '▤' },
-                { id: 'cross_platform',   label: 'Distribution',     icon: '⊕', blue: true },
-              ].map(v => (
-                <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                {/* ─ HOME ─ */}
+                <button onClick={() => { set('view', 'ai_director'); setNavOpenGroup(null) }} style={{
+                  padding: '0 14px', height: 48, borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
                   border: 'none', borderRight: `1px solid ${C.hairline}`,
-                  borderBottom: `2px solid ${s.view === v.id ? (v.gold ? C.gold : v.blue ? C.blue : C.primary) : 'transparent'}`,
-                  background: s.view === v.id ? (v.gold ? '#0e0c08' : v.blue ? '#080c18' : C.raised) : 'transparent',
-                  color: s.view === v.id ? (v.gold ? C.gold : v.blue ? C.blue : C.primary) : '#5a5650',
-                  transition: 'all 0.15s',
-                }}>{v.icon} {v.label}</button>
-              ))}
-            </div>
+                  borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
+                  background: s.view === 'ai_director' ? '#0e0c08' : 'transparent',
+                  color: s.view === 'ai_director' ? C.gold : '#5a5650', transition: 'all 0.15s',
+                }}>✦ Home</button>
 
-            {/* ─ STUDIO ─ */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{
-                fontSize: 7, fontWeight: 900, color: '#2a2825',
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                padding: '0 7px', userSelect: 'none', cursor: 'default',
-                borderRight: `1px solid ${C.hairline}`,
-              }}>STUDIO</span>
-              {[
-                { id: 'studio',         label: 'Studio',      icon: '◧' },
-                { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
-                { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
-              ].map(v => (
-                <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                {/* ─ CAMPAIGNS ▼ ─ */}
+                <div style={{ position: 'relative', height: 48, display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => setNavOpenGroup(p => p === 'campaigns' ? null : 'campaigns')} style={{
+                    padding: '0 14px', height: 48, borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                    border: 'none', borderRight: `1px solid ${C.hairline}`,
+                    borderBottom: `2px solid ${inCampaigns ? C.gold : 'transparent'}`,
+                    background: inCampaigns ? '#0e0c08' : 'transparent',
+                    color: inCampaigns ? C.gold : navOpenGroup === 'campaigns' ? C.primary : '#5a5650',
+                    transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    Campaigns
+                    <span style={{ fontSize: 7, display: 'inline-block', transition: 'transform 0.15s', transform: navOpenGroup === 'campaigns' ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  </button>
+                  {navOpenGroup === 'campaigns' && (
+                    <div style={dropStyle}>
+                      {[
+                        { id: 'full_campaign',    label: 'Campaign Builder', icon: '◈', color: C.primary },
+                        { id: 'campaign_journey', label: 'Campaign Journey', icon: '◉', color: C.gold },
+                        { id: 'timeline',         label: 'Timeline',         icon: '▤', color: C.primary },
+                        { id: 'cross_platform',   label: 'Distribution',     icon: '⊕', color: C.blue },
+                      ].map(v => {
+                        const active = s.view === v.id
+                        return (
+                          <button key={v.id} onClick={() => { set('view', v.id); setNavOpenGroup(null) }}
+                            style={itemBase(active, v.color)}
+                            onMouseEnter={e => hoverOn(e, active)}
+                            onMouseLeave={e => hoverOff(e, active)}
+                          ><span style={{ fontSize: 11 }}>{v.icon}</span>{v.label}</button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ─ STUDIO ▼ ─ */}
+                <div style={{ position: 'relative', height: 48, display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => setNavOpenGroup(p => p === 'studio' ? null : 'studio')} style={{
+                    padding: '0 14px', height: 48, borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                    border: 'none', borderRight: `1px solid ${C.hairline}`,
+                    borderBottom: `2px solid ${inStudio ? C.primary : 'transparent'}`,
+                    background: inStudio ? C.raised : 'transparent',
+                    color: inStudio ? C.primary : navOpenGroup === 'studio' ? C.primary : '#5a5650',
+                    transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    Studio
+                    <span style={{ fontSize: 7, display: 'inline-block', transition: 'transform 0.15s', transform: navOpenGroup === 'studio' ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  </button>
+                  {navOpenGroup === 'studio' && (
+                    <div style={dropStyle}>
+                      {[
+                        { id: 'studio',         label: 'Studio',      icon: '◧' },
+                        { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
+                        { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
+                      ].map(v => {
+                        const active = s.view === v.id
+                        return (
+                          <button key={v.id} onClick={() => { set('view', v.id); setNavOpenGroup(null) }}
+                            style={itemBase(active, C.primary)}
+                            onMouseEnter={e => hoverOn(e, active)}
+                            onMouseLeave={e => hoverOff(e, active)}
+                          ><span style={{ fontSize: 11 }}>{v.icon}</span>{v.label}</button>
+                        )
+                      })}
+                      {(() => {
+                        const active = s.view === 'ad_studio'
+                        return (
+                          <button onClick={() => { switchToAdStudio(); setNavOpenGroup(null) }}
+                            style={itemBase(active, '#d580ff')}
+                            onMouseEnter={e => hoverOn(e, active)}
+                            onMouseLeave={e => hoverOff(e, active)}
+                          ><span style={{ fontSize: 11 }}>📣</span>Ad Studio</button>
+                        )
+                      })()}
+                      <div style={{ height: 1, background: C.hairline, margin: '4px 0' }} />
+                      <a href="/instant" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: C.secondary, borderLeft: '2px solid transparent' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.secondary }}
+                      ><span style={{ fontSize: 11 }}>⚡</span>Quick Create</a>
+                      <a href="/full-day" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: '#9a7adf', borderLeft: '2px solid transparent' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = '#b89aff' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9a7adf' }}
+                      ><span style={{ fontSize: 11 }}>🌍</span>Life Engine</a>
+                    </div>
+                  )}
+                </div>
+
+                {/* ─ HUB ─ */}
+                <a href="/prompt-engine-v3/dashboard" style={{
+                  padding: '0 14px', height: 48, fontSize: 11, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
                   border: 'none', borderRight: `1px solid ${C.hairline}`,
-                  borderBottom: `2px solid ${s.view === v.id ? C.primary : 'transparent'}`,
-                  background: s.view === v.id ? C.raised : 'transparent',
-                  color: s.view === v.id ? C.primary : '#5a5650',
-                  transition: 'all 0.15s',
-                }}>{v.icon} {v.label}</button>
-              ))}
-              <button onClick={switchToAdStudio} style={{
-                padding: '4px 13px', borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: `2px solid ${s.view === 'ad_studio' ? '#a855f7' : 'transparent'}`,
-                background: s.view === 'ad_studio' ? '#120520' : 'transparent',
-                color: s.view === 'ad_studio' ? '#d580ff' : '#7a4abf',
-                transition: 'all 0.15s',
-              }}>📣 Ad Studio</button>
-              <a href="/instant" style={{
-                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: '2px solid transparent',
-                background: 'transparent', color: '#5a5650', display: 'inline-block',
-              }}>⚡ Quick Create</a>
-              <a href="/full-day" style={{
-                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: '2px solid transparent',
-                background: 'transparent', color: '#7a5abf', display: 'inline-block',
-              }}>🌍 Life Engine</a>
-            </div>
+                  borderBottom: '2px solid transparent',
+                  background: 'transparent', color: '#3a3632', display: 'flex', alignItems: 'center',
+                }}>⊞ Hub</a>
 
-            <a href="/prompt-engine-v3/dashboard" style={{
-              padding: '4px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
-              border: 'none', borderRight: `1px solid ${C.hairline}`,
-              borderBottom: '2px solid transparent',
-              background: 'transparent', color: '#3a3632', display: 'inline-block',
-            }}>⊞ Hub</a>
-
-          </div>
+              </div>
+            )
+          })()}
 
           <div style={{ flex: 1 }} />
 
