@@ -1209,6 +1209,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the slow weight of the body waking without any outside pressure',
       'morning air and linen softness before any deliberate movement begins',
       'the body at its most private and physically unguarded',
+      'the specific sensory texture of the first few seconds of body awareness — sheet fabric against bare skin, the warmth of the pillow, the weight of the body in rest before any intention arrives',
     ],
 
     morning_refresh: [
@@ -1216,6 +1217,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the clean physical reset of a slow private shower',
       'skin-on-tile, heat-in-air, and no outside presence at all',
       'the sensation of being completely alone with the body in warm water',
+      'the full body mirror in morning light — bare skin, post-shower warmth still on the surface, the physical reading that begins before any styling decision is made',
     ],
 
     getting_dressed: [
@@ -1223,6 +1225,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the slow physical awareness of covering and uncovering deliberately',
       'the moment fabric touches the body for the first time that day',
       'physical self-study turning into the first deliberate charged decision',
+      'the sensory moment of the first filming outfit against skin — the particular weight of a fabric chosen for how it moves and sits and reveals, not for how it photographs',
     ],
 
     breakfast: [
@@ -1230,6 +1233,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the last sensory moment that belongs entirely to personal morning life',
       'domestic physical calm that makes later intensity feel earned',
       'mug heat, soft light, and lived-in morning sensation',
+      'the apartment corner in quiet morning warmth — coffee heat through ceramic, soft ambient light on unhurried hands, the body still in its most personal and domestic physical register',
     ],
 
     late_morning: [
@@ -1237,6 +1241,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the particular tension of a body that is being deliberately seen',
       'the warmth of room light on skin during the first filming pass',
       'the physical awareness of angle, posture, and close framing',
+      'the first-session sensory register — room light on skin, the camera close, the body aware of its own angle and the deliberate proximity of the frame',
     ],
 
     lunch: [
@@ -1244,6 +1249,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the midday physical stillness that keeps the mood alive without spending it',
       'quiet domestic physical ease between charged active phases',
       'lying down while the morning session energy slowly settles',
+      'the bed during the midday break — the session energy still on the skin, the sheets warm, the body lying in quiet physical rest while the room holds the charged morning around it',
     ],
 
     afternoon: [
@@ -1251,6 +1257,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the body more physically direct than the morning, tension building',
       'afternoon light on skin feeling more golden and more deliberate than before',
       'the slow escalation of physical charge through controlled movement and pacing',
+      'afternoon room warmth across the filming corner — the light deeper, the body more deliberately physical than the morning, the tension in posture and skin-awareness building toward the evening',
     ],
 
     reset: [
@@ -1258,6 +1265,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'oil or product absorbed by skin in quiet preparation',
       'the tactile physical care of preparing the body before the evening',
       'warmth and deliberate physical attention during the reset',
+      'the vanity in warm preparation light — the texture of oil on skin, the sensation of the body being attended to, the physical care ritual that makes the most charged content of the day feel earned',
     ],
 
     golden_hour: [
@@ -1265,6 +1273,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the body most physically deliberate in the warmest natural light',
       'the particular sensation of being seen most clearly just before the room goes dark',
       'warm light, intentional stillness, and physical charge held under control',
+      'the body mirror in golden-hour warmth — skin catching the last natural light at its most flattering, the physical charge at its most visually present, the room about to shift from daylight to lamp-glow',
     ],
 
     dinner: [
@@ -1272,6 +1281,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the physical sensation of complete deliberate intimacy at close range',
       'the body held in controlled provocative stillness',
       'the most physically present and directly charged sensory moment of the day',
+      'the intimate set in lamp-only warmth — a single light source on skin, the room dark beyond the frame, the body at the closest physical range to the camera of the entire day',
     ],
 
     evening: [
@@ -1279,6 +1289,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'dark room air and lamp warmth against skin that has given everything',
       'the quiet physical aftermath of complete intimate presence',
       'the sensation of the charged layer beginning to soften in private dark',
+      'the bed zone in near-dark after the last session — sheet softness against warm skin, the dim lamp beside, the charged physical energy of the day beginning its long quiet exhale',
     ],
 
     night: [
@@ -1286,6 +1297,7 @@ export const WORLD_INTIMATE_CREATOR = {
       'the deep physical quiet of a body that no longer needs to perform',
       'near-dark room softness as the intimate creator persona dissolves completely',
       'the most private physical sensation of the entire day: simply resting',
+      'the near-dark bedroom in final quiet — the body warm and completely at ease in the sheets, the room holding only residual lamp warmth, the most personal and unperformed physical sensation of the entire charged day',
     ],
   },
 
@@ -1305,18 +1317,18 @@ export const WORLD_INTIMATE_CREATOR = {
   },
 
   atmospherePools: {
-    wake: ['warm private bedroom quiet where the body belongs only to itself', 'sleep-soft physical atmosphere with no performance energy', 'intimate first-light room stillness before any deliberate presence begins'],
-    morning_refresh: ['steam-warm private bathroom atmosphere with complete physical solitude', 'clean physical reset energy in warm water quiet', 'sensory intimate morning atmosphere before the body becomes the work'],
-    getting_dressed: ['quiet mirror-side preparation energy with deliberate physical self-study', 'private dressing atmosphere with physical intentionality forming', 'controlled body-selection atmosphere with growing charge'],
-    breakfast: ['soft domestic apartment atmosphere grounding the world in personal reality', 'quiet pre-session atmosphere where the body is still fully personal', 'lived-in morning calm that earns later physical intensity'],
-    late_morning: ['body-led content creation atmosphere with first active physical charge', 'controlled intimate room energy shaped around close physical presence', 'deliberately provocative daylight atmosphere with the body at the center'],
-    lunch: ['quiet physical recovery atmosphere between sessions', 'midday body-at-rest atmosphere with emotional charge still present', 'personal room calm that keeps the day believable and grounded'],
-    afternoon: ['warmer more charged physical atmosphere as the second session builds', 'body-forward afternoon energy with deliberate escalating tension', 'private room atmosphere deepening toward the most charged evening phase'],
-    reset: ['warm physical care atmosphere during the between-session reset', 'sensory body-focused atmosphere of preparation and restoration', 'private physical quiet before the evening intensity peaks'],
-    golden_hour: ['golden warm-light atmosphere at maximum physical cinematic charge', 'warm room energy with skin as the primary visual and physical element', 'the most visually and physically deliberate atmosphere of the day'],
-    dinner: ['low-lit maximum intimate physical atmosphere', 'the most charged and body-direct room energy of the entire day', 'controlled provocative atmosphere built around presence and restraint'],
-    evening: ['after-session dark-room quiet with physical warmth still present', 'late-evening intimate atmosphere slowly releasing the charged layer', 'private body-warm atmosphere as the intensity begins to settle'],
-    night: ['complete private physical quiet after total intimate presence', 'near-dark room atmosphere where the body is fully at rest', 'the most personally intimate and unperformed atmosphere of the day'],
+    wake: ['warm private bedroom quiet where the body belongs only to itself', 'sleep-soft physical atmosphere with no performance energy', 'intimate first-light room stillness before any deliberate presence begins', 'the bedroom in first pale light — sheets warm, the body unheld by any deliberate intention, the most private physical atmosphere of the entire day'],
+    morning_refresh: ['steam-warm private bathroom atmosphere with complete physical solitude', 'clean physical reset energy in warm water quiet', 'sensory intimate morning atmosphere before the body becomes the work', 'the steam bathroom atmosphere — warm air on bare skin, the sound of water, no outside energy, the body fully present to itself before the filming corner exists'],
+    getting_dressed: ['quiet mirror-side preparation energy with deliberate physical self-study', 'private dressing atmosphere with physical intentionality forming', 'controlled body-selection atmosphere with growing charge', 'the full-body mirror atmosphere — clear morning light, honest reflection, the room quiet, the first deliberate physical decision of the day being made in complete private stillness'],
+    breakfast: ['soft domestic apartment atmosphere grounding the world in personal reality', 'quiet pre-session atmosphere where the body is still fully personal', 'lived-in morning calm that earns later physical intensity', 'the apartment corner pre-session atmosphere — coffee warmth, lived-in quiet, the body still entirely personal, the filing corner not yet activated'],
+    late_morning: ['body-led content creation atmosphere with first active physical charge', 'controlled intimate room energy shaped around close physical presence', 'deliberately provocative daylight atmosphere with the body at the center', 'the filming corner in morning light — the room arranged around the body, the camera already seeing, the first charged physical atmosphere of the day building slowly and deliberately'],
+    lunch: ['quiet physical recovery atmosphere between sessions', 'midday body-at-rest atmosphere with emotional charge still present', 'personal room calm that keeps the day believable and grounded', 'the between-session bedroom atmosphere — the body resting on warm sheets, the morning session energy still present in the room, the physical charge held carefully rather than spent'],
+    afternoon: ['warmer more charged physical atmosphere as the second session builds', 'body-forward afternoon energy with deliberate escalating tension', 'private room atmosphere deepening toward the most charged evening phase', 'the second-session filming corner atmosphere — room warmer, light more golden, the body carrying more deliberate physical intention than the morning, the charge deepening without rushing'],
+    reset: ['warm physical care atmosphere during the between-session reset', 'sensory body-focused atmosphere of preparation and restoration', 'private physical quiet before the evening intensity peaks', 'the vanity reset atmosphere — warm preparation light, skin being attended to, the body cared for in private before the most charged phase of the day begins'],
+    golden_hour: ['golden warm-light atmosphere at maximum physical cinematic charge', 'warm room energy with skin as the primary visual and physical element', 'the most visually and physically deliberate atmosphere of the day', 'the intimate set or body mirror in golden-hour light — the room at its most cinematic, skin warm and deliberately lit, the physical atmosphere at the threshold of the evening\'s most charged content'],
+    dinner: ['low-lit maximum intimate physical atmosphere', 'the most charged and body-direct room energy of the entire day', 'controlled provocative atmosphere built around presence and restraint', 'the intimate set in lamp-only low light — the room reduced to the body and the warmth of a single source, the most physically charged and deliberately intimate atmosphere the creator world produces'],
+    evening: ['after-session dark-room quiet with physical warmth still present', 'late-evening intimate atmosphere slowly releasing the charged layer', 'private body-warm atmosphere as the intensity begins to settle', 'the bed zone in near-dark after the strongest session — the body still warm, the room quiet, the charged layer beginning its long exhale back toward personal physical softness'],
+    night: ['complete private physical quiet after total intimate presence', 'near-dark room atmosphere where the body is fully at rest', 'the most personally intimate and unperformed atmosphere of the day', 'the near-dark bedroom at the end of the entire charged day — the persona dissolved, the body at complete physical rest, the room holding nothing more than warmth and the most private quiet possible'],
   },
 
   propPools: {
@@ -1335,18 +1347,18 @@ export const WORLD_INTIMATE_CREATOR = {
   },
 
   bodyLanguagePools: {
-    wake: ['soft reclined body with minimal movement', 'sleep-weight posture against warm bedding', 'private body stillness before deliberate presence begins'],
-    morning_refresh: ['slow body movement under warm water', 'physical self-study in front of the mirror', 'unhurried intimate body language during personal care'],
-    getting_dressed: ['deliberate body-reading posture in front of the mirror', 'slow intentional physical self-presentation', 'controlled physical awareness during the first dressing moment'],
-    breakfast: ['soft domestic posture in personal morning ease', 'unhurried body language with coffee or breakfast', 'grounded physical calm before the body becomes deliberate'],
-    late_morning: ['body-forward filming posture with physical directness', 'deliberate physical movement built for close framing', 'controlled intimate body language with full physical awareness'],
-    lunch: ['resting body posture between active sessions', 'physical ease during the midday break', 'the body at natural rest while the mood holds'],
-    afternoon: ['stronger physical intention than the morning', 'more deliberately provocative body language in the second session', 'slower, more physically direct movement through the room'],
-    reset: ['physical care posture during the reset ritual', 'body being attended to in warm private quiet', 'slow deliberate body language during skin preparation'],
-    golden_hour: ['most physically deliberate posture of the day', 'controlled body stillness in warm light with high physical charge', 'skin-forward physical presence at maximum visual intensity'],
-    dinner: ['body held in controlled intimate stillness', 'the most physically direct and provocative posture of the day', 'restrained physical body language where presence leads over motion'],
-    evening: ['body warming down from peak charged presence', 'soft physical posture in dark-room quiet', 'intimate body ease as the charged layer begins to settle'],
-    night: ['fully private body at rest', 'physical ease after total intimate presence', 'the most personally soft body language of the entire day'],
+    wake: ['soft reclined body with minimal movement', 'sleep-weight posture against warm bedding', 'private body stillness before deliberate presence begins', 'one arm stretched slowly above the head in warm first light, the body elongating in private morning ease before any deliberate physical intention arrives'],
+    morning_refresh: ['slow body movement under warm water', 'physical self-study in front of the mirror', 'unhurried intimate body language during personal care', 'standing at the body mirror in post-shower stillness — both hands at the sides, the full physical form being read quietly, the posture completely unperformed and completely present'],
+    getting_dressed: ['deliberate body-reading posture in front of the mirror', 'slow intentional physical self-presentation', 'controlled physical awareness during the first dressing moment', 'one hand pulling fabric slowly across the hip in front of the mirror — the body testing the look against itself rather than performing it, the physical awareness quiet and deliberate'],
+    breakfast: ['soft domestic posture in personal morning ease', 'unhurried body language with coffee or breakfast', 'grounded physical calm before the body becomes deliberate', 'both hands around the mug in the apartment corner, shoulders relaxed, the body carrying nothing deliberate, the posture of someone entirely inside her own private morning before the work begins'],
+    late_morning: ['body-forward filming posture with physical directness', 'deliberate physical movement built for close framing', 'controlled intimate body language with full physical awareness', 'the body finding its first filming stillness — weight shifted, the physical form arranged for the camera without rushing, the posture built around presence rather than action'],
+    lunch: ['resting body posture between active sessions', 'physical ease during the midday break', 'the body at natural rest while the mood holds', 'lying on the bed between sessions with one arm across the waist, the body in warm quiet rest while the morning session energy is held rather than released'],
+    afternoon: ['stronger physical intention than the morning', 'more deliberately provocative body language in the second session', 'slower, more physically direct movement through the room', 'the body in the second session with visibly more deliberate physical weight — the posture slower, the physical presence more direct, the movement carrying the knowledge that the day has been building toward this'],
+    reset: ['physical care posture during the reset ritual', 'body being attended to in warm private quiet', 'slow deliberate body language during skin preparation', 'hands moving slowly across the skin at the vanity — applying oil with full deliberate physical attention, the body preparing itself with the same care the camera will later receive'],
+    golden_hour: ['most physically deliberate posture of the day', 'controlled body stillness in warm light with high physical charge', 'skin-forward physical presence at maximum visual intensity', 'the body in front of the full mirror in golden-hour warmth — completely still, the physical form at its most deliberately read, the posture at the threshold between preparation and the most charged session'],
+    dinner: ['body held in controlled intimate stillness', 'the most physically direct and provocative posture of the day', 'restrained physical body language where presence leads over motion', 'sitting or lying near the camera in the intimate set with the body held in deliberate physical stillness — the posture controlled, the physical charge at maximum, the restraint doing more than movement ever could'],
+    evening: ['body warming down from peak charged presence', 'soft physical posture in dark-room quiet', 'intimate body ease as the charged layer begins to settle', 'lying on the bed in near-dark after the last session — the body soft, one arm loose, the physical ease of someone who has given everything the day asked and is now slowly becoming private again'],
+    night: ['fully private body at rest', 'physical ease after total intimate presence', 'the most personally soft body language of the entire day', 'the body in complete physical rest in the near-dark — no deliberate posture, no charged presence, the most personally quiet and unperformed body language of the entire day finally arrived'],
   },
 
   facialExpressionPools: {
@@ -1412,18 +1424,18 @@ export const WORLD_INTIMATE_CREATOR = {
   },
 
   narrativeIntentPools: {
-    wake: ['establishing the body as the primary world of this story before any performance begins', 'showing the physical intimacy of the day before it becomes deliberately charged', 'making the first scene feel intimate because the body is real, not because it is exaggerated'],
-    morning_refresh: ['turning the shower and mirror into physical self-knowledge rather than utility', 'showing body awareness forming before it becomes audience-directed', 'building the intimacy of the world through physical self-attention and sensory care'],
-    getting_dressed: ['making wardrobe selection a physical and charged decision rather than aesthetic', 'showing the body choosing its own visibility rather than a creator choosing content', 'building physical charge into the first dressing moment without rushing into it'],
-    breakfast: ['keeping the world grounded so the charged content feels earned rather than immediate', 'using domestic morning realism to make the body\'s later intensity feel believable', 'creating contrast between personal ease and deliberate physical charge'],
-    late_morning: ['showing the first active moment when the body becomes content rather than just herself', 'building physical intimacy through control, slowness, and deliberate close framing', 'making the first session feel body-first rather than workflow-first'],
-    lunch: ['showing that physical rest is part of the story rather than a gap in it', 'using the midday break to deepen the physical world without filling it with action', 'making stillness between sessions feel as charged as the sessions themselves'],
-    afternoon: ['deepening the physical tension without losing the intimate creator control', 'showing how the second session carries more physical weight than the first', 'building toward the evening through escalation and physical deliberateness'],
-    reset: ['turning the between-session physical care into a charged narrative moment', 'using skin, warmth, and preparation to make the reset feel like intimate anticipation', 'making the body\'s preparation feel as provocative as the content itself'],
-    golden_hour: ['arriving at the most visually charged physical moment of the day', 'using warm light and physical stillness to create the highest intimate impact', 'making the body in golden-hour light feel like the threshold of something more'],
-    dinner: ['letting the body carry maximum intimate presence through restraint rather than excess', 'making the most charged scene feel more powerful because of what it holds back', 'showing that physical provocativeness is greatest when controlled completely'],
-    evening: ['releasing the final charged physical energy into private dark-room quiet', 'showing the body beginning to return to itself after total intimate presence', 'making the evening feel like the long exhale after a fully charged physical day'],
-    night: ['closing the world by stripping the intimate creator layer completely away', 'returning the body to its most personal and unperformed physical reality', 'ending with the most intimate truth of all: the body at rest, private, and entirely its own'],
+    wake: ['establishing the body as the primary world of this story before any performance begins', 'showing the physical intimacy of the day before it becomes deliberately charged', 'making the first scene feel intimate because the body is real, not because it is exaggerated', 'the skin against sheets in slow first light — the body waking into awareness before any audience or intention exists'],
+    morning_refresh: ['turning the shower and mirror into physical self-knowledge rather than utility', 'showing body awareness forming before it becomes audience-directed', 'building the intimacy of the world through physical self-attention and sensory care', 'using the steam bathroom as the space where the body is first truly read — honestly, completely, and with no one watching'],
+    getting_dressed: ['making wardrobe selection a physical and charged decision rather than aesthetic', 'showing the body choosing its own visibility rather than a creator choosing content', 'building physical charge into the first dressing moment without rushing into it', 'turning the mirror into the first camera — the full-body reading that decides how much the day will ask of the body'],
+    breakfast: ['keeping the world grounded so the charged content feels earned rather than immediate', 'using domestic morning realism to make the body\'s later intensity feel believable', 'creating contrast between personal ease and deliberate physical charge', 'the coffee and the quiet apartment corner — the last moment that belongs completely to her before the body becomes the work'],
+    late_morning: ['showing the first active moment when the body becomes content rather than just herself', 'building physical intimacy through control, slowness, and deliberate close framing', 'making the first session feel body-first rather than workflow-first', 'the filming corner in morning light — the body finding its angle, its stillness, its first deliberately intimate register of the day'],
+    lunch: ['showing that physical rest is part of the story rather than a gap in it', 'using the midday break to deepen the physical world without filling it with action', 'making stillness between sessions feel as charged as the sessions themselves', 'the body resting between sessions with morning warmth still on the skin — the midday pause that holds the charge rather than spending it'],
+    afternoon: ['deepening the physical tension without losing the intimate creator control', 'showing how the second session carries more physical weight than the first', 'building toward the evening through escalation and physical deliberateness', 'returning to the filming corner with afternoon warmth on the body and a slower, more deliberately physical register than the morning allowed'],
+    reset: ['turning the between-session physical care into a charged narrative moment', 'using skin, warmth, and preparation to make the reset feel like intimate anticipation', 'making the body\'s preparation feel as provocative as the content itself', 'the vanity in warm preparation light — oil on skin, the body being attended to in private, the most charged session still ahead'],
+    golden_hour: ['arriving at the most visually charged physical moment of the day', 'using warm light and physical stillness to create the highest intimate impact', 'making the body in golden-hour light feel like the threshold of something more', 'the full-body mirror in the last natural light — the body at its most cinematic, the physical charge at its most visually complete before the lamps take over'],
+    dinner: ['letting the body carry maximum intimate presence through restraint rather than excess', 'making the most charged scene feel more powerful because of what it holds back', 'showing that physical provocativeness is greatest when controlled completely', 'the intimate set in low lamp light — the body held in deliberate stillness, skin-close to the camera, the most charged content of the day emerging from complete physical control'],
+    evening: ['releasing the final charged physical energy into private dark-room quiet', 'showing the body beginning to return to itself after total intimate presence', 'making the evening feel like the long exhale after a fully charged physical day', 'the dark room after the strongest session — the body still warm, the charged layer beginning to soften, the most physically honest part of the day arriving quietly'],
+    night: ['closing the world by stripping the intimate creator layer completely away', 'returning the body to its most personal and unperformed physical reality', 'ending with the most intimate truth of all: the body at rest, private, and entirely its own', 'the near-dark room after everything — the phone aside, the body quiet in the sheets, the intimate creator persona completely dissolved back into the most personal physical truth'],
   },
 
   fallbackRules: {

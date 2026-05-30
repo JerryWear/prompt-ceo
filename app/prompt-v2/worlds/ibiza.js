@@ -1117,72 +1117,84 @@ export const WORLD_IBIZA = {
       'warm white finca linen against skin with wild rosemary and pine in the still morning air',
       'cool Balearic dawn air through open finca shutters before the heat',
       'the perfect private quiet of an Ibiza finca in early morning island stillness',
+      'the specific early-finca sensory world — pine resin and wild thyme in the still air, cool stone floor underfoot, warm linen still holding the night, and the island entirely private before it wakes',
     ],
 
     morning_refresh: [
       'warm water and cool Balearic stone surfaces in the finca bathroom',
       'fresh glowing skin after a warm island shower',
       'the clean warm calm of a private finca bathroom in morning',
+      'the finca shower sensory reset — warm water, pine air from the open window, the smell of island stone and white cotton, and the Las Salinas day becoming real just beyond the walls',
     ],
 
     getting_dressed: [
       'smooth linen or silk against fresh Balearic island skin',
       'gold and natural jewelry warm in finca morning light',
       'a clean free island-ready feeling before the day',
+      'the particular physical pleasure of choosing a Las Salinas look in a finca morning — the linen light, the weight of gold on warm skin, and the island heat already building outside',
     ],
 
     breakfast: [
       'strong island coffee warmth in warm pine morning air',
       'fresh fruit sweetness and Balearic terrace breeze',
       'a quiet finca above the pine-covered Ibiza island',
+      'the finca terrace breakfast sensation — strong coffee, warm pine scent, the Balearic sun just finding the table, and the whole electric island day not yet begun',
     ],
 
     late_morning: [
       'warm Balearic sand between bare feet and strong island sun overhead',
       'salt air and warm La Salinas turquoise water in the late morning',
       'the mix of island heat, pine, and Balearic beach detail',
+      'the Las Salinas sensory arrival — the salt flat smell, fine warm sand underfoot, the particular turquoise-and-salt-air quality of the most beautiful beach in the Balearics at late morning',
     ],
 
     lunch: [
       'warm Sa Trinxa beats and turquoise water and cold island drinks at lunch',
       'Balearic sea air moving across a shaded beach club table',
       'the warm beach pleasure of the greatest island lunch on earth',
+      'cold drinks in warm beach club shade at Sa Trinxa — the music low enough to feel rather than hear, sea air across the table, and the turquoise Balearic water so close you could step into it from your chair',
     ],
 
     afternoon: [
       'warm Balearic sea water on skin under the strongest island sun',
       'salt air, sea spray, and open turquoise water at Las Salinas',
       'the free golden sensory pleasure of an Ibiza beach afternoon',
+      'the Ushuaïa pool in the strongest afternoon heat — bass from the stage vibrating the water surface, warm chlorine air, bright Balearic sun on wet skin, and the sea just beyond the terrace railing',
     ],
 
     reset: [
       'cool finca shade after hours on Las Salinas in Balearic heat',
       'fresh skin and cool hair after the island beach shower',
       'a calm charged feeling before the most famous sunset in the world',
+      'the sensory contrast of the finca reset — entering cool pine shade from full Balearic heat, the salt still on the skin before the shower, the charged anticipation of Café del Mar already building',
     ],
 
     golden_hour: [
       'warm honey-gold Balearic light across the sea at Café del Mar',
       'warm island air softening as the Balearic sun drops into the water',
       'the cinematic electric stillness of the most famous sunset on earth',
+      'the Café del Mar terrace at the moment the sun touches the sea — cold cocktail glass in warm amber light, music tuned to the exact frequency of this light, and the whole island holding completely still',
     ],
 
     dinner: [
       'French or island candlelight reflecting in wine glass at Dalt Vila',
       'warm cobbled stone, island wine, and warm Balearic night air at dinner',
       'Old Town Dalt Vila warmth and charged anticipation of the night ahead',
+      'Dalt Vila dinner sensation — warm cobbled stone underfoot, candlelight on old walls, island wine cool in the glass, harbor air drifting up from below the castle, and Pacha somewhere just out of reach in the charged night',
     ],
 
     evening: [
       'warm Ibiza stone and pine still holding the day\'s heat at night',
       'Pacha music beginning to pulse, warm Balearic air, island night',
       'the electric warm glow of the most famous island after dark',
+      'the Pacha arrival sensory moment — warm Balearic night air, cherry logo lit above the entrance, bass felt before it is heard, and the knowledge that the most electric night on earth is about to begin',
     ],
 
     night: [
       'Pacha bass vibration and warm Balearic 2am night air',
       'the free uninhibited warm salt-and-music Ibiza night at full peak',
       'or: cool finca quiet at near-dawn after the island has peaked',
+      'the Pacha interior at midnight — the bass physical in the chest, colored light on skin, warm Balearic 2am air from the terrace, and the feeling of being completely and freely alive in the most electric room on earth',
     ],
   },
 
@@ -1265,72 +1277,84 @@ export const WORLD_IBIZA = {
       'quiet Balearic dawn above the pine island with wild rosemary in the air',
       'fresh island morning stillness in a private finca',
       'peaceful Ibiza sunrise above the scrub before the world wakes',
+      'the finca pre-dawn stillness — wild rosemary, cool pine air, and the complete Balearic quiet before the island finds its heat and charge for the day',
     ],
 
     morning_refresh: [
       'private finca calm with the Balearic day slowly building outside',
       'clean warm island suite quiet in early morning',
       'low-noise luxury Balearic morning atmosphere before the heat',
+      'the finca bathroom at morning — warm stone, pine air from the open window, and the island still too cool and early to have become itself yet',
     ],
 
     getting_dressed: [
       'intentional island calm before stepping into the Ibiza day',
       'private preparation energy with Las Salinas ahead',
       'soft pre-departure finca stillness with warm pine air',
+      'the finca dressing moment with Las Salinas as the destination — the island outside heating up, the look being decided, the day about to open',
     ],
 
     breakfast: [
       'easy Ibiza island morning with the sea in the distance and no pressure',
       'sunny warm terrace breakfast energy above the Balearic pine',
       'fresh finca outdoor calm with the island waking below',
+      'the finca terrace breakfast atmosphere — pine scrub below, strong island coffee, warm air just arriving, and the whole electric Balearic day not yet started',
     ],
 
     late_morning: [
       'Las Salinas beach energy beginning to fill with sun and music',
       'fashionable island day movement through the most beautiful beach',
       'warm Balearic beach destination intensity without losing composure',
+      'Las Salinas in late morning — the salt flat shimmering, Sa Trinxa beginning to pulse, the Formentera horizon clear, and the most beautiful beach on earth filling with exactly the right energy',
     ],
 
     lunch: [
       'lazy elevated Sa Trinxa or beach club energy',
       'long beach club lunch atmosphere with warm Balearic sun and beats',
       'the greatest beach lunch energy on earth at full island flow',
+      'the Sa Trinxa afternoon lunch atmosphere — warm music, turquoise water, cold drinks at the table, and a pace so slow and beautiful that time stops being relevant',
     ],
 
     afternoon: [
       'high-Balearic-summer leisure mood in full electric flow',
       'playful island sun-soaked Ushuaïa or Las Salinas glamour',
       'heat, turquoise water, and the most electric beach on earth',
+      'the Ushuaïa pool in peak Balearic afternoon — music from the stage, the sea visible beyond the terrace, the day club at maximum electric beautiful pitch',
     ],
 
     reset: [
       'cool private finca pause between beach and the golden-hour ritual',
       'quiet after-sun stillness before the sunset',
       'charged private reset before the most famous golden hour in the world',
+      'the finca interior after Las Salinas — cool, pine-scented, still, and charged with the knowledge that the most famous sunset in the world is about to begin at Café del Mar',
     ],
 
     golden_hour: [
       'the most electric and famous golden-hour ritual on earth',
       'the whole island at Café del Mar watching the same amber sun',
       'elevated Balearic sunset atmosphere with warm charged energy',
+      'Café del Mar at the exact moment — the sun at the sea\'s edge, the music perfectly tuned to the amber light, and the entire island holding one long collective breath before the night opens',
     ],
 
     dinner: [
       'long charged island night beginning in candlelit Dalt Vila warmth',
       'refined Old Town intimacy over a Balearic candlelit table',
       'romantic Ibiza dinner atmosphere with the night charged ahead',
+      'Dalt Vila at dinner — cobbled passage warmth, harbor lights visible below the castle, candlelit Old Town restaurants, and the Pacha night building somewhere just out of reach',
     ],
 
     evening: [
       'after-dark island glamour with maximum electric pulse',
       'Pacha and Ibiza Town electric nightlife energy rising',
       'the most charged evening atmosphere in the world beginning',
+      'the Ibiza Town harbor promenade atmosphere before Pacha — yacht lights on the water, warm Balearic night air, and the most famous nightlife on earth about to begin one street away',
     ],
 
     night: [
       'Pacha full electric midnight peak on the most famous dance floor on earth',
       'the Ibiza night at full uninhibited beautiful free flow',
       'or: quiet finca private calm at near-dawn after it all',
+      'Pacha interior at 2am — the most electric room on earth at its absolute peak, the music at maximum, the night free and alive and completely Ibiza',
     ],
   },
 
@@ -1413,72 +1437,84 @@ export const WORLD_IBIZA = {
       'soft reclined posture under white finca island linen',
       'half-awake stretch in warm Balearic morning',
       'rested private posture facing the warm pine terrace light',
+      'slow roll toward the open finca shutter, body still in sleep softness, pine air arriving from outside before any deliberate movement begins',
     ],
 
     morning_refresh: [
       'calm upright posture at the warm finca stone sink',
       'relaxed post-shower Balearic island stance',
       'gentle self-care posture in warm Ibiza island privacy',
+      'both hands at the finca mirror with warm stone below and island morning light across the face, the body unhurried in the only completely private moment of the Ibiza day',
     ],
 
     getting_dressed: [
       'one-leg weight shift while dressing in finca island morning light',
       'composed posture in front of the warm finca mirror',
       'elegant upright stance with relaxed bohemian island confidence',
+      'hip-canted finca mirror check with one hand adjusting jewelry and the body already carrying the ease of the Las Salinas arrival that is still hours away',
     ],
 
     breakfast: [
       'seated finca terrace posture with easy Balearic elegance',
       'relaxed body angle toward the pine island panorama',
       'unhurried Ibiza luxury posture in golden finca morning light',
+      'leaning back from the finca coffee cup with both elbows on the terrace chair arms, body open to the pine panorama, utterly unhurried before the most electric island on earth begins',
     ],
 
     late_morning: [
       'confident beach-arrival walking posture on Las Salinas',
       'light fashionable Balearic stride through the island world',
       'destination-editorial posture in motion through the island',
+      'the Las Salinas walk — unhurried, weight easy, sun overhead, the body moving across the most beautiful beach in the Balearics as if arriving there has always been the only plan',
     ],
 
     lunch: [
       'seated beach club posture with effortless island polish',
       'soft lean toward the lunch table in warm Balearic sun',
       'elegant island midday body language with no tension',
+      'one elbow on the Sa Trinxa table, body turned slightly toward the turquoise below, cold drink in hand, the posture of someone who knows exactly how to inhabit the greatest beach lunch in the world',
     ],
 
     afternoon: [
       'sun-soaked stretched posture on the Balearic beach platform',
       'playful relaxed movement near warm turquoise water',
       'easy island leisure posture in the strongest Balearic heat',
+      'stretched out on a Las Salinas lounger with the Formentera horizon visible, arms loose, the body entirely given over to the salt air and the Balearic sun',
     ],
 
     reset: [
       'quiet finca stillness after a long Balearic beach day',
       'soft seated posture in finca shade during reset',
       'composed pause before the Café del Mar sunset ritual',
+      'seated quietly at the finca vanity in cool shade, hands working through post-beach skin prep, the body deliberately restoring itself before the most famous golden hour in the world',
     ],
 
     golden_hour: [
       'slow Café del Mar lean in amber Balearic sunset light',
       'cinematic standing posture above the golden Balearic sea',
       'soft poised elegance with the amber island sea behind',
+      'one hand on the Café del Mar terrace rail, body turned toward the sun, the Balearic amber light on the face, the posture of someone who has been waiting all day for exactly this moment',
     ],
 
     dinner: [
       'elegant seated Dalt Vila candlelit dinner posture',
       'subtle forward lean across the warm Old Town table',
       'composed pre-night island evening posture with warm charge ahead',
+      'leaning slightly forward at a Dalt Vila candlelit table, shoulders relaxed, eyes warm, the body carrying the particular ease of someone who knows the night is about to become the best one on earth',
     ],
 
     evening: [
       'slow after-dinner harbor promenade posture',
       'magnetic relaxed stance in the Ibiza evening before Pacha',
       'elevated yet easy body language in the charged island evening',
+      'paused on the Ibiza Town harbor promenade after dinner, body turned toward the yacht lights on the water, completely composed and unhurried before the walk to Pacha begins',
     ],
 
     night: [
       'free uninhibited electric dance-floor body language in Pacha',
       'magnetic ease in the most famous nightclub on earth',
       'or: private softened finca body language at near-dawn',
+      'inside Pacha at midnight — the body completely free, movement unhurried and electric, the most famous dance floor on earth holding everything the island has been building toward all day',
     ],
   },
 
@@ -1726,72 +1762,84 @@ export const WORLD_IBIZA = {
       'the private beginning of a high-status Ibiza day in a warm finca above the island',
       'the first untouched moment before the most electric island on earth opens',
       'a quiet luxury Balearic morning opening in a private finca villa',
+      'the finca quiet before the pine scrub heats and the island begins — the last private moment before the most charged day on earth opens',
     ],
 
     morning_refresh: [
       'resetting into Ibiza freshness before stepping into the island day',
       'turning sleep into polish through a private warm finca ritual',
       'moving from island rest into Balearic intention',
+      'using the finca bathroom ritual to close the night and begin building the version of herself that will arrive at Las Salinas',
     ],
 
     getting_dressed: [
       'building the first version of the Ibiza day\'s identity',
       'choosing how to enter the most free island on earth this morning',
       'preparing to move from finca privacy into Balearic presence',
+      'deciding between bohemian ease and precise beach-luxury before a single piece of island fabric is chosen — because in Ibiza, the look is already a position',
     ],
 
     breakfast: [
       'claiming the island day slowly before it heats up to its peak',
       'holding onto finca peace before the Ibiza world opens',
       'letting Balearic luxury feel effortless in the first outdoor moment',
+      'making the finca terrace breakfast above the pine scrub feel like the most complete moment before the island asks everything of the day ahead',
     ],
 
     late_morning: [
       'entering the island world with effortless Balearic confidence',
       'moving through Las Salinas as if the most beautiful beach belongs to her',
       'turning island beach arrival into quiet high-status Ibiza presence',
+      'making the Las Salinas sand arrival feel inevitable — the body moving across the most famous beach in the Balearics as if it has always been the destination',
     ],
 
     lunch: [
       'slowing the island day down for the greatest beach lunch on earth',
       'turning Sa Trinxa into a scene of warm Balearic ease and pleasure',
       'making the most famous island beach feel unforced and free',
+      'letting the Sa Trinxa lunch ritual — cold drinks, warm music, turquoise water just below — become the unhurried center of the entire island day',
     ],
 
     afternoon: [
       'opening into full Balearic beach and electric island leisure',
       'letting warm water, salt, and Ibiza heat carry the story forward',
       'turning the hottest island afternoon into free golden Balearic pleasure',
+      'making the Ushuaïa pool in the peak Balearic afternoon feel like the right answer to every question the island is asking',
     ],
 
     reset: [
       'withdrawing from the island just long enough to evolve for the sunset',
       'cooling down in finca private warmth before the most famous golden hour',
       'turning Balearic retreat into charged island evening transformation',
+      'using the finca shower and the stillness before Café del Mar to rebuild into the version of herself that the most famous sunset in the world deserves',
     ],
 
     golden_hour: [
       'arriving at the most famous golden-hour ritual on earth — Café del Mar',
       'turning the amber Balearic moment into the most electric anticipation',
       'moving from beach leisure into the charged island magic of the sunset',
+      'claiming the Café del Mar terrace above the Balearic Sea at the precise moment the island holds its breath — and being exactly the person who belongs there',
     ],
 
     dinner: [
       'stepping fully into warm Ibiza island night energy',
       'turning Dalt Vila dinner into intimacy, warmth, and charged pre-night presence',
       'becoming more magnetic as the most electric island night opens ahead',
+      'making the Dalt Vila cobbled passage dinner feel like the last warm and civilised moment before the island becomes completely electric',
     ],
 
     evening: [
       'entering the most famous nightlife transition in the world',
       'allowing Ibiza glamour to be completely electric and human at once',
       'moving toward the most charged night on earth',
+      'arriving at Pacha in the Balearic night and making the entrance feel like it was always the only possible end to this particular island day',
     ],
 
     night: [
       'at the peak of the most electric night in the world',
       'fully alive in the most famous club and island on earth',
       'or: returning to private finca quiet in complete island satisfaction',
+      'inside Pacha at full midnight peak — the most alive moment in the most alive place on earth, exactly where the whole day was always pointing',
     ],
   },
 

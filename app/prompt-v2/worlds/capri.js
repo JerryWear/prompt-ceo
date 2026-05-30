@@ -1114,72 +1114,84 @@ export const WORLD_CAPRI = {
       'warm white linen against skin with the sea barely audible below',
       'lemon blossom and sea air drifting through open Capri shutters at dawn',
       'the warmth and total quiet of a private villa above the Mediterranean',
+      'the faint scent of the Tyrrhenian at first light, salt and lemon and warm stone from the terrace below',
     ],
 
     morning_refresh: [
       'warm water and cool white Italian stone surfaces',
       'fresh sun-warm skin after a Capri villa shower',
       'the polished calm of a white Italian villa bathroom in morning warmth',
+      'the particular cool-warm contrast of stepping from a villa shower onto warm Capri marble with sea air entering from the window',
     ],
 
     getting_dressed: [
       'smooth white linen or silk against fresh island skin',
       'Italian gold jewelry warm in morning light',
       'a clean polished ready-for-Capri feeling',
+      'the specific weight and warmth of a Via Camerelle-quality linen piece against skin in the morning villa light',
     ],
 
     breakfast: [
       'Italian espresso warmth in warm sea morning air',
       'fresh cornetti sweetness, lemon scent, and Mediterranean breeze',
       'a quiet villa terrace above the bluest sea in the world',
+      'the Hotel Punta Tragara terrace at breakfast — the warmth of the Faraglioni light below, the smell of the sea, and the quiet certainty of being on the most beautiful terrace in Italy',
     ],
 
     late_morning: [
       'warm bright Mediterranean sun on Italian whitewashed stone',
       'the boutique air of Via Camerelle and the scent of Capri in summer',
       'the mix of sea breeze and Italian luxury retail detail',
+      'the particular sensory quality of Via Camerelle at midmorning — warm pavement, bougainvillea scent, leather and linen from the boutiques, and the Piazzetta energy just ahead',
     ],
 
     lunch: [
       'chilled white wine and lemon pasta in Mediterranean sea air',
       'warm turquoise sea view and the sound of the water below Marina Piccola',
       'sunlight flickering across glass and white linen in Italian midday',
+      'the Da Luigi lunch sensory world — warm wood platforms, cold white wine, the sound of the cove below, salt air and lemon from the kitchen',
     ],
 
     afternoon: [
       'warm turquoise water on skin under the strongest Italian sun',
       'salt air, sea spray, and open blue Tyrrhenian around the boat',
       'the free golden pleasure of a Capri afternoon in the sea',
+      'the Faraglioni boat experience as pure sensation — the ancient rock passing overhead, the sound of open water, and the smell of the Tyrrhenian in full afternoon heat',
     ],
 
     reset: [
       'cool villa shade after hours in the Mediterranean sun',
       'fresh skin and dry hair in private villa warmth',
       'a calm polished Italian feeling before the golden hour begins',
+      'the sensory contrast of entering a cool white villa from Capri sun — the stone floor, the still air, the change in light, the body exhaling from the heat',
     ],
 
     golden_hour: [
       'honey-gold Capri light across the amber sea',
       'warm Italian air softening as the Mediterranean sun drops',
       'the cinematic stillness of the most beautiful island at sunset',
+      'a Campari spritz at La Piazzetta in amber golden-hour light — the cool glass, the warm citrus scent, the sound of Italian voices, and the whole of Capri turning gold around the table',
     ],
 
     dinner: [
       'Italian candlelight reflecting in wine and sea glassware',
       'warm plates, wine, and soft Italian night sea air',
       'sea-view terrace elegance under the first Capri darkness',
+      'the Le Monzù or private villa dinner sensory world — warm candlelight, cool linen, the scent of the night sea, and the invisible Faraglioni below in the Capri darkness',
     ],
 
     evening: [
       'warm Italian stone still holding the day\'s Mediterranean heat',
       'Piazzetta music, glowing windows, and warm Capri night air',
       'the sea glittering far below in the warm island night',
+      'the warmth of the Piazzetta square in the late evening — stone radiating heat, Italian voices all around, the scent of evening jasmine and terrace candles from the restaurants above',
     ],
 
     night: [
       'cool white linen after a long warm Italian island day',
       'clean skin and soft villa lamp light',
       'the hush of a private Capri villa after midnight above the sea',
+      'the near-silence of a Capri villa at night — the sea below inaudible, the island finally still, warm air from the terrace just reaching the white bed',
     ],
   },
 
@@ -1262,72 +1274,84 @@ export const WORLD_CAPRI = {
       'quiet Italian dawn above the Tyrrhenian with lemon blossom in the air',
       'fresh Mediterranean morning stillness',
       'peaceful Capri sunrise atmosphere in a private villa',
+      'the Villa San Michele pre-dawn quiet before the Gulf of Naples has taken its colour for the day',
     ],
 
     morning_refresh: [
       'private indoor Italian calm with the island slowly warming outside',
       'clean still air-conditioned or open-window villa quiet',
       'low-noise luxury Italian morning atmosphere',
+      'white stone and warm water stillness inside the villa while the island outside has not yet fully opened',
     ],
 
     getting_dressed: [
       'intentional Italian calm before stepping into the Capri day',
       'private preparation energy with the sea outside',
       'soft pre-departure villa stillness with warm air',
+      'the private Capri villa dressing moment when the whole island is a backdrop and the day has not yet asked anything of her',
     ],
 
     breakfast: [
       'easy Italian island morning with no rush and the sea below',
       'sunny terrace breakfast energy above the Tyrrhenian',
       'fresh outdoor calm with the island starting below',
+      'the Hotel Punta Tragara terrace morning atmosphere — the Faraglioni below, the sun warm, and the whole island at a magnificent remove',
     ],
 
     late_morning: [
       'Capri fashionable social energy in full Italian swing',
       'elegant day movement through the most beautiful island street',
       'bright destination buzz without tourist chaos',
+      'Via Camerelle in peak midmorning light — boutique windows, white stone, sea air, and the particular buzz of being exactly where Italian glamour was invented',
     ],
 
     lunch: [
       'lazy upscale Italian midday above the sea',
       'long Capri lunch atmosphere with warm sun and sea air',
       'midday Italian island indulgence with soft social energy',
+      'the Marina Piccola seafood lunch atmosphere — turquoise below, parasols above, and the slow pleasure of eating the freshest things on the most beautiful island',
     ],
 
     afternoon: [
       'high-Italian-summer leisure mood in full turquoise flow',
       'playful Mediterranean sun-soaked glamour',
       'heat, water, and open sea freedom around the Capri coast',
+      'boat-around-the-Faraglioni afternoon — the deep sea, the ancient rock, and nothing but open Tyrrhenian light in all directions',
     ],
 
     reset: [
       'cool private villa pause between sea and evening',
       'quiet after-sun Italian stillness',
       'personal reset before the golden-hour Capri moment',
+      'the Capri villa interior in late afternoon shade — cool, white, and completely removed from the heat and light still outside on the terrace',
     ],
 
     golden_hour: [
       'cinematic Capri hush as the Mediterranean sun drops',
       'the whole island and sea softening into gold',
       'elevated Italian sunset atmosphere with lingering warmth',
+      'La Piazzetta at the precise golden-hour moment — the clock tower lit, the café tables full, the sea below turning amber, and all of Capri at its most cinematic',
     ],
 
     dinner: [
       'long elegant Italian night beginning slowly above the sea',
       'refined candlelit terrace intimacy above the Tyrrhenian',
       'romantic Capri dinner atmosphere with warm sea air',
+      'the Le Monzù terrace at night — candlelight, the Faraglioni invisible below in the dark sea, and the particular Capri dinner atmosphere that makes every other restaurant in the world feel insufficient',
     ],
 
     evening: [
       'after-dark Italian island glamour with a relaxed pulse',
       'soft Capri nightlife energy without crowd chaos',
       'slow stylish continuation of the Italian island night',
+      'the Piazzetta after dinner — the square lit, voices carrying warmly, the island night settled into its most civilised and beautiful rhythm',
     ],
 
     night: [
       'quiet final Italian calm after a full Mediterranean day',
       'deep private stillness in the villa above the sea',
       'the Tyrrhenian fading into darkness below',
+      'the white villa suite after midnight — the island completely quiet, the sea an invisible presence below, and the whole Capri day settling into warmth and dark',
     ],
   },
 
@@ -1410,72 +1434,84 @@ export const WORLD_CAPRI = {
       'soft reclined posture under white Italian villa sheets',
       'half-awake stretch with relaxed shoulders in warm Capri morning',
       'rested private posture facing the terrace light',
+      'slow lean toward the villa window above the sea, one elbow on the sill, still in sleep softness before the island day begins',
     ],
 
     morning_refresh: [
       'calm upright posture at the white villa sink',
       'relaxed post-shower Italian bathroom stance',
       'gentle self-care posture in warm Mediterranean privacy',
+      'unhurried hands-to-face skincare posture at the villa mirror, reflected in warm Italian morning light with the sea barely visible behind',
     ],
 
     getting_dressed: [
       'one-leg weight shift while dressing in Italian morning light',
       'composed posture in front of the villa mirror',
       'elegant upright stance with relaxed Italian island confidence',
+      'one hand adjusting a gold earring in front of the villa mirror with the other arm relaxed at the side — the small Italian luxury gesture before the day opens',
     ],
 
     breakfast: [
       'seated terrace posture with easy Mediterranean elegance',
       'relaxed body angle toward the sea panorama',
       'unhurried Italian luxury posture in golden morning light',
+      'leaning back from the espresso cup toward the Tyrrhenian view, the body opened toward the sea rather than the table, completely unhurried',
     ],
 
     late_morning: [
       'confident walking posture through Via Camerelle',
       'light fashionable Italian island stride',
       'destination-editorial posture in Capri Town motion',
+      'paused at a Via Camerelle boutique window with sunglasses in one hand, weight shifted easily to one hip, entirely at ease in the most fashionable street on the island',
     ],
 
     lunch: [
       'seated terrace posture with effortless Italian polish',
       'soft lean toward the lunch table in warm Mediterranean light',
       'elegant midday body language with no tension',
+      'one elbow on the Marina Piccola table, chin resting on the hand, looking out over the turquoise cove with no urgency at all',
     ],
 
     afternoon: [
       'sun-soaked stretched posture on the Capri platform or boat',
       'playful relaxed movement near or in the turquoise water',
       'easy leisure posture in Italian afternoon heat',
+      'seated on the boat prow with legs extending toward the open Tyrrhenian, arms back, body facing the Faraglioni in complete sea-leisure ease',
     ],
 
     reset: [
       'quiet villa stillness after long Italian sun',
       'soft seated villa posture during the cool reset',
       'composed pause before the Capri golden hour',
+      'seated at the villa mirror retouching in cool shade, upper body still, hands working quietly, the sea completely absent from the frame for the first time all day',
     ],
 
     golden_hour: [
       'slow Piazzetta lean in amber Italian evening light',
       'cinematic standing posture above the amber Tyrrhenian',
       'soft poised elegance with relaxed Italian island confidence',
+      'one hand resting on the Piazzetta café table, body turned slightly toward the sea view, completely unhurried as the amber light falls across everything',
     ],
 
     dinner: [
       'elegant seated candlelit Italian posture',
       'subtle forward lean across a warm Capri table',
       'composed evening posture with refined Italian warmth',
+      'leaning slightly toward the candlelit table at Le Monzù, the body angled into the warmth of the conversation, the dark Faraglioni invisible beyond the terrace edge',
     ],
 
     evening: [
       'slow after-dinner Italian promenade posture',
       'magnetic relaxed Piazzetta stance in the Italian night',
       'elevated yet easy body language in Capri after-dark',
+      'slow deliberate movement through the Piazzetta after dinner — the body entirely relaxed, the walk unhurried, the island night warm around every step',
     ],
 
     night: [
       'private softened posture at the end of the Italian island day',
       'quiet slow movement through the warm villa suite',
       'unwound intimate end-of-Capri-night body language',
+      'lying back against the white villa pillows in the last warmth of the bedside lamp, the body finally still, the whole Italian island day settling into the sheets',
     ],
   },
 
@@ -1723,72 +1759,84 @@ export const WORLD_CAPRI = {
       'the private beginning of a high-status Italian island day above the sea',
       'the first untouched warm moment before the Capri world enters',
       'a quiet luxury Mediterranean morning opening in a private villa',
+      'the Villa San Michele silence before the funicular begins and Capri wakes below',
     ],
 
     morning_refresh: [
       'resetting into Italian freshness before stepping into the island',
       'turning sleep into polish through a private warm villa routine',
       'moving from Italian rest into island intention',
+      'letting the white stone villa bathroom ritual become the first deliberate act of Capri elegance',
     ],
 
     getting_dressed: [
       'building the first version of the Capri day\'s identity',
       'choosing how to enter the Italian island world this morning',
       'preparing to move from villa privacy into Capri public elegance',
+      'deciding whether the day will be Via Camerelle boutiques or Marina Piccola water before a single piece of linen is chosen',
     ],
 
     breakfast: [
       'claiming the island day slowly before it heats up',
       'holding onto villa peace before the Capri world opens',
       'letting Italian luxury feel effortless in the first outdoor terrace moment',
+      'turning a terrace breakfast above the Tyrrhenian into the quietest and most complete moment on the island',
     ],
 
     late_morning: [
       'entering the visible Italian world with calm island confidence',
       'moving through Capri life as if the island belongs to her',
       'turning boutique exploration into quiet Italian status',
+      'making Via Camerelle feel less like a shopping street and more like a private runway in the best light in Europe',
     ],
 
     lunch: [
       'slowing the Mediterranean day down for pleasure and lemon-and-wine indulgence',
       'turning Italian terrace lunch into a scene of ease and taste',
       'making the island world feel soft and completely unforced',
+      'letting a long Da Luigi lunch at Marina Piccola feel like the center of the Italian universe',
     ],
 
     afternoon: [
       'opening into full turquoise Italian leisure and Capri glamour',
       'letting water, heat, and open sea carry the story forward',
       'turning the brightest Italian afternoon into Mediterranean freedom',
+      'making a private boat pass through the Faraglioni arch feel like the most cinematic thing the sea has ever allowed',
     ],
 
     reset: [
       'withdrawing from the island just long enough to evolve for the evening',
       'cooling down and rebuilding in private villa calm before the night',
       'turning Italian retreat into Capri evening transformation',
+      'using the cool white villa bathroom to quietly rebuild what the sea and sun spent all afternoon undoing',
     ],
 
     golden_hour: [
       'arriving at the most cinematic threshold of the Italian island day',
       'turning the amber Capri sunset into golden anticipation',
       'moving from sea leisure into warm Italian magnetism and romance',
+      'claiming a Campari spritz at La Piazzetta as the whole island turns amber and belongs to the evening',
     ],
 
     dinner: [
       'stepping fully into elegant Italian island night energy',
       'turning Capri candlelit dinner into intimacy, atmosphere, and island presence',
       'becoming more magnetic as the Mediterranean world quiets at night',
+      'making a candlelit Le Monzù dinner at Punta Tragara feel like the natural conclusion of the most beautiful day in Italy',
     ],
 
     evening: [
       'extending the Italian night without breaking its softness',
       'allowing Capri glamour to remain relaxed and human',
       'keeping the island story alive without rushing toward the end',
+      'drifting through the La Piazzetta evening energy as if the night itself has decided not to end',
     ],
 
     night: [
       'returning everything back to private villa quiet',
       'closing the Italian island day in warm softness',
       'ending the most beautiful day in Italy in complete private warmth',
+      'letting the white linen and the sea dark below become the last and most private image of the entire Capri day',
     ],
   },
 

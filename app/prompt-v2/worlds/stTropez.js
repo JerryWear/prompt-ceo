@@ -1111,72 +1111,84 @@ export const WORLD_ST_TROPEZ = {
       'warm white linen against skin with rose-scented air drifting from the terrace',
       'Provençal lavender and warm sea air through open villa shutters at dawn',
       'the warmth and total quiet of a private villa above the St. Tropez gulf',
+      'the Cap de Saint-Tropez villa at dawn — warm stone floor, gulf light, and the scent of pine and sea through open shutters',
     ],
 
     morning_refresh: [
       'warm water and cool Provençal stone surfaces together',
       'fresh glowing skin after a warm Riviera villa shower',
       'the effortless calm of a French villa bathroom in golden morning warmth',
+      'the villa bathroom — warm stone, faint lavender, and strong golden Riviera morning from the window',
     ],
 
     getting_dressed: [
       'smooth white linen or silk against fresh Tropézienne morning skin',
       'French gold jewelry warm in golden morning light',
       'a clean polished ready-for-Pampelonne feeling',
+      'the feel of Riviera silk and warm gold jewelry in a villa where the sun already fills every room',
     ],
 
     breakfast: [
       'French café crème warmth in warm Riviera morning air',
       'croissant sweetness and rose scent and warm Tropézienne breeze',
       'a quiet villa terrace above the St. Tropez gulf',
+      'Sénéquier early terrace — espresso, warm Quai Jean Jaurès stone, and the first harbour light',
     ],
 
     late_morning: [
       'warm Pampelonne sand between feet and strong Riviera sun overhead',
       'sea salt air and pine shade on the walk to Club 55',
       'the mix of beach heat, sea breeze, and French Riviera detail',
+      'Club 55 arrival — pine shade, white tablecloth, chilled rosé already poured, and Pampelonne warm around',
     ],
 
     lunch: [
       'chilled Provence rosé and sea bass and warm sand air at Club 55',
       'Pampelonne sea air moving across shaded beach club tables',
       'warm French midday pleasure above the most beautiful beach in France',
+      'the taste of grilled dorade and Bandol rosé at Club 55 — the greatest beach lunch on earth in full Riviera sun',
     ],
 
     afternoon: [
       'warm Pampelonne sea water on skin under the strongest Riviera sun',
       'sea salt, hot pine air, and open Tropézien blue water',
       'the golden free pleasure of a French Riviera afternoon on the beach',
+      'on the yacht deck above the St. Tropez harbor — warm teak, sea salt, open gulf and nothing to do',
     ],
 
     reset: [
       'cool villa shade after hours on Pampelonne in the Riviera heat',
       'fresh skin and cool dry hair before the golden hour',
       'a calm polished Tropézienne feeling before the port aperitivo',
+      'the Cap de Saint-Tropez villa cool stone and open window air after the beach — the longest exhale of the day',
     ],
 
     golden_hour: [
       'warm honey-gold Riviera light across the port and the gulf',
       'warm air softening as the French sun drops behind the Var hills',
       'the cinematic stillness of the most beautiful port in France at sunset',
+      'the Quai Jean Jaurès at golden hour — Campari bitter, rosé warm, port water amber, Var hills glowing',
     ],
 
     dinner: [
       'French candlelight reflecting in wine glass and port water',
       'warm Provençal plates, wine, and soft French Riviera night air',
       'port-view elegance in the first warm St. Tropez darkness',
+      'Le Byblos candlelit terrace — warm stone, bougainvillea fragrance, Provence wine, and the village beyond the wall',
     ],
 
     evening: [
       'warm cobbled stone and painted wood still holding the day\'s heat',
       'French café music, warm lamp glow, and Tropézien night air',
       'the gulf glittering below the villa in the warm summer night',
+      'the Old Town cobbled passage after dinner — warm stone underfoot, late rosé in hand, Les Caves du Roy bass softly ahead',
     ],
 
     night: [
       'cool white linen after a long warm Riviera summer day',
       'clean skin and soft villa lamp light in warm French darkness',
       'the hush of a private Riviera villa after midnight above the gulf',
+      'the Cap de Saint-Tropez villa bedroom in the late night — warm air, cricket sound, gulf dark and still far below',
     ],
   },
 
@@ -1259,72 +1271,85 @@ export const WORLD_ST_TROPEZ = {
       'quiet French dawn above the Tropézien gulf with rose and lavender air',
       'fresh Provençal morning stillness',
       'peaceful Riviera sunrise atmosphere in a private Cap de Saint-Tropez villa',
+      'the Cap de Saint-Tropez villa at dawn — open shutters, warm stone, gulf pale below',
     ],
 
     morning_refresh: [
       'private indoor Riviera calm with the French summer day slowly building outside',
       'clean warm villa quiet in early Tropézien morning',
       'low-noise French luxury morning atmosphere in warm stone',
+      'the Provençal villa bathroom with morning light and warm air already moving through',
     ],
 
     getting_dressed: [
       'intentional French calm before stepping into the beach day',
       'private preparation energy with Pampelonne waiting ahead',
       'soft pre-departure villa stillness with warm rose air',
+      'the last private villa moment before Club 55 and the Pampelonne world begins',
     ],
 
     breakfast: [
       'easy French Riviera morning with no rush and the gulf below',
       'sunny warm terrace breakfast energy above the gulf',
       'fresh outdoor Riviera calm with the village starting below',
+      'Sénéquier terrace in early morning before the port fills — the most civilised breakfast in the Var',
     ],
 
     late_morning: [
       'Pampelonne social beach energy filling with sun and Club 55 life',
       'fashionable French day movement through the most famous beach',
       'warm Riviera destination buzz without losing French elegance',
+      'Club 55 in late morning — pine shade, white tablecloths, the best beach in France coming to life',
     ],
 
     lunch: [
       'lazy elevated Pampelonne midday energy',
       'long Club 55 lunch atmosphere with warm sun and sea air',
       'the greatest beach lunch on earth in full Riviera flow',
+      'Pampelonne at noon — rosé chilled, sea bass ordered, and the whole golden afternoon still ahead',
     ],
 
     afternoon: [
       'high-French-summer leisure mood in full beach and water flow',
       'Pampelonne playful sun-soaked glamour',
       'heat, sand, sea, and open water around the Tropézien coast',
+      'the yacht harbor at mid-afternoon — megayachts, warm salt air, and the gulf intensely blue',
+      'Nikki Beach in the full heat — warm branded parasols, social music, and the Mediterranean at its most inviting',
     ],
 
     reset: [
       'cool private villa pause between beach and golden-hour port',
       'quiet after-sun Riviera stillness in the villa shade',
       'personal reset before the most beautiful evening in France',
+      'the Cap de Saint-Tropez villa shade after Pampelonne — the coolest and most private room of the French day',
     ],
 
     golden_hour: [
       'cinematic port hush as the French Riviera sun drops',
       'the whole Tropézien gulf softening into warm gold',
       'elevated Riviera sunset atmosphere with lingering warmth',
+      'Sénéquier at golden hour — every yacht, every stone, the whole Quai Jean Jaurès turning amber at once',
     ],
 
     dinner: [
       'long elegant Tropézien night beginning in candlelit warmth',
       'refined port intimacy over a French candlelit table',
       'romantic St. Tropez dinner atmosphere with warm Var night air',
+      'Le Byblos terrace at dinner — bougainvillea, warm stone, candlelight, and the village beyond the wall',
     ],
 
     evening: [
       'after-dark French Riviera glamour with a relaxed human pulse',
       'soft Tropézien nightlife energy without crowd chaos',
       'slow stylish continuation of the French summer night',
+      'the Old Town cobbled passages after dinner — warm lamplight, the last port glow, and Les Caves du Roy ahead',
     ],
 
     night: [
       'quiet final Riviera calm after a full golden French summer day',
       'deep private villa stillness above the St. Tropez gulf',
       'the gulf fading into darkness below while the villa sleeps',
+      'Cap de Saint-Tropez villa after midnight — warm darkness, cricket sound, and the Var hills silent behind',
     ],
   },
 
@@ -1407,72 +1432,84 @@ export const WORLD_ST_TROPEZ = {
       'soft reclined posture under white French villa linen',
       'half-awake stretch in warm Riviera villa morning',
       'rested private posture facing the warm gulf light through shutters',
+      'lying still in the Cap de Saint-Tropez villa bed with the gulf light just beginning through the shutters',
     ],
 
     morning_refresh: [
       'calm upright posture at the warm Provençal villa sink',
       'relaxed post-shower Tropézienne bathroom stance',
       'gentle self-care posture in warm French Riviera privacy',
+      'leaning over the villa stone sink in warm morning Riviera light — easy, unhurried, perfectly still',
     ],
 
     getting_dressed: [
       'one-leg weight shift while dressing in French summer morning light',
       'composed posture in front of the villa mirror',
       'elegant upright stance with relaxed Tropézienne confidence',
+      'standing at the villa mirror in morning gold, fastening one gold earring — completely unhurried',
     ],
 
     breakfast: [
       'seated terrace posture with easy French Riviera elegance',
       'relaxed body angle toward the gulf panorama',
       'unhurried Tropézienne luxury posture in golden morning light',
+      'seated at the villa terrace table with both arms resting easy and the gulf warm below',
     ],
 
     late_morning: [
       'confident walking posture arriving at Club 55 or port promenade',
       'light fashionable French Riviera stride through Pampelonne',
       'destination-editorial posture in motion through the Old Town',
+      'walking the Pampelonne sand toward Club 55 with one hand on a straw hat and the sea air ahead',
     ],
 
     lunch: [
       'seated Club 55 or terrace posture with effortless French polish',
       'soft lean toward the Pampelonne lunch table in warm sun',
       'elegant French midday body language with no tension',
+      'reclining slightly at a Club 55 table — shoulders open, rosé glass near, entirely at ease in the best lunch in France',
     ],
 
     afternoon: [
       'sun-soaked stretched posture on the Pampelonne beach platform',
       'playful relaxed movement in warm Riviera sea',
       'easy French leisure posture in the strongest afternoon heat',
+      'lying on a Pampelonne platform at Club 55 or Nikki Beach with one arm trailing off the side above the warm sand',
     ],
 
     reset: [
       'quiet villa stillness after a long Pampelonne day',
       'soft seated posture in villa shade during reset',
       'composed pause before the Sénéquier golden hour',
+      'seated at the villa dressing table in the cool shade — sun-warm skin, brushing hair, the golden hour building outside',
     ],
 
     golden_hour: [
       'slow Sénéquier lean in amber Riviera golden-hour light',
       'cinematic standing posture above the golden St. Tropez port',
       'soft poised French elegance with the amber gulf behind',
+      'leaning on the Quai Jean Jaurès railing at Sénéquier with a Campari, the whole amber port behind',
     ],
 
     dinner: [
       'elegant seated French candlelit Riviera posture',
       'subtle forward lean across the warm Old Town table',
       'composed evening posture with refined French Tropézienne warmth',
+      'seated at a Le Byblos table — upright but relaxed, warm candlelight, bougainvillea overhead',
     ],
 
     evening: [
       'slow after-dinner Old Town promenade posture',
       'magnetic relaxed stance in the St. Tropez night scene',
       'elevated yet easy body language in the French Riviera after-dark',
+      'walking the port promenade after dinner with easy posture and the lit yachts moving gently beside',
     ],
 
     night: [
       'private softened posture at the end of the French summer day',
       'quiet slow movement through the warm villa suite',
       'unwound intimate end-of-Riviera-night body language',
+      'back in the Cap de Saint-Tropez villa bedroom — shoes off, linen on, the warm gulf quiet below',
     ],
   },
 
@@ -1720,72 +1757,85 @@ export const WORLD_ST_TROPEZ = {
       'the private beginning of a high-status French Riviera day above the gulf',
       'the first untouched warm moment before the Tropézien world enters',
       'a quiet luxury French morning opening in a private Cap de Saint-Tropez villa',
+      'waking above the gulf with rose-scented Provençal air and the Var hills still in morning haze',
     ],
 
     morning_refresh: [
       'resetting into French freshness before stepping into the Riviera',
       'turning sleep into polish through a private warm villa routine',
       'moving from French rest into Tropézienne intention',
+      'the Cap de Saint-Tropez villa bathroom as the first beautiful private space of the French day',
     ],
 
     getting_dressed: [
       'building the first version of the Tropézienne day\'s identity',
       'choosing how to enter Pampelonne and the French Riviera this morning',
       'preparing to move from villa privacy into French public elegance',
+      'choosing gold and linen in a warm villa before Club 55 or the Quai Jean Jaurès',
     ],
 
     breakfast: [
       'claiming the French summer day slowly before it heats up to perfection',
       'holding onto villa peace before the Riviera world opens',
       'letting French luxury feel effortless in the first outdoor terrace moment',
+      'terrace coffee above the gulf before Sénéquier fills and the port begins its daily theatre',
     ],
 
     late_morning: [
       'entering the French Riviera world with effortless Tropézienne confidence',
       'moving through Club 55 and Pampelonne as if they belong to her',
       'turning beach arrival into quiet high-status French presence',
+      'arriving at Club 55 on Pampelonne as if the beach was already waiting',
     ],
 
     lunch: [
       'slowing the Riviera day down for the greatest lunch setting on earth',
       'turning Club 55 into a scene of French ease and Provence pleasure',
       'making the most famous beach club on earth feel unforced and beautiful',
+      'the Club 55 long lunch — white tablecloth, chilled rosé, sea bass, and the whole Pampelonne afternoon ahead',
     ],
 
     afternoon: [
       'opening into full French Riviera leisure and Pampelonne glamour',
       'letting warm sea, sun, and sand carry the Tropézienne story forward',
       'turning the hottest Riviera afternoon into free golden pleasure',
+      'the yacht deck above the St. Tropez gulf as the most effortlessly glamorous place on earth after lunch',
+      'Nikki Beach in the strongest afternoon hour — social, golden, entirely French',
     ],
 
     reset: [
       'withdrawing from the beach just long enough to evolve for the port evening',
       'cooling down and rebuilding in private villa shade before the golden hour',
       'turning Riviera retreat into Tropézienne golden-hour transformation',
+      'the Cap de Saint-Tropez villa as retreat — coolness, shade, and the golden hour already building outside',
     ],
 
     golden_hour: [
       'arriving at the most famous aperitivo terrace in the world',
       'turning the amber Sénéquier moment into romantic Riviera anticipation',
       'moving from beach leisure into warm French port magnetism',
+      'Campari at Sénéquier above the Quai Jean Jaurès as the most cinematic ritual in the French south',
     ],
 
     dinner: [
       'stepping fully into elegant French Riviera night energy',
       'turning Tropézien candlelit dinner into intimacy, atmosphere, and port presence',
       'becoming more magnetic as the most beautiful French night softens around her',
+      'Le Byblos candlelit terrace as the most legendary dinner address in the Var',
     ],
 
     evening: [
       'extending the French Riviera night without breaking its soft warmth',
       'allowing Tropézienne glamour to remain relaxed and human',
       'keeping the French summer story alive above the glittering gulf',
+      'the port promenade after dinner — lit yachts, cobbled warmth, and Les Caves du Roy ahead',
     ],
 
     night: [
       'returning everything back to private villa warmth',
       'closing the French summer day in warm Riviera softness',
       'ending the most beautiful day in France in complete private calm',
+      'the villa above the gulf after midnight — warm darkness, cricket sound, and the Var hills silent',
     ],
   },
 
