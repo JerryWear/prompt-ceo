@@ -12858,6 +12858,13 @@ export default function PromptCEOPage() {
   const [projectBrain, setProjectBrain] = useState(null)
   const [campaignTimeline, setCampaignTimeline] = useState(null)
   const [timelineLoading,  setTimelineLoading]  = useState(false)
+  // Campaign Journey view state
+  const [expandedPhases, setExpandedPhases] = useState({ attention: true })
+  // Cross-Platform view state
+  const [adaptResult,  setAdaptResult]  = useState(null)
+  const [adaptLoading, setAdaptLoading] = useState(false)
+  const [adaptError,   setAdaptError]   = useState(null)
+  const [copiedKey,    setCopiedKey]    = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -18466,11 +18473,6 @@ export default function PromptCEOPage() {
             { id: 'conversion',           label: 'Conversion',  num: 4, color: '#10b981', hint: 'Remove every objection. Make buying obvious.' },
             { id: 'retargeting',          label: 'Retargeting', num: 5, color: '#f97316', hint: 'Win them back. Proof + urgency. Final push.' },
           ]
-          const [expandedPhases, setExpandedPhases] = React.useState(() => {
-            const initial = {}
-            JOURNEY_PHASES.forEach(p => { initial[p.id] = false })
-            return initial
-          })
           const togglePhase = (id) => setExpandedPhases(prev => ({ ...prev, [id]: !prev[id] }))
 
           const formatDate = (iso) => {
@@ -18606,11 +18608,6 @@ export default function PromptCEOPage() {
         })()}
 
         {s.view === 'cross_platform' && (() => {
-          const [adaptResult,  setAdaptResult]  = React.useState(null)
-          const [adaptLoading, setAdaptLoading] = React.useState(false)
-          const [adaptError,   setAdaptError]   = React.useState(null)
-          const [copiedKey,    setCopiedKey]     = React.useState(null)
-
           const hasContent = s.adTextResults && Object.keys(s.adTextResults).length > 0
           const PLATFORMS = ['instagram', 'tiktok', 'meta', 'youtube']
           const PLATFORM_META = {
