@@ -877,6 +877,7 @@ export async function POST(req) {
       memory = null,
       appState = null,
       isNewUser = false,
+      projectBrain = null,
     } = body
 
     if (!message?.trim()) {
@@ -887,7 +888,7 @@ export async function POST(req) {
 
     const fullHistory = [...history, { role: 'user', content: userMessage }]
     const suggestions  = buildDirectorSuggestions(memory, brandProfile)
-    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser)
+    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser, projectBrain)
 
     const mode   = analysis.mode || 'continuation'
     const intent = analysis.intent || null
