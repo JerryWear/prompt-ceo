@@ -18440,27 +18440,26 @@ export default function PromptCEOPage() {
                   const open = leExpanded === moment.id
                   return (
                     <div key={moment.id} style={{ borderRadius: 12, border: `1px solid ${open ? C.goldDim : C.hairline}`, background: C.raised, overflow: 'hidden', transition: 'border-color 0.15s' }}>
-                      {/* Header — always visible, click to expand */}
+                      {/* Header — hook always visible, click for caption + image prompt */}
                       <div
                         onClick={() => setLeExpanded(open ? null : moment.id)}
                         style={{ padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer' }}
                       >
-                        <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, fontFamily: C.mono, marginTop: 2, flexShrink: 0 }}>{moment.time}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, fontFamily: C.mono, marginTop: 3, flexShrink: 0 }}>{moment.time}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: open ? 0 : 4 }}>{moment.label}</div>
-                          {!open && moment.hook && <div style={{ fontSize: 13, color: C.gold, lineHeight: 1.4, fontStyle: 'italic' }}>"{moment.hook}"</div>}
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>{moment.label}</div>
+                          {moment.hook && <div style={{ fontSize: 14, fontWeight: 700, color: '#e8dfc8', lineHeight: 1.5 }}>"{moment.hook}"</div>}
                         </div>
-                        <span style={{ fontSize: 10, color: C.muted, flexShrink: 0, marginTop: 2, transition: 'transform 0.15s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
+                        <span style={{ fontSize: 9, color: C.muted, flexShrink: 0, marginTop: 4, transition: 'transform 0.15s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
                       </div>
-                      {/* Expanded content */}
+                      {/* Expanded: caption + image prompt */}
                       {open && (
-                        <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: `1px solid ${C.hairline}`, paddingTop: 16 }}>
-                          {moment.hook && <div style={{ fontSize: 16, fontWeight: 700, color: C.gold, lineHeight: 1.4 }}>"{moment.hook}"</div>}
-                          {moment.caption && <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{moment.caption}</div>}
+                        <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: `1px solid ${C.hairline}` }}>
+                          {moment.caption && <div style={{ fontSize: 14, color: '#cdc8c0', lineHeight: 1.9 }}>{moment.caption}</div>}
                           {moment.imagePrompt && (
                             <div style={{ background: C.surface, borderRadius: 8, padding: '12px 14px', border: `1px solid ${C.hairline}` }}>
-                              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Image Prompt</div>
-                              <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.7 }}>{moment.imagePrompt}</div>
+                              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Image Prompt</div>
+                              <div style={{ fontSize: 13, color: '#b0aca6', lineHeight: 1.7 }}>{moment.imagePrompt}</div>
                             </div>
                           )}
                         </div>
