@@ -14796,6 +14796,14 @@ export default function PromptCEOPage() {
                 color: s.view === 'campaign_journey' ? C.gold : '#5a5650',
                 transition: 'all 0.15s',
               }}>◉ Journey</button>
+              <button onClick={() => set('view', 'cross_platform')} style={{
+                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                border: 'none', borderRight: `1px solid ${C.hairline}`,
+                borderBottom: `2px solid ${s.view === 'cross_platform' ? C.blue : 'transparent'}`,
+                background: s.view === 'cross_platform' ? '#080c18' : 'transparent',
+                color: s.view === 'cross_platform' ? C.blue : '#5a5650',
+                transition: 'all 0.15s',
+              }}>⊕ Platforms</button>
             </div>
 
             <a href="/prompt-engine-v3/dashboard" style={{
@@ -18590,6 +18598,149 @@ export default function PromptCEOPage() {
                       </div>
                     )
                   })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
+        {s.view === 'cross_platform' && (() => {
+          const [adaptResult,  setAdaptResult]  = React.useState(null)
+          const [adaptLoading, setAdaptLoading] = React.useState(false)
+          const [adaptError,   setAdaptError]   = React.useState(null)
+          const [copiedKey,    setCopiedKey]     = React.useState(null)
+
+          const hasContent = s.adTextResults && Object.keys(s.adTextResults).length > 0
+          const PLATFORMS = ['instagram', 'tiktok', 'meta', 'youtube']
+          const PLATFORM_META = {
+            instagram: { icon: '📸', label: 'Instagram', color: '#e1306c', dimColor: '#3a1020' },
+            tiktok:    { icon: '🎵', label: 'TikTok',    color: '#69c9d0', dimColor: '#0a2022' },
+            meta:      { icon: '🎯', label: 'Meta Ads',  color: '#1877f2', dimColor: '#08122a' },
+            youtube:   { icon: '▶️', label: 'YouTube',   color: '#ff0000', dimColor: '#200808' },
+          }
+
+          const runAdapt = () => {
+            if (adaptLoading || !hasContent) return
+            setAdaptLoading(true)
+            setAdaptError(null)
+            setAdaptResult(null)
+            fetch('/api/adapt-campaign', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ outputs: s.adTextResults }),
+            })
+              .then(r => r.json())
+              .then(d => {
+                if (d.error) setAdaptError(d.error)
+                else if (d.platforms) setAdaptResult(d.platforms)
+              })
+              .catch(() => setAdaptError('Request failed. Please try again.'))
+              .finally(() => setAdaptLoading(false))
+          }
+
+          const copyText = (text, key) => {
+            navigator.clipboard.writeText(text).then(() => {
+              setCopiedKey(key)
+              setTimeout(() => setCopiedKey(null), 1800)
+            })
+          }
+
+          return (
+            <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, letterSpacing: -0.5 }}>⊕ Cross-Platform Adaptation™</div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Rewrites your ad content natively for each platform — tone, length, format, and CTA.</div>
+                </div>
+                <button
+                  onClick={runAdapt}
+                  disabled={adaptLoading || !hasContent}
+                  style={{
+                    padding: '10px 22px', borderRadius: 6, fontSize: 13, fontWeight: 800,
+                    cursor: hasContent && !adaptLoading ? 'pointer' : 'not-allowed',
+                    border: `1px solid ${hasContent ? C.blue : C.hairline}`,
+                    background: hasContent && !adaptLoading ? 'linear-gradient(180deg, #08122a, #040810)' : C.deep,
+                    color: hasContent ? C.blue : C.muted,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {adaptLoading ? '⟳ Adapting…' : '⊕ Adapt for All Platforms'}
+                </button>
+              </div>
+
+              {!hasContent && (
+                <div style={{ padding: '32px', textAlign: 'center', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.deep }}>
+                  <div style={{ fontSize: 13, color: C.muted, marginBottom: 8 }}>No ad content yet.</div>
+                  <div style={{ fontSize: 11, color: C.secondary }}>Go to Ad Studio → generate hooks, captions, or angles first.</div>
+                </div>
+              )}
+
+              {adaptError && (
+                <div style={{ padding: '12px 16px', borderRadius: 6, border: `1px solid #4a1010`, background: '#1a0808', fontSize: 11, color: '#cf6a6a' }}>
+                  {adaptError}
+                </div>
+              )}
+
+              {adaptResult && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {PLATFORMS.filter(p => adaptResult[p]).map(platform => {
+                    const r = adaptResult[platform]
+                    const meta = PLATFORM_META[platform]
+                    return (
+                      <div key={platform} style={{ borderRadius: 8, border: `1px solid ${meta.color}33`, background: meta.dimColor, overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 14px', background: `${meta.color}11`, borderBottom: `1px solid ${meta.color}33`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>{meta.label}</span>
+                        </div>
+                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {r.hook && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Hook</div>
+                              <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.5, fontWeight: 600 }}>{r.hook}</div>
+                            </div>
+                          )}
+                          {r.angle && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Angle</div>
+                              <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{r.angle}</div>
+                            </div>
+                          )}
+                          {r.cta && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>CTA</div>
+                              <div style={{ fontSize: 11, color: meta.color, lineHeight: 1.5, fontWeight: 600 }}>{r.cta}</div>
+                            </div>
+                          )}
+                          {r.caption && (
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Caption</div>
+                              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden auto' }}>{r.caption}</div>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => copyText([r.hook, r.caption].filter(Boolean).join('\n\n'), platform)}
+                            style={{
+                              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                              cursor: 'pointer', border: `1px solid ${meta.color}55`,
+                              background: 'transparent', color: meta.color, alignSelf: 'flex-start',
+                            }}
+                          >
+                            {copiedKey === platform ? '✓ Copied' : '⎘ Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {adaptLoading && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {PLATFORMS.map(p => (
+                    <div key={p} style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.deep, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ fontSize: 11, color: C.muted }}>Adapting for {PLATFORM_META[p]?.label}…</div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
