@@ -467,6 +467,36 @@ If anything conflicts with identity, preserve identity first.
       ].join('\n')
     }
 
+    // ── Visual Intelligence™ — inject pacing + thumbnail direction ─────────
+    {
+      const stylePacingMap = {
+        luxury: 'cinematic', cinematic: 'cinematic', dark_luxury: 'tension',
+        emotional: 'tension', ugc: 'story_driven', soft_feminine: 'story_driven',
+        corporate_authority: 'story_driven', viral: 'fast_cut', high_energy: 'fast_cut',
+        fitness_motivation: 'fast_cut', aspirational_lifestyle: 'cinematic', high_status: 'cinematic',
+      }
+      const pacingNotes = {
+        fast_cut:     'dynamic rapid cuts, handheld energy, motion blur, kinetic framing',
+        cinematic:    'slow deliberate camera movement, wide shots, golden hour lighting, deep depth of field',
+        tension:      'tight close-ups, shallow depth of field, high contrast lighting, compressed framing',
+        story_driven: 'natural documentary-style framing, neutral lighting, observational camera',
+      }
+      const thumbNotes = {
+        eye_contact:     'subject making direct eye contact with camera, centered or rule-of-thirds',
+        tension_framing: 'asymmetric composition, leading lines toward frame edge',
+        contrast_led:    'bold light/dark contrast, isolated subject against stark background',
+        object_emphasis: 'product as hero, tight framing, highlight texture and detail',
+        emotional_face:  'face showing genuine emotion, tight framing on expression, natural lighting',
+      }
+      const adStyle      = clean(body?.adConfig?.adStyle) || ''
+      const pacing       = body?.visualPacing || stylePacingMap[adStyle] || 'cinematic'
+      const thumbnailPsy = body?.thumbnailPsychology
+      const dirParts     = []
+      if (pacingNotes[pacing]) dirParts.push(`Visual pacing: ${pacingNotes[pacing]}`)
+      if (thumbnailPsy && thumbNotes[thumbnailPsy]) dirParts.push(`Thumbnail composition: ${thumbNotes[thumbnailPsy]}`)
+      if (dirParts.length) editPrompt += '\n\nVisual direction: ' + dirParts.join('. ')
+    }
+
     // ── Call Grok image API ───────────────────────────────────────────────────
     const xaiPayload = {
       model: 'grok-imagine-image-quality',
