@@ -13180,7 +13180,11 @@ export default function PromptCEOPage() {
       })
       setFullCampaignOrchStep('schedule')
       const data = await res.json()
-      if (!data.error) { setFullCampaignResult(data); setFullCampaignPhase('attention') }
+      if (!data.error) {
+        setFullCampaignResult(data)
+        setFullCampaignPhase('attention')
+        fireSignal('campaign_created', { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform })
+      }
     } catch {}
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
     setFullCampaignLoading(false)
@@ -14357,6 +14361,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ generatedImage: data.imageUrl, imageGenerating: false })
+        fireSignal('image_generated', { world: s.worldId || s.storyWorldId, style: s.adStyle })
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough') || msg.toLowerCase().includes('limit')) {
@@ -15034,7 +15039,7 @@ export default function PromptCEOPage() {
                       {(() => {
                         const active = s.view === 'studio'
                         return (
-                          <button onClick={() => { set('view', 'studio'); setNavOpenGroup(null) }}
+                          <button onClick={() => { navTo('studio') }}
                             style={itemBase(active, C.primary)}
                             onMouseEnter={e => hoverOn(e, active)}
                             onMouseLeave={e => hoverOff(e, active)}
@@ -15188,6 +15193,11 @@ export default function PromptCEOPage() {
         {/* ── AD STUDIO VIEW ──────────────────────────────── */}
         {s.view === 'ad_studio' && (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Ad Studio back bar */}
+            <div style={{ flexShrink: 0, padding: '6px 16px', borderBottom: `1px solid #1a0a2a`, background: '#0a0510', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#7a4abf' }}>📣 Ad Studio</span>
+            </div>
             {/* Studio Bridge Banner */}
             {bridgeBannerOpen && s.adCreatorIdentity && (
               <div style={{
@@ -15245,6 +15255,7 @@ export default function PromptCEOPage() {
               overflowY: 'auto', padding: '10px 9px',
               display: 'flex', flexDirection: 'column', gap: 8,
             }}>
+              <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', alignSelf: 'flex-start', marginBottom: 2 }}>← Back</button>
 
               {/* IDENTITY */}
               {/* ── CHARACTER DNA ── */}
@@ -17761,8 +17772,8 @@ export default function PromptCEOPage() {
                         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>Quick Actions</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                           {[
-                            { icon: '☀', label: 'Perfect Day',               desc: 'Create your perfect day',    onClick: () => set('view', 'perfect_day'),    color: C.gold },
-                            { icon: '◆', label: `Campaign for ${activeBrandProfile?.name || 'your brand'}`, desc: 'Build a new campaign', onClick: () => set('view', 'full_campaign'), color: C.gold },
+                            { icon: '☀', label: 'Perfect Day',               desc: 'Create your perfect day',    onClick: () => { setPreviousView('ai_director'); set('view', 'perfect_day') },    color: C.gold },
+                            { icon: '◆', label: `Campaign for ${activeBrandProfile?.name || 'your brand'}`, desc: 'Build a new campaign', onClick: () => { setPreviousView('ai_director'); set('view', 'full_campaign') }, color: C.gold },
                           ].map(a => (
                             <button key={a.label} onClick={a.onClick} style={{ padding: '14px 16px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all 0.15s' }}
                               onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = C.raised }}
@@ -17778,9 +17789,9 @@ export default function PromptCEOPage() {
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                           {[
-                            { icon: '🎬', label: 'Full Day Video',   desc: 'Create cinematic video',  onClick: () => set('view', 'full_day_video') },
+                            { icon: '🎬', label: 'Full Day Video',   desc: 'Create cinematic video',  onClick: () => { setPreviousView('ai_director'); set('view', 'full_day_video') } },
                             { icon: '⚡', label: 'Instant Campaign', desc: 'Generate in seconds',     onClick: () => window.location.href = '/instant' },
-                            { icon: '◧',  label: 'Generate Image',   desc: 'AI image generation',     onClick: () => set('view', 'studio') },
+                            { icon: '◧',  label: 'Generate Image',   desc: 'AI image generation',     onClick: () => { setPreviousView('ai_director'); set('view', 'studio') } },
                           ].map(a => (
                             <button key={a.label} onClick={a.onClick} style={{ padding: '14px 16px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'left', transition: 'all 0.15s' }}
                               onMouseEnter={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.background = C.raised }}
@@ -18190,6 +18201,7 @@ export default function PromptCEOPage() {
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header */}
             <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep, flexWrap: 'wrap' }}>
+              <button onClick={() => set('view', previousView || 'life_engine')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>← Back</button>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>🎬 Full Day Video™</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <select value={fullDayWorld} onChange={e => setFullDayWorld(e.target.value)}
@@ -18364,6 +18376,7 @@ export default function PromptCEOPage() {
         {s.view === 'life_engine' && (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ flexShrink: 0, padding: '12px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
+              <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>🌍 Life Engine™</span>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '48px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 40 }}>
@@ -18384,6 +18397,7 @@ export default function PromptCEOPage() {
                     key={mode.label}
                     onClick={() => {
                       if (mode.leMode) { setLeMode(mode.leMode); setLeResult(null); setLeWorld(null) }
+                      setPreviousView('life_engine')
                       set('view', mode.viewId)
                     }}
                     style={{
@@ -18515,6 +18529,7 @@ export default function PromptCEOPage() {
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header */}
             <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10, background: C.deep }}>
+              <button onClick={() => set('view', previousView || 'life_engine')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>← Back</button>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>☀ Perfect Day™</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 {/* World selector */}
