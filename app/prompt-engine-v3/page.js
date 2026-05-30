@@ -13235,7 +13235,7 @@ export default function PromptCEOPage() {
   const sendToAdStudio = useCallback((hookText, angleObj = null) => {
     if (hookText) setSelectedHook(typeof hookText === 'string' ? hookText : String(hookText))
     if (angleObj) setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
-    set('view', 'ad_studio')
+    setTimeout(() => set('view', 'ad_studio'), 400)
   }, [set])
 
   // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
@@ -18725,7 +18725,7 @@ export default function PromptCEOPage() {
               narration: 'Scroll-stopping hooks across 5 psychological archetypes. No selling — pure interruption. Pattern breaks, curiosity gaps, bold claims, visual hooks, emotional openers.',
               data: () => FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || [],
               isPrompt: false,
-              actionLabel: '→ Ad Studio',
+              actionLabel: '→ Use in Ad Studio',
               onAction: (text) => sendToAdStudio(text),
             },
             {
@@ -18735,7 +18735,7 @@ export default function PromptCEOPage() {
               narration: 'Three story scripts that build emotional trust. Transformation, a day in the life, the origin moment. First person, specific details — no marketing language.',
               data: () => FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || [],
               isPrompt: false,
-              actionLabel: '→ Ad Studio',
+              actionLabel: '→ Use in Ad Studio',
               onAction: (text) => sendToAdStudio(text),
             },
             {
@@ -18965,7 +18965,14 @@ export default function PromptCEOPage() {
                                     <button onClick={() => navigator.clipboard.writeText(String(copyText)).catch(() => {})}
                                       style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'transparent', color: C.muted, fontWeight: 600 }}>copy</button>
                                     {activePhase.actionLabel && (
-                                      <button onClick={() => activePhase.onAction(String(copyText))}
+                                      <button onClick={(e) => {
+                                        const btn = e.currentTarget
+                                        const orig = btn.textContent
+                                        btn.textContent = '✓ Sending...'
+                                        btn.disabled = true
+                                        activePhase.onAction(String(copyText))
+                                        setTimeout(() => { btn.textContent = orig; btn.disabled = false }, 1200)
+                                      }}
                                         style={{ padding: '4px 12px', borderRadius: 4, fontSize: 9, cursor: 'pointer', border: `1px solid ${activePhase.color}40`, background: `${activePhase.color}0e`, color: activePhase.color, fontWeight: 600 }}>{activePhase.actionLabel}</button>
                                     )}
                                   </div>
