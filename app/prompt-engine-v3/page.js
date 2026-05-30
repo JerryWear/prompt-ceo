@@ -13252,19 +13252,15 @@ export default function PromptCEOPage() {
   const sendToAdStudio = useCallback((hookText, angleObj = null) => {
     const text = typeof hookText === 'string' ? hookText : String(hookText || '')
     if (text) setSelectedHook(text)
-    // Set angle context so Ad Studio knows what campaign content arrived
+    // Set angle context so Ad Studio knows campaign content arrived
     if (angleObj) {
       setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
     } else if (text) {
       setSelectedAngle({ title: 'From Campaign', hook: text.slice(0, 120) })
     }
-    // Pre-fill product name from active brand if empty
-    if (!productName.trim() && activeBrandProfile?.name) {
-      setProductName(activeBrandProfile.name)
-    }
     setPreviousView(s.view)
     set('view', 'ad_studio')
-  }, [set, s.view, productName, activeBrandProfile])
+  }, [set, s.view])
 
   // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
   useEffect(() => {
