@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
-import { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
 import { buildPromptV3 } from './index.js'
 import MusicSelector from './components/MusicSelector.js'
 import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMusicRecommendationForStage } from './ad-system/musicIntelligence.js'
