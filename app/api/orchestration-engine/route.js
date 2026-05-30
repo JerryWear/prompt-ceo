@@ -167,13 +167,26 @@ const STYLE_LABELS = {
   corporate_authority: 'Authority', fitness_motivation: 'Fitness', high_status: 'High Status',
   aspirational_lifestyle: 'Aspirational',
 }
+const STYLE_PACING_MAP = {
+  luxury: 'cinematic', cinematic: 'cinematic', dark_luxury: 'tension',
+  emotional: 'tension', ugc: 'story_driven', soft_feminine: 'story_driven',
+  corporate_authority: 'story_driven', viral: 'fast_cut', high_energy: 'fast_cut',
+  fitness_motivation: 'fast_cut', aspirational_lifestyle: 'cinematic', high_status: 'cinematic',
+}
+const STAGE_PACING_PREFERENCE = {
+  attention:            ['fast_cut', 'tension'],
+  emotional_connection: ['story_driven', 'tension'],
+  desire_escalation:    ['tension', 'cinematic'],
+  conversion:           ['story_driven', 'cinematic'],
+  retargeting:          ['fast_cut', 'tension'],
+}
 
 export async function POST(req) {
   try {
     const user = await getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { type, goal: hintGoal, style, productName, brandProfile, creatorProfile, projectId } = await req.json()
+    const { type, goal: hintGoal, style, productName, brandProfile, creatorProfile, projectId, campaignStage } = await req.json()
     if (!type) return NextResponse.json({ error: 'type is required' }, { status: 400 })
 
     // ── Static config signals (overridable by Project Brain™) ──
@@ -236,6 +249,13 @@ export async function POST(req) {
         if (topSignalStyles[0] === style) score += 25
         else if (topSignalStyles[1] === style) score += 15
         else if (topSignalStyles.includes(style)) score += 8
+        // Visual pacing boost: styles whose pacing aligns with the campaign stage score higher
+        if (campaignStage) {
+          const preferredPacings = STAGE_PACING_PREFERENCE[campaignStage] || []
+          const stylePacing = STYLE_PACING_MAP[style] || ''
+          if (preferredPacings[0] === stylePacing) score += 20
+          else if (preferredPacings.includes(stylePacing)) score += 12
+        }
         combos.push({ type, goal, style, score })
       }
     }
@@ -264,6 +284,7 @@ export async function POST(req) {
           hasPersonalData: perfHooks.length > 0 || worldMemory.length > 0 || !!brandVoice || topCampStyles.length > 0,
           fromCampaignHistory: topCampStyles.includes(c.style),
           fromSignalData: topSignalStyles.includes(c.style),
+          visualPacing: STYLE_PACING_MAP[c.style] || 'cinematic',
         })
       }
     }
