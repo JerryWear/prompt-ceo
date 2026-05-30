@@ -17616,65 +17616,96 @@ export default function PromptCEOPage() {
                         return null
                       })()}
 
-                      {/* Memory signals */}
-                      {directorMemory?.campaignCount > 0 && (
-                        <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
-                          <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                            <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Performance Signals</span>
-                            <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
-                          </div>
-                          <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                            {[
-                              { label: 'Best hook type', value: directorMemory.bestHookType?.replace(/_/g,' ') },
-                              { label: 'Top world',      value: directorMemory.topWorld?.replace(/_/g,' ') },
-                              { label: 'Best platform',  value: directorMemory.bestPlatform },
-                              { label: 'Recent style',   value: directorMemory.recentStyle?.replace(/_/g,' ') },
-                            ].map(item => item.value ? (
-                              <div key={item.label} style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
-                                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, textTransform: 'capitalize' }}>{item.value}</div>
-                              </div>
-                            ) : null)}
-                          </div>
-                        </div>
-                      )}
+                      {/* Performance Signals + Brain Memory — side by side */}
+                      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
-                      {/* Brain Memory */}
-                      {brainMemory && brainMemory.length > 0 && (() => {
-                        const entries = brainMemory.map(formatSignalEntry).filter(Boolean).slice(0, 6)
-                        if (entries.length === 0) return null
-                        return (
-                          <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
-                            <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {/* Performance Signals */}
+                        {directorMemory?.campaignCount > 0 && (
+                          <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                              <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Brain Memory</span>
-                              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>Recent decisions</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Performance Signals</span>
+                              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaigns</span>
                             </div>
-                            <div style={{ padding: '10px 18px', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                              {entries.map((entry, i) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span style={{ color: C.gold, fontSize: 10 }}>✓</span>
-                                    <span style={{ fontSize: 12, color: C.secondary }}>{entry.label}</span>
-                                  </div>
-                                  <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 12 }}>{entry.time}</span>
+                            <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              {[
+                                { label: 'Best hook type', value: directorMemory.bestHookType?.replace(/_/g,' '), icon: '⚡' },
+                                { label: 'Top world',      value: directorMemory.topWorld?.replace(/_/g,' '),     icon: '◆' },
+                                { label: 'Best platform',  value: directorMemory.bestPlatform,                    icon: '◎' },
+                                { label: 'Recent style',   value: directorMemory.recentStyle?.replace(/_/g,' '), icon: '▣' },
+                              ].map(item => item.value ? (
+                                <div key={item.label} style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', border: `1px solid ${C.hairline}` }}>
+                                  <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, textTransform: 'capitalize' }}>{item.value}</div>
                                 </div>
-                              ))}
+                              ) : null)}
                             </div>
                           </div>
-                        )
-                      })()}
+                        )}
 
-                      {/* Quick starts for returning users */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 580 }}>
-                        {buildDirectorQuickStarts(directorMemory, activeBrandProfile).map(q => (
-                          <button key={q.label} onClick={() => { setDirectorInput(q.msg); setTimeout(() => directorSend(q.msg), 50) }}
-                            style={{ padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
-                          >{q.label}</button>
-                        ))}
+                        {/* Brain Memory */}
+                        {(() => {
+                          const entries = (brainMemory || []).map(formatSignalEntry).filter(Boolean).slice(0, 5)
+                          if (entries.length === 0) return null
+                          return (
+                            <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                              <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Brain Memory</span>
+                                <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>Recent decisions</span>
+                              </div>
+                              <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column' }}>
+                                {entries.map((entry, i) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ color: C.gold, fontSize: 10 }}>✓</span>
+                                      <span style={{ fontSize: 12, color: C.secondary }}>{entry.label}</span>
+                                    </div>
+                                    <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 8 }}>{entry.time}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>Quick Actions</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                          {[
+                            { icon: '☀', label: 'Perfect Day',               desc: 'Create your perfect day',    onClick: () => set('view', 'perfect_day'),    color: C.gold },
+                            { icon: '◆', label: `Campaign for ${activeBrandProfile?.name || 'your brand'}`, desc: 'Build a new campaign', onClick: () => set('view', 'full_campaign'), color: C.gold },
+                          ].map(a => (
+                            <button key={a.label} onClick={a.onClick} style={{ padding: '14px 16px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = C.raised }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.surface }}
+                            >
+                              <span style={{ fontSize: 20 }}>{a.icon}</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{a.label}</div>
+                                <div style={{ fontSize: 11, color: C.muted }}>{a.desc}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                          {[
+                            { icon: '🎬', label: 'Full Day Video',   desc: 'Create cinematic video',  onClick: () => set('view', 'full_day_video') },
+                            { icon: '⚡', label: 'Instant Campaign', desc: 'Generate in seconds',     onClick: () => window.location.href = '/instant' },
+                            { icon: '◧',  label: 'Generate Image',   desc: 'AI image generation',     onClick: () => set('view', 'studio') },
+                          ].map(a => (
+                            <button key={a.label} onClick={a.onClick} style={{ padding: '14px 16px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'left', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.background = C.raised }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.surface }}
+                            >
+                              <div style={{ fontSize: 18, marginBottom: 8 }}>{a.icon}</div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 2 }}>{a.label}</div>
+                              <div style={{ fontSize: 11, color: C.muted }}>{a.desc}</div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </>
                   ) : (
