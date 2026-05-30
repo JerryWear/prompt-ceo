@@ -17393,55 +17393,162 @@ export default function PromptCEOPage() {
             {/* Messages area */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-              {/* Welcome state */}
+              {/* Home — two-state welcome */}
               {directorHistory.length === 0 && directorPhase === 'idle' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 28, maxWidth: 620, margin: '0 auto', width: '100%' }}>
-                  <div style={{ fontSize: 28, color: C.gold }}>✦</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', fontFamily: C.display, textAlign: 'center', letterSpacing: -0.3 }}>What would you like to create?</div>
-                  {(() => {
-                    const opener = buildDirectorOpener(directorMemory, activeBrandProfile)
-                    return opener
-                      ? <div style={{ fontSize: 15, color: C.secondary, textAlign: 'center', maxWidth: 460, lineHeight: 1.8 }}>{opener}</div>
-                      : <div style={{ fontSize: 15, color: C.muted, textAlign: 'center', maxWidth: 460, lineHeight: 1.8 }}>Tell me what you want in plain language — a campaign, a day, a video, an image. I'll find the right engine and build it.</div>
-                  })()}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 32, maxWidth: 640, margin: '0 auto', width: '100%', padding: '0 16px' }}>
 
-                  {/* Memory panel */}
-                  {directorMemory && directorMemory.campaignCount > 0 && (
-                    <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.goldDim}40`, background: C.raised, overflow: 'hidden' }}>
-                      <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                        <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Memory</span>
-                        {activeBrandProfile && (
-                          <span style={{ fontSize: 9, color: C.violet, fontWeight: 700, background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '1px 6px' }}>{activeBrandProfile.name}</span>
-                        )}
-                        <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
+                  {/* ── RETURNING USER STATE ── */}
+                  {(directorMemory?.campaignCount > 0 || projectBrain) ? (
+                    <>
+                      {/* Greeting */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Welcome back</div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.5 }}>
+                          {activeBrandProfile?.name ? activeBrandProfile.name : 'PromptCEO'}
+                        </div>
                       </div>
-                      <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {[
-                          { label: 'Best hook type', value: directorMemory.bestHookType?.replace(/_/g,' ') },
-                          { label: 'Top world',      value: directorMemory.topWorld?.replace(/_/g,' ') },
-                          { label: 'Best platform',  value: directorMemory.bestPlatform },
-                          { label: 'Recent style',   value: directorMemory.recentStyle?.replace(/_/g,' ') },
-                        ].map(item => item.value ? (
-                          <div key={item.label} style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
-                            <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, textTransform: 'capitalize' }}>{item.value}</div>
+
+                      {/* Brain recommendation card */}
+                      {projectBrain && s.activeProjectId && (() => {
+                        const recMsg     = buildBrainRecommendation(projectBrain, activeBrandProfile)
+                        const confidence = buildConfidenceScore(projectBrain)
+                        if (!recMsg) return null
+                        const stage    = projectBrain.campaign_stage || 'attention'
+                        const stageFmt = stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                        return (
+                          <div style={{ width: '100%', borderRadius: 14, border: `1px solid ${C.goldDim}60`, background: 'linear-gradient(135deg, #1a1408 0%, #0d0d0d 100%)', overflow: 'hidden' }}>
+                            <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
+                              <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
+                              <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{stageFmt} Phase</span>
+                            </div>
+                            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                              <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.7 }}>{recMsg}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                <button
+                                  onClick={handleRecommendationAccept}
+                                  disabled={recommendationAccepted}
+                                  style={{
+                                    padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: recommendationAccepted ? 'default' : 'pointer',
+                                    background: recommendationAccepted ? C.surface : C.gold, color: recommendationAccepted ? C.muted : '#0d0b08',
+                                    border: `1px solid ${recommendationAccepted ? C.hairline : C.gold}`,
+                                    transition: 'all 0.2s',
+                                  }}
+                                >{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
+                                {confidence && (
+                                  <span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        ) : null)}
-                      </div>
-                    </div>
-                  )}
+                        )
+                      })()}
 
-                  {/* Quick-start buttons */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 580 }}>
-                    {buildDirectorQuickStarts(directorMemory, activeBrandProfile).map(q => (
-                      <button key={q.label} onClick={() => { setDirectorInput(q.msg); setTimeout(() => directorSend(q.msg), 50) }}
-                        style={{ padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
-                      >{q.label}</button>
-                    ))}
-                  </div>
+                      {/* Memory signals */}
+                      {directorMemory?.campaignCount > 0 && (
+                        <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                          <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+                            <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Performance Signals</span>
+                            <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            {[
+                              { label: 'Best hook type', value: directorMemory.bestHookType?.replace(/_/g,' ') },
+                              { label: 'Top world',      value: directorMemory.topWorld?.replace(/_/g,' ') },
+                              { label: 'Best platform',  value: directorMemory.bestPlatform },
+                              { label: 'Recent style',   value: directorMemory.recentStyle?.replace(/_/g,' ') },
+                            ].map(item => item.value ? (
+                              <div key={item.label} style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
+                                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, textTransform: 'capitalize' }}>{item.value}</div>
+                              </div>
+                            ) : null)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick starts for returning users */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 580 }}>
+                        {buildDirectorQuickStarts(directorMemory, activeBrandProfile).map(q => (
+                          <button key={q.label} onClick={() => { setDirectorInput(q.msg); setTimeout(() => directorSend(q.msg), 50) }}
+                            style={{ padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
+                          >{q.label}</button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    /* ── NEW USER STATE ── */
+                    <>
+                      <div style={{ fontSize: 28, color: C.gold }}>✦</div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.3, marginBottom: 10 }}>Welcome to PromptCEO.</div>
+                        <div style={{ fontSize: 15, color: C.muted, maxWidth: 440, margin: '0 auto', lineHeight: 1.7 }}>The AI Creative Operating System for brands, creators, and agencies. Tell me what you're building and I'll set up your first campaign.</div>
+                      </div>
+
+                      {/* What are you building chips */}
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' }}>What are you building?</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+                          {[
+                            { label: 'Brand',   msg: "I'm building a brand and need a full campaign strategy" },
+                            { label: 'Product', msg: "I want to launch a product and need ads and content" },
+                            { label: 'Creator', msg: "I'm a content creator building my personal brand" },
+                            { label: 'Agency',  msg: "I run an agency and need campaigns for clients" },
+                            { label: 'SaaS',    msg: "I have a SaaS product and need acquisition campaigns" },
+                          ].map(chip => (
+                            <button key={chip.label}
+                              onClick={() => { setDirectorInput(chip.msg); setTimeout(() => directorSend(chip.msg), 50) }}
+                              style={{ padding: '10px 22px', borderRadius: 24, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
+                            >{chip.label}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Start fast */}
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' }}>Start fast</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          {[
+                            { label: 'Build First Campaign', msg: 'I want to build my first ad campaign' },
+                            { label: 'Create First Ad',      msg: 'I want to create a single ad creative' },
+                            { label: 'Create First Video',   msg: 'I want to plan a video campaign' },
+                            { label: 'Perfect Day',          msg: 'Create a perfect day lifestyle campaign for my brand' },
+                          ].map(btn => (
+                            <button key={btn.label}
+                              onClick={() => { setDirectorInput(btn.msg); setTimeout(() => directorSend(btn.msg), 50) }}
+                              style={{ padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: C.secondary, textAlign: 'center', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.subtle; e.currentTarget.style.color = C.secondary }}
+                            >{btn.label}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* What PromptCEO does */}
+                      <div style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.hairline}`, padding: '16px 20px', background: C.raised }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>What PromptCEO does</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {[
+                            'Generates complete ad campaigns — hooks, captions, image prompts',
+                            'Creates image and video content with cinematic quality',
+                            'Tracks your campaign evolution across 5 phases automatically',
+                            'Learns what works — best hooks, worlds, platforms — over time',
+                            'Adapts every campaign for Instagram, TikTok, Meta Ads, and YouTube',
+                          ].map(item => (
+                            <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                              <span style={{ color: C.gold, fontSize: 11, marginTop: 2 }}>✓</span>
+                              <span style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5 }}>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
