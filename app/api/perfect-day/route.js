@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
-import { postGeneration } from '../../../lib/server/postGeneration.js'
+import { postGeneration, saveGenerationOutput, GENERATOR_TYPES } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -254,7 +254,7 @@ Return a JSON object:
     } catch {}
 
     // Log generation (central pipeline)
-    await postGeneration(admin, {
+    const logId = await postGeneration(admin, {
       userId:   user.id,
       projectId: savedProjectId,
       prompt:   `Perfect Day — ${world.name} — ${platform}`,
@@ -272,7 +272,7 @@ Return a JSON object:
       }
     } catch {}
 
-    return NextResponse.json({
+    const result = {
       moments: generatedMoments,
       dayTitle: dayMeta.dayTitle || `A Day in ${world.name}`,
       seriesHook: dayMeta.seriesHook || '12 moments. One world.',
@@ -282,7 +282,15 @@ Return a JSON object:
       postingSchedule,
       world: { id: world.id, name: world.name, palette: world.palette, mood: world.mood },
       projectId: savedProjectId,
+    }
+
+    await saveGenerationOutput(admin, {
+      logId, projectId: savedProjectId, userId: user.id,
+      generatorType: GENERATOR_TYPES.PERFECT_DAY,
+      payload: result,
     })
+
+    return NextResponse.json(result)
   } catch (err) {
     console.error('perfect-day error:', err)
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 })

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
-import { postGeneration } from '../../../lib/server/postGeneration.js'
+import { postGeneration, saveGenerationOutput, GENERATOR_TYPES } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -231,7 +231,7 @@ Return JSON only:
       if (i + 4 < moments.length) await new Promise(r => setTimeout(r, 300))
     }
 
-    await postGeneration(admin, {
+    const logId = await postGeneration(admin, {
       userId:   user.id,
       projectId,
       prompt:   `${modeData.label} — ${world.name} — ${platform}`,
@@ -239,14 +239,22 @@ Return JSON only:
       campaignPhase: 'attention',
     })
 
-    return NextResponse.json({
-      mode,
-      modeLabel: modeData.label,
-      world:     { id: worldKey, ...world },
-      platform,
-      style,
-      moments:   momentResults,
+    const modeToType = {
+      travel_day:   GENERATOR_TYPES.LIFE_ENGINE_TRAVEL,
+      fitness_day:  GENERATOR_TYPES.LIFE_ENGINE_FITNESS,
+      product_day:  GENERATOR_TYPES.LIFE_ENGINE_PRODUCT,
+      campaign_day: GENERATOR_TYPES.LIFE_ENGINE_CAMPAIGN,
+    }
+
+    const result = { mode, modeLabel: modeData.label, world: { id: worldKey, ...world }, platform, style, moments: momentResults }
+
+    await saveGenerationOutput(admin, {
+      logId, projectId, userId: user.id,
+      generatorType: modeToType[mode] || `life_engine_${mode}`,
+      payload: result,
     })
+
+    return NextResponse.json(result)
   } catch (err) {
     console.error('[life-engine]', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

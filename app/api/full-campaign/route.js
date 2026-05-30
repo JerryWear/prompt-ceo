@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { saveGenerationOutput, GENERATOR_TYPES } from '../../../lib/server/postGeneration.js'
 
 async function ask(apiKey, prompt, maxTokens = 2000) {
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -105,6 +106,7 @@ export async function POST(req) {
       savedProjectId = project?.id || null
     }
 
+    let logId = null
     await admin.from('generation_logs').insert({
       user_id:        user.id,
       project_id:     savedProjectId,
@@ -113,9 +115,19 @@ export async function POST(req) {
       credits_used:   0,
       prompt:         `${product} — Full Campaign (${platform})`,
       campaign_phase: 'attention',
-    }).then(() => {}).catch(err => console.error('[full-campaign] generation_logs insert failed:', err?.message))
+    }).select('id').single()
+      .then(({ data }) => { logId = data?.id || null })
+      .catch(err => console.error('[full-campaign] generation_logs insert failed:', err?.message))
 
-    return NextResponse.json({ angles, hooks, imagePrompts, captions, schedule, projectId: savedProjectId })
+    const result = { angles, hooks, imagePrompts, captions, schedule, projectId: savedProjectId }
+
+    await saveGenerationOutput(admin, {
+      logId, projectId: savedProjectId, userId: user.id,
+      generatorType: GENERATOR_TYPES.FULL_CAMPAIGN,
+      payload: result,
+    })
+
+    return NextResponse.json(result)
   } catch (err) {
     console.error('Full campaign error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

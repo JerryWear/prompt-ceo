@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { runFullAdCampaign } from '../../campaign-engine/runFullAdCampaign.js'
+import { saveGenerationOutput, GENERATOR_TYPES } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -337,8 +338,9 @@ Scripts in spoken word form. Natural language.${copySuffix}
       }
     } catch {}
 
+    let logId = null
     try {
-      await admin.from('generation_logs').insert({
+      const { data: logRow } = await admin.from('generation_logs').insert({
         user_id:        user.id,
         project_id:     savedProjectId,
         engine:         'prompt-engine-v3',
@@ -347,7 +349,8 @@ Scripts in spoken word form. Natural language.${copySuffix}
         prompt:         `${productName.trim()} — Full Ad Campaign (${style}, ${platform})`,
         world_id:       resolvedWorldId || '',
         campaign_phase: 'attention',
-      })
+      }).select('id').single()
+      logId = logRow?.id || null
     } catch (err) { console.error('[full-ad-campaign] generation_logs insert failed:', err?.message) }
 
     try {
@@ -370,7 +373,7 @@ Scripts in spoken word form. Natural language.${copySuffix}
       }
     } catch {}
 
-    return NextResponse.json({
+    const result = {
       // ── Life Campaign Engine output ──
       engine: {
         meta:              engine.meta,
@@ -400,7 +403,15 @@ Scripts in spoken word form. Natural language.${copySuffix}
         totalScenes:  engine.scenes.length,
         totalAssets:  attentionHooks.length + storyScripts.length + desireImagePrompts.length + conversionAds.length + retargetingAds.length + captions.length + videoScripts.length,
       },
+    }
+
+    await saveGenerationOutput(admin, {
+      logId, projectId: savedProjectId, userId: user.id,
+      generatorType: GENERATOR_TYPES.FULL_CAMPAIGN,
+      payload: result,
     })
+
+    return NextResponse.json(result)
   } catch (err) {
     console.error('full-ad-campaign error:', err)
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 })

@@ -12397,21 +12397,35 @@ export default function PromptCEOPage() {
     } catch {}
   }, [])
 
-  // Hydration: restore generator outputs from localStorage when project loads/changes (24h TTL)
+  // Hydration: DB-first, localStorage fallback.
+  // When activeProjectId loads, fetch generation_outputs from Supabase.
+  // Maps generator_type → state setter. Falls back to localStorage (24h TTL) if DB returns nothing.
   useEffect(() => {
     if (!s.activeProjectId) return
     const id = s.activeProjectId
-    const restore = (key, setter) => {
-      const cached = readCachedOutput(id, key)
-      if (cached) setter(cached)
-    }
-    restore('perfectDay',   setPerfectDayResult)
-    restore('fullCampaign', setFullCampaignResult)
-    restore('fullDayVideo', setFullDayResult)
-    // Life Engine modes — restore last used mode
-    ;['travel_day','fitness_day','product_day','campaign_day'].forEach(mode =>
-      restore(`lifeEngine_${mode}`, setLeResult)
-    )
+
+    // localStorage fallback — applies immediately (instant restore while DB fetch is in-flight)
+    const lsFallback = (key, setter) => { const c = readCachedOutput(id, key); if (c) setter(c) }
+    lsFallback('perfectDay',   setPerfectDayResult)
+    lsFallback('fullCampaign', setFullCampaignResult)
+    lsFallback('fullDayVideo', setFullDayResult)
+    ;['travel_day','fitness_day','product_day','campaign_day'].forEach(m => lsFallback(`lifeEngine_${m}`, setLeResult))
+
+    // DB fetch — overwrites localStorage restore with fresher database state
+    fetch(`/api/project-hydration/${id}`)
+      .then(r => r.json())
+      .then(({ ok, outputs, migrationPending }) => {
+        if (!ok || migrationPending || !outputs) return // migration not applied yet — localStorage is truth
+        const o = outputs
+        const get = (type) => o[type]?.data  // unwrap versioned payload
+        if (get('perfect_day'))             setPerfectDayResult(get('perfect_day'))
+        if (get('full_campaign'))           { setFullCampaignResult(get('full_campaign')); setFullCampaignPhase('attention') }
+        if (get('full_day_video'))          setFullDayResult(get('full_day_video'))
+        // Life Engine — restore most recent mode (pick whichever type has data, last one wins)
+        ;['life_engine_travel_day','life_engine_fitness_day','life_engine_product_day','life_engine_campaign_day']
+          .forEach(type => { if (get(type)) { setLeResult(get(type)); setLeMode(type.replace('life_engine_', '')) } })
+      })
+      .catch(() => {}) // non-fatal — localStorage already applied above
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.activeProjectId])
 
