@@ -368,6 +368,10 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   // Creative Director notes — one per generation type
   const [directorNotes,    setDirectorNotes]    = useState({})
   const [directorLoading,  setDirectorLoading]  = useState(false)
+  // AI Creative Director™ — instruction bar
+  const [cdInstruction,  setCdInstruction]  = useState('')
+  const [cdResult,       setCdResult]       = useState(null)
+  const [cdLoading,      setCdLoading]      = useState(false)
   // Campaign Consistency
   const [consistencyResult, setConsistencyResult] = useState(null)
   const [consistencyLoading, setConsistencyLoading] = useState(false)
@@ -4482,6 +4486,123 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             : `▶  Generate ${adOutputType === 'video' ? 'Video Ad' : 'Image Ad'}`
           }
         </button>
+
+        {/* AI Creative Director™ */}
+        <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.violet, flexShrink: 0 }}>✦ AI Director</span>
+            <input
+              value={cdInstruction}
+              onChange={e => setCdInstruction(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && cdInstruction.trim() && !cdLoading) {
+                  setCdLoading(true)
+                  setCdResult(null)
+                  fetch('/api/creative-director', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      instruction: cdInstruction,
+                      currentConfig: { style: adStyle, platform: adPlatform, visualPacing: s.visualPacing },
+                    }),
+                  })
+                    .then(r => r.json())
+                    .then(d => { if (d.delta || d.explanation) setCdResult(d) })
+                    .catch(() => {})
+                    .finally(() => setCdLoading(false))
+                }
+              }}
+              placeholder="e.g. make it more premium and cinematic…"
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                fontSize: 11, color: C.primary, padding: 0,
+              }}
+            />
+            <button
+              disabled={!cdInstruction.trim() || cdLoading}
+              onClick={() => {
+                if (!cdInstruction.trim() || cdLoading) return
+                setCdLoading(true)
+                setCdResult(null)
+                fetch('/api/creative-director', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    instruction: cdInstruction,
+                    currentConfig: { style: adStyle, platform: adPlatform, visualPacing: s.visualPacing },
+                  }),
+                })
+                  .then(r => r.json())
+                  .then(d => { if (d.delta || d.explanation) setCdResult(d) })
+                  .catch(() => {})
+                  .finally(() => setCdLoading(false))
+              }}
+              style={{
+                padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                cursor: cdInstruction.trim() && !cdLoading ? 'pointer' : 'not-allowed',
+                border: `1px solid ${C.violet}`, background: 'transparent',
+                color: C.violet, opacity: cdInstruction.trim() && !cdLoading ? 1 : 0.4,
+                flexShrink: 0,
+              }}
+            >
+              {cdLoading ? '⟳' : '→'}
+            </button>
+          </div>
+          {cdResult && (
+            <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {cdResult.explanation && (
+                <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{cdResult.explanation}</div>
+              )}
+              {cdResult.delta && Object.keys(cdResult.delta).length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {cdResult.delta.style && (
+                      <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 10, background: C.deep, color: C.gold, border: `1px solid ${C.goldDim}` }}>
+                        style → {cdResult.delta.style}
+                      </span>
+                    )}
+                    {cdResult.delta.visualPacing && (
+                      <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 10, background: C.deep, color: C.violet, border: `1px solid ${C.violet}` }}>
+                        pacing → {cdResult.delta.visualPacing}
+                      </span>
+                    )}
+                    {cdResult.delta.platform && (
+                      <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 10, background: C.deep, color: C.secondary, border: `1px solid ${C.subtle}` }}>
+                        platform → {cdResult.delta.platform}
+                      </span>
+                    )}
+                    {cdResult.delta.hookType && (
+                      <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 10, background: C.deep, color: C.secondary, border: `1px solid ${C.subtle}` }}>
+                        hook → {cdResult.delta.hookType}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const d = cdResult.delta
+                      if (d.style) setAdStyle(d.style)
+                      if (d.platform) setAdPlatform(d.platform)
+                      if (d.visualPacing || d.hookType) merge({
+                        ...(d.visualPacing ? { visualPacing: d.visualPacing } : {}),
+                        ...(d.hookType ? { hookType: d.hookType } : {}),
+                      })
+                      setCdResult(null)
+                      setCdInstruction('')
+                    }}
+                    style={{
+                      padding: '5px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                      cursor: 'pointer', border: `1px solid ${C.gold}`, background: '#1a1408',
+                      color: C.gold, flexShrink: 0,
+                    }}
+                  >
+                    ✓ Apply
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
           <div style={{ padding: '6px 10px', borderRadius: 4, fontSize: 11, color: C.secondary, background: C.deep, border: `1px solid ${C.hairline}`, textAlign: 'center' }}>
             ← Enter a product name to generate
