@@ -12211,6 +12211,7 @@ function formatSignalEntry(signal) {
     campaign_created:             () => m.name ? `Created campaign: ${m.name}` : 'Created campaign',
     campaign_completed:           () => 'Completed campaign',
     campaign_published:           () => 'Published campaign',
+    campaign_adapted:             () => m.platforms?.length ? `Adapted campaign for ${m.platforms.join(', ')}` : 'Adapted campaign for distribution',
     generation_completed:         () => ({ full_campaign: 'Generated Full Campaign', perfect_day: 'Generated Perfect Day', full_day_video: 'Generated Day Video', ad_campaign: 'Generated Ad Campaign', instant_campaign: 'Generated Instant Campaign' })[m.intent || m.type] || 'Generated content',
     image_generated:              () => m.world ? `Generated image — ${w(m.world)}` : 'Generated image',
     video_generated:              () => m.world ? `Generated video — ${w(m.world)}` : 'Generated video',
@@ -12305,7 +12306,9 @@ export default function PromptCEOPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_type, metadata, project_id: s.activeProjectId || null }),
-    }).catch(() => {})
+    })
+      .then(() => setBrainMemoryTick(t => t + 1))
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -12723,6 +12726,7 @@ export default function PromptCEOPage() {
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
   const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
   const [brainMemory,        setBrainMemory]        = useState(null)   // loaded from signal_logs
+  const [brainMemoryTick,    setBrainMemoryTick]    = useState(0)      // increments after any signal fires → triggers Brain Memory reload
   const [thinkingMsg,        setThinkingMsg]        = useState('')     // rotating execution message
 
   const DIRECTOR_THINKING_MSGS = {
@@ -12791,12 +12795,12 @@ export default function PromptCEOPage() {
   }, [])
 
   useEffect(() => {
-    if (brainMemory !== null) return
     fetch('/api/signal')
       .then(r => r.json())
       .then(d => setBrainMemory(d.signals || []))
       .catch(() => setBrainMemory([]))
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brainMemoryTick])
 
   // Rotating thinking messages during execution
   useEffect(() => {
@@ -18825,6 +18829,7 @@ export default function PromptCEOPage() {
 
               {/* ── Header controls ── */}
               <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8, background: C.deep, flexWrap: 'wrap' }}>
+                <button onClick={() => { setPreviousView('full_campaign'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>← Back</button>
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>◈ Full Campaign™</span>
                 <input
                   value={fullCampaignProduct}
@@ -19328,7 +19333,10 @@ export default function PromptCEOPage() {
               .then(r => r.json())
               .then(d => {
                 if (d.error) setAdaptError(d.error)
-                else if (d.platforms) setAdaptResult(d.platforms)
+                else if (d.platforms) {
+                  setAdaptResult(d.platforms)
+                  fireSignal('campaign_adapted', { platforms: Object.keys(d.platforms) })
+                }
               })
               .catch(() => setAdaptError('Request failed. Please try again.'))
               .finally(() => setAdaptLoading(false))

@@ -27,6 +27,7 @@ const EVENT_WEIGHTS = {
   campaign_created:              5,
   campaign_completed:            7,
   campaign_published:            8,
+  campaign_adapted:              6,
   phase_advanced:                8,
 
   // Generation
