@@ -13045,6 +13045,7 @@ export default function PromptCEOPage() {
   const [leResult,        setLeResult]        = useState(null)
   const [leOrchStep,      setLeOrchStep]      = useState('world')
   const [leExpanded,      setLeExpanded]      = useState(null)
+  const [previousView,    setPreviousView]    = useState('ai_director')
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -14963,6 +14964,7 @@ export default function PromptCEOPage() {
           {(() => {
             const inCampaigns = ['full_campaign','campaign_journey','timeline','cross_platform'].includes(s.view)
             const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine','life_engine_generator'].includes(s.view)
+            const navTo       = (view) => { setPreviousView(s.view); set('view', view); setNavOpenGroup(null) }
             const dropStyle   = { position: 'absolute', top: 48, left: 0, zIndex: 200, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: '0 6px 6px 6px', minWidth: 196, boxShadow: '0 8px 24px #00000088', padding: '4px 0' }
             const itemBase    = (active, activeColor) => ({ width: '100%', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', border: 'none', borderLeft: `2px solid ${active ? activeColor : 'transparent'}`, background: active ? 'rgba(255,255,255,0.04)' : 'transparent', color: active ? activeColor : C.secondary, transition: 'all 0.1s' })
             const hoverOn     = (e, active) => { if (!active) { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary } }
@@ -14972,7 +14974,7 @@ export default function PromptCEOPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
 
                 {/* ─ HOME ─ */}
-                <button onClick={() => { set('view', 'ai_director'); setNavOpenGroup(null) }} style={{
+                <button onClick={() => { navTo('ai_director') }} style={{
                   padding: '0 14px', height: 48, borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
                   border: 'none', borderRight: `1px solid ${C.hairline}`,
                   borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
@@ -15003,7 +15005,7 @@ export default function PromptCEOPage() {
                       ].map(v => {
                         const active = s.view === v.id
                         return (
-                          <button key={v.id} onClick={() => { set('view', v.id); setNavOpenGroup(null) }}
+                          <button key={v.id} onClick={() => { navTo(v.id) }}
                             style={itemBase(active, v.color)}
                             onMouseEnter={e => hoverOn(e, active)}
                             onMouseLeave={e => hoverOff(e, active)}
@@ -17434,6 +17436,7 @@ export default function PromptCEOPage() {
         {s.view === 'timeline' && (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
+              <button onClick={() => { setPreviousView('timeline'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Director's Timeline</span>
               {batch.length > 0 && (<><Chip>{batch.length} scenes</Chip><Chip>{activeScene + 1} active</Chip></>)}
               <div style={{ flex: 1 }} />
@@ -19100,8 +19103,12 @@ export default function PromptCEOPage() {
           return (
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px' }}>
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 4 }}>
-                  Campaign Journey
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
+                  <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back</button>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
+                  {s.activeProjectId && (
+                    <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>+ Generate Campaign →</button>
+                  )}
                 </div>
                 {!s.activeProjectId && (
                   <div style={{ marginTop: 24 }}>
@@ -19285,6 +19292,7 @@ export default function PromptCEOPage() {
 
           return (
             <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+              <button onClick={() => { setPreviousView('cross_platform'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', alignSelf: 'flex-start' }}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, letterSpacing: -0.5 }}>⊕ Cross-Platform Adaptation™</div>
