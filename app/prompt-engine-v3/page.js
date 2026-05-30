@@ -12313,7 +12313,7 @@ export default function PromptCEOPage() {
     const params = new URLSearchParams(window.location.search)
     const view   = params.get('view')
     const tab    = params.get('tab')
-    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video', 'campaign_journey', 'cross_platform', 'life_engine']
+    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video', 'campaign_journey', 'cross_platform', 'life_engine', 'life_engine_generator']
     if (view && validViews.includes(view)) {
       set('view', view)
       if (tab) window.__adStudioInitTab = tab
@@ -13037,6 +13037,13 @@ export default function PromptCEOPage() {
   const [copiedKey,    setCopiedKey]    = useState(null)
   const [recommendationAccepted, setRecommendationAccepted] = useState(false)
   const [userName, setUserName] = useState(null)
+  const [leMode,          setLeMode]          = useState('travel_day')
+  const [leWorld,         setLeWorld]         = useState(null)
+  const [lePlatform,      setLePlatform]      = useState('instagram')
+  const [leStyle,         setLeStyle]         = useState('cinematic')
+  const [leLoading,       setLeLoading]       = useState(false)
+  const [leResult,        setLeResult]        = useState(null)
+  const [leOrchStep,      setLeOrchStep]      = useState('world')
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -13066,6 +13073,38 @@ export default function PromptCEOPage() {
     setDirectorInput(rec.recommendation)
     setTimeout(() => directorSend(rec.recommendation), 50)
   }, [directorMemory, activeBrandProfile, directorSend])
+
+  const generateLifeEngine = useCallback(async () => {
+    if (leLoading) return
+    setLeLoading(true)
+    setLeResult(null)
+    setLeOrchStep('world')
+    const ta = setTimeout(() => setLeOrchStep('moments'), 2000)
+    const tb = setTimeout(() => setLeOrchStep('hooks'), 6000)
+    const tc = setTimeout(() => setLeOrchStep('captions'), 10000)
+    try {
+      const res = await fetch('/api/life-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode:          leMode,
+          worldId:       leWorld || undefined,
+          platform:      lePlatform,
+          style:         leStyle,
+          creatorProfile: { ...(creatorProfiles[0] || {}), ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}), ...(s.identityName ? { name: s.identityName } : {}) },
+          brandProfile:  activeBrandProfile || null,
+          projectId:     s.activeProjectId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!data.error) {
+        setLeResult(data)
+        fireSignal('video_generated', { world: leWorld, mode: leMode, platform: lePlatform })
+      }
+    } catch {}
+    clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
+    setLeLoading(false)
+  }, [leLoading, leMode, leWorld, lePlatform, leStyle, creatorProfiles, activeBrandProfile, s.activeProjectId, s.traits, s.identityName])
 
   const generateFullDay = useCallback(async () => {
     if (fullDayLoading) return
@@ -14922,7 +14961,7 @@ export default function PromptCEOPage() {
           {/* ── Grouped nav ── */}
           {(() => {
             const inCampaigns = ['full_campaign','campaign_journey','timeline','cross_platform'].includes(s.view)
-            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine'].includes(s.view)
+            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine','life_engine_generator'].includes(s.view)
             const dropStyle   = { position: 'absolute', top: 48, left: 0, zIndex: 200, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: '0 6px 6px 6px', minWidth: 196, boxShadow: '0 8px 24px #00000088', padding: '4px 0' }
             const itemBase    = (active, activeColor) => ({ width: '100%', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', border: 'none', borderLeft: `2px solid ${active ? activeColor : 'transparent'}`, background: active ? 'rgba(255,255,255,0.04)' : 'transparent', color: active ? activeColor : C.secondary, transition: 'all 0.1s' })
             const hoverOn     = (e, active) => { if (!active) { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary } }
@@ -18330,87 +18369,129 @@ export default function PromptCEOPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, width: '100%', maxWidth: 780 }}>
                 {[
-                  {
-                    id:      'perfect_day',
-                    icon:    '☀',
-                    label:   'Perfect Day',
-                    desc:    'Morning to midnight aspirational lifestyle — 12 cinematic moments, hooks, and captions.',
-                    active:  true,
-                    color:   C.gold,
-                  },
-                  {
-                    id:      'full_day_video',
-                    icon:    '🎬',
-                    label:   'Creator Day',
-                    desc:    'Behind-the-scenes creator content — 14 scenes with cinematic direction and shot lists.',
-                    active:  true,
-                    color:   C.primary,
-                  },
-                  {
-                    id:      null,
-                    icon:    '✈',
-                    label:   'Travel Day',
-                    desc:    'Explore the world in cinematic style — destinations, culture, and lifestyle moments.',
-                    active:  false,
-                    color:   C.blue,
-                  },
-                  {
-                    id:      null,
-                    icon:    '🏋',
-                    label:   'Fitness Day',
-                    desc:    'Training, nutrition, and recovery — performance lifestyle from 5am to midnight.',
-                    active:  false,
-                    color:   C.green,
-                  },
-                  {
-                    id:      null,
-                    icon:    '📦',
-                    label:   'Product Day',
-                    desc:    'A full day told through your product — unboxing, use, lifestyle, and results.',
-                    active:  false,
-                    color:   C.secondary,
-                  },
-                  {
-                    id:      null,
-                    icon:    '📣',
-                    label:   'Campaign Day',
-                    desc:    'One campaign phase as a day — attention, desire, and conversion in 12 moments.',
-                    active:  false,
-                    color:   C.violet,
-                  },
+                  { viewId: 'perfect_day',          leMode: null,           icon: '☀',  label: 'Perfect Day',  desc: 'Morning to midnight aspirational lifestyle — 12 cinematic moments, hooks, and captions.', color: C.gold },
+                  { viewId: 'full_day_video',        leMode: null,           icon: '🎬', label: 'Creator Day',  desc: 'Behind-the-scenes creator content — 14 scenes with cinematic direction and shot lists.', color: C.primary },
+                  { viewId: 'life_engine_generator', leMode: 'travel_day',   icon: '✈',  label: 'Travel Day',   desc: 'Explore the world in cinematic style — destinations, culture, and lifestyle moments.', color: C.blue },
+                  { viewId: 'life_engine_generator', leMode: 'fitness_day',  icon: '🏋', label: 'Fitness Day',  desc: 'Training, nutrition, and recovery — performance lifestyle from 5am to midnight.', color: C.green },
+                  { viewId: 'life_engine_generator', leMode: 'product_day',  icon: '📦', label: 'Product Day',  desc: 'A full day told through your product — unboxing, use, lifestyle, and results.', color: C.secondary },
+                  { viewId: 'life_engine_generator', leMode: 'campaign_day', icon: '📣', label: 'Campaign Day', desc: 'One campaign phase as a day — attention, desire, and conversion in 12 moments.', color: C.violet },
                 ].map(mode => (
                   <div
                     key={mode.label}
-                    onClick={() => mode.active && set('view', mode.id)}
+                    onClick={() => {
+                      if (mode.leMode) { setLeMode(mode.leMode); setLeResult(null); setLeWorld(null) }
+                      set('view', mode.viewId)
+                    }}
                     style={{
                       borderRadius: 14,
-                      border: `1px solid ${mode.active ? (mode.color + '40') : C.hairline}`,
-                      background: mode.active ? 'linear-gradient(135deg, #0e0c08 0%, #0a0a0a 100%)' : C.raised,
+                      border: `1px solid ${mode.color + '40'}`,
+                      background: 'linear-gradient(135deg, #0e0c08 0%, #0a0a0a 100%)',
                       padding: '24px 20px',
-                      cursor: mode.active ? 'pointer' : 'default',
-                      opacity: mode.active ? 1 : 0.45,
+                      cursor: 'pointer',
                       display: 'flex', flexDirection: 'column', gap: 12,
                       transition: 'all 0.15s',
                       position: 'relative',
                     }}
-                    onMouseEnter={e => { if (mode.active) { e.currentTarget.style.borderColor = mode.color + '80'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
-                    onMouseLeave={e => { if (mode.active) { e.currentTarget.style.borderColor = mode.color + '40'; e.currentTarget.style.transform = 'none' } }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = mode.color + '80'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = mode.color + '40'; e.currentTarget.style.transform = 'none' }}
                   >
-                    {!mode.active && (
-                      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', background: C.surface, borderRadius: 3, padding: '2px 6px', border: `1px solid ${C.hairline}` }}>Soon</div>
+                    {false && ( // no more Soon badges
                     )}
                     <div style={{ fontSize: 22 }}>{mode.icon}</div>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: mode.active ? mode.color : C.muted, marginBottom: 6 }}>{mode.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: mode.color, marginBottom: 6 }}>{mode.label}</div>
                       <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{mode.desc}</div>
                     </div>
-                    {mode.active && (
-                      <div style={{ fontSize: 11, fontWeight: 600, color: mode.color, marginTop: 4 }}>Launch →</div>
-                    )}
+                    <div style={{ fontSize: 11, fontWeight: 600, color: mode.color, marginTop: 4 }}>Launch →</div>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ══ LIFE ENGINE GENERATOR ══ */}
+        {s.view === 'life_engine_generator' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flexShrink: 0, padding: '12px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
+              <button onClick={() => set('view', 'life_engine')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Life Engine</button>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>🌍 {{ travel_day: 'Travel Day', fitness_day: 'Fitness Day', product_day: 'Product Day', campaign_day: 'Campaign Day' }[leMode] || 'Life Engine'}</span>
+            </div>
+
+            {leLoading ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 40 }}>
+                <div style={{ fontSize: 13, color: C.gold, letterSpacing: 2, textTransform: 'uppercase' }}>
+                  {{ world: 'Building world context…', moments: 'Generating 12 moments…', hooks: 'Writing hooks and captions…', captions: 'Finalising content…' }[leOrchStep] || 'Generating…'}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>{['world','moments','hooks','captions'].map((step, i) => {
+                  const idx = ['world','moments','hooks','captions'].indexOf(leOrchStep)
+                  return <div key={step} style={{ width: 8, height: 8, borderRadius: '50%', background: i <= idx ? C.gold : C.subtle, transition: 'background 0.4s' }} />
+                })}</div>
+              </div>
+            ) : leResult ? (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.primary }}>{leResult.modeLabel}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{leResult.world?.name} · {leResult.platform}</div>
+                  </div>
+                  <button onClick={() => { setLeResult(null) }} style={{ fontSize: 11, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>← New Generation</button>
+                </div>
+                {leResult.moments?.map((moment, i) => (
+                  <div key={moment.id} style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                    <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, fontFamily: C.mono }}>{moment.time}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{moment.label}</span>
+                    </div>
+                    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {moment.hook && <div style={{ fontSize: 15, fontWeight: 700, color: C.gold, lineHeight: 1.4 }}>"{moment.hook}"</div>}
+                      {moment.caption && <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{moment.caption}</div>}
+                      {moment.imagePrompt && (
+                        <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
+                          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Image Prompt</div>
+                          <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{moment.imagePrompt}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '40px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+                {/* World selector */}
+                <div style={{ width: '100%', maxWidth: 640 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14 }}>Choose a world</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {Object.entries({
+                      travel_day:   { paris: 'Paris', tokyo: 'Tokyo', maldives: 'Maldives', santorini: 'Santorini', bali: 'Bali', new_york: 'New York', amalfi: 'Amalfi Coast', marrakech: 'Marrakech' },
+                      fitness_day:  { luxury_gym: 'Luxury Gym', outdoor_track: 'Outdoor Track', mountain_trail: 'Mountain Trail', home_setup: 'Performance Home', boxing_gym: 'Boxing Gym', beachfront: 'Beachfront', rooftop: 'Urban Rooftop' },
+                      product_day:  { home_studio: 'Home Studio', outdoor: 'Outdoor Lifestyle', urban_cafe: 'Urban Café', travel_ready: 'Travel Setting', kitchen: 'Kitchen & Home', luxury_setting: 'Luxury Setting' },
+                      campaign_day: { luxury_penthouse: 'Luxury Penthouse', maldives_villa: 'Maldives Villa', coastal_house: 'Coastal House', urban_apartment: 'Urban Loft', bali_villa: 'Bali Villa', paris_apartment: 'Paris Apartment' },
+                    }[leMode] || {}).map(([id, name]) => (
+                      <button key={id} onClick={() => setLeWorld(id)} style={{ padding: '8px 16px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: `1px solid ${leWorld === id ? C.gold : C.subtle}`, background: leWorld === id ? '#1a1408' : C.surface, color: leWorld === id ? C.gold : C.secondary, transition: 'all 0.15s' }}>{name}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* Settings row */}
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', width: '100%', maxWidth: 640 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Platform</div>
+                    <select value={lePlatform} onChange={e => setLePlatform(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                      {['instagram','tiktok','meta_ads','youtube'].map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Style</div>
+                    <select value={leStyle} onChange={e => setLeStyle(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                      {['cinematic','aspirational','luxury','ugc','emotional','documentary'].map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <button onClick={generateLifeEngine} style={{ padding: '14px 48px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#0d0b08', letterSpacing: 0.3 }}>
+                  Generate {({ travel_day: 'Travel Day', fitness_day: 'Fitness Day', product_day: 'Product Day', campaign_day: 'Campaign Day' }[leMode] || 'Day')} →
+                </button>
+              </div>
+            )}
           </div>
         )}
 
