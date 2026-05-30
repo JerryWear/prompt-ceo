@@ -12124,7 +12124,7 @@ function buildConfidenceScore(projectBrain) {
   if (projectBrain.best_platform)                 score += 7
   if ((projectBrain.fatigue_score ?? 100) < 50)  score += 7
   if ((projectBrain.total_generations || 0) > 5) score += 7
-  return Math.min(score, 97)
+  return Math.min(score, 88)
 }
 
 function buildMemoryRecommendation(memory, brandProfile) {
@@ -12157,7 +12157,7 @@ function buildMemoryConfidenceScore(memory) {
   if (memory.bestPlatform)      score += 7
   if (memory.campaignCount > 3) score += 5
   if (memory.campaignCount > 10) score += 5
-  return Math.min(score, 97)
+  return Math.min(score, 88)
 }
 
 function buildDirectorOpener(memory, activeBrandProfile) {
