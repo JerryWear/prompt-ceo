@@ -12678,6 +12678,7 @@ export default function PromptCEOPage() {
             hasCampaign:     !!fullCampaignResult,
           },
           isNewUser:      !directorMemory || directorMemory.campaignCount == null || directorMemory.campaignCount === 0,
+          projectBrain:   projectBrain || null,
         }),
       })
       const data = await res.json()
