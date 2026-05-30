@@ -12086,6 +12086,37 @@ function OrchestrationPanel({ s, activeBrandProfile }) {
 // AI DIRECTOR — pure JS helpers (no API calls)
 // ─────────────────────────────────────────────────────────────
 
+function buildBrainRecommendation(projectBrain, brandProfile) {
+  if (!projectBrain) return null
+  const stage = projectBrain.campaign_stage || 'attention'
+  const countMap   = { attention: 3, emotional_connection: 3, desire_escalation: 3, conversion: 2, retargeting: 2 }
+  const formatMap  = { attention: 'hook-led posts', emotional_connection: 'story posts', desire_escalation: 'Story videos', conversion: 'direct-response ads', retargeting: 're-engagement posts' }
+  const count      = countMap[stage] || 3
+  const format     = formatMap[stage] || 'campaign assets'
+  const platform   = projectBrain.best_platform || 'Instagram'
+  const world      = projectBrain.best_worlds?.[0] || null
+  const hook       = projectBrain.best_hook_types?.[0] || null
+  const product    = brandProfile?.name || 'your brand'
+  const pacing     = projectBrain.pacing_profile || null
+
+  let msg = `Build ${count} ${format} for ${product} — ${platform}`
+  if (world)   msg += `, ${world.replace(/_/g, ' ')} world`
+  if (hook)    msg += `, ${hook.replace(/_/g, ' ')} hooks`
+  if (pacing)  msg += `, ${pacing} pacing`
+  return msg + '.'
+}
+
+function buildConfidenceScore(projectBrain) {
+  if (!projectBrain) return null
+  let score = 60
+  if (projectBrain.best_hook_types?.length > 0)  score += 8
+  if (projectBrain.best_worlds?.length > 0)       score += 8
+  if (projectBrain.best_platform)                 score += 7
+  if ((projectBrain.fatigue_score ?? 100) < 50)  score += 7
+  if ((projectBrain.total_generations || 0) > 5) score += 7
+  return Math.min(score, 97)
+}
+
 function buildDirectorOpener(memory, activeBrandProfile) {
   if (!memory || memory.campaignCount === 0) return null
   const facts = []
@@ -12865,12 +12896,26 @@ export default function PromptCEOPage() {
   const [adaptLoading, setAdaptLoading] = useState(false)
   const [adaptError,   setAdaptError]   = useState(null)
   const [copiedKey,    setCopiedKey]    = useState(null)
+  const [recommendationAccepted, setRecommendationAccepted] = useState(false)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
   const [fullDayStyle,    setFullDayStyle]    = useState('cinematic')
   const [fullDayPlatform, setFullDayPlatform] = useState('instagram')
   const [fullDayScene,    setFullDayScene]    = useState(null)
+
+  const handleRecommendationAccept = useCallback(() => {
+    if (!projectBrain) return
+    const msg = buildBrainRecommendation(projectBrain, activeBrandProfile)
+    if (!msg) return
+    fireSignal('brain_recommendation_accepted', {
+      stage: projectBrain.campaign_stage,
+      confidence: buildConfidenceScore(projectBrain),
+    })
+    setRecommendationAccepted(true)
+    setDirectorInput(msg)
+    setTimeout(() => directorSend(msg), 50)
+  }, [projectBrain, activeBrandProfile, directorSend])
 
   const generateFullDay = useCallback(async () => {
     if (fullDayLoading) return
