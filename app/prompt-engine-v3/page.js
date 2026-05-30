@@ -13250,11 +13250,21 @@ export default function PromptCEOPage() {
 
   // Send hook/caption straight to Ad Studio as selected context
   const sendToAdStudio = useCallback((hookText, angleObj = null) => {
-    if (hookText) setSelectedHook(typeof hookText === 'string' ? hookText : String(hookText))
-    if (angleObj) setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
+    const text = typeof hookText === 'string' ? hookText : String(hookText || '')
+    if (text) setSelectedHook(text)
+    // Set angle context so Ad Studio knows what campaign content arrived
+    if (angleObj) {
+      setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
+    } else if (text) {
+      setSelectedAngle({ title: 'From Campaign', hook: text.slice(0, 120) })
+    }
+    // Pre-fill product name from active brand if empty
+    if (!productName.trim() && activeBrandProfile?.name) {
+      setProductName(activeBrandProfile.name)
+    }
     setPreviousView(s.view)
     set('view', 'ad_studio')
-  }, [set, s.view])
+  }, [set, s.view, productName, activeBrandProfile])
 
   // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
   useEffect(() => {
@@ -15214,15 +15224,15 @@ export default function PromptCEOPage() {
               <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#7a4abf' }}>📣 Ad Studio</span>
             </div>
-            {/* Hook received banner */}
-            {selectedHook && !productName.trim() && (
-              <div style={{ flexShrink: 0, padding: '8px 16px', background: 'linear-gradient(90deg, #1a0a2a, #0e0618)', borderBottom: `1px solid #3a1a5a`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12 }}>✓</span>
+            {/* Campaign content received banner */}
+            {selectedAngle?.title === 'From Campaign' && (
+              <div style={{ flexShrink: 0, padding: '10px 16px', background: 'linear-gradient(90deg, #1a0a2a, #0e0618)', borderBottom: `1px solid #3a1a5a`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 14 }}>✓</span>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#d580ff' }}>Hook received: </span>
-                  <span style={{ fontSize: 11, color: '#b8a0df' }}>"{selectedHook.slice(0, 80)}{selectedHook.length > 80 ? '…' : ''}"</span>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#d580ff', marginBottom: 2 }}>Campaign content loaded into Ad Studio</div>
+                  <div style={{ fontSize: 10, color: '#9a80bf' }}>"{selectedAngle.hook}{selectedAngle.hook.length >= 120 ? '…' : ''}"</div>
                 </div>
-                <span style={{ fontSize: 10, color: '#7a5a9a' }}>Enter a product name below to use it →</span>
+                <div style={{ fontSize: 10, color: '#7a5a9a', textAlign: 'right' }}>{productName.trim() ? 'Ready — generate hooks below ↓' : 'Enter product name below to generate ↓'}</div>
               </div>
             )}
             {/* Studio Bridge Banner */}
