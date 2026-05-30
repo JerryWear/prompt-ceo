@@ -12117,6 +12117,18 @@ function buildConfidenceScore(projectBrain) {
   return Math.min(score, 97)
 }
 
+function buildMemoryRecommendation(memory, brandProfile) {
+  if (!memory || !memory.campaignCount) return null
+  const platform = memory.bestPlatform || 'Instagram'
+  const world    = memory.topWorld || null
+  const hook     = memory.bestHookType || null
+  const product  = brandProfile?.name || 'your brand'
+  let msg = `Generate 3 posts for ${product} — ${platform}`
+  if (world) msg += `, ${world.replace(/_/g, ' ')} world`
+  if (hook)  msg += `, ${hook.replace(/_/g, ' ')} hooks`
+  return msg + '.'
+}
+
 function buildDirectorOpener(memory, activeBrandProfile) {
   if (!memory || memory.campaignCount === 0) return null
   const facts = []
@@ -12897,6 +12909,7 @@ export default function PromptCEOPage() {
   const [adaptError,   setAdaptError]   = useState(null)
   const [copiedKey,    setCopiedKey]    = useState(null)
   const [recommendationAccepted, setRecommendationAccepted] = useState(false)
+  const [userName, setUserName] = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -12916,6 +12929,16 @@ export default function PromptCEOPage() {
     setDirectorInput(msg)
     setTimeout(() => directorSend(msg), 50)
   }, [projectBrain, activeBrandProfile, directorSend])
+
+  const handleMemoryRecommendationAccept = useCallback(() => {
+    if (!directorMemory) return
+    const msg = buildMemoryRecommendation(directorMemory, activeBrandProfile)
+    if (!msg) return
+    fireSignal('brain_recommendation_accepted', { source: 'memory', count: directorMemory.campaignCount })
+    setRecommendationAccepted(true)
+    setDirectorInput(msg)
+    setTimeout(() => directorSend(msg), 50)
+  }, [directorMemory, activeBrandProfile, directorSend])
 
   const generateFullDay = useCallback(async () => {
     if (fullDayLoading) return
@@ -13013,6 +13036,14 @@ export default function PromptCEOPage() {
   useEffect(() => {
     if (s.view === 'ai_director') setRecommendationAccepted(false)
   }, [s.view])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      const full = user.user_metadata?.full_name || user.email?.split('@')[0] || null
+      if (full) setUserName(full.split(' ')[0])
+    })
+  }, [])
 
   useEffect(() => {
     fetch('/api/performance-reasoning')
@@ -17392,46 +17423,56 @@ export default function PromptCEOPage() {
                     <>
                       {/* Greeting */}
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Welcome back</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Welcome back{userName ? `, ${userName}` : ''}</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.5 }}>
                           {activeBrandProfile?.name ? activeBrandProfile.name : 'PromptCEO'}
                         </div>
                       </div>
 
-                      {/* Brain recommendation card */}
-                      {projectBrain && s.activeProjectId && (() => {
-                        const recMsg     = buildBrainRecommendation(projectBrain, activeBrandProfile)
-                        const confidence = buildConfidenceScore(projectBrain)
-                        if (!recMsg) return null
-                        const stage    = projectBrain.campaign_stage || 'attention'
-                        const stageFmt = stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                        return (
-                          <div style={{ width: '100%', borderRadius: 14, border: `1px solid ${C.goldDim}60`, background: 'linear-gradient(135deg, #1a1408 0%, #0d0d0d 100%)', overflow: 'hidden' }}>
-                            <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
-                              <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
-                              <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{stageFmt} Phase</span>
-                            </div>
-                            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                              <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.7 }}>{recMsg}</div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                <button
-                                  onClick={handleRecommendationAccept}
-                                  disabled={recommendationAccepted}
-                                  style={{
-                                    padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: recommendationAccepted ? 'default' : 'pointer',
-                                    background: recommendationAccepted ? C.surface : C.gold, color: recommendationAccepted ? C.muted : '#0d0b08',
-                                    border: `1px solid ${recommendationAccepted ? C.hairline : C.gold}`,
-                                    transition: 'all 0.2s',
-                                  }}
-                                >{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
-                                {confidence && (
-                                  <span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>
-                                )}
+                      {/* Brain recommendation card — full Brain if active project, memory fallback otherwise */}
+                      {(() => {
+                        if (projectBrain && s.activeProjectId) {
+                          const recMsg     = buildBrainRecommendation(projectBrain, activeBrandProfile)
+                          const confidence = buildConfidenceScore(projectBrain)
+                          if (!recMsg) return null
+                          const stageFmt = (projectBrain.campaign_stage || 'attention').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                          return (
+                            <div style={{ width: '100%', borderRadius: 14, border: `1px solid ${C.goldDim}60`, background: 'linear-gradient(135deg, #1a1408 0%, #0d0d0d 100%)', overflow: 'hidden' }}>
+                              <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
+                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
+                                <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{stageFmt} Phase</span>
+                              </div>
+                              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.7 }}>{recMsg}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                  <button onClick={handleRecommendationAccept} disabled={recommendationAccepted} style={{ padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: recommendationAccepted ? 'default' : 'pointer', background: recommendationAccepted ? C.surface : C.gold, color: recommendationAccepted ? C.muted : '#0d0b08', border: `1px solid ${recommendationAccepted ? C.hairline : C.gold}`, transition: 'all 0.2s' }}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
+                                  {confidence && (<span style={{ fontSize: 10, color: C.muted }}>Confidence: <span style={{ color: C.gold, fontWeight: 700 }}>{confidence}%</span></span>)}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )
+                          )
+                        }
+                        if (directorMemory?.campaignCount > 0) {
+                          const recMsg = buildMemoryRecommendation(directorMemory, activeBrandProfile)
+                          if (!recMsg) return null
+                          return (
+                            <div style={{ width: '100%', borderRadius: 14, border: `1px solid ${C.goldDim}60`, background: 'linear-gradient(135deg, #1a1408 0%, #0d0d0d 100%)', overflow: 'hidden' }}>
+                              <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
+                                <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Recommends</span>
+                                <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{directorMemory.campaignCount} campaign{directorMemory.campaignCount !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                <div style={{ fontSize: 14, color: '#e8e0d0', lineHeight: 1.7 }}>{recMsg}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                  <button onClick={handleMemoryRecommendationAccept} disabled={recommendationAccepted} style={{ padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: recommendationAccepted ? 'default' : 'pointer', background: recommendationAccepted ? C.surface : C.gold, color: recommendationAccepted ? C.muted : '#0d0b08', border: `1px solid ${recommendationAccepted ? C.hairline : C.gold}`, transition: 'all 0.2s' }}>{recommendationAccepted ? '✓ Sent to Director' : 'Generate Next Asset →'}</button>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
                       })()}
 
                       {/* Memory signals */}
