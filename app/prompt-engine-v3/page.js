@@ -707,6 +707,19 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     } catch {}
   }, [])
 
+  // Consume campaign → Ad Studio bridge written by PromptCEOPage.sendToAdStudio
+  useEffect(() => {
+    if (s.adBridgeHook) {
+      setSelectedHook(s.adBridgeHook)
+      set('adBridgeHook', null)
+    }
+    if (s.adBridgeAngle) {
+      setSelectedAngle(s.adBridgeAngle)
+      set('adBridgeAngle', null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.adBridgeHook, s.adBridgeAngle])
+
   // Load music library once so it's available everywhere
   useEffect(() => {
     fetch('/api/music-tracks')
@@ -11458,6 +11471,9 @@ const INIT = {
   // Studio ↔ Ad Studio Bridge
   studioAssets:       [],   // generated Studio images available as ad anchors
   adCreatorIdentity:  null, // Studio identity imported into Ad Studio
+  // Campaign → Ad Studio bridge (shared state so PromptCEOPage can pass to AdStudioView)
+  adBridgeHook:       null,
+  adBridgeAngle:      null,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -13255,13 +13271,12 @@ export default function PromptCEOPage() {
   // Send hook/caption straight to Ad Studio as selected context
   const sendToAdStudio = useCallback((hookText, angleObj = null) => {
     const text = typeof hookText === 'string' ? hookText : String(hookText || '')
-    if (text) setSelectedHook(text)
-    // Set angle context so Ad Studio knows campaign content arrived
-    if (angleObj) {
-      setSelectedAngle(typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
-    } else if (text) {
-      setSelectedAngle({ title: 'From Campaign', hook: text.slice(0, 120) })
-    }
+    // Route through shared s-state bridge — AdStudioView reads these on change
+    if (text) set('adBridgeHook', text)
+    const angle = angleObj
+      ? (typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
+      : (text ? { title: 'From Campaign', hook: text.slice(0, 120) } : null)
+    if (angle) set('adBridgeAngle', angle)
     setPreviousView(s.view)
     set('view', 'ad_studio')
   }, [set, s.view])
@@ -15224,17 +15239,6 @@ export default function PromptCEOPage() {
               <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#7a4abf' }}>📣 Ad Studio</span>
             </div>
-            {/* Campaign content received banner */}
-            {selectedAngle?.title === 'From Campaign' && (
-              <div style={{ flexShrink: 0, padding: '10px 16px', background: 'linear-gradient(90deg, #1a0a2a, #0e0618)', borderBottom: `1px solid #3a1a5a`, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 14 }}>✓</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#d580ff', marginBottom: 2 }}>Campaign content loaded into Ad Studio</div>
-                  <div style={{ fontSize: 10, color: '#9a80bf' }}>"{selectedAngle.hook}{selectedAngle.hook.length >= 120 ? '…' : ''}"</div>
-                </div>
-                <div style={{ fontSize: 10, color: '#7a5a9a', textAlign: 'right' }}>{productName.trim() ? 'Ready — generate hooks below ↓' : 'Enter product name below to generate ↓'}</div>
-              </div>
-            )}
             {/* Studio Bridge Banner */}
             {bridgeBannerOpen && s.adCreatorIdentity && (
               <div style={{
