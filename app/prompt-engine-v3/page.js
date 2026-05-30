@@ -12187,7 +12187,7 @@ export default function PromptCEOPage() {
     const params = new URLSearchParams(window.location.search)
     const view   = params.get('view')
     const tab    = params.get('tab')
-    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video']
+    const validViews = ['studio', 'ad_studio', 'perfect_day', 'full_campaign', 'timeline', 'ai_director', 'full_day_video', 'campaign_journey', 'cross_platform']
     if (view && validViews.includes(view)) {
       set('view', view)
       if (tab) window.__adStudioInitTab = tab
