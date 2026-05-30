@@ -19149,7 +19149,10 @@ export default function PromptCEOPage() {
                   <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back</button>
                   <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
                   {s.activeProjectId && (
-                    <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>+ Generate Campaign →</button>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                      <button onClick={() => { setTimelineLoading(true); fetch(`/api/campaign-timeline/${s.activeProjectId}`).then(r => r.json()).then(d => { if (d.phases) setCampaignTimeline(d) }).catch(() => {}).finally(() => setTimelineLoading(false)) }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>↺ Refresh</button>
+                      <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>+ Generate Campaign →</button>
+                    </div>
                   )}
                 </div>
                 {!s.activeProjectId && (

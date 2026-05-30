@@ -106,12 +106,14 @@ export async function POST(req) {
     }
 
     await admin.from('generation_logs').insert({
-      user_id:    user.id,
-      project_id: savedProjectId,
-      type:       'full_campaign',
-      input:      { product, platform },
-      output:     { angles, hooks, imagePrompts, captions, schedule },
-    }).then(() => {}).catch(() => {})
+      user_id:        user.id,
+      project_id:     savedProjectId,
+      engine:         'prompt-engine-v3',
+      status:         'complete',
+      credits_used:   0,
+      prompt:         `${product} — Full Campaign (${platform})`,
+      campaign_phase: 'attention',
+    }).then(() => {}).catch(err => console.error('[full-campaign] generation_logs insert failed:', err?.message))
 
     return NextResponse.json({ angles, hooks, imagePrompts, captions, schedule, projectId: savedProjectId })
   } catch (err) {

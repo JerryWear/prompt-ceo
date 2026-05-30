@@ -339,23 +339,16 @@ Scripts in spoken word form. Natural language.${copySuffix}
 
     try {
       await admin.from('generation_logs').insert({
-        user_id:    user.id,
-        project_id: savedProjectId,
-        type:       'full_ad_campaign',
-        input:      { productName, type, goal, style, platform, worldId: resolvedWorldId },
-        output:     {
-          attentionHooks:    attentionHooks.length,
-          storyScripts:      storyScripts.length,
-          desireImagePrompts: desireImagePrompts.length,
-          conversionAds:     conversionAds.length,
-          retargetingAds:    retargetingAds.length,
-          captions:          captions.length,
-          videoScripts:      videoScripts.length,
-          engineScenes:      engine.scenes.length,
-          scheduleDays:      30,
-        },
+        user_id:        user.id,
+        project_id:     savedProjectId,
+        engine:         'prompt-engine-v3',
+        status:         'complete',
+        credits_used:   0,
+        prompt:         `${productName.trim()} — Full Ad Campaign (${style}, ${platform})`,
+        world_id:       resolvedWorldId || '',
+        campaign_phase: 'attention',
       })
-    } catch {}
+    } catch (err) { console.error('[full-ad-campaign] generation_logs insert failed:', err?.message) }
 
     try {
       await admin.from('campaign_memory').insert({
