@@ -19,14 +19,15 @@ async function getUser() {
 }
 
 const EVENT_WEIGHTS = {
-  generation_completed:  2,
-  result_downloaded:     5,
-  result_copied:         4,
-  result_re_run:         6,
-  phase_advanced:        8,
-  creative_dir_used:     7,
-  session_length_20min:  8,
-  style_changed:         3,
+  generation_completed:          2,
+  result_downloaded:             5,
+  result_copied:                 4,
+  result_re_run:                 6,
+  phase_advanced:                8,
+  creative_dir_used:             7,
+  session_length_20min:          8,
+  style_changed:                 3,
+  brain_recommendation_accepted: 9,
 }
 
 export async function POST(req) {
