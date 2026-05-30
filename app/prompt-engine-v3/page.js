@@ -18395,8 +18395,6 @@ export default function PromptCEOPage() {
                     onMouseEnter={e => { e.currentTarget.style.borderColor = mode.color + '80'; e.currentTarget.style.transform = 'translateY(-1px)' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = mode.color + '40'; e.currentTarget.style.transform = 'none' }}
                   >
-                    {false && ( // no more Soon badges
-                    )}
                     <div style={{ fontSize: 22 }}>{mode.icon}</div>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: mode.color, marginBottom: 6 }}>{mode.label}</div>
