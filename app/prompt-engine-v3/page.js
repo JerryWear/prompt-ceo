@@ -14757,64 +14757,22 @@ export default function PromptCEOPage() {
           {/* ── Grouped nav ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
 
-            {/* ─ CREATE ─ */}
+            {/* ─ HOME ─ */}
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{
                 fontSize: 7, fontWeight: 900, color: '#2a2825',
                 letterSpacing: 1.5, textTransform: 'uppercase',
                 padding: '0 7px', userSelect: 'none', cursor: 'default',
                 borderRight: `1px solid ${C.hairline}`,
-              }}>CREATE</span>
-              {[
-                { id: 'ai_director', label: 'GPT', icon: '✦', gold: true },
-                { id: 'studio',      label: 'Studio',   icon: '◧' },
-              ].map(v => (
-                <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
-                  border: 'none',
-                  borderRight: `1px solid ${C.hairline}`,
-                  borderBottom: `2px solid ${s.view === v.id ? (v.gold ? C.gold : C.primary) : 'transparent'}`,
-                  background: s.view === v.id ? C.raised : 'transparent',
-                  color: s.view === v.id ? (v.gold ? C.gold : C.primary) : '#5a5650',
-                  transition: 'all 0.15s',
-                }}>{v.icon} {v.label}</button>
-              ))}
-              <a href="/instant" style={{
-                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
+              }}>HOME</span>
+              <button onClick={() => set('view', 'ai_director')} style={{
+                padding: '4px 13px', borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
                 border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: '2px solid transparent',
-                background: 'transparent', color: '#5a5650', display: 'inline-block',
-              }}>⚡ Instant</a>
-            </div>
-
-            {/* ─ LIFE ─ */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{
-                fontSize: 7, fontWeight: 900, color: '#2a2825',
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                padding: '0 7px', userSelect: 'none', cursor: 'default',
-                borderRight: `1px solid ${C.hairline}`,
-              }}>LIFE</span>
-              {[
-                { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
-                { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
-                { id: 'timeline',       label: 'Timeline',    icon: '▤' },
-              ].map(v => (
-                <button key={v.id} onClick={() => set('view', v.id)} style={{
-                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
-                  border: 'none', borderRight: `1px solid ${C.hairline}`,
-                  borderBottom: `2px solid ${s.view === v.id ? C.primary : 'transparent'}`,
-                  background: s.view === v.id ? C.raised : 'transparent',
-                  color: s.view === v.id ? C.primary : '#5a5650',
-                  transition: 'all 0.15s',
-                }}>{v.icon} {v.label}</button>
-              ))}
-              <a href="/full-day" style={{
-                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: '2px solid transparent',
-                background: 'transparent', color: '#7a5abf', display: 'inline-block',
-              }}>🌍 Life Engine</a>
+                borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
+                background: s.view === 'ai_director' ? '#0e0c08' : 'transparent',
+                color: s.view === 'ai_director' ? C.gold : '#5a5650',
+                transition: 'all 0.15s',
+              }}>✦ Home</button>
             </div>
 
             {/* ─ CAMPAIGNS ─ */}
@@ -14825,6 +14783,45 @@ export default function PromptCEOPage() {
                 padding: '0 7px', userSelect: 'none', cursor: 'default',
                 borderRight: `1px solid ${C.hairline}`,
               }}>CAMPAIGNS</span>
+              {[
+                { id: 'full_campaign',    label: 'Campaign Builder', icon: '◈' },
+                { id: 'campaign_journey', label: 'Campaign Journey', icon: '◉', gold: true },
+                { id: 'timeline',         label: 'Timeline',         icon: '▤' },
+                { id: 'cross_platform',   label: 'Distribution',     icon: '⊕', blue: true },
+              ].map(v => (
+                <button key={v.id} onClick={() => set('view', v.id)} style={{
+                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                  border: 'none', borderRight: `1px solid ${C.hairline}`,
+                  borderBottom: `2px solid ${s.view === v.id ? (v.gold ? C.gold : v.blue ? C.blue : C.primary) : 'transparent'}`,
+                  background: s.view === v.id ? (v.gold ? '#0e0c08' : v.blue ? '#080c18' : C.raised) : 'transparent',
+                  color: s.view === v.id ? (v.gold ? C.gold : v.blue ? C.blue : C.primary) : '#5a5650',
+                  transition: 'all 0.15s',
+                }}>{v.icon} {v.label}</button>
+              ))}
+            </div>
+
+            {/* ─ STUDIO ─ */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{
+                fontSize: 7, fontWeight: 900, color: '#2a2825',
+                letterSpacing: 1.5, textTransform: 'uppercase',
+                padding: '0 7px', userSelect: 'none', cursor: 'default',
+                borderRight: `1px solid ${C.hairline}`,
+              }}>STUDIO</span>
+              {[
+                { id: 'studio',         label: 'Studio',      icon: '◧' },
+                { id: 'perfect_day',    label: 'Perfect Day', icon: '☀' },
+                { id: 'full_day_video', label: 'Day Video',   icon: '🎬' },
+              ].map(v => (
+                <button key={v.id} onClick={() => set('view', v.id)} style={{
+                  padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                  border: 'none', borderRight: `1px solid ${C.hairline}`,
+                  borderBottom: `2px solid ${s.view === v.id ? C.primary : 'transparent'}`,
+                  background: s.view === v.id ? C.raised : 'transparent',
+                  color: s.view === v.id ? C.primary : '#5a5650',
+                  transition: 'all 0.15s',
+                }}>{v.icon} {v.label}</button>
+              ))}
               <button onClick={switchToAdStudio} style={{
                 padding: '4px 13px', borderRadius: 0, fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
                 border: 'none', borderRight: `1px solid ${C.hairline}`,
@@ -14833,30 +14830,18 @@ export default function PromptCEOPage() {
                 color: s.view === 'ad_studio' ? '#d580ff' : '#7a4abf',
                 transition: 'all 0.15s',
               }}>📣 Ad Studio</button>
-              <button onClick={() => set('view', 'full_campaign')} style={{
-                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+              <a href="/instant" style={{
+                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
                 border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: `2px solid ${s.view === 'full_campaign' ? C.primary : 'transparent'}`,
-                background: s.view === 'full_campaign' ? C.raised : 'transparent',
-                color: s.view === 'full_campaign' ? C.primary : '#5a5650',
-                transition: 'all 0.15s',
-              }}>◈ Full Campaign</button>
-              <button onClick={() => set('view', 'campaign_journey')} style={{
-                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
+                borderBottom: '2px solid transparent',
+                background: 'transparent', color: '#5a5650', display: 'inline-block',
+              }}>⚡ Quick Create</a>
+              <a href="/full-day" style={{
+                padding: '4px 11px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: 'nowrap', textDecoration: 'none',
                 border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: `2px solid ${s.view === 'campaign_journey' ? C.gold : 'transparent'}`,
-                background: s.view === 'campaign_journey' ? '#0e0c08' : 'transparent',
-                color: s.view === 'campaign_journey' ? C.gold : '#5a5650',
-                transition: 'all 0.15s',
-              }}>◉ Journey</button>
-              <button onClick={() => set('view', 'cross_platform')} style={{
-                padding: '4px 11px', borderRadius: 0, fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: 0.2, whiteSpace: 'nowrap',
-                border: 'none', borderRight: `1px solid ${C.hairline}`,
-                borderBottom: `2px solid ${s.view === 'cross_platform' ? C.blue : 'transparent'}`,
-                background: s.view === 'cross_platform' ? '#080c18' : 'transparent',
-                color: s.view === 'cross_platform' ? C.blue : '#5a5650',
-                transition: 'all 0.15s',
-              }}>⊕ Platforms</button>
+                borderBottom: '2px solid transparent',
+                background: 'transparent', color: '#7a5abf', display: 'inline-block',
+              }}>🌍 Life Engine</a>
             </div>
 
             <a href="/prompt-engine-v3/dashboard" style={{
@@ -14865,6 +14850,7 @@ export default function PromptCEOPage() {
               borderBottom: '2px solid transparent',
               background: 'transparent', color: '#3a3632', display: 'inline-block',
             }}>⊞ Hub</a>
+
           </div>
 
           <div style={{ flex: 1 }} />
