@@ -14592,6 +14592,7 @@ export default function PromptCEOPage() {
       const data = await res.json()
       if (data?.status === 'complete') {
         merge({ adVideoUrl: data.videoUrl, adVideoGenerating: false })
+        onGenerationComplete({ eventType: 'video_generated', metadata: { source: 'ad_studio', type: 'ad_video' }, outputKey: 'adVideo', projectId: s.activeProjectId, output: { videoUrl: data.videoUrl } })
       } else {
         merge({ adVideoError: data?.error || 'Video generation failed', adVideoGenerating: false })
       }
