@@ -11421,7 +11421,7 @@ const INIT = {
   },
   prevOutputs:        [],
   directorPreset:     'none',
-  view:               'studio',
+  view:               'ai_director',
   generatedImage:     '',
   imageGenerating:    false,
   imageError:         '',
