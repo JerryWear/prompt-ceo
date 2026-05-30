@@ -198,37 +198,37 @@ export async function POST(req) {
     const worldCtx    = `World: ${world.name}\nEnvironment: ${world.environment}\nPalette: ${world.palette}\nLighting: ${world.lighting}`
     const baseCtx     = [modeData.directive, identityCtx, worldCtx, `Style: ${style.replace(/_/g,' ')}\nPlatform: ${platform}`].filter(Boolean).join('\n\n')
 
-    const momentResults = await Promise.all(moments.map(async moment => {
-      const raw = await ask(xaiApiKey, `
-Generate content for this cinematic moment.
+    const generateMoment = async (moment) => {
+      const raw = await ask(xaiApiKey, `Generate content for this cinematic ${modeData.label} moment.
 
 ${baseCtx}
 
 Moment: ${moment.time} — ${moment.label}
 Scene: ${moment.scene}
 Mood: ${moment.mood}
-Default Hook: ${moment.hook}
 
-Return a JSON object:
-{
-  "imagePrompt": "detailed cinematic image generation prompt, 2-3 sentences, specific framing and mood",
-  "hook": "scroll-stopping hook line, under 12 words",
-  "caption": "platform caption for ${platform}, 3-5 sentences, personal and sensory",
-  "altHook": "alternative hook variation, under 12 words"
-}
-`)
+Return JSON only:
+{"imagePrompt":"cinematic image prompt 2-3 sentences","hook":"hook line under 12 words","caption":"${platform} caption 3-4 sentences personal and sensory","altHook":"alternative hook under 12 words"}`)
       const content = tryJSON(raw, {})
       return {
-        id:         moment.id,
-        time:       moment.time,
-        label:      moment.label,
-        scene:      moment.scene,
-        imagePrompt: content.imagePrompt || '',
-        hook:       content.hook || moment.hook,
-        caption:    content.caption || '',
-        altHook:    content.altHook || '',
+        id:          moment.id,
+        time:        moment.time,
+        label:       moment.label,
+        scene:       moment.scene,
+        imagePrompt: content.imagePrompt || `${world.name} — ${moment.scene} ${world.palette} palette, ${world.lighting}.`,
+        hook:        content.hook        || moment.hook,
+        caption:     content.caption    || `${moment.scene} ${world.mood || ''}`.trim(),
+        altHook:     content.altHook    || '',
       }
-    }))
+    }
+
+    // Batch into groups of 4 to avoid rate limits
+    const momentResults = []
+    for (let i = 0; i < moments.length; i += 4) {
+      const batch = await Promise.all(moments.slice(i, i + 4).map(generateMoment))
+      momentResults.push(...batch)
+      if (i + 4 < moments.length) await new Promise(r => setTimeout(r, 300))
+    }
 
     return NextResponse.json({
       mode,

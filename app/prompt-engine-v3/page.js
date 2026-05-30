@@ -13044,6 +13044,7 @@ export default function PromptCEOPage() {
   const [leLoading,       setLeLoading]       = useState(false)
   const [leResult,        setLeResult]        = useState(null)
   const [leOrchStep,      setLeOrchStep]      = useState('world')
+  const [leExpanded,      setLeExpanded]      = useState(null)
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -18435,24 +18436,38 @@ export default function PromptCEOPage() {
                   </div>
                   <button onClick={() => { setLeResult(null) }} style={{ fontSize: 11, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>← New Generation</button>
                 </div>
-                {leResult.moments?.map((moment, i) => (
-                  <div key={moment.id} style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
-                    <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, fontFamily: C.mono }}>{moment.time}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{moment.label}</span>
-                    </div>
-                    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {moment.hook && <div style={{ fontSize: 15, fontWeight: 700, color: C.gold, lineHeight: 1.4 }}>"{moment.hook}"</div>}
-                      {moment.caption && <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{moment.caption}</div>}
-                      {moment.imagePrompt && (
-                        <div style={{ background: C.surface, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.hairline}` }}>
-                          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Image Prompt</div>
-                          <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{moment.imagePrompt}</div>
+                {leResult.moments?.map((moment, i) => {
+                  const open = leExpanded === moment.id
+                  return (
+                    <div key={moment.id} style={{ borderRadius: 12, border: `1px solid ${open ? C.goldDim : C.hairline}`, background: C.raised, overflow: 'hidden', transition: 'border-color 0.15s' }}>
+                      {/* Header — always visible, click to expand */}
+                      <div
+                        onClick={() => setLeExpanded(open ? null : moment.id)}
+                        style={{ padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer' }}
+                      >
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, fontFamily: C.mono, marginTop: 2, flexShrink: 0 }}>{moment.time}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: open ? 0 : 4 }}>{moment.label}</div>
+                          {!open && moment.hook && <div style={{ fontSize: 13, color: C.gold, lineHeight: 1.4, fontStyle: 'italic' }}>"{moment.hook}"</div>}
+                        </div>
+                        <span style={{ fontSize: 10, color: C.muted, flexShrink: 0, marginTop: 2, transition: 'transform 0.15s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
+                      </div>
+                      {/* Expanded content */}
+                      {open && (
+                        <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: `1px solid ${C.hairline}`, paddingTop: 16 }}>
+                          {moment.hook && <div style={{ fontSize: 16, fontWeight: 700, color: C.gold, lineHeight: 1.4 }}>"{moment.hook}"</div>}
+                          {moment.caption && <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{moment.caption}</div>}
+                          {moment.imagePrompt && (
+                            <div style={{ background: C.surface, borderRadius: 8, padding: '12px 14px', border: `1px solid ${C.hairline}` }}>
+                              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Image Prompt</div>
+                              <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.7 }}>{moment.imagePrompt}</div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '40px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
