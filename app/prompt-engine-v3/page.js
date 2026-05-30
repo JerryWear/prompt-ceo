@@ -17646,7 +17646,6 @@ export default function PromptCEOPage() {
                         {/* Brain Memory */}
                         {(() => {
                           const entries = (brainMemory || []).map(formatSignalEntry).filter(Boolean).slice(0, 5)
-                          if (entries.length === 0) return null
                           return (
                             <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
                               <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -17655,7 +17654,7 @@ export default function PromptCEOPage() {
                                 <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>Recent decisions</span>
                               </div>
                               <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column' }}>
-                                {entries.map((entry, i) => (
+                                {entries.length > 0 ? entries.map((entry, i) => (
                                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < entries.length - 1 ? `1px solid ${C.hairline}` : 'none' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                       <span style={{ color: C.gold, fontSize: 10 }}>✓</span>
@@ -17663,7 +17662,11 @@ export default function PromptCEOPage() {
                                     </div>
                                     <span style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', marginLeft: 8 }}>{entry.time}</span>
                                   </div>
-                                ))}
+                                )) : (
+                                  <div style={{ padding: '16px 0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Actions appear here as you generate campaigns and accept Brain recommendations.</div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )
