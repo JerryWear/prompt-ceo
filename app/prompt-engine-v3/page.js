@@ -13260,6 +13260,7 @@ export default function PromptCEOPage() {
   const [fullCampaignStyle,    setFullCampaignStyle]    = useState('cinematic')
   const [fullCampaignPlatform, setFullCampaignPlatform] = useState('instagram')
   const [fullCampaignPhase,    setFullCampaignPhase]    = useState('attention')
+  const [savedCampaigns,       setSavedCampaigns]       = useState([])   // history loaded from generation_outputs
 
   const generateFullCampaign = useCallback(async (productName) => {
     if (fullCampaignLoading) return
@@ -13347,6 +13348,16 @@ export default function PromptCEOPage() {
   useEffect(() => {
     if (s.view === 'ai_director') setRecommendationAccepted(false)
   }, [s.view])
+
+  // Load saved campaigns when Campaign Builder opens (from generation_outputs via campaign journey API)
+  useEffect(() => {
+    if (s.view !== 'full_campaign' || !s.activeProjectId) return
+    fetch(`/api/campaign-journey/${s.activeProjectId}`)
+      .then(r => r.json())
+      .then(d => { if (d.history?.length) setSavedCampaigns(d.history) })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.view, s.activeProjectId])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -19028,6 +19039,24 @@ export default function PromptCEOPage() {
                   onFocus={e => e.target.style.borderColor = C.goldDim}
                   onBlur={e => e.target.style.borderColor = C.subtle}
                 />
+                {savedCampaigns.length > 0 && (
+                  <select
+                    defaultValue=""
+                    onChange={e => {
+                      const h = savedCampaigns[parseInt(e.target.value)]
+                      if (h?.payload) { setFullCampaignResult(h.payload); setFullCampaignPhase('attention') }
+                      e.target.value = ''
+                    }}
+                    style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer', maxWidth: 160 }}
+                  >
+                    <option value="" disabled>↑ Load saved…</option>
+                    {savedCampaigns.map((h, i) => (
+                      <option key={i} value={i}>
+                        {h.summary?.product || 'Campaign'} · {h.summary?.platform || ''} · {new Date(h.generatedAt).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <select value={fullCampaignGoal} onChange={e => setFullCampaignGoal(e.target.value)}
                   style={{ padding: '4px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
                   {['sales','leads','followers','brand_awareness','high_ticket','viral_reach','premium_positioning'].map(g => (
