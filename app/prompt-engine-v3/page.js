@@ -20748,91 +20748,67 @@ export default function PromptCEOPage() {
                     </button>
                   </div>
 
-                  {/* Verdict card */}
+                  {/* Verdict */}
                   <div style={{ background: 'linear-gradient(135deg, #1a1200 0%, #110d00 100%)', border: `1px solid ${C.goldDim}`, borderRadius: 14, padding: 24, boxShadow: `0 0 40px ${C.gold}18` }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       {cdProductImg && <img src={cdProductImg} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.goldDim}` }} />}
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Creative Director's Verdict</div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: C.primary, lineHeight: 1.5, marginBottom: 10 }}>{CD.headline}</div>
-                        {CD.realPositioning && (
-                          <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6, fontStyle: 'italic', borderLeft: `2px solid ${C.goldDim}`, paddingLeft: 12 }}>{CD.realPositioning}</div>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: C.primary, lineHeight: 1.5, marginBottom: 12 }}>{CD.headline}</div>
+                        {CD.realAsset && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: 0.3, paddingLeft: 12, borderLeft: `2px solid ${C.gold}` }}>
+                            Real asset: {CD.realAsset}
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* What I See */}
-                  {CD.whatISee?.length > 0 && (
-                    <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 20 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>What I See</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {CD.whatISee.map((obs, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12, color: C.primary, lineHeight: 1.6 }}>
-                            <span style={{ color: C.gold, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>→</span>
-                            <span>{obs}</span>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Director's Read — flowing prose */}
+                  {CD.directorRead && (
+                    <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 24 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 16 }}>What I Think</div>
+                      <div style={{ fontSize: 14, color: C.primary, lineHeight: 1.8, fontWeight: 400 }}>{CD.directorRead}</div>
                     </div>
                   )}
 
-                  {/* Working / Weak */}
+                  {/* Core Problem — flowing prose */}
+                  {CD.coreProblem && (
+                    <div style={{ background: '#130a07', border: '1px solid #3d1a1a', borderRadius: 12, padding: 24 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#f76', marginBottom: 16 }}>The Core Problem</div>
+                      <div style={{ fontSize: 13, color: '#fdd', lineHeight: 1.8 }}>{CD.coreProblem}</div>
+                    </div>
+                  )}
+
+                  {/* What Worries / What Excites — prose side by side */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {CD.whatIsWorking?.length > 0 && (
-                      <div style={{ background: '#071309', border: '1px solid #1a3d1a', borderRadius: 12, padding: 18 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#4fc', marginBottom: 12 }}>What's Working</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {CD.whatIsWorking.map((s, i) => (
-                            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: '#bfd', lineHeight: 1.5 }}>
-                              <span style={{ color: '#4fc', flexShrink: 0 }}>✓</span><span>{s}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {CD.whatExcites && (
+                      <div style={{ background: '#071309', border: '1px solid #1a3d1a', borderRadius: 12, padding: 20 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#4fc', marginBottom: 12 }}>What Excites Me</div>
+                        <div style={{ fontSize: 12, color: '#bfd', lineHeight: 1.7 }}>{CD.whatExcites}</div>
                       </div>
                     )}
-                    {CD.whatIsWeak?.length > 0 && (
-                      <div style={{ background: '#130a07', border: '1px solid #3d1a1a', borderRadius: 12, padding: 18 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#f76', marginBottom: 12 }}>What's Weak</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {CD.whatIsWeak.map((s, i) => (
-                            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: '#fdb', lineHeight: 1.5 }}>
-                              <span style={{ color: '#f76', flexShrink: 0 }}>△</span><span>{s}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {CD.whatWorries && (
+                      <div style={{ background: '#0f0a07', border: '1px solid #3a2010', borderRadius: 12, padding: 20 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#f96', marginBottom: 12 }}>What Worries Me</div>
+                        <div style={{ fontSize: 12, color: '#fdb', lineHeight: 1.7 }}>{CD.whatWorries}</div>
                       </div>
                     )}
                   </div>
 
-                  {/* Competitor gaps */}
-                  {CD.competitorGaps?.length > 0 && (
-                    <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 18 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted, marginBottom: 12 }}>Where Competitors Are Winning</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {CD.competitorGaps.map((g, i) => (
-                          <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, paddingLeft: 12, borderLeft: `2px solid ${C.subtle}` }}>{g}</div>
-                        ))}
-                      </div>
+                  {/* The Argument — sustained opinion */}
+                  {CD.theArgument && (
+                    <div style={{ background: 'linear-gradient(135deg, #0a0f1a 0%, #060c18 100%)', border: '1px solid #1a2a4a', borderRadius: 12, padding: 24 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#6af', marginBottom: 16 }}>The Argument</div>
+                      <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.8 }}>{CD.theArgument}</div>
                     </div>
                   )}
 
-                  {/* Recommended positioning */}
-                  {CD.recommendedPositioning && (
-                    <div style={{ background: '#0a0f1a', border: '1px solid #1a2a4a', borderRadius: 12, padding: 20 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#6af', marginBottom: 12 }}>Recommended Positioning</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 8, lineHeight: 1.5 }}>{CD.recommendedPositioning.core}</div>
-                      {CD.recommendedPositioning.reasoning && (
-                        <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{CD.recommendedPositioning.reasoning}</div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Hidden opportunity */}
-                  {CD.hiddenOpportunity && (
+                  {/* Immediate Move */}
+                  {CD.immediateMove && (
                     <div style={{ background: 'linear-gradient(135deg, #0f0a00 0%, #1a1100 100%)', border: `1px solid ${C.gold}55`, borderRadius: 12, padding: 20 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>✦ The Opportunity Nobody Sees</div>
-                      <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.7, fontWeight: 500 }}>{CD.hiddenOpportunity}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>✦ The Move I'd Make First</div>
+                      <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.7, fontWeight: 500 }}>{CD.immediateMove}</div>
                     </div>
                   )}
 
@@ -20963,15 +20939,15 @@ export default function PromptCEOPage() {
                     </div>
                   )}
 
-                  {/* If I Were Launching Tomorrow */}
-                  {CD.ifIWereLaunchingTomorrow?.length > 0 && (
+                  {/* Launch Plan */}
+                  {(CD.launchPlan || CD.ifIWereLaunchingTomorrow)?.length > 0 && (
                     <div style={{ background: 'linear-gradient(135deg, #0f0a00 0%, #1a1100 100%)', border: `1px solid ${C.goldDim}`, borderRadius: 14, padding: 24 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>If I Were Launching This Tomorrow</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>If I Were Running This Company</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {CD.ifIWereLaunchingTomorrow.map((step, i) => (
+                        {(CD.launchPlan || CD.ifIWereLaunchingTomorrow).map((step, i) => (
                           <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.gold, color: '#000', fontWeight: 800, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
-                            <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.6 }}>{step}</div>
+                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.gold, color: '#000', fontWeight: 800, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>{i + 1}</div>
+                            <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.7 }}>{step}</div>
                           </div>
                         ))}
                       </div>
