@@ -13150,6 +13150,13 @@ export default function PromptCEOPage() {
   const [productAnalysis, setProductAnalysis] = useState(null)
   const [productAnalyzing,setProductAnalyzing]= useState(false)
   const [productImageUrl, setProductImageUrl] = useState(null)
+  // Creative Director / Brand Audit
+  const [cdAnalysis,     setCdAnalysis]     = useState(null)
+  const [cdAnalyzing,    setCdAnalyzing]    = useState(false)
+  const [cdProductImg,   setCdProductImg]   = useState(null)
+  const [cdAdImg,        setCdAdImg]        = useState(null)
+  const [cdWebsiteUrl,   setCdWebsiteUrl]   = useState('')
+  const [cdBrandCtx,     setCdBrandCtx]     = useState('')
   const [leWorld,         setLeWorld]         = useState(null)
   const [leCharacter,     setLeCharacter]     = useState(null)  // explicitly chosen character for Life Engine/Perfect Day — null = generic
   const leCharacterRef = useRef(null)                          // ref version — never stale in callbacks
@@ -15311,7 +15318,7 @@ export default function PromptCEOPage() {
           {/* ── Grouped nav ── */}
           {(() => {
             const inCampaigns = ['full_campaign','campaign_journey','timeline','cross_platform'].includes(s.view)
-            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine','life_engine_generator'].includes(s.view)
+            const inStudio    = ['studio','perfect_day','full_day_video','ad_studio','life_engine','life_engine_generator','creative_director'].includes(s.view)
             const navTo       = (view) => { setPreviousView(s.view); set('view', view); setNavOpenGroup(null) }
             const dropStyle   = { position: 'absolute', top: 48, left: 0, zIndex: 200, background: C.overlay, border: `1px solid ${C.hairline}`, borderRadius: '0 6px 6px 6px', minWidth: 196, boxShadow: '0 8px 24px #00000088', padding: '4px 0' }
             const itemBase    = (active, activeColor) => ({ width: '100%', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', border: 'none', borderLeft: `2px solid ${active ? activeColor : 'transparent'}`, background: active ? 'rgba(255,255,255,0.04)' : 'transparent', color: active ? activeColor : C.secondary, transition: 'all 0.1s' })
@@ -15409,9 +15416,19 @@ export default function PromptCEOPage() {
                           ><span style={{ fontSize: 11 }}>📣</span>Ad Studio</button>
                         )
                       })()}
+                        {(() => {
+                        const active = s.view === 'creative_director'
+                        return (
+                          <button onClick={() => { navTo('creative_director') }}
+                            style={itemBase(active, C.gold)}
+                            onMouseEnter={e => hoverOn(e, active)}
+                            onMouseLeave={e => hoverOff(e, active)}
+                          ><span style={{ fontSize: 11 }}>✦</span>Creative Director</button>
+                        )
+                      })()}
                       <div style={{ height: 1, background: C.hairline, margin: '4px 0' }} />
                       <a href="/instant" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: C.secondary, borderLeft: '2px solid transparent' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.primary }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.secondary }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.secondary }}
                       ><span style={{ fontSize: 11 }}>⚡</span>Quick Create</a>
                     </div>
@@ -20561,6 +20578,410 @@ export default function PromptCEOPage() {
           </div>
         </div>
       )}
+
+      {/* ── CREATIVE DIRECTOR VIEW ── */}
+      {s.view === 'creative_director' && (() => {
+        const CD = cdAnalysis
+
+        const compressAndSet = async (file, setter) => {
+          if (!file) return
+          const reader = new FileReader()
+          reader.onload = (ev) => {
+            const img = new Image()
+            img.onload = () => {
+              const MAX = 1024
+              const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+              const canvas = document.createElement('canvas')
+              canvas.width  = Math.round(img.width  * scale)
+              canvas.height = Math.round(img.height * scale)
+              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+              setter(canvas.toDataURL('image/jpeg', 0.82))
+            }
+            img.src = ev.target.result
+          }
+          reader.readAsDataURL(file)
+        }
+
+        const runAudit = async () => {
+          if (!cdProductImg) return
+          setCdAnalyzing(true)
+          setCdAnalysis(null)
+          try {
+            const res = await fetch('/api/brand-audit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                productImageUrl: cdProductImg,
+                adImageUrl:      cdAdImg || null,
+                websiteUrl:      cdWebsiteUrl.trim() || null,
+                brandContext:    cdBrandCtx.trim() || null,
+              }),
+            })
+            const data = await res.json()
+            if (data.ok) setCdAnalysis(data.analysis)
+            else setCdAnalysis({ error: data.error || 'Analysis failed' })
+          } catch (e) {
+            setCdAnalysis({ error: e.message })
+          } finally {
+            setCdAnalyzing(false)
+          }
+        }
+
+        const Tag = ({ label, color }) => (
+          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, background: color + '22', color, border: `1px solid ${color}44`, whiteSpace: 'nowrap' }}>{label}</span>
+        )
+
+        const hookTypeColor = { curiosity_gap: C.gold, transformation: '#4fc', authority: '#08f', pain_point: '#f64', pattern_interrupt: '#d580ff', aspiration: C.gold, status: '#aaa' }
+
+        return (
+          <div style={{ maxWidth: 820, margin: '0 auto', padding: '32px 24px 80px' }}>
+            {/* Header */}
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>✦ Creative Director</div>
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>Brand Audit</h1>
+              <p style={{ fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.6 }}>Upload your product. The AI reads your brand, market position, and biggest opportunities — then tells you exactly what it would do.</p>
+            </div>
+
+            {/* Input area — show when no analysis yet */}
+            {!CD && !cdAnalyzing && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Product image — required */}
+                <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Product or Brand Visual <span style={{ color: C.gold }}>*</span></div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Required — a product photo, brand image, logo, or existing ad</div>
+                  {cdProductImg ? (
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <img src={cdProductImg} alt="" style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
+                      <button onClick={() => setCdProductImg(null)} style={{ fontSize: 11, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>Remove</button>
+                    </div>
+                  ) : (
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '18px 0', border: `1.5px dashed ${C.subtle}`, borderRadius: 8, cursor: 'pointer', color: C.muted, fontSize: 12 }}>
+                      <span>Upload image</span>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => compressAndSet(e.target.files?.[0], setCdProductImg)} />
+                    </label>
+                  )}
+                </div>
+
+                {/* Optional inputs */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {/* Existing ad image */}
+                  <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 4 }}>Existing Ad Image <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></div>
+                    <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>Upload a current ad for a deeper critique</div>
+                    {cdAdImg ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <img src={cdAdImg} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
+                        <button onClick={() => setCdAdImg(null)} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '4px 8px', cursor: 'pointer' }}>Remove</button>
+                      </div>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 0', border: `1.5px dashed ${C.subtle}`, borderRadius: 7, cursor: 'pointer', color: C.muted, fontSize: 11 }}>
+                        <span>Upload ad</span>
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => compressAndSet(e.target.files?.[0], setCdAdImg)} />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Website URL */}
+                  <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 4 }}>Website URL <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></div>
+                    <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>AI reads your page for landing page analysis</div>
+                    <input
+                      type="url"
+                      value={cdWebsiteUrl}
+                      onChange={e => setCdWebsiteUrl(e.target.value)}
+                      placeholder="https://your-brand.com"
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, fontSize: 11, background: C.raised, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Brand context */}
+                <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 4 }}>Brief Context <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></div>
+                  <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>What you sell, who you sell to, what's not working, what you're trying to fix</div>
+                  <textarea
+                    value={cdBrandCtx}
+                    onChange={e => setCdBrandCtx(e.target.value)}
+                    placeholder="e.g. We sell premium women's activewear. Our audience is 25-40 professional women. We're struggling to differentiate from Lululemon..."
+                    rows={3}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 6, fontSize: 11, background: C.raised, border: `1px solid ${C.subtle}`, color: C.primary, outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5 }}
+                  />
+                </div>
+
+                <button
+                  onClick={runAudit}
+                  disabled={!cdProductImg}
+                  style={{ width: '100%', padding: '15px 0', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: cdProductImg ? 'pointer' : 'not-allowed', border: 'none', background: cdProductImg ? C.gold : C.subtle, color: cdProductImg ? '#000' : C.muted, letterSpacing: 0.3, transition: 'all 0.15s' }}
+                >
+                  Run Creative Director Analysis ✦
+                </button>
+              </div>
+            )}
+
+            {/* Loading */}
+            {cdAnalyzing && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '60px 0' }}>
+                {cdProductImg && <img src={cdProductImg} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.goldDim}`, opacity: 0.8 }} />}
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.secondary }}>Reading your brand...</div>
+                <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', maxWidth: 280, lineHeight: 1.6 }}>Analyzing market position, competitive gaps, creative angles, and revenue opportunities</div>
+              </div>
+            )}
+
+            {/* Error */}
+            {CD?.error && (
+              <div style={{ padding: 16, borderRadius: 10, background: '#1a0808', border: '1px solid #5a2020', color: '#f88', fontSize: 12, marginBottom: 20 }}>
+                ⚠ {CD.error}
+                <button onClick={() => { setCdAnalysis(null) }} style={{ marginLeft: 12, fontSize: 11, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Try again</button>
+              </div>
+            )}
+
+            {/* Results */}
+            {CD && !CD.error && (() => {
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {/* Reset */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setCdAnalysis(null); setCdProductImg(null); setCdAdImg(null); setCdWebsiteUrl(''); setCdBrandCtx('') }}
+                      style={{ fontSize: 11, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>
+                      ✕ New Audit
+                    </button>
+                  </div>
+
+                  {/* Verdict card */}
+                  <div style={{ background: 'linear-gradient(135deg, #1a1200 0%, #110d00 100%)', border: `1px solid ${C.goldDim}`, borderRadius: 14, padding: 24, boxShadow: `0 0 40px ${C.gold}18` }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                      {cdProductImg && <img src={cdProductImg} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.goldDim}` }} />}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>Creative Director's Verdict</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: C.primary, lineHeight: 1.5, marginBottom: 10 }}>{CD.headline}</div>
+                        {CD.realPositioning && (
+                          <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6, fontStyle: 'italic', borderLeft: `2px solid ${C.goldDim}`, paddingLeft: 12 }}>{CD.realPositioning}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What I See */}
+                  {CD.whatISee?.length > 0 && (
+                    <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 20 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>What I See</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {CD.whatISee.map((obs, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12, color: C.primary, lineHeight: 1.6 }}>
+                            <span style={{ color: C.gold, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>→</span>
+                            <span>{obs}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Working / Weak */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {CD.whatIsWorking?.length > 0 && (
+                      <div style={{ background: '#071309', border: '1px solid #1a3d1a', borderRadius: 12, padding: 18 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#4fc', marginBottom: 12 }}>What's Working</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {CD.whatIsWorking.map((s, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: '#bfd', lineHeight: 1.5 }}>
+                              <span style={{ color: '#4fc', flexShrink: 0 }}>✓</span><span>{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {CD.whatIsWeak?.length > 0 && (
+                      <div style={{ background: '#130a07', border: '1px solid #3d1a1a', borderRadius: 12, padding: 18 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#f76', marginBottom: 12 }}>What's Weak</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {CD.whatIsWeak.map((s, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: '#fdb', lineHeight: 1.5 }}>
+                              <span style={{ color: '#f76', flexShrink: 0 }}>△</span><span>{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Competitor gaps */}
+                  {CD.competitorGaps?.length > 0 && (
+                    <div style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 18 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted, marginBottom: 12 }}>Where Competitors Are Winning</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {CD.competitorGaps.map((g, i) => (
+                          <div key={i} style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5, paddingLeft: 12, borderLeft: `2px solid ${C.subtle}` }}>{g}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommended positioning */}
+                  {CD.recommendedPositioning && (
+                    <div style={{ background: '#0a0f1a', border: '1px solid #1a2a4a', borderRadius: 12, padding: 20 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: '#6af', marginBottom: 12 }}>Recommended Positioning</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 8, lineHeight: 1.5 }}>{CD.recommendedPositioning.core}</div>
+                      {CD.recommendedPositioning.reasoning && (
+                        <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{CD.recommendedPositioning.reasoning}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Hidden opportunity */}
+                  {CD.hiddenOpportunity && (
+                    <div style={{ background: 'linear-gradient(135deg, #0f0a00 0%, #1a1100 100%)', border: `1px solid ${C.gold}55`, borderRadius: 12, padding: 20 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 10 }}>✦ The Opportunity Nobody Sees</div>
+                      <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.7, fontWeight: 500 }}>{CD.hiddenOpportunity}</div>
+                    </div>
+                  )}
+
+                  {/* Campaign angles */}
+                  {CD.campaignAngles?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>Campaign Angles</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {CD.campaignAngles.map((angle, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 12, padding: 18 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, lineHeight: 1.4 }}>{angle.angle}</div>
+                              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                {angle.bestPlatform && <Tag label={angle.bestPlatform} color={C.primary} />}
+                              </div>
+                            </div>
+                            {angle.concept && <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6, marginBottom: 10 }}>{angle.concept}</div>}
+                            {angle.hookExample && (
+                              <div style={{ padding: '8px 12px', borderRadius: 7, background: C.raised, border: `1px solid ${C.goldDim}`, fontSize: 12, color: C.primary, fontStyle: 'italic', lineHeight: 1.5 }}>
+                                "{angle.hookExample}"
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                              <button onClick={() => {
+                                set('adBridgeProduct', angle.angle)
+                                set('adBridgeHook', angle.hookExample || '')
+                                set('view', 'ad_studio')
+                              }} style={{ fontSize: 10, fontWeight: 700, color: C.gold, background: 'none', border: `1px solid ${C.goldDim}`, borderRadius: 5, padding: '4px 10px', cursor: 'pointer' }}>
+                                → Build This Campaign
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hook concepts */}
+                  {CD.hookConcepts?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>Hook Concepts</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {CD.hookConcepts.map((h, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 10, padding: '14px 16px' }}>
+                            <div style={{ fontSize: 13, color: C.primary, lineHeight: 1.5, marginBottom: 8, fontStyle: 'italic' }}>"{h.hook}"</div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                              {h.type && <Tag label={h.type.replace(/_/g, ' ')} color={hookTypeColor[h.type] || C.gold} />}
+                              {h.platform && <Tag label={h.platform} color={C.primary} />}
+                              {h.why && <span style={{ fontSize: 10, color: C.muted, flex: 1 }}>{h.why}</span>}
+                            </div>
+                            <button onClick={() => { set('adBridgeHook', h.hook); set('view', 'ad_studio') }}
+                              style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: C.gold, background: 'none', border: `1px solid ${C.goldDim}`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer' }}>
+                              → Use in Ad Studio
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Video concepts */}
+                  {CD.videoConcepts?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>Video Concepts</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {CD.videoConcepts.map((v, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 10, padding: 16 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 6 }}>{v.concept}</div>
+                            <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                              {v.format && <Tag label={v.format} color="#d580ff" />}
+                              {v.platform && <Tag label={v.platform} color={C.primary} />}
+                            </div>
+                            {v.direction && <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{v.direction}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* UGC concepts */}
+                  {CD.ugcConcepts?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>UGC Concepts</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {CD.ugcConcepts.map((u, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 10, padding: 16 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 6 }}>{u.concept}</div>
+                            {u.briefDirection && <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.6 }}>{u.briefDirection}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Landing page improvements */}
+                  {CD.landingPageImprovements?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>Landing Page Improvements</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {CD.landingPageImprovements.map((lp, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 10, padding: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#f76', marginBottom: 6 }}>△ {lp.issue}</div>
+                            {lp.fix && <div style={{ fontSize: 11, color: C.primary, lineHeight: 1.5, marginBottom: 6 }}>→ {lp.fix}</div>}
+                            {lp.impact && <div style={{ fontSize: 10, color: C.muted }}>{lp.impact}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Revenue opportunities */}
+                  {CD.revenueOpportunities?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.secondary, marginBottom: 14 }}>Revenue Opportunities</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {CD.revenueOpportunities.map((r, i) => (
+                          <div key={i} style={{ background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 10, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 5 }}>{r.opportunity}</div>
+                              {r.reasoning && <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{r.reasoning}</div>}
+                            </div>
+                            {r.difficulty && (
+                              <Tag label={r.difficulty} color={r.difficulty === 'Easy' ? '#4fc' : r.difficulty === 'Hard' ? '#f76' : C.gold} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If I Were Launching Tomorrow */}
+                  {CD.ifIWereLaunchingTomorrow?.length > 0 && (
+                    <div style={{ background: 'linear-gradient(135deg, #0f0a00 0%, #1a1100 100%)', border: `1px solid ${C.goldDim}`, borderRadius: 14, padding: 24 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 16 }}>If I Were Launching This Tomorrow</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {CD.ifIWereLaunchingTomorrow.map((step, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.gold, color: '#000', fontWeight: 800, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                            <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.6 }}>{step}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        )
+      })()}
 
       {/* ── STUDIO PAYWALL MODAL ── */}
       {studioPaywallOpen && (
