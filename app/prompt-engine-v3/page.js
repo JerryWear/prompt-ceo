@@ -20634,6 +20634,7 @@ export default function PromptCEOPage() {
         const hookTypeColor = { curiosity_gap: C.gold, transformation: '#4fc', authority: '#08f', pain_point: '#f64', pattern_interrupt: '#d580ff', aspiration: C.gold, status: '#aaa' }
 
         return (
+          <div style={{ position: 'fixed', top: 48, left: 0, right: 0, bottom: 0, overflowY: 'auto', zIndex: 50, background: C.base }}>
           <div style={{ maxWidth: 820, margin: '0 auto', padding: '32px 24px 80px' }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
@@ -20979,6 +20980,7 @@ export default function PromptCEOPage() {
                 </div>
               )
             })()}
+          </div>
           </div>
         )
       })()}
