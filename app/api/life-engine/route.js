@@ -199,17 +199,25 @@ export async function POST(req) {
     const worldCtx    = `World: ${world.name}\nEnvironment: ${world.environment}\nPalette: ${world.palette}\nLighting: ${world.lighting}`
     const baseCtx     = [modeData.directive, identityCtx, worldCtx, `Style: ${style.replace(/_/g,' ')}\nPlatform: ${platform}`].filter(Boolean).join('\n\n')
 
+    // Build character directive — only when specific traits are provided
+    const charTraits = creatorProfile?.physical_traits || {}
+    const charTraitValues = Object.entries(charTraits).filter(([,v]) => v && v !== 'Pick from library...')
+    const characterDirective = charTraitValues.length > 0
+      ? `CHARACTER REQUIREMENT: Every scene MUST feature a person with these exact traits: ${charTraitValues.map(([k,v]) => `${k}: ${v}`).join(', ')}. Include their physical description in the imagePrompt.`
+      : creatorProfile?.name ? `CHARACTER: ${creatorProfile.name} appears in this scene.` : ''
+
     const generateMoment = async (moment) => {
       const raw = await ask(xaiApiKey, `Generate content for this cinematic ${modeData.label} moment.
 
 ${baseCtx}
+${characterDirective ? `\n${characterDirective}` : ''}
 
 Moment: ${moment.time} — ${moment.label}
 Scene: ${moment.scene}
 Mood: ${moment.mood}
 
 Return JSON only:
-{"imagePrompt":"cinematic image prompt 2-3 sentences","hook":"hook line under 12 words","caption":"${platform} caption 3-4 sentences personal and sensory","altHook":"alternative hook under 12 words"}`)
+{"imagePrompt":"${characterDirective ? 'Cinematic scene featuring the specified character with their physical description included. ' : ''}Image prompt 2-3 sentences","hook":"hook line under 12 words","caption":"${platform} caption 3-4 sentences personal and sensory","altHook":"alternative hook under 12 words"}`)
       const content = tryJSON(raw, {})
       return {
         id:          moment.id,

@@ -156,14 +156,24 @@ export async function POST(req) {
       const sceneSpecific = getSceneForMoment(worldId, moment.id) || moment.sceneBase
       const momentContext = `${baseContext}\n\nMoment: ${moment.time} — ${moment.label}\nScene: ${sceneSpecific}\nMood: ${moment.mood}\nLighting: ${moment.lighting}\nCreator Energy: ${moment.creatorEnergy}`
 
+      // Build character directive — only injected when character traits are present
+      const traits = creatorProfile?.physical_traits || {}
+      const traitValues = Object.entries(traits).filter(([,v]) => v && v !== 'Pick from library...')
+      const characterDirective = traitValues.length > 0
+        ? `CHARACTER REQUIREMENT: This scene MUST feature a specific person with these exact traits: ${traitValues.map(([k,v]) => `${k}: ${v}`).join(', ')}. Include their physical description in the imagePrompt.`
+        : creatorProfile?.name
+          ? `CHARACTER: A person named ${creatorProfile.name} appears in this scene.`
+          : ''
+
       const contentPromise = ask(xaiApiKey, `
 Generate content for this cinematic lifestyle moment.
 
 ${momentContext}
+${characterDirective ? `\n${characterDirective}` : ''}
 
 Return a JSON object with these exact keys:
 {
-  "imagePrompt": "detailed cinematic image generation prompt, 2-3 sentences, specific framing and lighting and mood",
+  "imagePrompt": "${characterDirective ? `Cinematic scene featuring the specified character — include their physical appearance in the description. ` : ''}Detailed image generation prompt, 2-3 sentences, specific framing, lighting and mood.",
   "videoPrompt": "video direction note, 1-2 sentences, camera movement and atmosphere",
   "hook": "single scroll-stopping hook line, under 12 words, no selling",
   "caption": "platform caption for ${platform}, 3-5 sentences, personal and sensory, ends with soft engagement question or statement",
