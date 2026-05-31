@@ -14080,21 +14080,19 @@ export default function PromptCEOPage() {
     setStudioVariation(null)
     setStudioCoherence(null)
     addStudioEvent('Character DNA loaded', profile.name)
-    // Remember last loaded profile so it auto-restores on next session
-    try { localStorage.setItem('pce_lastDNA', profile.name) } catch {}
   }
 
-  // Auto-restore last used Character DNA on mount
-  useEffect(() => {
-    try {
-      const lastName = localStorage.getItem('pce_lastDNA')
-      if (!lastName) return
-      const saved = JSON.parse(localStorage.getItem('promptceo_char_dna_v1') || '[]')
-      const profile = saved.find(p => p.name === lastName)
-      if (profile?.settings) merge(profile.settings)
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // Apply only identity traits to a generator — does NOT change world/director/Studio settings
+  const applyCharacterToGenerator = (profile) => {
+    const s = profile.settings || {}
+    merge({
+      identityName:    s.identityName || '',
+      traits:          s.traits       || {},
+      useIdentity:     s.useIdentity  ?? true,
+      useTraits:       s.useTraits    ?? true,
+      characterMode:   s.characterMode || 'female',
+    })
+  }
 
   // hasIdentity: true if photo uploaded OR Character DNA traits are loaded
   // Character DNA alone is enough — physical traits drive the prompts without a photo
@@ -18494,6 +18492,14 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Identity pill */}
+              {/* Character picker — applies only traits/identity, not world/director settings */}
+              {studioCharDNA.length > 0 && (
+                <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
+                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
+                  <option value="" disabled>🧬 Character…</option>
+                  {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                </select>
+              )}
               {hasIdentity ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
                   {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
@@ -18502,8 +18508,8 @@ export default function PromptCEOPage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
-                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>load Character DNA in Studio</button>
+                  <span style={{ fontSize: 9, color: C.ghost }}>No character —</span>
+                  <span style={{ fontSize: 9, color: C.muted }}>select above or go to Studio → Character DNA</span>
                 </div>
               )}
               <div style={{ flex: 1 }} />
@@ -18808,9 +18814,21 @@ export default function PromptCEOPage() {
                     </select>
                   </div>
                 </div>
-                <button onClick={generateLifeEngine} style={{ padding: '14px 48px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#0d0b08', letterSpacing: 0.3 }}>
-                  Generate {({ travel_day: 'Travel Day', fitness_day: 'Fitness Day', product_day: 'Product Day', campaign_day: 'Campaign Day' }[leMode] || 'Day')} →
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  {studioCharDNA.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Character</div>
+                      <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
+                        style={{ padding: '8px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
+                        <option value="" disabled>{hasIdentity ? `🧬 ${identityLabel}` : '🧬 Select character…'}</option>
+                        {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <button onClick={generateLifeEngine} style={{ padding: '14px 48px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#0d0b08', letterSpacing: 0.3 }}>
+                    Generate {({ travel_day: 'Travel Day', fitness_day: 'Fitness Day', product_day: 'Product Day', campaign_day: 'Campaign Day' }[leMode] || 'Day')} →
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -18859,6 +18877,13 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Identity status banner */}
+              {studioCharDNA.length > 0 && (
+                <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
+                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
+                  <option value="" disabled>🧬 Character…</option>
+                  {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                </select>
+              )}
               {hasIdentity ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
                   {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
@@ -18867,8 +18892,8 @@ export default function PromptCEOPage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
-                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>load Character DNA in Studio</button>
+                  <span style={{ fontSize: 9, color: C.ghost }}>No character —</span>
+                  <span style={{ fontSize: 9, color: C.muted }}>select above or go to Studio → Character DNA</span>
                 </div>
               )}
               <div style={{ flex: 1 }} />
