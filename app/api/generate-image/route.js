@@ -256,10 +256,30 @@ export async function POST(req) {
         }, { status: xaiImageRes.status })
       }
 
-      const imageUrl = clean(xaiData?.data?.[0]?.url) || clean(xaiData?.images?.[0]?.url) || clean(xaiData?.url)
-      if (!imageUrl) {
+      const xaiTempUrl = clean(xaiData?.data?.[0]?.url) || clean(xaiData?.images?.[0]?.url) || clean(xaiData?.url)
+      if (!xaiTempUrl) {
         console.log('[studio_direct] No imageUrl found in response:', JSON.stringify(xaiData).slice(0, 300))
         return NextResponse.json({ status: 'error', message: 'No image returned from XAI', debug: xaiData }, { status: 500 })
+      }
+
+      // XAI returns a temporary URL — download and upload to Supabase for a permanent URL
+      let imageUrl = xaiTempUrl
+      try {
+        const imgRes  = await fetch(xaiTempUrl)
+        const imgBuf  = Buffer.from(await imgRes.arrayBuffer())
+        const imgType = imgRes.headers.get('content-type') || 'image/jpeg'
+        const ext     = imgType.includes('png') ? 'png' : 'jpg'
+        const path    = `generated/${user.id}/${Date.now()}-studio-direct.${ext}`
+        const { data: uploaded, error: uploadErr } = await admin.storage
+          .from('generated-images')
+          .upload(path, imgBuf, { contentType: imgType, upsert: false })
+        if (!uploadErr && uploaded) {
+          const { data: urlData } = admin.storage.from('generated-images').getPublicUrl(path)
+          if (urlData?.publicUrl) imageUrl = urlData.publicUrl
+        }
+      } catch (uploadErr) {
+        console.error('[studio_direct] Supabase upload failed, using temp URL:', uploadErr?.message)
+        // Fall back to temp URL — will work briefly
       }
 
       await admin.from('app_users').update({
