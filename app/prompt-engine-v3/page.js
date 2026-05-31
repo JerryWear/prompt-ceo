@@ -17675,6 +17675,7 @@ export default function PromptCEOPage() {
               <button onClick={() => { setPreviousView('timeline'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Director's Timeline</span>
               {batch.length > 0 && (<><Chip>{batch.length} scenes</Chip><Chip>{activeScene + 1} active</Chip></>)}
+              <button onClick={() => { setPreviousView('timeline'); set('view', 'studio') }} style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.raised, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 12px', cursor: 'pointer' }}>◧ Studio</button>
               <div style={{ flex: 1 }} />
               {batch.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
