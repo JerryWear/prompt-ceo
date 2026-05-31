@@ -18019,7 +18019,7 @@ export default function PromptCEOPage() {
                     <>
                       {/* Greeting */}
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Welcome back{userName ? `, ${userName}` : ''}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Welcome back{userName ? `, ${userName}` : ''}</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.5 }}>
                           {activeBrandProfile?.name ? activeBrandProfile.name : 'PromptCEO'}
                         </div>
@@ -18432,7 +18432,7 @@ export default function PromptCEOPage() {
                       <div style={{ fontSize: 28, color: C.gold }}>✦</div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: 22, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.3, marginBottom: 10 }}>Welcome to PromptCEO.</div>
-                        <div style={{ fontSize: 15, color: C.muted, maxWidth: 440, margin: '0 auto', lineHeight: 1.7 }}>The AI Creative Operating System for brands, creators, and agencies. Tell me what you're building and I'll set up your first campaign.</div>
+                        <div style={{ fontSize: 15, color: C.secondary, maxWidth: 440, margin: '0 auto', lineHeight: 1.7 }}>The AI Creative Operating System for brands, creators, and agencies. Tell me what you're building and I'll set up your first campaign.</div>
                       </div>
 
                       {/* What are you building chips */}
@@ -18511,7 +18511,7 @@ export default function PromptCEOPage() {
                       borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                       background: msg.role === 'user' ? '#1a1408' : C.surface,
                       border: `1px solid ${msg.role === 'user' ? C.goldDim : C.hairline}`,
-                      color: msg.role === 'user' ? C.gold : '#f0f0f0',
+                      color: msg.role === 'user' ? C.gold : '#ffffff',
                       fontSize: 15,
                       lineHeight: 1.75,
                       whiteSpace: 'pre-wrap',
