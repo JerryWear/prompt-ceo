@@ -19576,40 +19576,40 @@ export default function PromptCEOPage() {
                     const r = adaptResult[platform]
                     const meta = PLATFORM_META[platform]
                     return (
-                      <div key={platform} style={{ borderRadius: 8, border: `1px solid ${meta.color}33`, background: meta.dimColor, overflow: 'hidden' }}>
-                        <div style={{ padding: '10px 14px', background: `${meta.color}11`, borderBottom: `1px solid ${meta.color}33`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 16 }}>{meta.icon}</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>{meta.label}</span>
+                      <div key={platform} style={{ borderRadius: 10, border: `1px solid ${meta.color}33`, background: meta.dimColor, overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 20px', background: `${meta.color}11`, borderBottom: `1px solid ${meta.color}33`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: meta.color }}>{meta.label}</span>
                         </div>
-                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                           {r.hook && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Hook</div>
-                              <div style={{ fontSize: 12, color: C.primary, lineHeight: 1.5, fontWeight: 600 }}>{r.hook}</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Hook</div>
+                              <div style={{ fontSize: 15, color: C.primary, lineHeight: 1.5, fontWeight: 600 }}>{r.hook}</div>
                             </div>
                           )}
                           {r.angle && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Angle</div>
-                              <div style={{ fontSize: 11, color: C.secondary, lineHeight: 1.5 }}>{r.angle}</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Angle</div>
+                              <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.6 }}>{r.angle}</div>
                             </div>
                           )}
                           {r.cta && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>CTA</div>
-                              <div style={{ fontSize: 11, color: meta.color, lineHeight: 1.5, fontWeight: 600 }}>{r.cta}</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>CTA</div>
+                              <div style={{ fontSize: 14, color: meta.color, lineHeight: 1.5, fontWeight: 600 }}>{r.cta}</div>
                             </div>
                           )}
                           {r.caption && (
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Caption</div>
-                              <div style={{ fontSize: 10, color: C.secondary, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden auto' }}>{r.caption}</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Caption</div>
+                              <div style={{ fontSize: 13, color: C.secondary, lineHeight: 1.7, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'hidden auto' }}>{r.caption}</div>
                             </div>
                           )}
                           <button
                             onClick={() => copyText([r.hook, r.caption].filter(Boolean).join('\n\n'), platform)}
                             style={{
-                              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                              padding: '7px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700,
                               cursor: 'pointer', border: `1px solid ${meta.color}55`,
                               background: 'transparent', color: meta.color, alignSelf: 'flex-start',
                             }}
