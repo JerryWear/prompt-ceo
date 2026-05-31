@@ -128,8 +128,8 @@ export default function HomePage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.push('/prompt-engine-v3')
-      else setUser(null)
+      setUser(user || null)
+      // Don't auto-redirect — let logged-in users see the website too
     })
   }, [])
 
@@ -145,14 +145,15 @@ export default function HomePage() {
     }
   }, [])
 
-  const goToLogin   = () => router.push('/prompt-engine-v3/login')
+  const goToLogin   = () => router.push(isLoggedIn ? '/prompt-engine-v3' : '/prompt-engine-v3/login')
   const goToPricing = () => router.push('/pricing')
   const goToApp     = () => router.push('/prompt-engine-v3')
 
   const [activeSystem, setActiveSystem] = useState('director')
   const currentSystem = CORE_SYSTEMS.find(s => s.id === activeSystem) || CORE_SYSTEMS[0]
 
-  if (user === undefined) return null
+  // Always render — never blank. Logged-in users see the website with "Go to App" CTA.
+  const isLoggedIn = user !== null && user !== undefined
 
   return (
     <div style={{ background: C.void, color: C.primary, fontFamily: 'system-ui, -apple-system, sans-serif', overflowX: 'hidden' }}>
@@ -197,7 +198,7 @@ export default function HomePage() {
           <button
             onClick={goToLogin}
             style={{ padding: '8px 20px', borderRadius: 5, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
-            Start Free Trial
+            {isLoggedIn ? 'Go to App →' : 'Start Free Trial'}
           </button>
         </div>
       </nav>
@@ -257,7 +258,7 @@ export default function HomePage() {
                 padding: '15px 40px', borderRadius: 6, fontSize: 15, fontWeight: 800,
                 cursor: 'pointer', border: 'none', background: C.gold, color: '#000', letterSpacing: 0.3,
               }}>
-              Start Free Trial →
+              {isLoggedIn ? 'Go to App →' : 'Start Free Trial'} →
             </button>
             <button
               onClick={goToPricing}
@@ -756,7 +757,7 @@ export default function HomePage() {
             cursor: 'pointer', border: 'none', background: C.gold, color: '#000',
             letterSpacing: 0.3, display: 'block', margin: '0 auto 16px',
           }}>
-            Start Free Trial →
+            {isLoggedIn ? 'Go to App →' : 'Start Free Trial'} →
           </button>
           <div style={{ fontSize: 12, color: C.muted }}>
             7-day free trial · No credit card required · Cancel anytime
