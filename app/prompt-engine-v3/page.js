@@ -13287,7 +13287,19 @@ export default function PromptCEOPage() {
       if (!data.error) {
         setFullCampaignResult(data)
         setFullCampaignPhase('attention')
-        onGenerationComplete({ eventType: 'campaign_created', metadata: { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform }, outputKey: 'fullCampaign', projectId: s.activeProjectId, output: data })
+        // If API auto-created a project (no activeProjectId was set), adopt it as the active project
+        const resolvedProjectId = data.projectId || s.activeProjectId
+        if (data.projectId && !s.activeProjectId) {
+          const campaignName = (productName || fullCampaignProduct || activeBrandProfile?.name || 'Campaign').trim()
+          merge({ activeProjectId: data.projectId, activeProjectName: campaignName, activeProjectType: 'campaign' })
+          setProjects(prev => prev.find(p => p.id === data.projectId) ? prev : [{ id: data.projectId, name: campaignName, type: 'campaign' }, ...prev])
+          try {
+            localStorage.setItem('pce_activeProjectId', data.projectId)
+            localStorage.setItem('pce_activeProjectName', campaignName)
+            localStorage.setItem('pce_activeProjectType', 'campaign')
+          } catch {}
+        }
+        onGenerationComplete({ eventType: 'campaign_created', metadata: { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform }, outputKey: 'fullCampaign', projectId: resolvedProjectId, output: data })
       }
     } catch {}
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
@@ -19242,9 +19254,20 @@ export default function PromptCEOPage() {
                   <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back</button>
                   <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
                   {s.activeProjectId && (
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                       <button onClick={() => { setTimelineLoading(true); fetch(`/api/campaign-timeline/${s.activeProjectId}`).then(r => r.json()).then(d => { if (d.phases) setCampaignTimeline(d) }).catch(() => {}).finally(() => setTimelineLoading(false)) }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>↺ Refresh</button>
-                      <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>+ Generate Campaign →</button>
+                      {fullCampaignResult && (
+                        <button onClick={() => {
+                          if (window.confirm('Start a new campaign? Your previous campaign will remain saved in project history.')) {
+                            setFullCampaignResult(null)
+                            setFullCampaignPhase('attention')
+                            try { localStorage.removeItem(`pce_output_${s.activeProjectId}_fullCampaign`) } catch {}
+                          }
+                        }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✦ Start New Campaign</button>
+                      )}
+                      <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                        {fullCampaignResult ? 'Open Campaign Builder →' : '+ Generate Campaign →'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -19287,6 +19310,41 @@ export default function PromptCEOPage() {
                   <div style={{ fontSize: 11, color: C.muted }}>Loading…</div>
                 )}
               </div>
+
+              {/* Campaign Content — hydrated from fullCampaignResult when generation_logs shows 0 */}
+              {s.activeProjectId && fullCampaignResult && (() => {
+                const FCR = fullCampaignResult
+                const phases = [
+                  { id: 'attention',   label: 'Attention',   color: C.blue,    count: (FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || []).length },
+                  { id: 'connection',  label: 'Story',       color: C.violet,  count: (FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || []).length },
+                  { id: 'desire',      label: 'Desire',      color: '#f59e0b', count: (FCR?.phases?.desire?.imagePrompts || FCR?.phases?.desire_escalation?.imagePrompts || []).length },
+                  { id: 'conversion',  label: 'Conversion',  color: '#10b981', count: (FCR?.phases?.conversion?.ads || []).length },
+                  { id: 'retargeting', label: 'Retargeting', color: '#f97316', count: (FCR?.phases?.retargeting?.ads || []).length },
+                ]
+                const total = phases.reduce((sum, p) => sum + p.count, 0)
+                return (
+                  <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}40`, background: 'linear-gradient(135deg, #1a1408 0%, #0a0a0a 100%)', padding: '16px 18px', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Active Campaign</span>
+                      <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{total} assets across 5 phases</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                      {phases.map(p => (
+                        <div key={p.id} onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(p.id) }}
+                          style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, border: `1px solid ${p.count > 0 ? p.color + '40' : C.hairline}`, background: p.count > 0 ? p.color + '0a' : C.raised, cursor: 'pointer', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = p.color + '80' }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = p.count > 0 ? p.color + '40' : C.hairline }}
+                        >
+                          <div style={{ fontSize: 18, fontWeight: 800, color: p.count > 0 ? p.color : C.muted }}>{p.count}</div>
+                          <div style={{ fontSize: 9, color: p.count > 0 ? p.color : C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>{p.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: 12, fontSize: 10, color: C.muted, textAlign: 'center' }}>Click any phase to open it in Campaign Builder</div>
+                  </div>
+                )
+              })()}
 
               {s.activeProjectId && campaignTimeline?.phases && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
