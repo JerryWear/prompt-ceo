@@ -13698,7 +13698,7 @@ export default function PromptCEOPage() {
       })
         .then(r => r.json())
         .then(data => {
-          console.log('[generate ad image] response:', data?.status, data?.message, data?.debug)
+          console.log('[generate ad image] response:', data?.status, 'imageUrl:', data?.imageUrl?.slice?.(0,80), 'keys:', Object.keys(data||{}))
           if (data?.status === 'complete') {
             merge({ generatedImage: data.imageUrl, imageGenerating: false })
             onGenerationComplete({ eventType: 'image_generated', metadata: { source: 'ad_studio', mode: 'studio_direct' }, outputKey: 'studioImage', projectId: s.activeProjectId, output: { imageUrl: data.imageUrl } })
@@ -16555,8 +16555,11 @@ export default function PromptCEOPage() {
 
                 {outputTab === 'image' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {!s.imageDataUrl && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>Upload an identity image to enable generation.</div>}
-                    {s.imageGenerating && <div style={{ padding: '10px', textAlign: 'center', color: C.green, fontSize: 11 }}>⟳ Generating image…</div>}
+                    {/* Only show identity warning if no image is generating/generated and no ad content is imported */}
+                    {!s.imageDataUrl && !s.imageGenerating && !s.generatedImage && !adPromptRef.current && (
+                      <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>Upload an identity image to enable generation.</div>
+                    )}
+                    {s.imageGenerating && <div style={{ padding: '16px', textAlign: 'center', color: C.green, fontSize: 13, fontWeight: 600 }}>⟳ Generating image…</div>}
                     {s.imageError && <div style={{ padding: '6px 8px', borderRadius: 4, fontSize: 10, color: '#cf6a6a', background: '#110606', border: '1px solid #2a1010' }}>{s.imageError}</div>}
                     {s.generatedImage && (
                       <>
