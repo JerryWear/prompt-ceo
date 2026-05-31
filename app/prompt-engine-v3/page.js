@@ -16683,6 +16683,31 @@ export default function PromptCEOPage() {
                 </div>
               )}
 
+              {/* ── GENERATED AD IMAGE — shown directly in workspace ── */}
+              {(s.imageGenerating || s.generatedImage) && (
+                <div style={{ flexShrink: 0 }}>
+                  {s.imageGenerating && (
+                    <div style={{ padding: '20px', textAlign: 'center', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised }}>
+                      <div style={{ fontSize: 14, color: C.green, fontWeight: 600 }}>⟳ Generating image…</div>
+                    </div>
+                  )}
+                  {s.generatedImage && !s.imageGenerating && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <img src={s.generatedImage} alt="generated ad" style={{ width: '100%', borderRadius: 8, display: 'block' }} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => doCopy(s.generatedImage, 'imgurl')} style={{ flex: 1, padding: '8px', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.surface, color: copied === 'imgurl' ? C.green : C.secondary }}>
+                          {copied === 'imgurl' ? '✓ Copied' : 'Copy URL'}
+                        </button>
+                        <button onClick={() => merge({ generatedImage: '', imageError: '' })} style={{ padding: '8px 14px', borderRadius: 5, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>
+                          ✕
+                        </button>
+                      </div>
+                      {s.imageError && <div style={{ fontSize: 12, color: '#cf6a6a', padding: '6px 10px', background: '#110606', borderRadius: 5, border: '1px solid #2a1010' }}>{s.imageError}</div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── VARIATION ENGINE ── */}
               {result?.finalPrompt && (
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
