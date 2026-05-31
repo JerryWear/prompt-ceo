@@ -19270,7 +19270,7 @@ export default function PromptCEOPage() {
           const statusLabel = { completed: 'Complete', in_progress: 'In Progress', recommended: 'Recommended', locked: 'Locked' }
 
           return (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 860, margin: '0 auto', width: '100%' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── Header ── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -19330,89 +19330,88 @@ export default function PromptCEOPage() {
                   <>
                     {/* ── Brain Recommendation ── */}
                     {brain.recommendation && (
-                      <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}50`, background: 'linear-gradient(135deg, #1a1408, #0a0a0a)', padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}`, flexShrink: 0, marginTop: 4 }} />
+                      <div style={{ borderRadius: 12, border: `1px solid ${C.goldDim}50`, background: 'linear-gradient(135deg, #1a1408, #0a0a0a)', padding: '20px 24px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 8px ${C.gold}`, flexShrink: 0, marginTop: 6 }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 9, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Brain Recommendation</div>
-                          <div style={{ fontSize: 13, color: '#e8dfc8', lineHeight: 1.6 }}>{brain.recommendation}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>Brain Recommendation</div>
+                          <div style={{ fontSize: 15, color: '#e8dfc8', lineHeight: 1.7 }}>{brain.recommendation}</div>
                           {(brain.best_platform || brain.best_hook_types?.length > 0) && (
-                            <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
-                              {brain.best_platform && <span style={{ fontSize: 10, color: C.muted }}>Best platform: <span style={{ color: C.primary }}>{brain.best_platform}</span></span>}
-                              {brain.best_hook_types?.[0] && <span style={{ fontSize: 10, color: C.muted }}>Best hook: <span style={{ color: C.primary, textTransform: 'capitalize' }}>{brain.best_hook_types[0].replace(/_/g, ' ')}</span></span>}
-                              {brain.fatigue_score > 0 && <span style={{ fontSize: 10, color: brain.fatigue_score > 70 ? '#f97316' : C.muted }}>Fatigue: <span style={{ color: brain.fatigue_score > 70 ? '#f97316' : C.primary }}>{brain.fatigue_score}%</span></span>}
+                            <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
+                              {brain.best_platform && <span style={{ fontSize: 12, color: C.muted }}>Best platform: <span style={{ color: C.primary }}>{brain.best_platform}</span></span>}
+                              {brain.best_hook_types?.[0] && <span style={{ fontSize: 12, color: C.muted }}>Best hook: <span style={{ color: C.primary, textTransform: 'capitalize' }}>{brain.best_hook_types[0].replace(/_/g, ' ')}</span></span>}
+                              {brain.fatigue_score > 0 && <span style={{ fontSize: 12, color: brain.fatigue_score > 70 ? '#f97316' : C.muted }}>Fatigue: <span style={{ color: brain.fatigue_score > 70 ? '#f97316' : C.primary }}>{brain.fatigue_score}%</span></span>}
                             </div>
                           )}
                         </div>
-                        <div style={{ fontSize: 9, color: C.muted, whiteSpace: 'nowrap' }}>{brain.total_generations} total generations</div>
+                        <div style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{brain.total_generations} total generations</div>
                       </div>
                     )}
 
                     {/* ── Campaign Health ── */}
-                    <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, padding: '14px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign Health</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: health.overall > 60 ? '#10b981' : health.overall > 30 ? C.gold : C.muted }}>{health.overall || 0}%</div>
+                    <div style={{ borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, padding: '20px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign Health</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: health.overall > 60 ? '#10b981' : health.overall > 30 ? C.gold : C.muted }}>{health.overall || 0}%</div>
                       </div>
-                      {/* Phase health bars */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {phases.map(ph => (
-                          <div key={ph.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ fontSize: 10, color: C.muted, width: 80, flexShrink: 0 }}>{ph.label}</div>
-                            <div style={{ flex: 1, height: 4, borderRadius: 2, background: C.hairline, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${health.byPhase?.[ph.id] || 0}%`, background: ph.color, borderRadius: 2, transition: 'width 0.5s' }} />
+                          <div key={ph.id} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <div style={{ fontSize: 13, color: C.secondary, width: 100, flexShrink: 0 }}>{ph.label}</div>
+                            <div style={{ flex: 1, height: 6, borderRadius: 3, background: C.hairline, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${health.byPhase?.[ph.id] || 0}%`, background: ph.color, borderRadius: 3, transition: 'width 0.5s' }} />
                             </div>
-                            <div style={{ fontSize: 10, color: C.muted, width: 32, textAlign: 'right' }}>{health.byPhase?.[ph.id] || 0}%</div>
+                            <div style={{ fontSize: 12, color: C.muted, width: 36, textAlign: 'right' }}>{health.byPhase?.[ph.id] || 0}%</div>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* ── Phases ── */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Phases</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Phases</div>
                       {phases.map(phase => {
                         const isExpanded = expandedPhases[phase.id]
                         const sc = statusColor[phase.status] || C.hairline
                         const sl = statusLabel[phase.status] || phase.status
                         return (
-                          <div key={phase.id} style={{ borderRadius: 8, border: `1px solid ${phase.status === 'recommended' ? C.goldDim : phase.status === 'completed' ? phase.color + '40' : C.hairline}`, background: phase.status === 'recommended' ? '#1a1408' : C.raised, overflow: 'hidden' }}>
+                          <div key={phase.id} style={{ borderRadius: 10, border: `1px solid ${phase.status === 'recommended' ? C.goldDim : phase.status === 'completed' ? phase.color + '40' : C.hairline}`, background: phase.status === 'recommended' ? '#1a1408' : C.raised, overflow: 'hidden' }}>
                             <div onClick={() => phase.status !== 'locked' && setExpandedPhases(prev => ({ ...prev, [phase.id]: !prev[phase.id] }))}
-                              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: phase.status !== 'locked' ? 'pointer' : 'default', opacity: phase.status === 'locked' ? 0.45 : 1 }}>
-                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: phase.status === 'locked' ? C.hairline : phase.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{phase.num}</div>
+                              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', cursor: phase.status !== 'locked' ? 'pointer' : 'default', opacity: phase.status === 'locked' ? 0.45 : 1 }}>
+                              <div style={{ width: 30, height: 30, borderRadius: '50%', background: phase.status === 'locked' ? C.hairline : phase.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{phase.num}</div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: phase.status === 'locked' ? C.muted : C.primary }}>{phase.label}</span>
-                                  <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 3, background: sc + '22', color: sc }}>{sl}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ fontSize: 15, fontWeight: 700, color: phase.status === 'locked' ? C.muted : C.primary }}>{phase.label}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 4, background: sc + '22', color: sc }}>{sl}</span>
                                 </div>
-                                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{phase.hint}</div>
+                                <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{phase.hint}</div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                {phase.assetCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: phase.color }}>{phase.assetCount} asset{phase.assetCount !== 1 ? 's' : ''}</span>}
-                                {phase.progressPct > 0 && phase.progressPct < 100 && <span style={{ fontSize: 9, color: C.muted }}>{phase.progressPct}%</span>}
-                                {phase.status !== 'locked' && <span style={{ fontSize: 10, color: C.muted, transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▾</span>}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                {phase.assetCount > 0 && <span style={{ fontSize: 13, fontWeight: 700, color: phase.color }}>{phase.assetCount} asset{phase.assetCount !== 1 ? 's' : ''}</span>}
+                                {phase.progressPct > 0 && phase.progressPct < 100 && <span style={{ fontSize: 11, color: C.muted }}>{phase.progressPct}%</span>}
+                                {phase.status !== 'locked' && <span style={{ fontSize: 12, color: C.muted, transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▾</span>}
                               </div>
                             </div>
                             {isExpanded && phase.status !== 'locked' && (
-                              <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {phase.assets.length > 0 ? (
                                   <>
-                                    <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.muted }}>Assets</div>
+                                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.muted }}>Assets</div>
                                     {phase.assets.map((asset, i) => (
-                                      <div key={i} style={{ background: C.surface, borderRadius: 6, padding: '8px 12px', border: `1px solid ${C.hairline}` }}>
-                                        <div style={{ fontSize: 8, color: phase.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 3 }}>{(asset.type || 'asset').replace(/_/g, ' ')}</div>
-                                        <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{asset.content}</div>
+                                      <div key={i} style={{ background: C.surface, borderRadius: 8, padding: '12px 16px', border: `1px solid ${C.hairline}` }}>
+                                        <div style={{ fontSize: 10, color: phase.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5 }}>{(asset.type || 'asset').replace(/_/g, ' ')}</div>
+                                        <div style={{ fontSize: 14, color: C.secondary, lineHeight: 1.7 }}>{asset.content}</div>
                                       </div>
                                     ))}
                                     {phase.assetCount > phase.assets.length && (
-                                      <div style={{ fontSize: 10, color: C.muted }}>+{phase.assetCount - phase.assets.length} more assets</div>
+                                      <div style={{ fontSize: 12, color: C.muted }}>+{phase.assetCount - phase.assets.length} more assets</div>
                                     )}
                                     <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(phase.id) }}
-                                      style={{ alignSelf: 'flex-start', fontSize: 10, fontWeight: 700, color: phase.color, background: 'none', border: `1px solid ${phase.color}40`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', marginTop: 4 }}>
+                                      style={{ alignSelf: 'flex-start', fontSize: 12, fontWeight: 700, color: phase.color, background: 'none', border: `1px solid ${phase.color}40`, borderRadius: 6, padding: '7px 16px', cursor: 'pointer', marginTop: 4 }}>
                                       View full phase in Campaign Builder →
                                     </button>
                                   </>
                                 ) : (
-                                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+                                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
                                     No assets yet for this phase.{phase.status === 'recommended' ? ' This phase is recommended next — go to Campaign Builder to generate.' : ''}
                                   </div>
                                 )}
@@ -19425,13 +19424,13 @@ export default function PromptCEOPage() {
 
                     {/* ── Campaign History ── */}
                     {history.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign History ({history.length})</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign History ({history.length})</div>
                         {history.map((h, i) => (
-                          <div key={h.id || i} style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div key={h.id || i} style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{h.summary.product || 'Campaign'}</div>
-                              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: C.primary }}>{h.summary.product || 'Campaign'}</div>
+                              <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                                 {h.summary.platform} · {h.summary.style} · {h.summary.totalAssets || '—'} assets · {formatDate(h.generatedAt)}
                               </div>
                             </div>
@@ -19442,7 +19441,7 @@ export default function PromptCEOPage() {
                                 setPreviousView('campaign_journey')
                                 set('view', 'full_campaign')
                               }
-                            }} style={{ fontSize: 10, fontWeight: 700, color: C.gold, background: 'none', border: `1px solid ${C.goldDim}`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            }} style={{ fontSize: 12, fontWeight: 700, color: C.gold, background: 'none', border: `1px solid ${C.goldDim}`, borderRadius: 6, padding: '7px 16px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               Open →
                             </button>
                           </div>
