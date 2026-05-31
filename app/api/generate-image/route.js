@@ -246,17 +246,20 @@ export async function POST(req) {
       })
 
       const xaiData = await xaiImageRes.json()
+      console.log('[studio_direct] XAI status:', xaiImageRes.status, 'body:', JSON.stringify(xaiData).slice(0, 500))
 
       if (!xaiImageRes.ok) {
         return NextResponse.json({
           status: 'error',
-          message: clean(xaiData?.error?.message) || 'Image generation failed',
+          message: clean(xaiData?.error?.message) || `XAI error ${xaiImageRes.status}`,
+          debug: { status: xaiImageRes.status, model: 'grok-imagine-image-quality', error: xaiData?.error },
         }, { status: xaiImageRes.status })
       }
 
-      const imageUrl = clean(xaiData?.data?.[0]?.url)
+      const imageUrl = clean(xaiData?.data?.[0]?.url) || clean(xaiData?.images?.[0]?.url) || clean(xaiData?.url)
       if (!imageUrl) {
-        return NextResponse.json({ status: 'error', message: 'No image returned' }, { status: 500 })
+        console.log('[studio_direct] No imageUrl found in response:', JSON.stringify(xaiData).slice(0, 300))
+        return NextResponse.json({ status: 'error', message: 'No image returned from XAI', debug: xaiData }, { status: 500 })
       }
 
       await admin.from('app_users').update({

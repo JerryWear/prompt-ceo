@@ -13698,14 +13698,17 @@ export default function PromptCEOPage() {
       })
         .then(r => r.json())
         .then(data => {
+          console.log('[generate ad image] response:', data?.status, data?.message, data?.debug)
           if (data?.status === 'complete') {
             merge({ generatedImage: data.imageUrl, imageGenerating: false })
             onGenerationComplete({ eventType: 'image_generated', metadata: { source: 'ad_studio', mode: 'studio_direct' }, outputKey: 'studioImage', projectId: s.activeProjectId, output: { imageUrl: data.imageUrl } })
           } else {
-            merge({ imageError: data?.message || 'Image generation failed', imageGenerating: false })
+            const errMsg = data?.message || 'Image generation failed'
+            console.error('[generate ad image] error:', errMsg, data?.debug)
+            merge({ imageError: errMsg, imageGenerating: false })
           }
         })
-        .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+        .catch(err => { console.error('[generate ad image] fetch failed:', err); merge({ imageError: err.message, imageGenerating: false }) })
       return
     }
 
