@@ -14051,12 +14051,18 @@ export default function PromptCEOPage() {
   }
 
   const saveCharacterDNA = (name) => {
+    // Inject gender from characterMode into subjectA traits at save time
+    const gender = s.characterMode === 'male' ? 'male' : s.characterMode === 'couple' ? 'couple' : 'female'
+    const traitsWithGender = {
+      ...(s.traits || {}),
+      subjectA: { ...(s.traits?.subjectA || {}), gender },
+    }
     const profile = {
       id: Date.now(), name: name || s.identityName || `Character ${Date.now()}`,
       savedAt: new Date().toISOString(),
       settings: {
         identityName: s.identityName, useIdentity: s.useIdentity, useTraits: s.useTraits,
-        identityStrength: s.identityStrength, traits: s.traits, ageRange: s.ageRange,
+        identityStrength: s.identityStrength, traits: traitsWithGender, ageRange: s.ageRange,
         characterMode: s.characterMode, subjectGender: s.subjectGender,
         worldControlMode: s.worldControlMode, worldId: s.worldId,
         subLocationId: s.subLocationId, sceneGroupId: s.sceneGroupId,
@@ -14084,13 +14090,16 @@ export default function PromptCEOPage() {
 
   // Apply only identity traits to a generator — does NOT change world/director/Studio settings
   const applyCharacterToGenerator = (profile) => {
-    const s = profile.settings || {}
+    const ps = profile.settings || {}
+    const gender = ps.characterMode === 'male' ? 'male' : ps.characterMode === 'couple' ? 'couple' : 'female'
+    // Inject gender into subjectA physical_traits so generators include it in prompts
+    const subjectA = { ...(ps.traits?.subjectA || {}), gender }
     merge({
-      identityName:    s.identityName || '',
-      traits:          s.traits       || {},
-      useIdentity:     s.useIdentity  ?? true,
-      useTraits:       s.useTraits    ?? true,
-      characterMode:   s.characterMode || 'female',
+      identityName:    ps.identityName || '',
+      traits:          { ...(ps.traits || {}), subjectA },
+      useIdentity:     ps.useIdentity  ?? true,
+      useTraits:       ps.useTraits    ?? true,
+      characterMode:   ps.characterMode || 'female',
     })
   }
 
