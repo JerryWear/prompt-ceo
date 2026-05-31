@@ -18892,12 +18892,24 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Character picker — explicit only. No character = generic prompts */}
-              {studioCharDNA.length > 0 && !leCharacter && (
-                <select defaultValue="" onChange={e => { if (e.target.value) setLeCharacter(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' }}
-                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
-                  <option value="" disabled>+ Add character</option>
-                  {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
-                </select>
+              {!leCharacter && (
+                <>
+                  {/* Option A: pick from saved profiles */}
+                  {studioCharDNA.length > 0 && (
+                    <select defaultValue="" onChange={e => { if (e.target.value) setLeCharacter(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' }}
+                      style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                      <option value="" disabled>+ Add character</option>
+                      {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                    </select>
+                  )}
+                  {/* Option B: use currently loaded DNA from Studio (covers cloud-saved profiles) */}
+                  {s.identityName && s.traits?.subjectA && (
+                    <button onClick={() => setLeCharacter({ name: s.identityName, settings: { traits: s.traits, characterMode: s.characterMode || 'female' } })}
+                      style={{ padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, whiteSpace: 'nowrap' }}>
+                      🧬 Use {s.identityName}
+                    </button>
+                  )}
+                </>
               )}
               {leCharacter && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
