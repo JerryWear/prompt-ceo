@@ -19456,7 +19456,39 @@ export default function PromptCEOPage() {
         })()}
 
         {s.view === 'cross_platform' && (() => {
-          const hasContent = s.adTextResults && Object.keys(s.adTextResults).length > 0
+          // ── Content detection — priority order ──────────────────────────────
+          // 1. adTextResults (Ad Studio local state)
+          // 2. fullCampaignResult (Campaign Builder — extract as hooks/captions)
+          // 3. nothing → show empty state
+
+          const adHasContent = s.adTextResults && Object.keys(s.adTextResults).length > 0
+
+          // Build effective outputs from fullCampaignResult if Ad Studio is empty
+          const fcrOutputs = (() => {
+            if (adHasContent || !fullCampaignResult) return null
+            const FCR = fullCampaignResult
+            const hooks = (FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || [])
+              .map(h => typeof h === 'string' ? h : h.hook).filter(Boolean)
+            const storyScripts = (FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || [])
+              .map(s => typeof s === 'string' ? s : s.hook || s.script).filter(Boolean)
+            const captions = (FCR?.captions || []).map(c => typeof c === 'string' ? c : c.caption || c).filter(Boolean)
+            const angles = (FCR?.phases?.conversion?.ads || []).map(a => typeof a === 'string' ? a : a.hook || a.copy).filter(Boolean)
+
+            if (hooks.length === 0 && captions.length === 0 && storyScripts.length === 0) return null
+
+            return {
+              hooks_attention: { hooks },
+              captions: [...storyScripts, ...captions].slice(0, 10),
+              angles,
+              _source: 'full_campaign',
+            }
+          })()
+
+          const effectiveOutputs = adHasContent ? s.adTextResults : (fcrOutputs || null)
+          const hasContent = !!effectiveOutputs
+          const contentSource = adHasContent ? 'ad_studio' : (fcrOutputs ? 'full_campaign' : null)
+          // ───────────────────────────────────────────────────────────────────
+
           const PLATFORMS = ['instagram', 'tiktok', 'meta', 'youtube']
           const PLATFORM_META = {
             instagram: { icon: '📸', label: 'Instagram', color: '#e1306c', dimColor: '#3a1020' },
@@ -19473,7 +19505,7 @@ export default function PromptCEOPage() {
             fetch('/api/adapt-campaign', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ outputs: s.adTextResults }),
+              body: JSON.stringify({ outputs: effectiveOutputs }),
             })
               .then(r => r.json())
               .then(d => {
@@ -19517,6 +19549,12 @@ export default function PromptCEOPage() {
                   {adaptLoading ? '⟳ Adapting…' : '⊕ Adapt for All Platforms'}
                 </button>
               </div>
+
+              {contentSource === 'full_campaign' && (
+                <div style={{ padding: '10px 16px', borderRadius: 6, border: `1px solid ${C.goldDim}40`, background: '#1a1408', fontSize: 12, color: C.gold }}>
+                  ✦ Using Full Campaign content — hooks and captions extracted from Campaign Builder output.
+                </div>
+              )}
 
               {!hasContent && (
                 <div style={{ padding: '32px', textAlign: 'center', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.deep }}>
