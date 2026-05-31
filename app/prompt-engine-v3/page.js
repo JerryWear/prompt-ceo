@@ -13681,56 +13681,58 @@ export default function PromptCEOPage() {
 
   // ── Generate ──────────────────────────────────────────────
   const generate = useCallback(() => {
-    let r = buildPromptV3(buildInput(s))
-    // Inject custom world context
-    const customWorldCtx = getCustomWorldPromptContext()
-    if (customWorldCtx && r.finalPrompt) {
-      r = { ...r, finalPrompt: `${r.finalPrompt}. ${customWorldCtx}` }
-    }
-    // Inject visual anchor for character consistency
-    if (s.visualAnchor?.description && r.finalPrompt) {
-      r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
-    }
-    // Inject Brand DNA Lock constraints
-    if (activeBrandDNA?.is_locked && r.finalPrompt) {
-      const dnaConstraints = buildBrandDNAConstraints(activeBrandDNA)
-      if (dnaConstraints) r = { ...r, finalPrompt: `${r.finalPrompt}${dnaConstraints}` }
-      // Validate for violations
-      const violations = validatePromptAgainstDNA(r.finalPrompt, activeBrandDNA)
-      setBrandDNAViolations(violations)
+    let promptToUse
+    let r
+
+    if (result?.finalPrompt) {
+      // Existing content (from Ad Studio / Campaign Builder) — use it directly, do NOT rebuild
+      promptToUse = result.finalPrompt
+      r = result
     } else {
-      setBrandDNAViolations([])
+      // No existing content — build new cinematic prompt from world/director settings
+      r = buildPromptV3(buildInput(s))
+      const customWorldCtx = getCustomWorldPromptContext()
+      if (customWorldCtx && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. ${customWorldCtx}` }
+      if (s.visualAnchor?.description && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
+      if (activeBrandDNA?.is_locked && r.finalPrompt) {
+        const dnaConstraints = buildBrandDNAConstraints(activeBrandDNA)
+        if (dnaConstraints) r = { ...r, finalPrompt: `${r.finalPrompt}${dnaConstraints}` }
+        setBrandDNAViolations(validatePromptAgainstDNA(r.finalPrompt, activeBrandDNA))
+      } else {
+        setBrandDNAViolations([])
+      }
+      setResult(r)
+      if (s.continuityLock && r.finalPrompt) {
+        setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
+      }
+      promptToUse = r.finalPrompt
     }
-    setResult(r)
-    setOutputTab('output')
-    if (s.continuityLock && r.finalPrompt) {
-      setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
-    }
-    if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
-    // Auto-generate image after prompt is built
-    if (r.finalPrompt) {
-      setOutputTab('image') // switch to image tab so user sees result
-      merge({ imageGenerating: true, imageError: '', generatedImage: '' })
-      const mode    = s.imageDataUrl ? 'director' : 'studio_direct'
-      const payload = s.imageDataUrl
-        ? { prompt: r.finalPrompt, imageDataUrl: s.imageDataUrl, identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {}, mode }
-        : { prompt: r.finalPrompt, mode }
-      fetch('/api/generate-image', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+
+    if (!promptToUse) return
+    if (promptToUse) saveToHistory(promptToUse, r?.meta)
+
+    // Generate image immediately — director mode with identity, direct mode without
+    setOutputTab('image')
+    merge({ imageGenerating: true, imageError: '', generatedImage: '' })
+    const mode    = s.imageDataUrl ? 'director' : 'studio_direct'
+    const payload = s.imageDataUrl
+      ? { prompt: promptToUse, imageDataUrl: s.imageDataUrl, identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {}, mode }
+      : { prompt: promptToUse, mode }
+    fetch('/api/generate-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.status === 'complete') {
+          merge({ generatedImage: data.imageUrl, imageGenerating: false })
+        } else {
+          merge({ imageError: data?.message || 'Generation failed', imageGenerating: false })
+        }
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data?.status === 'complete') {
-            merge({ generatedImage: data.imageUrl, imageGenerating: false })
-          } else {
-            const msg = data?.message || 'Generation failed'
-            merge({ imageError: msg, imageGenerating: false })
-          }
-        })
-        .catch(err => merge({ imageError: err.message, imageGenerating: false }))
-    }
-  }, [s, saveToHistory, merge, setOutputTab])
+      .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s, result, saveToHistory, merge, setOutputTab, activeBrandDNA])
 
   // Smart batch progression — each shot zone gets specific cinematic direction
   const SMART_SHOT_DIRECTIONS = [
