@@ -18216,42 +18216,155 @@ export default function PromptCEOPage() {
                         )}
                         {productAnalysis && !productAnalysis.error && (() => {
                           const a = productAnalysis
+                          const p = a.product || {}
+                          const Label = ({ children }) => <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted, marginBottom: 8, marginTop: 2 }}>{children}</div>
+                          const impactColor = { High: '#4a9a6a', Medium: C.gold, Low: '#888' }
+                          const diffColor = { Easy: '#4a9a6a', Medium: C.gold, Hard: '#c87a4a' }
                           return (
-                            <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}50`, background: '#0e0c08', overflow: 'hidden' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.hairline}` }}>
-                                {productImageUrl && <img src={productImageUrl} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />}
+                            <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}50`, background: '#080808', overflow: 'hidden' }}>
+                              {/* Header */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: `1px solid #1a1a1a`, background: '#0e0c08' }}>
+                                {productImageUrl && <img src={productImageUrl} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.goldDim}` }} alt="" />}
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{a.product?.name}</div>
-                                  <div style={{ fontSize: 10, color: C.muted }}>{a.product?.category} · {a.product?.priceSignal}</div>
+                                  <div style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>{p.name}</div>
+                                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{p.category} · {p.priceSignal}{p.confidence ? ` · ${p.confidence}% confidence` : ''}</div>
                                 </div>
-                                <button onClick={() => { setProductAnalysis(null); setProductImageUrl(null) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕ Reset</button>
+                                <button onClick={() => { setProductAnalysis(null); setProductImageUrl(null) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}>✕ Reset</button>
                               </div>
-                              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                                {/* Product Intelligence */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  {[
+                                    { label: 'Market Position', value: p.marketPosition },
+                                    { label: 'Market Saturation', value: p.marketSaturation, color: p.marketSaturation === 'Very High' || p.marketSaturation === 'High' ? '#c87a4a' : C.green },
+                                    { label: 'Differentiation', value: p.differentiationStrength, color: p.differentiationStrength === 'Very Strong' || p.differentiationStrength === 'Strong' ? C.green : C.gold },
+                                    { label: 'Visual Style', value: p.visualStyle },
+                                  ].filter(i => i.value).map((item, i) => (
+                                    <div key={i} style={{ padding: '8px 10px', borderRadius: 6, background: '#0d0d0d', border: `1px solid #1a1a1a` }}>
+                                      <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 3 }}>{item.label}</div>
+                                      <div style={{ fontSize: 11, fontWeight: 600, color: item.color || C.primary, lineHeight: 1.4 }}>{item.value}</div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Target Audience */}
+                                {a.audience?.segments?.length > 0 && (
+                                  <div>
+                                    <Label>Target Audience</Label>
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                      {a.audience.segments.map((s, i) => (
+                                        <span key={i} style={{ padding: '3px 8px', borderRadius: 4, background: '#0d1a0d', border: `1px solid #1a3a1a`, fontSize: 11, color: C.green }}>{s}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Competitors */}
+                                {a.competitors?.length > 0 && (
+                                  <div>
+                                    <Label>Primary Competitors</Label>
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                      {a.competitors.map((c, i) => (
+                                        <span key={i} style={{ padding: '3px 8px', borderRadius: 4, background: '#0d0d0d', border: `1px solid #1a1a1a`, fontSize: 11, color: C.secondary }}>{c}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Brand DNA Conflicts */}
                                 {a.brandConflicts?.length > 0 && (
-                                  <div style={{ padding: '10px 12px', borderRadius: 6, background: '#1a0808', border: `1px solid #3a1010` }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#cf6a6a', marginBottom: 6 }}>⚠️ Brand DNA Conflicts</div>
+                                  <div style={{ padding: '12px', borderRadius: 8, background: '#1a0808', border: `1px solid #3a1010` }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: '#cf6a6a', marginBottom: 8 }}>⚠️ Brand DNA Conflicts</div>
                                     {a.brandConflicts.map((c, i) => (
-                                      <div key={i} style={{ fontSize: 11, color: '#e0a0a0', marginBottom: 4, lineHeight: 1.5 }}>
-                                        <strong>{c.issue}:</strong> {c.recommendation}
+                                      <div key={i} style={{ fontSize: 11, color: '#e0a0a0', marginBottom: 6, lineHeight: 1.6 }}>
+                                        <strong>{c.issue}</strong> — {c.recommendation}
                                       </div>
                                     ))}
                                   </div>
                                 )}
-                                <div>
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Campaign Directions</div>
-                                  {(a.directions || []).map((d, i) => (
-                                    <button key={i} onClick={() => {
-                                      const msg = `Let's build a campaign around direction ${i+1}: "${d}" for ${a.product?.name}. Target audience: ${a.audience?.primary}.`
-                                      setDirectorInput(msg)
-                                      setTimeout(() => directorSend(msg), 50)
-                                    }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 5, marginBottom: 4, border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary, fontSize: 11, cursor: 'pointer' }}
-                                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
-                                      onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.color = C.secondary }}
-                                    >
-                                      {d}
-                                    </button>
-                                  ))}
-                                </div>
+
+                                {/* SWOT */}
+                                {a.swot && (
+                                  <div>
+                                    <Label>SWOT Analysis</Label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                      {[
+                                        { key: 'strengths', label: 'Strengths', icon: '✓', color: C.green, bg: '#0d1a0d', border: '#1a3a1a' },
+                                        { key: 'weaknesses', label: 'Weaknesses', icon: '⚠', color: '#c87a4a', bg: '#1a0e08', border: '#3a2010' },
+                                        { key: 'opportunities', label: 'Opportunities', icon: '◈', color: C.gold, bg: '#0e0c08', border: C.goldDim },
+                                        { key: 'threats', label: 'Threats', icon: '⚠', color: '#cf6a6a', bg: '#1a0808', border: '#3a1010' },
+                                      ].map(({ key, label, icon, color, bg, border }) => (
+                                        a.swot[key]?.length > 0 && (
+                                          <div key={key} style={{ padding: '10px', borderRadius: 6, background: bg, border: `1px solid ${border}` }}>
+                                            <div style={{ fontSize: 9, fontWeight: 800, color, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+                                            {a.swot[key].map((item, i) => (
+                                              <div key={i} style={{ fontSize: 11, color, opacity: 0.85, marginBottom: 3, lineHeight: 1.4 }}>{icon} {item}</div>
+                                            ))}
+                                          </div>
+                                        )
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Campaign Directions with reasoning */}
+                                {a.directions?.length > 0 && (
+                                  <div>
+                                    <Label>Campaign Directions</Label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {a.directions.map((d, i) => {
+                                        const dir = typeof d === 'string' ? { direction: d } : d
+                                        return (
+                                          <div key={i} style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: '#0d0d0d', overflow: 'hidden' }}>
+                                            <button onClick={() => {
+                                              const msg = `Build a campaign around: "${dir.direction}" for ${p.name}. ${dir.reasoning ? `Key insight: ${dir.reasoning}` : ''} Platform: ${dir.bestPlatform || 'Instagram'}.`
+                                              setDirectorInput(msg)
+                                              setTimeout(() => directorSend(msg), 50)
+                                            }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: dir.reasoning ? `1px solid ${C.hairline}` : 'none' }}
+                                              onMouseEnter={e => e.currentTarget.parentElement.style.borderColor = C.goldDim}
+                                              onMouseLeave={e => e.currentTarget.parentElement.style.borderColor = C.hairline}
+                                            >
+                                              <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: dir.bestPlatform ? 6 : 0 }}>{dir.direction}</div>
+                                              {(dir.bestPlatform || dir.expectedImpact || dir.difficulty) && (
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                  {dir.bestPlatform && <span style={{ fontSize: 9, color: C.blue, background: '#0a1018', border: `1px solid #1a2a3a`, borderRadius: 3, padding: '1px 6px' }}>{dir.bestPlatform}</span>}
+                                                  {dir.expectedImpact && <span style={{ fontSize: 9, color: impactColor[dir.expectedImpact] || C.muted, background: '#0d0d0d', border: `1px solid #1a1a1a`, borderRadius: 3, padding: '1px 6px' }}>Impact: {dir.expectedImpact}</span>}
+                                                  {dir.difficulty && <span style={{ fontSize: 9, color: diffColor[dir.difficulty] || C.muted, background: '#0d0d0d', border: `1px solid #1a1a1a`, borderRadius: 3, padding: '1px 6px' }}>{dir.difficulty}</span>}
+                                                </div>
+                                              )}
+                                            </button>
+                                            {dir.reasoning && (
+                                              <div style={{ padding: '8px 12px', fontSize: 11, color: C.muted, lineHeight: 1.6, background: '#0a0a0a' }}>
+                                                {dir.reasoning}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* What Would I Do */}
+                                {a.whatWouldIDo?.length > 0 && (
+                                  <div style={{ padding: '14px', borderRadius: 8, background: 'linear-gradient(135deg, #1a1408, #0a0a0a)', border: `1px solid ${C.goldDim}40` }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 }}>If I were launching this tomorrow</div>
+                                    {a.whatWouldIDo.map((item, i) => (
+                                      <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                                        <span style={{ fontSize: 10, fontWeight: 800, color: '#000', background: C.gold, borderRadius: 3, padding: '1px 5px', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                                        <span style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{item}</span>
+                                      </div>
+                                    ))}
+                                    {a.sampleHook && (
+                                      <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 6, background: '#0a0a0a', border: `1px solid ${C.hairline}`, fontSize: 12, color: C.primary, fontStyle: 'italic' }}>
+                                        "{a.sampleHook}"
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
                               </div>
                             </div>
                           )

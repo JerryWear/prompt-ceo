@@ -23,51 +23,76 @@ async function getUser() {
   return user
 }
 
-const ANALYSIS_PROMPT = `You are a senior brand strategist and creative director analyzing a product photo.
+const ANALYSIS_PROMPT = `You are a senior brand strategist, creative director, and marketing consultant analyzing a product photo. Think like the best marketing mind in the room.
 
-Analyze this product image carefully. Return ONLY valid JSON — no markdown, no explanation.
+Analyze this product image carefully and deeply. Return ONLY valid JSON — no markdown, no explanation, no code fences.
 
-Return this exact structure:
+Return this EXACT structure (all fields required):
 {
   "product": {
-    "name": "Short descriptive product name (e.g. 'Black Performance Hoodie')",
-    "category": "Product category (e.g. 'Premium Activewear')",
-    "visualStyle": "2-4 word description of visual aesthetic seen in the image",
-    "priceSignal": "One of: budget | mid-range | premium | luxury",
-    "photographyQuality": "One of: poor | average | good | excellent",
+    "name": "Short descriptive product name",
+    "category": "Specific product category",
+    "confidence": 95,
+    "visualStyle": "2-4 word description of visual aesthetic",
+    "priceSignal": "budget | mid-range | premium | luxury",
+    "marketPosition": "One sentence: where this product sits in the market",
+    "marketSaturation": "Low | Medium | High | Very High",
+    "differentiationStrength": "Weak | Medium | Strong | Very Strong",
     "observations": [
-      "Specific observation about what you actually see in the image",
-      "Another specific visual observation",
-      "A third observation about packaging, design, or photography"
+      "Specific visual observation about what you actually see",
+      "Second specific observation about design or quality signals",
+      "Third observation about positioning or photography"
     ]
   },
   "audience": {
-    "primary": "Primary target audience description",
-    "secondary": "Secondary audience",
-    "psychographics": "What this product signals about the buyer's identity or values"
+    "segments": ["Audience segment 1", "Audience segment 2", "Audience segment 3"],
+    "psychographics": "What owning this product says about the buyer's identity"
+  },
+  "competitors": ["Competitor 1", "Competitor 2", "Competitor 3", "Competitor 4"],
+  "swot": {
+    "strengths": ["Specific strength 1", "Specific strength 2", "Specific strength 3"],
+    "weaknesses": ["Specific weakness 1", "Specific weakness 2"],
+    "opportunities": ["Specific opportunity 1", "Specific opportunity 2", "Specific opportunity 3"],
+    "threats": ["Specific threat 1", "Specific threat 2", "Specific threat 3"]
   },
   "directions": [
-    "Campaign direction 1 — specific to this product",
-    "Campaign direction 2",
-    "Campaign direction 3",
-    "Campaign direction 4"
+    {
+      "direction": "Campaign direction — specific and strategic",
+      "reasoning": "Why this specific direction works for this specific product",
+      "bestPlatform": "Instagram | TikTok | LinkedIn | YouTube | Meta Ads",
+      "expectedImpact": "High | Medium | Low",
+      "difficulty": "Easy | Medium | Hard"
+    },
+    {
+      "direction": "Second campaign direction",
+      "reasoning": "Why this works",
+      "bestPlatform": "Platform",
+      "expectedImpact": "High | Medium | Low",
+      "difficulty": "Easy | Medium | Hard"
+    },
+    {
+      "direction": "Third campaign direction",
+      "reasoning": "Why this works",
+      "bestPlatform": "Platform",
+      "expectedImpact": "High | Medium | Low",
+      "difficulty": "Easy | Medium | Hard"
+    },
+    {
+      "direction": "Fourth campaign direction",
+      "reasoning": "Why this works",
+      "bestPlatform": "Platform",
+      "expectedImpact": "High | Medium | Low",
+      "difficulty": "Easy | Medium | Hard"
+    }
   ],
-  "strengths": [
-    "Specific visual or positioning strength visible in the image"
+  "whatWouldIDo": [
+    "First specific strategic recommendation if launching this product tomorrow",
+    "Second recommendation",
+    "Third recommendation",
+    "Fourth recommendation",
+    "Fifth recommendation"
   ],
-  "weaknesses": [
-    "Specific visual or positioning weakness visible in the image"
-  ],
-  "opportunities": [
-    "Content or campaign opportunity suggested by this product"
-  ],
-  "campaignDraft": {
-    "productName": "Suggested product name for campaigns",
-    "positioning": "One sentence positioning statement",
-    "primaryAudience": "Who to target",
-    "topAngle": "The single strongest campaign angle for this product",
-    "sampleHook": "One scroll-stopping hook line for this specific product"
-  }
+  "sampleHook": "One scroll-stopping hook line written specifically for this product"
 }`
 
 const CONFLICT_PROMPT = (brandProfile) => `
