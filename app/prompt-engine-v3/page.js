@@ -13366,6 +13366,7 @@ export default function PromptCEOPage() {
   // ── Cross-section wiring helpers ────────────────────────
   // Send any image prompt straight to Studio and switch view
   const sendToStudio = useCallback((promptText) => {
+    adPromptRef.current = promptText   // store in ref — no closure issues
     setResult({ finalPrompt: promptText, meta: {}, layers: {}, warnings: [] })
     setOutputTab('output')
     set('view', 'studio')
@@ -13554,7 +13555,8 @@ export default function PromptCEOPage() {
   const [regenState,   setRegenState]   = useState({})
   const [history,      setHistory]      = useState([])
   const [historyOpen,  setHistoryOpen]  = useState(false)
-  const stopRef = useRef(false)
+  const stopRef       = useRef(false)
+  const adPromptRef   = useRef(null)   // always holds latest imported ad prompt, bypasses closure issues
   const [helpOpen,      setHelpOpen]      = useState(false)
   const [subscription,  setSubscription]  = useState(null)
   // Brand DNA Lock
@@ -13681,58 +13683,75 @@ export default function PromptCEOPage() {
 
   // ── Generate ──────────────────────────────────────────────
   const generate = useCallback(() => {
-    let promptToUse
-    let r
+    // ── Determine source: ad content (ref) vs cinematic settings ────────────
+    const importedPrompt = adPromptRef.current  // set by sendToStudio, never stale
 
-    if (result?.finalPrompt) {
-      // Existing content (from Ad Studio / Campaign Builder) — use it directly, do NOT rebuild
-      promptToUse = result.finalPrompt
-      r = result
-    } else {
-      // No existing content — build new cinematic prompt from world/director settings
-      r = buildPromptV3(buildInput(s))
-      const customWorldCtx = getCustomWorldPromptContext()
-      if (customWorldCtx && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. ${customWorldCtx}` }
-      if (s.visualAnchor?.description && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
-      if (activeBrandDNA?.is_locked && r.finalPrompt) {
-        const dnaConstraints = buildBrandDNAConstraints(activeBrandDNA)
-        if (dnaConstraints) r = { ...r, finalPrompt: `${r.finalPrompt}${dnaConstraints}` }
-        setBrandDNAViolations(validatePromptAgainstDNA(r.finalPrompt, activeBrandDNA))
-      } else {
-        setBrandDNAViolations([])
-      }
-      setResult(r)
-      if (s.continuityLock && r.finalPrompt) {
-        setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
-      }
-      promptToUse = r.finalPrompt
+    if (importedPrompt) {
+      // AD/CAMPAIGN MODE: generate image directly from imported content
+      // No world, identity, or cinematic settings required
+      merge({ imageGenerating: true, imageError: '', generatedImage: '' })
+      setOutputTab('image')
+      fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: importedPrompt, mode: 'studio_direct' }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data?.status === 'complete') {
+            merge({ generatedImage: data.imageUrl, imageGenerating: false })
+            onGenerationComplete({ eventType: 'image_generated', metadata: { source: 'ad_studio', mode: 'studio_direct' }, outputKey: 'studioImage', projectId: s.activeProjectId, output: { imageUrl: data.imageUrl } })
+          } else {
+            merge({ imageError: data?.message || 'Image generation failed', imageGenerating: false })
+          }
+        })
+        .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+      return
     }
 
-    if (!promptToUse) return
-    if (promptToUse) saveToHistory(promptToUse, r?.meta)
+    // ── CINEMATIC MODE: build prompt from world/director settings ─────────
+    let r = buildPromptV3(buildInput(s))
+    const customWorldCtx = getCustomWorldPromptContext()
+    if (customWorldCtx && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. ${customWorldCtx}` }
+    if (s.visualAnchor?.description && r.finalPrompt) r = { ...r, finalPrompt: `${r.finalPrompt}. Visual continuity: ${s.visualAnchor.description}` }
+    if (activeBrandDNA?.is_locked && r.finalPrompt) {
+      const dnaConstraints = buildBrandDNAConstraints(activeBrandDNA)
+      if (dnaConstraints) r = { ...r, finalPrompt: `${r.finalPrompt}${dnaConstraints}` }
+      setBrandDNAViolations(validatePromptAgainstDNA(r.finalPrompt, activeBrandDNA))
+    } else {
+      setBrandDNAViolations([])
+    }
+    setResult(r)
+    setOutputTab('output')
+    if (s.continuityLock && r.finalPrompt) {
+      setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
+    }
+    if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
 
-    // Generate image immediately — director mode with identity, direct mode without
-    setOutputTab('image')
-    merge({ imageGenerating: true, imageError: '', generatedImage: '' })
-    const mode    = s.imageDataUrl ? 'director' : 'studio_direct'
-    const payload = s.imageDataUrl
-      ? { prompt: promptToUse, imageDataUrl: s.imageDataUrl, identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {}, mode }
-      : { prompt: promptToUse, mode }
-    fetch('/api/generate-image', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data?.status === 'complete') {
-          merge({ generatedImage: data.imageUrl, imageGenerating: false })
-        } else {
-          merge({ imageError: data?.message || 'Generation failed', imageGenerating: false })
-        }
+    // Auto-generate image in cinematic mode too
+    if (r.finalPrompt) {
+      setOutputTab('image')
+      merge({ imageGenerating: true, imageError: '', generatedImage: '' })
+      const mode    = s.imageDataUrl ? 'director' : 'studio_direct'
+      const payload = s.imageDataUrl
+        ? { prompt: r.finalPrompt, imageDataUrl: s.imageDataUrl, identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {}, mode }
+        : { prompt: r.finalPrompt, mode }
+      fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-      .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+        .then(res => res.json())
+        .then(data => {
+          if (data?.status === 'complete') {
+            merge({ generatedImage: data.imageUrl, imageGenerating: false })
+          } else {
+            merge({ imageError: data?.message || 'Generation failed', imageGenerating: false })
+          }
+        })
+        .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s, result, saveToHistory, merge, setOutputTab, activeBrandDNA])
+  }, [s, saveToHistory, merge, setOutputTab, activeBrandDNA, onGenerationComplete])
 
   // Smart batch progression — each shot zone gets specific cinematic direction
   const SMART_SHOT_DIRECTIONS = [
@@ -16322,7 +16341,7 @@ export default function PromptCEOPage() {
                         </button>
                       </>
                     )}
-                    <Btn variant="danger" onClick={() => { setResult(null); setBatch([]); setOutputTab('output') }}>reset</Btn>
+                    <Btn variant="danger" onClick={() => { setResult(null); setBatch([]); setOutputTab('output'); adPromptRef.current = null }}>reset</Btn>
                   </div>
                 }
               >
@@ -16849,8 +16868,8 @@ export default function PromptCEOPage() {
 
               {/* GENERATE ACTIONS */}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button onClick={generate} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid #1a4a2a', background: 'linear-gradient(180deg, #14381a, #0c2214)', color: C.green, letterSpacing: 0.5 }}>
-                  ▶ Generate Scene
+                <button onClick={generate} disabled={s.imageGenerating} style={{ flex: 1, padding: '10px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: s.imageGenerating ? 'not-allowed' : 'pointer', border: '1px solid #1a4a2a', background: 'linear-gradient(180deg, #14381a, #0c2214)', color: C.green, letterSpacing: 0.5, opacity: s.imageGenerating ? 0.6 : 1 }}>
+                  {s.imageGenerating ? '⟳ Generating Image…' : adPromptRef.current ? '🎨 Generate Ad Image' : '▶ Generate Scene'}
                 </button>
                 <select value={s.totalCount} onChange={e => set('totalCount', Number(e.target.value))} style={{ background: C.deep, color: C.blue, border: `1px solid ${C.blueDim}`, borderRadius: 5, padding: '0 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer', outline: 'none', minWidth: 64 }}>
                   {TOTAL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
