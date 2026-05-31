@@ -12,7 +12,8 @@ export async function GET() {
   const url = new URL('https://www.tiktok.com/v2/auth/authorize/')
   url.searchParams.set('client_key',     clientKey)
   url.searchParams.set('redirect_uri',   redirectUri)
-  url.searchParams.set('scope',          'user.info.basic,video.upload,video.publish')
+  // Start with minimal scope — add video.upload,video.publish only after base login works
+  url.searchParams.set('scope',          'user.info.basic')
   url.searchParams.set('response_type',  'code')
   url.searchParams.set('state',          Math.random().toString(36).slice(2))
 
