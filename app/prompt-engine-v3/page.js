@@ -14082,6 +14082,15 @@ export default function PromptCEOPage() {
     addStudioEvent('Character DNA loaded', profile.name)
   }
 
+  // hasIdentity: true if photo uploaded OR Character DNA traits are loaded
+  // Character DNA alone is enough — physical traits drive the prompts without a photo
+  const hasIdentity = s.hasImage || Boolean(
+    s.traits?.subjectA && Object.values(s.traits.subjectA || {}).some(v => v)
+  )
+  const identityLabel = s.hasImage
+    ? (s.identityName || 'Identity')
+    : s.identityName || 'Character DNA'
+
   // Feature 4 — Custom World Builder
   const saveCustomWorld = () => {
     if (!customWorldForm.name.trim()) return
@@ -18471,15 +18480,16 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Identity pill */}
-              {s.hasImage ? (
+              {hasIdentity ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
-                  <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
-                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {s.identityName || 'Identity'} — in every scene</span>
+                  {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
+                  {!s.hasImage && <span style={{ fontSize: 12 }}>🧬</span>}
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {identityLabel} — in every scene</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
                   <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
-                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>add in Studio</button>
+                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>load Character DNA in Studio</button>
                 </div>
               )}
               <div style={{ flex: 1 }} />
@@ -18835,16 +18845,16 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Identity status banner */}
-              {s.hasImage ? (
+              {hasIdentity ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
-                  <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />
-                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {s.identityName || 'Your identity'} — images will feature you</span>
+                  {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
+                  {!s.hasImage && <span style={{ fontSize: 12 }}>🧬</span>}
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {identityLabel} — in every scene</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
                   <span style={{ fontSize: 9, color: C.ghost }}>No identity —</span>
-                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>upload your photo in Studio</button>
-                  <span style={{ fontSize: 9, color: C.ghost }}>to appear in images</span>
+                  <button onClick={() => set('view', 'studio')} style={{ fontSize: 9, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>load Character DNA in Studio</button>
                 </div>
               )}
               <div style={{ flex: 1 }} />
