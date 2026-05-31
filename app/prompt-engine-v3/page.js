@@ -13707,7 +13707,25 @@ export default function PromptCEOPage() {
       setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
     }
     if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
-  }, [s, saveToHistory])
+    // Auto-generate image after prompt is built — direct path (no identity required)
+    if (r.finalPrompt && !s.imageDataUrl) {
+      merge({ imageGenerating: true, imageError: '', generatedImage: '' })
+      fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: r.finalPrompt, mode: 'studio_direct' }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.status === 'complete') {
+            merge({ generatedImage: data.imageUrl, imageGenerating: false })
+          } else {
+            merge({ imageError: data?.message || 'Generation failed. Upload an identity photo for identity-based generation.', imageGenerating: false })
+          }
+        })
+        .catch(err => merge({ imageError: err.message, imageGenerating: false }))
+    }
+    // If identity is uploaded, generateImage is called separately via the right panel button
+  }, [s, saveToHistory, merge])
 
   // Smart batch progression — each shot zone gets specific cinematic direction
   const SMART_SHOT_DIRECTIONS = [
@@ -16324,7 +16342,7 @@ export default function PromptCEOPage() {
                 {outputTab === 'output' && (
                   <>
                     {result?.finalPrompt ? (
-                      <div style={{ background: C.void, border: `1px solid #141e12`, borderRadius: 5, padding: '12px 13px', fontFamily: C.mono, fontSize: 11, lineHeight: 1.9, color: '#7ecf7e', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 80, maxHeight: 280, overflowY: 'auto' }}>
+                      <div style={{ background: C.void, border: `1px solid #141e12`, borderRadius: 5, padding: '14px 16px', fontFamily: C.mono, fontSize: 13, lineHeight: 1.9, color: '#7ecf7e', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 80, maxHeight: 320, overflowY: 'auto' }}>
                         {result.finalPrompt}
                       </div>
                     ) : (
@@ -16597,35 +16615,35 @@ export default function PromptCEOPage() {
                     {shotDirectorNote && <button onClick={() => setShotDirectorNote(null)} style={{ fontSize: 8, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
                   </div>
                   {shotDirectorLoading && !shotDirectorNote ? (
-                    <div style={{ padding: '8px 10px', fontSize: 9, color: C.gold, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold, animation: 'pulse 1s infinite' }} />
+                    <div style={{ padding: '12px 14px', fontSize: 12, color: C.gold, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, animation: 'pulse 1s infinite' }} />
                       Director is reviewing the scene…
                     </div>
                   ) : shotDirectorNote && (
-                    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {shotDirectorNote.directorQuote && (
-                        <div style={{ fontSize: 11, color: C.primary, fontStyle: 'italic', lineHeight: 1.5, borderLeft: `2px solid ${C.gold}`, paddingLeft: 8 }}>
+                        <div style={{ fontSize: 14, color: C.primary, fontStyle: 'italic', lineHeight: 1.6, borderLeft: `2px solid ${C.gold}`, paddingLeft: 10 }}>
                           "{shotDirectorNote.directorQuote}"
                         </div>
                       )}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                         {shotDirectorNote.whatWorks && (
-                          <div style={{ padding: '5px 7px', borderRadius: 4, background: '#081208', border: '1px solid #1a3a1a' }}>
-                            <div style={{ fontSize: 7, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Works</div>
-                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{shotDirectorNote.whatWorks}</div>
+                          <div style={{ padding: '8px 10px', borderRadius: 5, background: '#081208', border: '1px solid #1a3a1a' }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: C.green, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Works</div>
+                            <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.5 }}>{shotDirectorNote.whatWorks}</div>
                           </div>
                         )}
                         {shotDirectorNote.whatToFix && (
-                          <div style={{ padding: '5px 7px', borderRadius: 4, background: '#110806', border: '1px solid #2a1010' }}>
-                            <div style={{ fontSize: 7, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 }}>Fix</div>
-                            <div style={{ fontSize: 9, color: C.secondary, lineHeight: 1.4 }}>{shotDirectorNote.whatToFix}</div>
+                          <div style={{ padding: '8px 10px', borderRadius: 5, background: '#110806', border: '1px solid #2a1010' }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: '#cf6a6a', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Fix</div>
+                            <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.5 }}>{shotDirectorNote.whatToFix}</div>
                           </div>
                         )}
                       </div>
                       {shotDirectorNote.nextShot && (
-                        <div style={{ padding: '5px 8px', borderRadius: 4, background: C.raised, border: `1px solid ${C.subtle}` }}>
-                          <span style={{ fontSize: 8, fontWeight: 700, color: C.gold }}>NEXT SHOT: </span>
-                          <span style={{ fontSize: 9, color: C.primary }}>{shotDirectorNote.nextShot}</span>
+                        <div style={{ padding: '8px 10px', borderRadius: 5, background: C.raised, border: `1px solid ${C.subtle}` }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>NEXT SHOT: </span>
+                          <span style={{ fontSize: 12, color: C.primary }}>{shotDirectorNote.nextShot}</span>
                         </div>
                       )}
                     </div>
@@ -16636,14 +16654,14 @@ export default function PromptCEOPage() {
               {/* ── VARIATION ENGINE ── */}
               {result?.finalPrompt && (
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Make It More…</div>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>Make It More…</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {Object.entries(STUDIO_VARIATION_TYPES).map(([key, v]) => (
                       <button key={key}
                         onClick={() => { setStudioVarDir(key); generateStudioVariation(result.finalPrompt) }}
                         disabled={studioVarLoading}
                         style={{
-                          padding: '4px 9px', borderRadius: 999, fontSize: 9, fontWeight: 700,
+                          padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700,
                           cursor: studioVarLoading ? 'not-allowed' : 'pointer',
                           border: `1px solid ${studioVarDir === key && studioVariation ? C.goldDim : C.hairline}`,
                           background: studioVarDir === key && studioVariation ? '#1a1408' : C.deep,
