@@ -14894,7 +14894,86 @@ export default function PromptCEOPage() {
               <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer' }}>✕</button>
             </div>
 
+            {/* ── ACCOUNT BAR ── */}
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.subtle}`, background: '#0d0d0d', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${C.goldDim}, #1a1408)`, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                {userName ? userName[0].toUpperCase() : '✦'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{userName || 'Your Account'}</div>
+                <div style={{ fontSize: 10, color: C.muted }}>{subscription?.isAdmin ? '⚡ Admin' : subscription?.tierLabel || 'Free'}{subscription?.imagesRemaining !== undefined && !subscription?.isAdmin ? ` · ${subscription.imagesRemaining} images left` : ''}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { setHelpOpen(false); window.location.href = '/account' }} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>Account</button>
+                {!subscription?.isAdmin && !subscription?.active && <button onClick={() => { setHelpOpen(false); window.location.href = '/pricing' }} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>Upgrade</button>}
+              </div>
+            </div>
+
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+              {/* ── HOW THE APP IS ORGANISED ── */}
+              <HelpSection color={C.gold} icon="✦" title="How the App Works" subtitle="Navigation, Home, and the new layout">
+                <HelpBlock>
+                  PromptCEO is organised into four areas: <strong style={{ color: C.primary }}>Home</strong> (your Brain dashboard), <strong style={{ color: C.primary }}>Campaigns</strong> (build and track campaigns), <strong style={{ color: C.primary }}>Studio</strong> (create content), and <strong style={{ color: C.primary }}>Hub</strong>.
+                </HelpBlock>
+                <HelpSub color={C.gold}>Navigation</HelpSub>
+                <HelpSteps steps={[
+                  ['Home', 'Your Brain dashboard. Shows what to build next, what\'s working, and your generation history.'],
+                  ['Campaigns ▼', 'Dropdown: Campaign Builder · Campaign Journey · Timeline · Distribution.'],
+                  ['Studio ▼', 'Dropdown: Studio · Life Engine · Ad Studio · Quick Create.'],
+                  ['Hub', 'Analytics, settings, and project management.'],
+                ]} />
+                <HelpSub color={C.gold}>Home Screen</HelpSub>
+                <HelpSteps steps={[
+                  ['PromptCEO Brain', 'Reads your campaign history. Shows your best hook, world, platform. Recommends the next asset to generate with confidence score.'],
+                  ['Performance Signals', 'Best hook type, top world, best platform — aggregated from all your generations.'],
+                  ['Brain Memory', 'Every action you\'ve taken, logged by date. The more you generate, the smarter this gets.'],
+                  ['Quick Actions', 'One-click: Perfect Day · Campaign · Full Day Video · Instant Campaign · Studio.'],
+                ]} />
+              </HelpSection>
+
+              {/* ── CAMPAIGN JOURNEY (NEW) ── */}
+              <HelpSection color="#3b82f6" icon="◉" title="Campaign Journey" subtitle="Track your campaign across all 5 phases">
+                <HelpBlock>
+                  Campaign Journey is not a generator — it tracks. It shows exactly where your campaign is across Attention → Story → Desire → Conversion → Retargeting.
+                </HelpBlock>
+                <HelpSub color="#3b82f6">What you see</HelpSub>
+                <HelpSteps steps={[
+                  ['Brain Recommendation', 'Tells you which phase to focus on next, based on your generation history.'],
+                  ['Campaign Health', '0–100% score per phase. Attention needs 3+ assets to complete, Conversion needs 2+.'],
+                  ['Phase cards', 'Click any phase to see the actual assets inside it — hooks, scripts, image prompts.'],
+                  ['Campaign History', 'All past campaigns for this project. Click Open → to restore any previous campaign.'],
+                ]} />
+                <HelpSub color="#3b82f6">Campaign Builder</HelpSub>
+                <HelpSteps steps={[
+                  ['Generate', 'Set product name, goal, style, platform → Generate Full Campaign. 30 days, 5 phases, all assets.'],
+                  ['Load saved', 'Gold ↑ Load saved… dropdown shows all previous campaigns. Select to restore instantly.'],
+                  ['Start New Campaign', '✦ Start New Campaign clears the workspace. Old campaigns stay in Journey history — never deleted.'],
+                ]} />
+              </HelpSection>
+
+              {/* ── LIFE ENGINE (NEW MODES) ── */}
+              <HelpSection color={C.tension} icon="🌍" title="Life Engine™" subtitle="6 modes — one day, every format">
+                <HelpBlock>
+                  Life Engine builds your entire day as content. Pick a mode, choose a world, generate — 12 moments with hook, caption, image prompt, and video direction.
+                </HelpBlock>
+                <HelpSub color={C.tension}>6 Modes</HelpSub>
+                <HelpSteps steps={[
+                  ['Perfect Day', 'Aspirational lifestyle, morning to midnight. 12 cinematic moments. 15+ worlds.'],
+                  ['Creator Day', 'Behind-the-scenes creator content. 14 scenes with camera direction and shot lists.'],
+                  ['Travel Day', 'Cinematic destination content. 8 worlds: Paris, Tokyo, Maldives, Santorini, Bali, NYC, Amalfi, Marrakech.'],
+                  ['Fitness Day', 'Performance lifestyle — 5am training to midnight recovery. 7 worlds.'],
+                  ['Product Day', 'A full day told through your product — unboxing to lifestyle integration.'],
+                  ['Campaign Day', 'One campaign phase as a day — attention to conversion in 12 moments.'],
+                ]} />
+                <HelpSub color={C.tension}>Character DNA in Life Engine</HelpSub>
+                <HelpSteps steps={[
+                  ['Save your character', 'Studio → Character DNA panel. Fill in traits (name, age, ethnicity, body, hair). Click Save Character.'],
+                  ['Add to generator', 'In any Life Engine mode, a + Add character dropdown appears. Select your character.'],
+                  ['Generate', 'Every scene now describes your specific character. No photo required — traits drive the prompts.'],
+                  ['Remove', 'Click ✕ next to the character pill to generate generic content instead.'],
+                ]} />
+              </HelpSection>
 
               {/* ── AD STUDIO ── */}
               <HelpSection color={C.violet} icon="📣" title="Ad Studio" subtitle="AI Creative OS for brands and agencies">
@@ -15403,8 +15482,8 @@ export default function PromptCEOPage() {
             </div>
           )}
 
-          <button onClick={() => setHelpOpen(true)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>?</button>
-          <button onClick={() => window.location.href = '/account'} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>⚙</button>
+          <button onClick={() => setHelpOpen(true)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>Help</button>
+          <button onClick={() => window.location.href = '/account'} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>Account</button>
           <Btn variant="danger" onClick={rAll}>↺</Btn>
         </div>
 

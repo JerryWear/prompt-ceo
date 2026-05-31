@@ -18,12 +18,12 @@ const C = {
 // ── Live output showcase — what the app actually generates ───
 const SHOWCASE_CARDS = [
   {
-    id: 'life_engine', label: 'Life Engine™', group: 'Life → Perfect Day',
-    color: '#c8a84b', badge: '14 scenes · 15 worlds', badgeColor: '#4a9a6a',
+    id: 'life_engine', label: 'Life Engine™', group: 'Studio → Life Engine',
+    color: '#c8a84b', badge: '6 modes · 30+ worlds', badgeColor: '#4a9a6a',
     output: '"06:30 — Maldives villa. Soft light through linen curtains. Creator wakes slowly, city horizon below. Hook: This is what the day looks like when everything is aligned."',
-    subtext: 'Perfect Day arc — morning to midnight, 14 cinematic moments',
-    detail: 'Life Engine generates a full-day content structure — Perfect Day, Creator Day, Travel World, Fitness Day, or Ad Campaign Day. Every moment has a hook, caption, image prompt, video prompt, wardrobe, lighting, and camera direction. 15 worlds from Monaco to Maldives.',
-    cta: 'Build your perfect day →',
+    subtext: '6 modes: Perfect Day · Creator Day · Travel Day · Fitness Day · Product Day · Campaign Day',
+    detail: 'Life Engine builds your entire day as a campaign. 6 modes, each with 12 cinematic moments — hook, caption, image prompt, video direction. Add your Character DNA and every scene describes your specific character. 30+ worlds from Monaco to Maldives.',
+    cta: 'Launch Life Engine →',
   },
   {
     id: 'ai_director', label: 'AI Director™', group: 'Create → Director',
@@ -83,29 +83,29 @@ const FEATURE_GROUPS = [
     features: ['AI Director™ — type what you want to build', 'Routes to correct engine automatically', 'Collects intent through conversation', 'Remembers your world and identity'],
   },
   {
-    id: 'life', icon: '☀', label: 'Life Engine', color: C.tension,
-    tagline: 'Full-day cinematic content',
-    features: ['Perfect Day™ — 14 moments morning to midnight', 'Creator Day, Travel World, Fitness Day', 'Ad Campaign Day — same timeline, commercial goal', 'Full Day Video™ — cinematic production direction'],
+    id: 'life', icon: '🌍', label: 'Life Engine', color: C.tension,
+    tagline: '6 modes. One day. Every format.',
+    features: ['Perfect Day™ — 12 moments morning to midnight', 'Creator Day · Travel Day · Fitness Day · Product Day · Campaign Day', 'Character DNA — your character in every scene', '30+ cinematic worlds from Monaco to Maldives'],
   },
   {
-    id: 'campaign', icon: '◈', label: 'Campaign Engine', color: C.violet,
-    tagline: '30-day life campaign',
-    features: ['Life Campaign Engine™ — full 30-day schedule', '5 phases: Awareness → Retargeting', 'Platform versions: Instagram, TikTok, YouTube', '5 retargeting angles per campaign'],
+    id: 'campaign', icon: '◈', label: 'Campaign Builder', color: C.violet,
+    tagline: '30-day, 5-phase campaign',
+    features: ['Attention → Story → Desire → Conversion → Retargeting', 'Campaign Journey — tracks phase progression and health', 'Brain recommends what to build next', 'Load and restore any previous campaign'],
   },
   {
     id: 'creative', icon: '▣', label: 'Ad Studio', color: '#c87a4a',
-    tagline: 'Hooks, copy, and creative',
-    features: ['Hooks across 5 emotional types, CTR-scored', 'Angles, captions, video scripts', 'Image generation with identity', 'Full funnel copy — landing page to retargeting'],
+    tagline: 'Full ad creation system',
+    features: ['Angles, hooks, captions, UGC scripts — all connected', 'Image generation — no identity required', 'Distribution — one campaign → Instagram, TikTok, Meta, YouTube', 'Use in Campaign Builder bridge'],
   },
   {
-    id: 'identity', icon: '◧', label: 'Studio Identity', color: C.blue,
-    tagline: 'One character. All content.',
-    features: ['Identity scan — one photo, consistent character', '15 cinematic worlds — Monaco to Maldives', '11 director styles — Kubrick to Malick', 'Character flows into every scene and campaign'],
+    id: 'identity', icon: '◧', label: 'Studio', color: C.blue,
+    tagline: 'Cinematic scene generator',
+    features: ['Character DNA — build once, inject everywhere', '30+ cinematic worlds — Monaco to Maldives', 'Shot Director AI · 11 director styles', 'Generate Full Sequence → 30 scenes in one click'],
   },
   {
-    id: 'intelligence', icon: '◎', label: 'Intelligence', color: C.green,
-    tagline: 'Memory and performance',
-    features: ['Performance Memory — what works for your brand', 'World Memory — best worlds for your audience', 'Campaign Brain — hook types and patterns', 'Project Brain — full creative history'],
+    id: 'intelligence', icon: '◎', label: 'Campaign Brain', color: C.green,
+    tagline: 'Memory, learning, recommendations',
+    features: ['Brain Memory — logs every world, hook, platform choice', 'Performance Signals — best hook type, top world, best platform', 'Brain Recommendation — tells you exactly what to build next', 'Project Brain — full creative history per project'],
   },
 ]
 
