@@ -13660,14 +13660,24 @@ export default function PromptCEOPage() {
 
   useEffect(() => {
     const loadPersistedIdentity = async () => {
+      // First try localStorage cache (survives Supabase storage issues)
+      try {
+        const cached = localStorage.getItem('pce_identity')
+        if (cached) {
+          const { imageDataUrl, identityName, traits } = JSON.parse(cached)
+          if (imageDataUrl) {
+            merge({ imageDataUrl, identityName: identityName || '', hasImage: true, ...(traits ? { traits } : {}) })
+            return
+          }
+        }
+      } catch {}
+      // Fallback: try Supabase storage (skip HEAD check — just use URL directly)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const fileName = `${user.id}/identity.jpg`
-      const { data } = supabase.storage.from('identity-images').getPublicUrl(fileName)
-      if (!data?.publicUrl) return
-      const res = await fetch(data.publicUrl, { method: 'HEAD' }).catch(() => null)
-      if (!res?.ok) return
-      merge({ imageDataUrl: data.publicUrl, identityStorageUrl: data.publicUrl, hasImage: true })
+      const { data } = supabase.storage.from('identity-images').getPublicUrl(`${user.id}/identity.jpg`)
+      if (data?.publicUrl) {
+        merge({ imageDataUrl: data.publicUrl, identityStorageUrl: data.publicUrl, hasImage: true })
+      }
     }
     loadPersistedIdentity()
   }, [])
@@ -14367,6 +14377,8 @@ export default function PromptCEOPage() {
     reader.onload = async () => {
       const dataUrl = reader.result
       merge({ imageDataUrl: dataUrl, hasImage: true, scanState: 'idle', scanError: '', imageUploading: true })
+      // Persist to localStorage so identity survives page refresh
+      try { localStorage.setItem('pce_identity', JSON.stringify({ imageDataUrl: dataUrl, identityName: s.identityName || '' })) } catch {}
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -15668,7 +15680,7 @@ export default function PromptCEOPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <Label>Name</Label>
-                  <Inp value={s.identityName} onChange={e => set('identityName', e.target.value)} placeholder="e.g. Sofia" />
+                  <Inp value={s.identityName} onChange={e => { set('identityName', e.target.value); try { const c = localStorage.getItem('pce_identity'); if (c) { const p = JSON.parse(c); localStorage.setItem('pce_identity', JSON.stringify({ ...p, identityName: e.target.value })) } } catch {} }} placeholder="e.g. Sofia" />
                 </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.secondary, cursor: 'pointer' }}>
