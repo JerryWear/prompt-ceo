@@ -18150,7 +18150,21 @@ export default function PromptCEOPage() {
                               if (!file) return
                               const reader = new FileReader()
                               reader.onload = async () => {
-                                const dataUrl = reader.result
+                                // Compress image to max 1024px and 80% quality before sending to vision API
+                                const compress = (src) => new Promise(resolve => {
+                                  const img = new Image()
+                                  img.onload = () => {
+                                    const max = 1024
+                                    const scale = Math.min(1, max / Math.max(img.width, img.height))
+                                    const canvas = document.createElement('canvas')
+                                    canvas.width = Math.round(img.width * scale)
+                                    canvas.height = Math.round(img.height * scale)
+                                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+                                    resolve(canvas.toDataURL('image/jpeg', 0.8))
+                                  }
+                                  img.src = src
+                                })
+                                const dataUrl = await compress(reader.result)
                                 setProductImageUrl(dataUrl)
                                 setProductAnalyzing(true)
                                 setProductAnalysis(null)
@@ -18162,14 +18176,11 @@ export default function PromptCEOPage() {
                                   const d = await res.json()
                                   if (d.ok && d.analysis) {
                                     setProductAnalysis(d.analysis)
-                                    // Feed analysis into Director as a message
-                                    const a = d.analysis
-                                    const conflicts = a.brandConflicts?.length ? `\n\n⚠️ Brand alignment issues found: ${a.brandConflicts.map(c => c.issue).join(', ')}. I'll surface the details below.` : ''
-                                    const msg = `I analyzed your product image. I can see: **${a.product?.name || 'your product'}** — ${a.product?.category || ''}.\n\nVisual style reads as: ${a.product?.visualStyle}. Price signal: ${a.product?.priceSignal}.\n\nStrongest campaign directions:\n${(a.directions||[]).slice(0,3).map((d,i) => `${i+1}. ${d}`).join('\n')}${conflicts}\n\nWhich direction feels closest to your brand?`
-                                    setDirectorHistory(h => [...h, { role: 'ai', content: msg, mode: 'continuation' }])
+                                  } else {
+                                    setProductAnalysis({ error: d.error || 'Analysis failed — please try again' })
                                   }
                                 } catch (err) {
-                                  setProductAnalysis({ error: err.message })
+                                  setProductAnalysis({ error: `Request failed: ${err.message}` })
                                 } finally {
                                   setProductAnalyzing(false)
                                 }
@@ -18195,6 +18206,12 @@ export default function PromptCEOPage() {
                               <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>Analyzing product…</div>
                               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Identifying product, audience, and campaign opportunities</div>
                             </div>
+                          </div>
+                        )}
+                        {productAnalysis?.error && (
+                          <div style={{ padding: '12px 16px', borderRadius: 8, background: '#1a0808', border: `1px solid #3a1010`, color: '#cf6a6a', fontSize: 12 }}>
+                            ⚠️ {productAnalysis.error}
+                            <button onClick={() => { setProductAnalysis(null); setProductImageUrl(null) }} style={{ marginLeft: 12, fontSize: 11, color: '#cf6a6a', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Try again</button>
                           </div>
                         )}
                         {productAnalysis && !productAnalysis.error && (() => {
