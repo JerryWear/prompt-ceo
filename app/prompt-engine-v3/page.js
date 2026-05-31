@@ -19527,6 +19527,7 @@ export default function PromptCEOPage() {
           }
 
           return (
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
               <button onClick={() => { setPreviousView('cross_platform'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', alignSelf: 'flex-start' }}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -19631,6 +19632,7 @@ export default function PromptCEOPage() {
                   ))}
                 </div>
               )}
+            </div>
             </div>
           )
         })()}
