@@ -13147,6 +13147,9 @@ export default function PromptCEOPage() {
   const [recommendationAccepted, setRecommendationAccepted] = useState(false)
   const [userName, setUserName] = useState(null)
   const [leMode,          setLeMode]          = useState('travel_day')
+  const [productAnalysis, setProductAnalysis] = useState(null)
+  const [productAnalyzing,setProductAnalyzing]= useState(false)
+  const [productImageUrl, setProductImageUrl] = useState(null)
   const [leWorld,         setLeWorld]         = useState(null)
   const [leCharacter,     setLeCharacter]     = useState(null)  // explicitly chosen character for Life Engine/Perfect Day — null = generic
   const leCharacterRef = useRef(null)                          // ref version — never stale in callbacks
@@ -18131,6 +18134,107 @@ export default function PromptCEOPage() {
                                     <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>The Brain is currently learning from your worlds, campaigns, styles, platforms, hooks, and generation decisions. Your learning history will appear here.</div>
                                   </div>
                                 )}
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </div>
+
+                      {/* ── PRODUCT VISION ANALYSIS ── */}
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>Analyze Product</div>
+                        {!productAnalysis && !productAnalyzing && (
+                          <label style={{ display: 'block', cursor: 'pointer' }}>
+                            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              const reader = new FileReader()
+                              reader.onload = async () => {
+                                const dataUrl = reader.result
+                                setProductImageUrl(dataUrl)
+                                setProductAnalyzing(true)
+                                setProductAnalysis(null)
+                                try {
+                                  const res = await fetch('/api/analyze-product', {
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ imageDataUrl: dataUrl, brandProfile: activeBrandProfile || null }),
+                                  })
+                                  const d = await res.json()
+                                  if (d.ok && d.analysis) {
+                                    setProductAnalysis(d.analysis)
+                                    // Feed analysis into Director as a message
+                                    const a = d.analysis
+                                    const conflicts = a.brandConflicts?.length ? `\n\n⚠️ Brand alignment issues found: ${a.brandConflicts.map(c => c.issue).join(', ')}. I'll surface the details below.` : ''
+                                    const msg = `I analyzed your product image. I can see: **${a.product?.name || 'your product'}** — ${a.product?.category || ''}.\n\nVisual style reads as: ${a.product?.visualStyle}. Price signal: ${a.product?.priceSignal}.\n\nStrongest campaign directions:\n${(a.directions||[]).slice(0,3).map((d,i) => `${i+1}. ${d}`).join('\n')}${conflicts}\n\nWhich direction feels closest to your brand?`
+                                    setDirectorHistory(h => [...h, { role: 'ai', content: msg, mode: 'continuation' }])
+                                  }
+                                } catch (err) {
+                                  setProductAnalysis({ error: err.message })
+                                } finally {
+                                  setProductAnalyzing(false)
+                                }
+                              }
+                              reader.readAsDataURL(file)
+                            }} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 10, border: `1px dashed ${C.goldDim}`, background: '#0e0c08', cursor: 'pointer', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = '#1a1408' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = '#0e0c08' }}
+                            >
+                              <span style={{ fontSize: 24 }}>📦</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.gold, marginBottom: 2 }}>Upload Product Photo</div>
+                                <div style={{ fontSize: 11, color: C.muted }}>AI analyzes → identifies product, audience, campaign directions, brand conflicts</div>
+                              </div>
+                            </div>
+                          </label>
+                        )}
+                        {productAnalyzing && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', borderRadius: 10, border: `1px solid ${C.goldDim}`, background: '#0e0c08' }}>
+                            {productImageUrl && <img src={productImageUrl} style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />}
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>Analyzing product…</div>
+                              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Identifying product, audience, and campaign opportunities</div>
+                            </div>
+                          </div>
+                        )}
+                        {productAnalysis && !productAnalysis.error && (() => {
+                          const a = productAnalysis
+                          return (
+                            <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}50`, background: '#0e0c08', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.hairline}` }}>
+                                {productImageUrl && <img src={productImageUrl} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{a.product?.name}</div>
+                                  <div style={{ fontSize: 10, color: C.muted }}>{a.product?.category} · {a.product?.priceSignal}</div>
+                                </div>
+                                <button onClick={() => { setProductAnalysis(null); setProductImageUrl(null) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕ Reset</button>
+                              </div>
+                              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {a.brandConflicts?.length > 0 && (
+                                  <div style={{ padding: '10px 12px', borderRadius: 6, background: '#1a0808', border: `1px solid #3a1010` }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#cf6a6a', marginBottom: 6 }}>⚠️ Brand DNA Conflicts</div>
+                                    {a.brandConflicts.map((c, i) => (
+                                      <div key={i} style={{ fontSize: 11, color: '#e0a0a0', marginBottom: 4, lineHeight: 1.5 }}>
+                                        <strong>{c.issue}:</strong> {c.recommendation}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Campaign Directions</div>
+                                  {(a.directions || []).map((d, i) => (
+                                    <button key={i} onClick={() => {
+                                      const msg = `Let's build a campaign around direction ${i+1}: "${d}" for ${a.product?.name}. Target audience: ${a.audience?.primary}.`
+                                      setDirectorInput(msg)
+                                      setTimeout(() => directorSend(msg), 50)
+                                    }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 5, marginBottom: 4, border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary, fontSize: 11, cursor: 'pointer' }}
+                                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.color = C.gold }}
+                                      onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.color = C.secondary }}
+                                    >
+                                      {d}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )
