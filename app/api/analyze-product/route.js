@@ -110,7 +110,7 @@ export async function POST(req) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'grok-2-vision-1212',
+        model: 'grok-2-vision',
         messages: [{
           role: 'user',
           content: [
