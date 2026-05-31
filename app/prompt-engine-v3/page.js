@@ -18950,6 +18950,17 @@ export default function PromptCEOPage() {
                   {['instagram','tiktok','meta_ads','youtube','linkedin'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <div style={{ flex: 1 }} />
+                {FCR && !fullCampaignLoading && (
+                  <button onClick={() => {
+                    if (window.confirm('Start a new campaign? Your previous campaign will remain saved in project history.')) {
+                      setFullCampaignResult(null)
+                      setFullCampaignPhase('attention')
+                      try { localStorage.removeItem(`pce_output_${s.activeProjectId}_fullCampaign`) } catch {}
+                    }
+                  }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted, whiteSpace: 'nowrap' }}>
+                    ✦ Start New Campaign
+                  </button>
+                )}
                 <button
                   onClick={() => generateFullCampaign(fullCampaignProduct)}
                   disabled={fullCampaignLoading}
@@ -19262,6 +19273,8 @@ export default function PromptCEOPage() {
                             setFullCampaignResult(null)
                             setFullCampaignPhase('attention')
                             try { localStorage.removeItem(`pce_output_${s.activeProjectId}_fullCampaign`) } catch {}
+                            setPreviousView('campaign_journey')
+                            set('view', 'full_campaign')
                           }
                         }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✦ Start New Campaign</button>
                       )}
@@ -19346,11 +19359,25 @@ export default function PromptCEOPage() {
                 )
               })()}
 
-              {s.activeProjectId && campaignTimeline?.phases && (
+              {s.activeProjectId && campaignTimeline?.phases && (() => {
+                // FCR asset counts — used to override 0 from generation_logs when campaign is hydrated
+                const FCR = fullCampaignResult
+                const fcrCounts = FCR ? {
+                  attention:            (FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || []).length,
+                  emotional_connection: (FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || []).length,
+                  desire_escalation:    (FCR?.phases?.desire?.imagePrompts || FCR?.phases?.desire_escalation?.imagePrompts || []).length,
+                  conversion:           (FCR?.phases?.conversion?.ads || []).length,
+                  retargeting:          (FCR?.phases?.retargeting?.ads || []).length,
+                } : {}
+                return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {campaignTimeline.phases.map(phase => {
-                    const isExpanded = expandedPhases[phase.id] || phase.isCurrent
-                    const phaseHint  = JOURNEY_PHASES.find(p => p.id === phase.id)?.hint || ''
+                    const isExpanded   = expandedPhases[phase.id] || phase.isCurrent
+                    const phaseHint    = JOURNEY_PHASES.find(p => p.id === phase.id)?.hint || ''
+                    // Use FCR count when generation_logs count is 0 and FCR is hydrated
+                    const fcrCount     = fcrCounts[phase.id] || 0
+                    const displayCount = phase.generationCount > 0 ? phase.generationCount : fcrCount
+                    const hasFcrData   = fcrCount > 0 && phase.generationCount === 0
                     return (
                       <div key={phase.id} style={{
                         borderRadius: 8,
@@ -19396,9 +19423,9 @@ export default function PromptCEOPage() {
                             )}
                           </div>
 
-                          {phase.isUnlocked && (
-                            <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: C.secondary }}>
-                              {phase.generationCount} gen{phase.generationCount !== 1 ? 's' : ''}
+                          {phase.isUnlocked && displayCount > 0 && (
+                            <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: hasFcrData ? phase.color : C.secondary }}>
+                              {displayCount} asset{displayCount !== 1 ? 's' : ''}
                             </div>
                           )}
                           {phase.isUnlocked && (
@@ -19409,7 +19436,15 @@ export default function PromptCEOPage() {
 
                         {phase.isUnlocked && isExpanded && (
                           <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '10px 14px 12px' }}>
-                            {phase.recentGenerations.length === 0 ? (
+                            {hasFcrData ? (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                <div style={{ fontSize: 10, color: phase.color }}>{fcrCount} campaign assets available</div>
+                                <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(phase.id) }}
+                                  style={{ fontSize: 10, fontWeight: 700, color: phase.color, background: 'none', border: `1px solid ${phase.color}40`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>
+                                  Open in Campaign Builder →
+                                </button>
+                              </div>
+                            ) : phase.recentGenerations.length === 0 ? (
                               <div style={{ fontSize: 10, color: C.muted }}>No generations yet in this phase.</div>
                             ) : (
                               <>
@@ -19445,7 +19480,8 @@ export default function PromptCEOPage() {
                     )
                   })}
                 </div>
-              )}
+                )
+              })()}
             </div>
           )
         })()}
