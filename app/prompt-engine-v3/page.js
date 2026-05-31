@@ -18616,49 +18616,68 @@ export default function PromptCEOPage() {
               <button onClick={() => set('view', previousView || 'ai_director')} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>🌍 Life Engine™</span>
             </div>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '48px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 40 }}>
-              <div style={{ textAlign: 'center', maxWidth: 520 }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#ffffff', fontFamily: C.display, letterSpacing: -0.5, marginBottom: 12 }}>Life Engine™</div>
-                <div style={{ fontSize: 15, color: C.muted, lineHeight: 1.7 }}>One day. Every format. Choose a mode and the AI builds your entire day as a campaign — moments, hooks, captions, and image prompts.</div>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '40px 32px', display: 'flex', flexDirection: 'column', gap: 32 }}>
+
+              {/* Header */}
+              <div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#ffffff', fontFamily: C.display, letterSpacing: -1, marginBottom: 8 }}>Life Engine™</div>
+                <div style={{ fontSize: 15, color: C.muted, lineHeight: 1.6, maxWidth: 560 }}>One day. Every format. The AI builds your entire day as a campaign — 12 moments, hooks, captions, and image prompts.</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, width: '100%', maxWidth: 780 }}>
+
+              {/* Top tier — primary modes, 2 wide */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {[
-                  { viewId: 'perfect_day',          leMode: null,           icon: '☀',  label: 'Perfect Day',  desc: 'Morning to midnight aspirational lifestyle — 12 cinematic moments, hooks, and captions.', color: C.gold },
-                  { viewId: 'full_day_video',        leMode: null,           icon: '🎬', label: 'Creator Day',  desc: 'Behind-the-scenes creator content — 14 scenes with cinematic direction and shot lists.', color: C.primary },
-                  { viewId: 'life_engine_generator', leMode: 'travel_day',   icon: '✈',  label: 'Travel Day',   desc: 'Explore the world in cinematic style — destinations, culture, and lifestyle moments.', color: C.blue },
-                  { viewId: 'life_engine_generator', leMode: 'fitness_day',  icon: '🏋', label: 'Fitness Day',  desc: 'Training, nutrition, and recovery — performance lifestyle from 5am to midnight.', color: C.green },
-                  { viewId: 'life_engine_generator', leMode: 'product_day',  icon: '📦', label: 'Product Day',  desc: 'A full day told through your product — unboxing, use, lifestyle, and results.', color: C.secondary },
-                  { viewId: 'life_engine_generator', leMode: 'campaign_day', icon: '📣', label: 'Campaign Day', desc: 'One campaign phase as a day — attention, desire, and conversion in 12 moments.', color: C.violet },
+                  { viewId: 'perfect_day',   leMode: null, icon: '☀', label: 'Perfect Day',
+                    desc: 'Morning to midnight aspirational lifestyle. 12 cinematic moments, hooks, and captions.',
+                    tag: 'LIFESTYLE', color: C.gold, bg: 'linear-gradient(135deg, #1a1408 0%, #0d0b04 100%)' },
+                  { viewId: 'full_day_video', leMode: null, icon: '🎬', label: 'Creator Day',
+                    desc: '14 scenes of behind-the-scenes creator content with cinematic direction and shot lists.',
+                    tag: 'CREATOR',   color: C.primary, bg: 'linear-gradient(135deg, #0e0e12 0%, #080808 100%)' },
                 ].map(mode => (
-                  <div
-                    key={mode.label}
-                    onClick={() => {
-                      if (mode.leMode) { setLeMode(mode.leMode); setLeResult(null); setLeWorld(null) }
-                      setPreviousView('life_engine')
-                      set('view', mode.viewId)
-                    }}
-                    style={{
-                      borderRadius: 14,
-                      border: `1px solid ${mode.color + '40'}`,
-                      background: 'linear-gradient(135deg, #0e0c08 0%, #0a0a0a 100%)',
-                      padding: '24px 20px',
-                      cursor: 'pointer',
-                      display: 'flex', flexDirection: 'column', gap: 12,
-                      transition: 'all 0.15s',
-                      position: 'relative',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = mode.color + '80'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = mode.color + '40'; e.currentTarget.style.transform = 'none' }}
+                  <div key={mode.label} onClick={() => { if (mode.leMode) { setLeMode(mode.leMode); setLeResult(null); setLeWorld(null) } setPreviousView('life_engine'); set('view', mode.viewId) }}
+                    style={{ borderRadius: 16, border: `1px solid ${mode.color}30`, background: mode.bg, padding: '32px 28px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 16, transition: 'all 0.15s', minHeight: 180 }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = mode.color + '60'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = mode.color + '30'; e.currentTarget.style.transform = 'none' }}
                   >
-                    <div style={{ fontSize: 22 }}>{mode.icon}</div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: mode.color, marginBottom: 6 }}>{mode.label}</div>
-                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{mode.desc}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 28 }}>{mode.icon}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: mode.color, textTransform: 'uppercase', background: mode.color + '15', padding: '3px 8px', borderRadius: 4 }}>{mode.tag}</span>
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: mode.color, marginTop: 4 }}>Launch →</div>
+                    <div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#ffffff', marginBottom: 8 }}>{mode.label}</div>
+                      <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>{mode.desc}</div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: mode.color }}>Launch →</div>
                   </div>
                 ))}
               </div>
+
+              {/* Bottom tier — 4 modes */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14 }}>More Modes</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                  {[
+                    { viewId: 'life_engine_generator', leMode: 'travel_day',   icon: '✈',  label: 'Travel Day',   desc: 'Cinematic destinations — culture and lifestyle moments.', color: C.blue },
+                    { viewId: 'life_engine_generator', leMode: 'fitness_day',  icon: '🏋', label: 'Fitness Day',  desc: 'Performance lifestyle from 5am training to midnight recovery.', color: C.green },
+                    { viewId: 'life_engine_generator', leMode: 'product_day',  icon: '📦', label: 'Product Day',  desc: 'A full day told through your product — unboxing to lifestyle integration.', color: '#f59e0b' },
+                    { viewId: 'life_engine_generator', leMode: 'campaign_day', icon: '📣', label: 'Campaign Day', desc: 'One campaign phase as a day — attention to conversion in 12 moments.', color: C.violet },
+                  ].map(mode => (
+                    <div key={mode.label} onClick={() => { setLeMode(mode.leMode); setLeResult(null); setLeWorld(null); setPreviousView('life_engine'); set('view', mode.viewId) }}
+                      style={{ borderRadius: 12, border: `1px solid ${mode.color}25`, background: C.raised, padding: '20px 18px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = mode.color + '60'; e.currentTarget.style.background = mode.color + '08'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = mode.color + '25'; e.currentTarget.style.background = C.raised; e.currentTarget.style.transform = 'none' }}
+                    >
+                      <span style={{ fontSize: 24 }}>{mode.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: mode.color, marginBottom: 6 }}>{mode.label}</div>
+                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>{mode.desc}</div>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: mode.color }}>Launch →</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         )}
