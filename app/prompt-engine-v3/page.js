@@ -13132,6 +13132,8 @@ export default function PromptCEOPage() {
   const [projectBrain, setProjectBrain] = useState(null)
   const [campaignTimeline, setCampaignTimeline] = useState(null)
   const [timelineLoading,  setTimelineLoading]  = useState(false)
+  const [campaignJourney,  setCampaignJourney]  = useState(null)
+  const [journeyLoading,   setJourneyLoading]   = useState(false)
   // Campaign Journey view state
   const [expandedPhases, setExpandedPhases] = useState({ attention: true })
   // Cross-Platform view state
@@ -13323,6 +13325,23 @@ export default function PromptCEOPage() {
       .then(d => { if (d.phases) setCampaignTimeline(d) })
       .catch(() => {})
       .finally(() => setTimelineLoading(false))
+  }, [s.view, s.activeProjectId])
+
+  // Campaign Journey — loads from new unified API
+  const loadCampaignJourney = () => {
+    if (!s.activeProjectId) return
+    setJourneyLoading(true)
+    fetch(`/api/campaign-journey/${s.activeProjectId}`)
+      .then(r => r.json())
+      .then(d => { if (!d.error) setCampaignJourney(d) })
+      .catch(() => {})
+      .finally(() => setJourneyLoading(false))
+  }
+
+  useEffect(() => {
+    if (s.view !== 'campaign_journey' || !s.activeProjectId) return
+    loadCampaignJourney()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.view, s.activeProjectId])
 
   useEffect(() => {
@@ -19241,245 +19260,196 @@ export default function PromptCEOPage() {
 
         {/* ══ CAMPAIGN JOURNEY VIEW ══ */}
         {s.view === 'campaign_journey' && (() => {
-          const JOURNEY_PHASES = [
-            { id: 'attention',            label: 'Attention',   num: 1, color: '#3b82f6', hint: 'Stop the scroll. Cold audience — no context assumed.' },
-            { id: 'emotional_connection', label: 'Connection',  num: 2, color: '#8b5cf6', hint: 'They know you. Make them feel something real.' },
-            { id: 'desire_escalation',    label: 'Desire',      num: 3, color: '#f59e0b', hint: 'Paint the life they want. Make the gap feel urgent.' },
-            { id: 'conversion',           label: 'Conversion',  num: 4, color: '#10b981', hint: 'Remove every objection. Make buying obvious.' },
-            { id: 'retargeting',          label: 'Retargeting', num: 5, color: '#f97316', hint: 'Win them back. Proof + urgency. Final push.' },
-          ]
-          const togglePhase = (id) => setExpandedPhases(prev => ({ ...prev, [id]: !prev[id] }))
-
+          const CJ = campaignJourney
           const formatDate = (iso) => {
             if (!iso) return ''
             const d = new Date(iso)
             return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
           }
-
-          const formatType = (type) => (type || 'generation').replace(/_/g, ' ')
+          const statusColor = { completed: '#10b981', in_progress: '#f59e0b', recommended: C.gold, locked: C.hairline }
+          const statusLabel = { completed: 'Complete', in_progress: 'In Progress', recommended: 'Recommended', locked: 'Locked' }
 
           return (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px' }}>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
-                  <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back</button>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
-                  {s.activeProjectId && (
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button onClick={() => { setTimelineLoading(true); fetch(`/api/campaign-timeline/${s.activeProjectId}`).then(r => r.json()).then(d => { if (d.phases) setCampaignTimeline(d) }).catch(() => {}).finally(() => setTimelineLoading(false)) }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>↺ Refresh</button>
-                      {fullCampaignResult && (
-                        <button onClick={() => {
-                          if (window.confirm('Start a new campaign? Your previous campaign will remain saved in project history.')) {
-                            setFullCampaignResult(null)
-                            setFullCampaignPhase('attention')
-                            try { localStorage.removeItem(`pce_output_${s.activeProjectId}_fullCampaign`) } catch {}
-                            setPreviousView('campaign_journey')
-                            set('view', 'full_campaign')
-                          }
-                        }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>✦ Start New Campaign</button>
-                      )}
-                      <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
-                        {fullCampaignResult ? 'Open Campaign Builder →' : '+ Generate Campaign →'}
-                      </button>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 860, margin: '0 auto', width: '100%' }}>
+
+              {/* ── Header ── */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  {s.activeProjectId && <button onClick={loadCampaignJourney} disabled={journeyLoading} style={{ padding: '5px 12px', borderRadius: 5, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>{journeyLoading ? '…' : '↺ Refresh'}</button>}
+                  {/* Campaign Builder is the ONLY creation path */}
+                  <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign') }} style={{ padding: '5px 14px', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: C.raised, color: C.secondary }}>
+                    Campaign Builder →
+                  </button>
+                </div>
+              </div>
+
+              {/* ── No project selected ── */}
+              {!s.activeProjectId && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {projects.length > 0 ? (
+                    <>
+                      <div style={{ fontSize: 12, color: C.muted }}>Choose a project to view its campaign journey:</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 480 }}>
+                        {projects.map(p => (
+                          <div key={p.id} onClick={() => switchProject(p)} style={{ padding: '12px 16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = '#1a1408' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.raised }}
+                          >
+                            <span style={{ fontSize: 16 }}>{p.type === 'brand' ? '🏷' : p.type === 'campaign' ? '📣' : '🎬'}</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: C.muted, textTransform: 'capitalize' }}>{p.type || 'creator'}</div>
+                            </div>
+                            <span style={{ marginLeft: 'auto', fontSize: 10, color: C.gold }}>View Journey →</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 400 }}>
+                      <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>Campaign Journey tracks your campaign phases, fatigue, and Brain signals over time. Create a project to get started.</div>
+                      <button onClick={() => setProjectModalOpen(true)} style={{ padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, width: 'fit-content' }}>+ Create Project</button>
                     </div>
                   )}
                 </div>
-                {!s.activeProjectId && (
-                  <div style={{ marginTop: 24 }}>
-                    {projects.length > 0 ? (
-                      <>
-                        <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Choose a project to view its campaign journey:</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 480 }}>
-                          {projects.map(p => (
-                            <div key={p.id} onClick={() => switchProject(p)} style={{ padding: '12px 16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.goldDim; e.currentTarget.style.background = '#1a1408' }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.raised }}
-                            >
-                              <span style={{ fontSize: 16 }}>{p.type === 'brand' ? '🏷' : p.type === 'campaign' ? '📣' : '🎬'}</span>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{p.name}</div>
-                                <div style={{ fontSize: 11, color: C.muted, textTransform: 'capitalize' }}>{p.type || 'creator'}</div>
-                              </div>
-                              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.gold }}>View Journey →</span>
+              )}
+
+              {s.activeProjectId && journeyLoading && !CJ && (
+                <div style={{ fontSize: 12, color: C.muted }}>Loading campaign journey…</div>
+              )}
+
+              {s.activeProjectId && CJ && (() => {
+                const health    = CJ.health   || {}
+                const brain     = CJ.brain    || {}
+                const phases    = CJ.phases   || []
+                const history   = CJ.history  || []
+
+                return (
+                  <>
+                    {/* ── Brain Recommendation ── */}
+                    {brain.recommendation && (
+                      <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}50`, background: 'linear-gradient(135deg, #1a1408, #0a0a0a)', padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}`, flexShrink: 0, marginTop: 4 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Brain Recommendation</div>
+                          <div style={{ fontSize: 13, color: '#e8dfc8', lineHeight: 1.6 }}>{brain.recommendation}</div>
+                          {(brain.best_platform || brain.best_hook_types?.length > 0) && (
+                            <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+                              {brain.best_platform && <span style={{ fontSize: 10, color: C.muted }}>Best platform: <span style={{ color: C.primary }}>{brain.best_platform}</span></span>}
+                              {brain.best_hook_types?.[0] && <span style={{ fontSize: 10, color: C.muted }}>Best hook: <span style={{ color: C.primary, textTransform: 'capitalize' }}>{brain.best_hook_types[0].replace(/_/g, ' ')}</span></span>}
+                              {brain.fatigue_score > 0 && <span style={{ fontSize: 10, color: brain.fatigue_score > 70 ? '#f97316' : C.muted }}>Fatigue: <span style={{ color: brain.fatigue_score > 70 ? '#f97316' : C.primary }}>{brain.fatigue_score}%</span></span>}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 400 }}>
-                        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>Campaign Journey tracks your campaign phases, fatigue, and Brain signals over time. Create a project to get started.</div>
-                        <button onClick={() => setProjectModalOpen(true)} style={{ padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold, width: 'fit-content' }}>+ Create Project</button>
+                        <div style={{ fontSize: 9, color: C.muted, whiteSpace: 'nowrap' }}>{brain.total_generations} total generations</div>
                       </div>
                     )}
-                  </div>
-                )}
-                {s.activeProjectId && campaignTimeline?.brain && (
-                  <div style={{ fontSize: 10, color: C.secondary, display: 'flex', gap: 16 }}>
-                    <span>{campaignTimeline.brain.total_generations} generations</span>
-                    <span>Fatigue: {campaignTimeline.brain.fatigue_score}%</span>
-                  </div>
-                )}
-                {s.activeProjectId && timelineLoading && (
-                  <div style={{ fontSize: 11, color: C.muted }}>Loading…</div>
-                )}
-              </div>
 
-              {/* Campaign Content — hydrated from fullCampaignResult when generation_logs shows 0 */}
-              {s.activeProjectId && fullCampaignResult && (() => {
-                const FCR = fullCampaignResult
-                const phases = [
-                  { id: 'attention',   label: 'Attention',   color: C.blue,    count: (FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || []).length },
-                  { id: 'connection',  label: 'Story',       color: C.violet,  count: (FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || []).length },
-                  { id: 'desire',      label: 'Desire',      color: '#f59e0b', count: (FCR?.phases?.desire?.imagePrompts || FCR?.phases?.desire_escalation?.imagePrompts || []).length },
-                  { id: 'conversion',  label: 'Conversion',  color: '#10b981', count: (FCR?.phases?.conversion?.ads || []).length },
-                  { id: 'retargeting', label: 'Retargeting', color: '#f97316', count: (FCR?.phases?.retargeting?.ads || []).length },
-                ]
-                const total = phases.reduce((sum, p) => sum + p.count, 0)
-                return (
-                  <div style={{ borderRadius: 10, border: `1px solid ${C.goldDim}40`, background: 'linear-gradient(135deg, #1a1408 0%, #0a0a0a 100%)', padding: '16px 18px', marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}` }} />
-                      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>Active Campaign</span>
-                      <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{total} assets across 5 phases</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
-                      {phases.map(p => (
-                        <div key={p.id} onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(p.id) }}
-                          style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, border: `1px solid ${p.count > 0 ? p.color + '40' : C.hairline}`, background: p.count > 0 ? p.color + '0a' : C.raised, cursor: 'pointer', transition: 'all 0.15s' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = p.color + '80' }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = p.count > 0 ? p.color + '40' : C.hairline }}
-                        >
-                          <div style={{ fontSize: 18, fontWeight: 800, color: p.count > 0 ? p.color : C.muted }}>{p.count}</div>
-                          <div style={{ fontSize: 9, color: p.count > 0 ? p.color : C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>{p.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 12, fontSize: 10, color: C.muted, textAlign: 'center' }}>Click any phase to open it in Campaign Builder</div>
-                  </div>
-                )
-              })()}
-
-              {s.activeProjectId && campaignTimeline?.phases && (() => {
-                // FCR asset counts — used to override 0 from generation_logs when campaign is hydrated
-                const FCR = fullCampaignResult
-                const fcrCounts = FCR ? {
-                  attention:            (FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || []).length,
-                  emotional_connection: (FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || []).length,
-                  desire_escalation:    (FCR?.phases?.desire?.imagePrompts || FCR?.phases?.desire_escalation?.imagePrompts || []).length,
-                  conversion:           (FCR?.phases?.conversion?.ads || []).length,
-                  retargeting:          (FCR?.phases?.retargeting?.ads || []).length,
-                } : {}
-                return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {campaignTimeline.phases.map(phase => {
-                    const isExpanded   = expandedPhases[phase.id] || phase.isCurrent
-                    const phaseHint    = JOURNEY_PHASES.find(p => p.id === phase.id)?.hint || ''
-                    // Use FCR count when generation_logs count is 0 and FCR is hydrated
-                    const fcrCount     = fcrCounts[phase.id] || 0
-                    const displayCount = phase.generationCount > 0 ? phase.generationCount : fcrCount
-                    const hasFcrData   = fcrCount > 0 && phase.generationCount === 0
-                    return (
-                      <div key={phase.id} style={{
-                        borderRadius: 8,
-                        border: `1px solid ${phase.isCurrent ? phase.color + '55' : C.hairline}`,
-                        background: phase.isCurrent ? phase.color + '0a' : C.raised,
-                        opacity: phase.isUnlocked ? 1 : 0.5,
-                        overflow: 'hidden',
-                      }}>
-                        <div
-                          onClick={() => phase.isUnlocked && togglePhase(phase.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: phase.isUnlocked ? 'pointer' : 'default' }}
-                        >
-                          <div style={{
-                            flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
-                            background: phase.isUnlocked ? phase.color : C.hairline,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, fontWeight: 800, color: phase.isUnlocked ? '#fff' : C.muted,
-                          }}>{phase.num}</div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: phase.isCurrent ? phase.color : C.primary }}>
-                                {phase.label}
-                              </span>
-                              {phase.isCurrent && (
-                                <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
-                                  padding: '2px 5px', borderRadius: 3, background: phase.color + '22', color: phase.color }}>
-                                  Current
-                                </span>
-                              )}
-                              {!phase.isUnlocked && (
-                                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
-                                  padding: '2px 5px', borderRadius: 3, background: C.hairline, color: C.muted }}>
-                                  Locked
-                                </span>
-                              )}
-                            </div>
-                            {phase.isUnlocked && (
-                              <div style={{ fontSize: 9, color: C.secondary, marginTop: 1 }}>{phaseHint}</div>
-                            )}
-                            {!phase.isUnlocked && phase.unlockCondition && (
-                              <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>{phase.unlockCondition}</div>
-                            )}
-                          </div>
-
-                          {phase.isUnlocked && displayCount > 0 && (
-                            <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: hasFcrData ? phase.color : C.secondary }}>
-                              {displayCount} asset{displayCount !== 1 ? 's' : ''}
-                            </div>
-                          )}
-                          {phase.isUnlocked && (
-                            <div style={{ flexShrink: 0, fontSize: 10, color: C.muted, transition: 'transform 0.2s',
-                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</div>
-                          )}
-                        </div>
-
-                        {phase.isUnlocked && isExpanded && (
-                          <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '10px 14px 12px' }}>
-                            {hasFcrData ? (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                <div style={{ fontSize: 10, color: phase.color }}>{fcrCount} campaign assets available</div>
-                                <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(phase.id) }}
-                                  style={{ fontSize: 10, fontWeight: 700, color: phase.color, background: 'none', border: `1px solid ${phase.color}40`, borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>
-                                  Open in Campaign Builder →
-                                </button>
-                              </div>
-                            ) : phase.recentGenerations.length === 0 ? (
-                              <div style={{ fontSize: 10, color: C.muted }}>No generations yet in this phase.</div>
-                            ) : (
-                              <>
-                                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase',
-                                  color: C.muted, marginBottom: 8 }}>Recent</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                                  {phase.recentGenerations.map(gen => (
-                                    <div key={gen.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <span style={{ fontSize: 9, fontWeight: 600, color: C.primary, minWidth: 90 }}>
-                                        {formatType(gen.type)}
-                                      </span>
-                                      {gen.world_id && (
-                                        <span style={{ fontSize: 8, color: C.secondary }}>
-                                          {gen.world_id.replace(/_/g, ' ')}
-                                        </span>
-                                      )}
-                                      <span style={{ marginLeft: 'auto', fontSize: 8, color: C.muted, whiteSpace: 'nowrap' }}>
-                                        {formatDate(gen.created_at)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {phase.generationCount > 5 && (
-                                    <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>
-                                      +{phase.generationCount - 5} more
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )}
+                    {/* ── Campaign Health ── */}
+                    <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, padding: '14px 18px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign Health</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: health.overall > 60 ? '#10b981' : health.overall > 30 ? C.gold : C.muted }}>{health.overall || 0}%</div>
                       </div>
-                    )
-                  })}
-                </div>
+                      {/* Phase health bars */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {phases.map(ph => (
+                          <div key={ph.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ fontSize: 10, color: C.muted, width: 80, flexShrink: 0 }}>{ph.label}</div>
+                            <div style={{ flex: 1, height: 4, borderRadius: 2, background: C.hairline, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${health.byPhase?.[ph.id] || 0}%`, background: ph.color, borderRadius: 2, transition: 'width 0.5s' }} />
+                            </div>
+                            <div style={{ fontSize: 10, color: C.muted, width: 32, textAlign: 'right' }}>{health.byPhase?.[ph.id] || 0}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Phases ── */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Phases</div>
+                      {phases.map(phase => {
+                        const isExpanded = expandedPhases[phase.id]
+                        const sc = statusColor[phase.status] || C.hairline
+                        const sl = statusLabel[phase.status] || phase.status
+                        return (
+                          <div key={phase.id} style={{ borderRadius: 8, border: `1px solid ${phase.status === 'recommended' ? C.goldDim : phase.status === 'completed' ? phase.color + '40' : C.hairline}`, background: phase.status === 'recommended' ? '#1a1408' : C.raised, overflow: 'hidden' }}>
+                            <div onClick={() => phase.status !== 'locked' && setExpandedPhases(prev => ({ ...prev, [phase.id]: !prev[phase.id] }))}
+                              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: phase.status !== 'locked' ? 'pointer' : 'default', opacity: phase.status === 'locked' ? 0.45 : 1 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: phase.status === 'locked' ? C.hairline : phase.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{phase.num}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: phase.status === 'locked' ? C.muted : C.primary }}>{phase.label}</span>
+                                  <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 3, background: sc + '22', color: sc }}>{sl}</span>
+                                </div>
+                                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{phase.hint}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                {phase.assetCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: phase.color }}>{phase.assetCount} asset{phase.assetCount !== 1 ? 's' : ''}</span>}
+                                {phase.progressPct > 0 && phase.progressPct < 100 && <span style={{ fontSize: 9, color: C.muted }}>{phase.progressPct}%</span>}
+                                {phase.status !== 'locked' && <span style={{ fontSize: 10, color: C.muted, transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▾</span>}
+                              </div>
+                            </div>
+                            {isExpanded && phase.status !== 'locked' && (
+                              <div style={{ borderTop: `1px solid ${C.hairline}`, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {phase.assets.length > 0 ? (
+                                  <>
+                                    <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: C.muted }}>Assets</div>
+                                    {phase.assets.map((asset, i) => (
+                                      <div key={i} style={{ background: C.surface, borderRadius: 6, padding: '8px 12px', border: `1px solid ${C.hairline}` }}>
+                                        <div style={{ fontSize: 8, color: phase.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 3 }}>{(asset.type || 'asset').replace(/_/g, ' ')}</div>
+                                        <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{asset.content}</div>
+                                      </div>
+                                    ))}
+                                    {phase.assetCount > phase.assets.length && (
+                                      <div style={{ fontSize: 10, color: C.muted }}>+{phase.assetCount - phase.assets.length} more assets</div>
+                                    )}
+                                    <button onClick={() => { setPreviousView('campaign_journey'); set('view', 'full_campaign'); setFullCampaignPhase(phase.id) }}
+                                      style={{ alignSelf: 'flex-start', fontSize: 10, fontWeight: 700, color: phase.color, background: 'none', border: `1px solid ${phase.color}40`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', marginTop: 4 }}>
+                                      View full phase in Campaign Builder →
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
+                                    No assets yet for this phase.{phase.status === 'recommended' ? ' This phase is recommended next — go to Campaign Builder to generate.' : ''}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ── Campaign History ── */}
+                    {history.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Campaign History ({history.length})</div>
+                        {history.map((h, i) => (
+                          <div key={h.id || i} style={{ borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.raised, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{h.summary.product || 'Campaign'}</div>
+                              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                                {h.summary.platform} · {h.summary.style} · {h.summary.totalAssets || '—'} assets · {formatDate(h.generatedAt)}
+                              </div>
+                            </div>
+                            <button onClick={() => {
+                              if (h.payload) {
+                                setFullCampaignResult(h.payload)
+                                setFullCampaignPhase('attention')
+                                setPreviousView('campaign_journey')
+                                set('view', 'full_campaign')
+                              }
+                            }} style={{ fontSize: 10, fontWeight: 700, color: C.gold, background: 'none', border: `1px solid ${C.goldDim}`, borderRadius: 4, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              Open →
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )
               })()}
             </div>
