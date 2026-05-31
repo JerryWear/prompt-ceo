@@ -14882,241 +14882,218 @@ export default function PromptCEOPage() {
       {/* HELP DRAWER */}
       {helpOpen && (
         <>
-          <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.75)' }} />
-          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, zIndex: 999, background: '#080808', borderLeft: `1px solid #1a1a1a`, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.7)' }} />
+          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, zIndex: 999, background: '#0a0a0a', borderLeft: `1px solid ${C.subtle}`, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
             {/* Header */}
-            <div style={{ padding: '16px 20px', borderBottom: `1px solid #1a1a1a`, background: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: `linear-gradient(135deg, ${C.goldDim}, ${C.gold}44)`, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🎬</div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
-                  <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>AI Creative Operating System</div>
-                </div>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.subtle}`, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold }}>PROMPT CEO</div>
+                <div style={{ fontSize: 10, color: C.secondary, marginTop: 2 }}>Complete Feature Guide</div>
               </div>
-              <button onClick={() => setHelpOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={() => setHelpOpen(false)} style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer' }}>✕</button>
             </div>
 
-            {/* ── ACCOUNT SECTION ── */}
-            <div style={{ padding: '16px 20px', borderBottom: `1px solid #1a1a1a`, background: '#0d0d0d' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 38, height: 38, borderRadius: '50%', background: `linear-gradient(135deg, ${C.goldDim}, #2a2010)`, border: `1px solid ${C.goldDim}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                  {userName ? userName[0].toUpperCase() : '✦'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || 'Your Account'}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
-                    {subscription?.isAdmin ? '⚡ Admin' : subscription?.tierLabel || 'Free'} plan
-                    {subscription?.imagesRemaining !== undefined && !subscription?.isAdmin && ` · ${subscription.imagesRemaining} images remaining`}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+              {/* ── AD STUDIO ── */}
+              <HelpSection color={C.violet} icon="📣" title="Ad Studio" subtitle="AI Creative OS for brands and agencies">
+                <HelpBlock>
+                  Enter your product once. Every tab generates from the same brain. Hooks know the angle. Captions know the hook. Music knows the goal. Everything is connected.
+                </HelpBlock>
+
+                <HelpSub color={C.gold}>Quick Start</HelpSub>
+                <HelpSteps steps={[
+                  ['Fill Product Details', 'Product name, description, target customer, problem, desire, benefit, offer, CTA. The more you add, the smarter every generation becomes.'],
+                  ['Pick Brand Voice', 'Luxury, Bold, Emotional, Clean, Aggressive, Feminine, Premium, Friendly. Locks your tone across all outputs.'],
+                  ['Set Platform + Goal', 'Instagram / TikTok / Facebook · Sales / Leads / Awareness / Retargeting.'],
+                  ['Build Full Ad Project', 'One button on the Creative tab. Generates Angles → selects the best → Hooks → selects the best → Captions + UGC. All tabs fill automatically.'],
+                  ['Or go tab by tab', 'Angles → click Use This Angle → Hooks → click Use This Hook → Captions → Images → Video → UGC → Campaign → Music → Score.'],
+                ]} />
+
+                <HelpSub color={C.gold}>The 15 Output Tabs</HelpSub>
+                {[
+                  ['Creative', 'Generate image or video ads. Build Full Ad Project. Campaign Consistency Check. Export Briefs. Iteration Engine.'],
+                  ['Angles', '10 psychological directions. Each angle is a completely different way to sell the same product. Click Use This Angle to set the direction for everything else.'],
+                  ['Hooks', 'Generate all 5 hook types at once — Pain, Desire, Curiosity, Luxury, Offer. 10 hooks each. Click Use This Hook to lock the opening line.'],
+                  ['Captions', '6 caption styles — Short, Story, Problem-Solution, Luxury, Direct, Retargeting. All use the selected angle and hook.'],
+                  ['Images', '6 image ad prompts — Hero, Lifestyle, UGC, Before/After, Minimal, Story. Generate the actual image inside the app per card.'],
+                  ['Video', '4 video prompts — TikTok 15s, Meta 30s, UGC Creator, Luxury Cinematic. Each has a Generate Storyboard button for shot-by-shot direction.'],
+                  ['UGC', '4 creator scripts — Natural, Emotional, Direct Response, Testimonial.'],
+                  ['Campaign', '10-stage full-funnel: Cold Awareness → Problem → Desire → Product → UGC Trust → Social Proof → Offer → Final Conversion → Retargeting → Winback. Each stage: hook, caption, image, video, UGC, music, CTA.'],
+                  ['Score', 'Paste any copy → score across 6 dimensions. Full Campaign Score across 8 dimensions. Ad Fatigue Detection scans all outputs for repetition.'],
+                  ['Music', 'AI recommends the perfect soundtrack for your campaign. Featured tracks surface first. "Sounds like" suggestion appears on every tab — one click to preview and license. Start with a track and let it anchor the whole campaign.'],
+                  ['Launch', '5-stage launch sequence: Teaser → Launch Day → Retargeting → Urgency → Final Push. Download as .txt for your team.'],
+                  ['Calendar', '30-day content plan. Daily hooks, caption direction, creative brief, posting time. Export as CSV.'],
+                  ['A/B Tests', 'Create structured tests with hypothesis. Log CTR results. AI extracts the winning pattern and generates 5 new hooks using it.'],
+                  ['ROI', 'Enter product price, margin, CTR, conversion rate, audience, spend. Live projection of revenue, ROAS, profit, break-even.'],
+                  ['Inspire', 'Paste competitor ads → AI extracts what makes them work → generates 5 original hooks you can use instantly. Market Intelligence shows the open gap in your category.'],
+                ].map(([tab, desc]) => (
+                  <div key={tab} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.violet, minWidth: 64, paddingTop: 2 }}>{tab}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => { setHelpOpen(false); window.location.href = '/account' }} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid #1a1a1a`, background: '#111', color: C.secondary }}>Account</button>
-                  {!subscription?.isAdmin && !subscription?.active && (
-                    <button onClick={() => { setHelpOpen(false); window.location.href = '/pricing' }} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>Upgrade</button>
-                  )}
+                ))}
+
+                <HelpSub color={C.gold}>Intelligence Layer</HelpSub>
+                {[
+                  ['Creative Director AI', 'Fires automatically after every generation. Shows: why it works, what is weak, exact next action, and a director quote. Free.'],
+                  ['Output Locking', 'Lock any angle, hook, brand voice, visual style, or music. Locked items inject into every future generation. Shown in the context bar at the top.'],
+                  ['Variation Engine', 'Every output has Make It More buttons: 👑 Luxury · ⚡ Direct · 💛 Emotional · 🔥 Viral · ✂ Shorter · 💥 Bolder. Plus 4 more.'],
+                  ['Iteration Engine', 'In Creative tab — pick a direction (Stronger, Emotional, Luxury, TikTok, Direct, Simpler) and iterate the whole campaign. Respects all locks.'],
+                  ['Brand Voice Fingerprint', 'Paste 3 of your best ads. AI extracts your exact writing patterns — not a category label, your actual brand voice. Injected into every generation.'],
+                  ['Brand Brain Winners', 'Star ⭐ your best angles and hooks. They inject into every future generation as proven benchmarks.'],
+                  ['Performance Intelligence', 'Log real CTR on any hook. AI learns which patterns win for your brand. Top performers are referenced in every new generation.'],
+                  ['Visual Brand DNA', 'Set primary/secondary colors, image style, typography feel, brand mark. Injected into every image generation.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.gold}>Music Intelligence</HelpSub>
+                {[
+                  ['Sounds Like', 'On the Creative tab, a passive strip shows the AI\'s top track recommendation for your current campaign — even before you visit the Music tab. One click previews and licenses it.'],
+                  ['Featured Tracks', 'Curated tracks with a gold FEATURED badge surface first in the library. Built by the artist behind this app — matched for campaign quality.'],
+                  ['AI Match Score', 'Every track is scored against your product, platform, goal, mood, and brand voice. Match % shown on every card with a "Why this fits" explanation.'],
+                  ['Campaign Count', 'Each track shows how many campaigns it has been licensed into — real usage data, not guesswork.'],
+                  ['Timing Plan', 'After licensing, the AI maps your track\'s BPM, drop, and energy curve to a 30-second ad structure: hook window, build, drop moment, payoff, CTA.'],
+                  ['Music-first entry', 'Start from the Music tab before filling product details. Pick a track — its mood, energy, and vibe anchor the creative direction for the whole campaign.'],
+                  ['Campaign Stage Music', 'In the 10-stage Campaign tab, each stage shows which section of the track fits that moment — cold awareness, urgency, retargeting — with timing and a use note.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.gold}>Delivery Tools</HelpSub>
+                {[
+                  ['Campaign Pack', '📦 Pack button in context bar. Downloads everything — angles, hooks, captions, UGC, campaign, launch, music — as one .txt file.'],
+                  ['Share with Client', '🔗 Share button → generates a unique link. Client opens a clean review page, approves or requests changes. Agency gets notified. Client never touches the app.'],
+                  ['Export Briefs', 'Campaign Brief, Creator Brief, Media Buyer Brief. AI-generated professional documents. Download as .txt.'],
+                  ['Webhook Integration', 'In My Projects panel — paste any Zapier or Make.com URL. Campaign data pushes automatically on Save, Share, and client Approve.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.blue, minWidth: 120, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+              </HelpSection>
+
+              <div style={{ height: 1, background: C.hairline }} />
+
+              {/* ── DIRECTOR'S STUDIO ── */}
+              <HelpSection color={C.green} icon="🎬" title="Director's Studio" subtitle="Cinematic AI scene generation for creators">
+                <HelpBlock>
+                  Build a character once. Pick a world. Apply a director's visual language. Generate scenes that progress through a cinematic arc. Export prompts to Midjourney, Runway, or Kling — or generate images directly inside the Studio.
+                </HelpBlock>
+
+                <HelpSub color={C.green}>Quick Start</HelpSub>
+                <HelpSteps steps={[
+                  ['Upload Identity', 'Click the upload area in the Identity panel. Upload a reference photo. Click Scan Identity — AI extracts age, ethnicity, body, hair, eyes automatically.'],
+                  ['Pick a World', 'Choose a Location World (Dubai, Malibu, Santorini, Tulum, Luxury Hotel Suite) or a Story World (creator lifestyle, lingerie editorial, intimate). Or build your own Custom World.'],
+                  ['Choose a Director', 'Apply a director\'s visual grammar: Kubrick (cold, symmetrical), Wong Kar-wai (saturated longing), Fincher (tension, desaturated), Malick (golden hour), Noé (neon, confrontational), and 6 more.'],
+                  ['Set Progression', 'Drag the slider to position in the arc. Tease (0–33%) → Tension (33–66%) → Payoff (66–100%). The AI adjusts language, proximity, and energy automatically.'],
+                  ['Generate Scene', 'Click ▶ Generate Scene — prompt appears immediately. Or click ⚡ Full Sequence for a complete 30-scene arc.'],
+                  ['Generate Image', 'Click 🎨 Generate Image in the output panel. No identity image required for direct generation.'],
+                ]} />
+
+                <HelpSub color={C.green}>Scene Intelligence</HelpSub>
+                {[
+                  ['Shot Director AI', 'Fires automatically after every scene. Shows: what works cinematically, what to fix, exact direction for the next shot, director quote. Free.'],
+                  ['Layer Swap', 'Click ↺ Wardrobe / Scene / Camera / Mood / Lighting to regenerate that element while keeping everything else. A gold banner appears — click Regenerate Image to see the result.'],
+                  ['Variation Engine', '10 cinematic directions: 🌑 Darker · 🎬 More Cinematic · ⚡ Higher Tension · 🕯 More Intimate · 📸 More Editorial · 🌊 More Abstract · ✨ More Romantic · 🎭 More Dramatic · ◻ More Minimal · 🔮 More Surreal.'],
+                  ['Visual Anchor', 'After generating a good image, click ⚓ Set as Visual Anchor. All future scenes maintain consistency with that visual reference — same lighting style, character energy, color temperature.'],
+                  ['Scene Coherence', 'Checks if world + director + progression + character are working together or fighting. Returns score, harmony points, friction points, one fix.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.green, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Batch Generation</HelpSub>
+                {[
+                  ['Full Sequence ⚡', 'Generates your total scene count as a smart progression. Each shot gets specific cinematic direction based on its position in the arc (establishing, building, tension, peak, resolution, aftermath).'],
+                  ['Director\'s Timeline', 'After running a batch, the Timeline view shows all scenes. Every card has a 🎨 Generate button. Generate individual scenes or click Generate All Images in the header.'],
+                  ['Generate All Images', 'Header button generates every scene image with grok-imagine-image. No identity upload required. Shows progress as images come in.'],
+                  ['Director\'s Chair', 'Fullscreen cinematic view of all batch results. Navigate shot by shot. Full prompt text visible. Progress indicators for each scene.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.blue, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Memory & Identity</HelpSub>
+                {[
+                  ['Character DNA', 'Save your complete setup — identity, traits, world, director, scene count — as a named profile. Load any profile instantly from the Character DNA panel.'],
+                  ['Custom Worlds', 'Build your own world: name, location, atmosphere, lighting, mood. Saves permanently. Active world injects into every scene prompt.'],
+                  ['Prompt Library', 'Click ⭐ star on any generated scene. Starred prompts persist in the Prompt Library (right panel). Load, copy, or use as style reference in future generations.'],
+                  ['Session Timeline', 'Auto-tracks every creative decision: scenes generated, layers swapped, variations applied, images starred. Right panel.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.violet, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+
+                <HelpSub color={C.green}>Export</HelpSub>
+                {[
+                  ['MJ / Runway / Kling', 'One-click copy of the prompt formatted for each platform. MJ gets --ar 2:3 --style raw, Kling gets --ratio 9:16 --duration 5.'],
+                  ['Photographer Brief', 'After running a batch — click the Photographer Brief panel (right). AI generates a real-world shoot brief with character, wardrobe, lighting, shot list, director notes. Download as .txt.'],
+                  ['.txt Export', 'Export all batch prompts as a plain text file, one per line, from the Timeline header.'],
+                ].map(([feat, desc]) => (
+                  <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: C.gold, minWidth: 110, paddingTop: 2, flexShrink: 0 }}>{feat}</span>
+                    <span style={{ fontSize: 11, color: C.secondary, lineHeight: 1.55 }}>{desc}</span>
+                  </div>
+                ))}
+              </HelpSection>
+
+              <div style={{ height: 1, background: C.hairline }} />
+
+              {/* ── CREDITS ── */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold, marginBottom: 12 }}>Credits Guide</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {[
+                    ['🎨 Generate Image (any mode)',    '5 cr'],
+                    ['🎬 Generate Video',                '60 cr'],
+                    ['✦ Angles / Captions / Images / UGC', '2 cr'],
+                    ['✦ Hooks',                          '1 cr'],
+                    ['✦ Video Prompts',                  '3 cr'],
+                    ['✦ Full Campaign (10 stages)',       '5 cr'],
+                    ['🚀 Launch Sequence',               '5 cr'],
+                    ['📅 Content Calendar',              '5 cr'],
+                    ['✦ Quality Score (individual)',      '1 cr'],
+                    ['✦ Full Campaign Score',            '2 cr'],
+                    ['🎵 License Music Track',           '2 cr'],
+                    ['🎬 Video Storyboard',              '2 cr'],
+                    ['📋 Export Brief (any type)',        '2 cr'],
+                    ['🔍 Competitor / Market Analysis',  '2 cr'],
+                    ['🔄 Campaign Iteration',            '3 cr'],
+                    ['↺ Studio Variation',               '1 cr'],
+                    ['✦ Scene Coherence Check',          '1 cr'],
+                    ['📸 Photographer Brief',            '2 cr'],
+                    ['✦ Brand Voice Training',           'Free'],
+                    ['✦ Shot Director AI',               'Free'],
+                    ['✦ Creative Director Notes',        'Free'],
+                  ].map(([action, cost]) => (
+                    <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: 4, background: C.raised, border: `1px solid ${C.hairline}` }}>
+                      <span style={{ fontSize: 11, color: C.secondary }}>{action}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: cost === 'Free' ? C.green : C.gold }}>{cost}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', paddingBottom: 12 }}>
+                Prompt CEO · AI Creative OS
+              </div>
             </div>
-
-            {/* ── HELP CONTENT ── */}
-            {(() => {
-              const H = ({ children, color = C.gold }) => (
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase', color, marginBottom: 10, marginTop: 4 }}>{children}</div>
-              )
-              const Step = ({ n, title, desc }) => (
-                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#000', flexShrink: 0, marginTop: 1 }}>{n}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 3 }}>{title}</div>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>{desc}</div>
-                  </div>
-                </div>
-              )
-              const Section = ({ icon, title, color, children }) => (
-                <div style={{ borderBottom: `1px solid #141414`, paddingBottom: 20, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                    <span style={{ fontSize: 16 }}>{icon}</span>
-                    <div style={{ fontSize: 14, fontWeight: 800, color }}>{title}</div>
-                  </div>
-                  {children}
-                </div>
-              )
-              const Tip = ({ children }) => (
-                <div style={{ padding: '8px 12px', borderRadius: 6, background: '#0d0d0d', border: `1px solid #1a1a1a`, fontSize: 11, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>{children}</div>
-              )
-              return (
-                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-
-                  {/* QUICK START */}
-                  <div style={{ borderBottom: `1px solid #141414`, paddingBottom: 24, marginBottom: 24 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: C.primary, marginBottom: 4 }}>Quick Start</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Your first output in under 5 minutes.</div>
-                    <Step n="1" title="Tell the AI Director what you want" desc='Use the top bar — type naturally: "Perfect Day in Maldives for my luxury brand" or "Full campaign for my fitness app on Instagram". The Director routes everything automatically.' />
-                    <Step n="2" title="Or open a generator directly" desc="Use the nav: Studio → Life Engine for lifestyle content. Campaigns → Campaign Builder for a 30-day campaign. Studio → Ad Studio for ads. Each has its own flow." />
-                    <Step n="3" title="Load your Character DNA (optional)" desc="Go to Studio → Character DNA panel. Fill in your character's traits (name, age, ethnicity, body, hair). Save it. Pick it in any generator — the character appears in every scene." />
-                    <Step n="4" title="Select a project" desc="Click the project dropdown at top left. Create a new project or select an existing one. All your generations link to the project and survive page refresh." />
-                    <Step n="5" title="Generate and explore" desc="Every generator has Generate button. Results appear immediately. Use 'Use in Ad Studio', '→ Studio', 'Copy' buttons to move content between systems." />
-                  </div>
-
-                  {/* HOME */}
-                  <Section icon="✦" title="Home — The Brain Dashboard" color={C.gold}>
-                    <Tip>The Home screen is your command center. It reads your campaign history and tells you what to build next.</Tip>
-                    <H>What you see</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.8, marginBottom: 10 }}>
-                      <strong style={{ color: C.primary }}>PromptCEO Brain:</strong> Analyzes your campaign history. Shows your best-performing world, hook type, and platform. Recommends the exact next asset to generate with confidence score and expected uplift.<br/>
-                      <strong style={{ color: C.primary }}>Performance Signals:</strong> Best hook type, top world, best platform, recent style — aggregated from all your generations.<br/>
-                      <strong style={{ color: C.primary }}>Brain Memory:</strong> Every action you take — every generation, world selection, recommendation accepted — logged here by date.<br/>
-                      <strong style={{ color: C.primary }}>Quick Actions:</strong> One-click access to Perfect Day, Campaign Builder, Full Day Video, Instant Campaign, Studio.
-                    </div>
-                    <H>Generate Next Asset button</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>When the Brain has enough data, it pre-fills a specific recommendation into the Director chat. Clicking this button sends the message and starts generation with your best-performing settings.</div>
-                  </Section>
-
-                  {/* CAMPAIGN BUILDER */}
-                  <Section icon="◈" title="Campaign Builder" color="#9b6fd4">
-                    <Tip>Generates a full 30-day, 5-phase campaign: Attention → Story → Desire → Conversion → Retargeting.</Tip>
-                    <H>How to use</H>
-                    <Step n="1" title="Enter product/brand name" desc="Type your brand or product name in the header. It's optional — the AI uses your brand profile if set." />
-                    <Step n="2" title="Set goal, style, platform" desc="Goal: sales, leads, followers, brand awareness, high-ticket, viral reach, premium positioning. Style: cinematic, luxury, UGC, emotional, viral. Platform: Instagram, TikTok, Meta Ads, YouTube, LinkedIn." />
-                    <Step n="3" title="Generate Full Campaign" desc="Generates 5 phases with hooks, story scripts, image prompts, conversion ads, retargeting ads, 30 captions, and a 30-day posting schedule. Takes 30–60 seconds." />
-                    <Step n="4" title="Navigate phases" desc="Click the phase tabs at the top: Attention · Story · Desire · Conversion · Retargeting. Each phase has multiple assets. Click 'Use in Ad Studio' to move any asset to Ad Studio." />
-                    <H>Load previous campaigns</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>The gold '↑ Load saved…' dropdown in the header shows all past campaigns for your active project. Select one to restore it instantly.</div>
-                    <H>Start New Campaign</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>The '✦ Start New Campaign' button clears the current workspace. Old campaigns are never deleted — they stay in Campaign Journey history.</div>
-                  </Section>
-
-                  {/* CAMPAIGN JOURNEY */}
-                  <Section icon="◉" title="Campaign Journey" color="#3b82f6">
-                    <Tip>Campaign Journey tracks your campaign across all 5 phases. It reads your generation history and shows exactly where you are.</Tip>
-                    <H>What it shows</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.8, marginBottom: 10 }}>
-                      <strong style={{ color: C.primary }}>Brain Recommendation:</strong> Based on what you've generated, tells you what phase to focus on next.<br/>
-                      <strong style={{ color: C.primary }}>Campaign Health:</strong> 0–100% score per phase, weighted by importance. Overall score shown in green/gold.<br/>
-                      <strong style={{ color: C.primary }}>Phase cards:</strong> Each phase shows status (Complete/In Progress/Recommended/Locked), asset count, and the actual content. Click to expand.<br/>
-                      <strong style={{ color: C.primary }}>Campaign History:</strong> All past campaigns for this project. Click 'Open →' to restore any previous campaign.
-                    </div>
-                    <H>Phase status rules</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>Attention unlocks first. Generate 3+ Attention assets → Complete → Story unlocks. Each phase needs 2–3 assets to complete. The system tracks this automatically from your generation_logs.</div>
-                  </Section>
-
-                  {/* LIFE ENGINE */}
-                  <Section icon="🌍" title="Life Engine™" color={C.gold}>
-                    <Tip>Life Engine builds your entire day as a campaign — 12 cinematic moments, morning to midnight, across 6 modes.</Tip>
-                    <H>6 modes</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.8, marginBottom: 10 }}>
-                      <strong style={{ color: C.primary }}>Perfect Day:</strong> Aspirational lifestyle arc — 12 moments from waking to sleep. Hook, caption, image prompt, video direction per moment.<br/>
-                      <strong style={{ color: C.primary }}>Creator Day:</strong> Behind-the-scenes content — 14 cinematic scenes with camera direction, shot lists, lighting, wardrobe.<br/>
-                      <strong style={{ color: C.primary }}>Travel Day:</strong> Cinematic destination content — 12 travel moments across 8 worlds (Paris, Tokyo, Maldives, Santorini, Bali, NYC, Amalfi, Marrakech).<br/>
-                      <strong style={{ color: C.primary }}>Fitness Day:</strong> Performance lifestyle from 5am training to midnight recovery.<br/>
-                      <strong style={{ color: C.primary }}>Product Day:</strong> A full day told through your product — unboxing to lifestyle integration.<br/>
-                      <strong style={{ color: C.primary }}>Campaign Day:</strong> One campaign phase as a day — attention to conversion in 12 moments.
-                    </div>
-                    <H>How to use</H>
-                    <Step n="1" title="Select a mode from the hub" desc="Life Engine hub shows all 6 modes. Click any card to open its generator." />
-                    <Step n="2" title="Add character (optional)" desc="Pick your saved Character DNA from the '+ Add character' dropdown in the header. The character appears in every scene prompt." />
-                    <Step n="3" title="Choose world, platform, style" desc="For Travel/Fitness/Product/Campaign Day: pick world, platform (Instagram/TikTok/YouTube), and style (cinematic/aspirational/luxury/UGC)." />
-                    <Step n="4" title="Generate and expand moments" desc="All 12 moments load as accordion cards. Each shows the hook. Click any card to expand and see the full caption and image prompt." />
-                  </Section>
-
-                  {/* STUDIO */}
-                  <Section icon="◧" title="Studio — Cinematic Scene Generator" color={C.green}>
-                    <Tip>Studio is the cinematic prompt engine. 30+ worlds, Character DNA, Shot Director AI. Every prompt is a film scene.</Tip>
-                    <H>Core flow</H>
-                    <Step n="1" title="Set your world" desc="Left panel → World System. Choose from 30+ worlds: Monaco, Maldives, Bali, Tokyo, Paris, Santorini, and more. Or build a Custom World with your own atmosphere, lighting, and mood." />
-                    <Step n="2" title="Set director style" desc="Left panel → Director. 11 cinematic styles: cinematic, luxury, dark luxury, UGC, editorial, soft feminine, athletic, and more. Each changes composition, lighting language, and emotional energy." />
-                    <Step n="3" title="Add identity (optional)" desc="Upload your photo in the Identity section, or load Character DNA from the Character DNA panel. Identity appears in every generated image prompt." />
-                    <Step n="4" title="Generate Scene" desc="Click 'Generate Scene' — builds a cinematic prompt and immediately generates the image. No identity required for direct generation." />
-                    <Step n="5" title="Full Sequence" desc="Click 'Full Sequence' to generate 30 scenes across the full day arc. All scenes appear in Director's Timeline. Generate images individually or all at once." />
-                    <H>Make It More buttons</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6, marginBottom: 8 }}>After each generation: Darker, More Cinematic, Higher Tension, More Intimate, More Editorial, More Abstract, More Romantic, More Dramatic, More Minimal, More Surreal. Each creates a variation of the current scene.</div>
-                    <H>Character DNA</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>Left panel → Character DNA. Fill in: name, age, ethnicity, body, hair, eyes. Save it. The DNA persists across sessions. Pick it in any Life Engine generator for consistent character across all content.</div>
-                  </Section>
-
-                  {/* AD STUDIO */}
-                  <Section icon="📣" title="Ad Studio" color="#9b6fd4">
-                    <Tip>Ad Studio is the full ad creation system. Angles, hooks, captions, UGC scripts, images, video — all connected from one brand brain.</Tip>
-                    <H>Full Project Build (fastest)</H>
-                    <Step n="1" title="Enter product name" desc="Type your product or brand name at the top of Ad Studio. This unlocks all generation buttons." />
-                    <Step n="2" title="Set platform and goal" desc="Pick platform (Instagram, TikTok, Meta Ads, YouTube) and goal (sales, leads, awareness, retargeting). These change tone and format across all outputs." />
-                    <Step n="3" title="Click Build Full Ad Project" desc="Generates Angles → selects best → Hooks → selects best → Captions + UGC scripts → all tabs fill automatically. Takes 60–90 seconds." />
-                    <H>Tab by tab (more control)</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.8, marginBottom: 10 }}>
-                      <strong style={{ color: C.primary }}>Angles:</strong> 5 psychological positioning angles for your product.<br/>
-                      <strong style={{ color: C.primary }}>Hooks:</strong> Choose hook type (Pain/Curiosity/Desire/Social Proof/Direct Offer), generate 5 hooks per type.<br/>
-                      <strong style={{ color: C.primary }}>Captions:</strong> Platform-optimized captions from your selected hook and angle.<br/>
-                      <strong style={{ color: C.primary }}>Images:</strong> Generate ad images (no identity required). Uses studio_direct mode.<br/>
-                      <strong style={{ color: C.primary }}>UGC Scripts:</strong> Talking-head scripts for creators.<br/>
-                      <strong style={{ color: C.primary }}>Campaign:</strong> 30-day campaign calendar with content themes per day.
-                    </div>
-                    <H>Use in Studio</H>
-                    <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>Click '→ Studio' on any hook or caption to send it to the Studio generator. The text becomes the prompt — click 'Generate Scene' to create an image from it.</div>
-                  </Section>
-
-                  {/* DISTRIBUTION */}
-                  <Section icon="⊕" title="Distribution — Cross-Platform Adaptation" color={C.blue}>
-                    <Tip>Takes your existing campaign content and rewrites it natively for each platform — tone, length, CTA, and format adapted automatically.</Tip>
-                    <H>How to use</H>
-                    <Step n="1" title="Generate campaign content first" desc="Distribution works best after running Campaign Builder or Ad Studio. Your content is automatically detected." />
-                    <Step n="2" title="Click Adapt for All Platforms" desc="Generates Instagram, TikTok, Meta Ads, and YouTube versions simultaneously. Each version gets platform-specific hook, angle, CTA, and caption." />
-                    <Step n="3" title="Copy per platform" desc="Each platform card shows hook, angle, CTA, and full caption. Copy button copies hook + caption together." />
-                  </Section>
-
-                  {/* CREDITS */}
-                  <div style={{ borderBottom: `1px solid #141414`, paddingBottom: 20, marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                      <span style={{ fontSize: 16 }}>⚡</span>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>Credits Guide</div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {[
-                        ['Generate Image (any mode)', '5 cr', false],
-                        ['Generate Video', '60 cr', false],
-                        ['Angles / Captions / Images / UGC', '2 cr', false],
-                        ['Hooks', '1 cr', false],
-                        ['Full Campaign (10 stages)', '5 cr', false],
-                        ['Campaign Score', '2 cr', false],
-                        ['License Music Track', '2 cr', false],
-                        ['Export Brief', '2 cr', false],
-                        ['Studio Variation', '1 cr', false],
-                        ['Shot Director AI', 'Free', true],
-                        ['Brand Voice Training', 'Free', true],
-                        ['Character DNA', 'Free', true],
-                        ['Creative Director Notes', 'Free', true],
-                      ].map(([action, cost, free]) => (
-                        <div key={action} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: 5, background: '#0d0d0d', border: `1px solid #141414` }}>
-                          <span style={{ fontSize: 11, color: C.secondary }}>{action}</span>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: free ? C.green : C.gold }}>{cost}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* LINKS */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 20 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase', color: C.muted, marginBottom: 4 }}>More Resources</div>
-                    {[
-                      { label: 'Full Tutorials & Documentation', href: '/tutorials', icon: '📖' },
-                      { label: 'Pricing & Plans', href: '/pricing', icon: '⚡' },
-                      { label: 'Account Settings', href: '/account', icon: '⚙' },
-                      { label: 'Partner Program', href: '/partner', icon: '🤝' },
-                    ].map(l => (
-                      <button key={l.href} onClick={() => { setHelpOpen(false); window.location.href = l.href }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 6, border: `1px solid #1a1a1a`, background: '#0d0d0d', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                        <span style={{ fontSize: 14 }}>{l.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: C.secondary }}>{l.label}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: C.muted }}>→</span>
-                      </button>
-                    ))}
-                    <div style={{ fontSize: 10, color: C.muted, textAlign: 'center', marginTop: 8 }}>PromptCEO · AI Creative Operating System</div>
-                  </div>
-
-                </div>
-              )
-            })()}
-
           </div>
         </>
       )}
@@ -15426,8 +15403,8 @@ export default function PromptCEOPage() {
             </div>
           )}
 
-          <button onClick={() => setHelpOpen(true)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>Help</button>
-          <button onClick={() => window.location.href = '/account'} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>Account</button>
+          <button onClick={() => setHelpOpen(true)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>?</button>
+          <button onClick={() => window.location.href = '/account'} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.ghost }}>⚙</button>
           <Btn variant="danger" onClick={rAll}>↺</Btn>
         </div>
 
