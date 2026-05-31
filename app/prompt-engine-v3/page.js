@@ -148,6 +148,13 @@ const AD_CAMPAIGN_STEPS = [
   { id: 'schedule', icon: '📅', label: 'Building 30-day schedule',      desc: 'Platform-optimised posting plan' },
 ]
 
+const FULL_DAY_STEPS = [
+  { id: 'world',     icon: '🌍', label: 'Building world context',      desc: 'Setting scene, atmosphere + identity' },
+  { id: 'sequence',  icon: '☀',  label: 'Sequencing 14 moments',       desc: 'Morning to midnight arc' },
+  { id: 'cinematic', icon: '🎬', label: 'Adding cinematic direction',   desc: 'Camera, lens, lighting, wardrobe' },
+  { id: 'hooks',     icon: '🪝', label: 'Writing hooks + captions',    desc: 'Platform-optimised copy for each scene' },
+]
+
 // ─────────────────────────────────────────────────────────────
 // 14-MOMENT DAY SKELETON — preview before generation
 // ─────────────────────────────────────────────────────────────
