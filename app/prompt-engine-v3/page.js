@@ -13707,25 +13707,30 @@ export default function PromptCEOPage() {
       setS(p => ({ ...p, prevOutputs: [...(p.prevOutputs || []).slice(-5), r.finalPrompt] }))
     }
     if (r.finalPrompt) saveToHistory(r.finalPrompt, r.meta)
-    // Auto-generate image after prompt is built — direct path (no identity required)
-    if (r.finalPrompt && !s.imageDataUrl) {
+    // Auto-generate image after prompt is built
+    if (r.finalPrompt) {
+      setOutputTab('image') // switch to image tab so user sees result
       merge({ imageGenerating: true, imageError: '', generatedImage: '' })
+      const mode    = s.imageDataUrl ? 'director' : 'studio_direct'
+      const payload = s.imageDataUrl
+        ? { prompt: r.finalPrompt, imageDataUrl: s.imageDataUrl, identity: { image: s.imageDataUrl }, extractedTraits: s.traits?.subjectA || {}, mode }
+        : { prompt: r.finalPrompt, mode }
       fetch('/api/generate-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: r.finalPrompt, mode: 'studio_direct' }),
+        body: JSON.stringify(payload),
       })
         .then(res => res.json())
         .then(data => {
           if (data?.status === 'complete') {
             merge({ generatedImage: data.imageUrl, imageGenerating: false })
           } else {
-            merge({ imageError: data?.message || 'Generation failed. Upload an identity photo for identity-based generation.', imageGenerating: false })
+            const msg = data?.message || 'Generation failed'
+            merge({ imageError: msg, imageGenerating: false })
           }
         })
         .catch(err => merge({ imageError: err.message, imageGenerating: false }))
     }
-    // If identity is uploaded, generateImage is called separately via the right panel button
-  }, [s, saveToHistory, merge])
+  }, [s, saveToHistory, merge, setOutputTab])
 
   // Smart batch progression — each shot zone gets specific cinematic direction
   const SMART_SHOT_DIRECTIONS = [
