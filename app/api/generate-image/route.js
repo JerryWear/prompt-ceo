@@ -262,18 +262,27 @@ export async function POST(req) {
         return NextResponse.json({ status: 'error', message: 'No image returned from XAI', debug: xaiData }, { status: 500 })
       }
 
-      // XAI returns a temporary URL with CORS restrictions — convert to base64 data URL
-      // so the browser can embed it directly in an <img> tag without CORS issues
+      // XAI returns a temporary URL — download and store in Supabase (identity-images bucket, generated/ folder)
+      // This gives a permanent, CORS-friendly URL that works in <img> tags AND can be opened in new tabs
       let imageUrl = xaiTempUrl
       try {
         const imgRes  = await fetch(xaiTempUrl)
         const imgBuf  = Buffer.from(await imgRes.arrayBuffer())
         const imgType = imgRes.headers.get('content-type') || 'image/jpeg'
-        const b64     = imgBuf.toString('base64')
-        imageUrl      = `data:${imgType};base64,${b64}`
+        const ext     = imgType.includes('png') ? 'png' : 'jpg'
+        const path    = `generated/${user.id}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await admin.storage
+          .from('identity-images')
+          .upload(path, imgBuf, { contentType: imgType, upsert: false })
+        if (!uploadErr) {
+          const { data: urlData } = admin.storage.from('identity-images').getPublicUrl(path)
+          if (urlData?.publicUrl) imageUrl = urlData.publicUrl
+        } else {
+          console.error('[studio_direct] Supabase upload error:', uploadErr?.message)
+        }
       } catch (fetchErr) {
-        console.error('[studio_direct] Failed to fetch XAI image:', fetchErr?.message)
-        // Fall back to temp URL as last resort
+        console.error('[studio_direct] Failed to process XAI image:', fetchErr?.message)
+        // Falls back to xaiTempUrl which works briefly
       }
 
       await admin.from('app_users').update({
