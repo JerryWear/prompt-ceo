@@ -12783,11 +12783,14 @@ export default function PromptCEOPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           worldId:       perfectDayWorldId,
-          creatorProfile: {
-            ...(creatorProfiles[0] || {}),
-            ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}),
-            ...(s.identityName ? { name: s.identityName } : {}),
-          },
+          // Only inject character traits when explicitly chosen — leCharacter=null means generic
+          creatorProfile: leCharacter
+            ? {
+                name:            leCharacter.name,
+                physical_traits: leCharacter.settings?.traits?.subjectA || {},
+                characterMode:   leCharacter.settings?.characterMode || 'female',
+              }
+            : null,
           brandProfile:  activeBrandProfile || null,
           style:         perfectDayStyle,
           platform:      perfectDayPlatform,
@@ -13145,6 +13148,7 @@ export default function PromptCEOPage() {
   const [userName, setUserName] = useState(null)
   const [leMode,          setLeMode]          = useState('travel_day')
   const [leWorld,         setLeWorld]         = useState(null)
+  const [leCharacter,     setLeCharacter]     = useState(null)  // explicitly chosen character for Life Engine/Perfect Day — null = generic
   const [lePlatform,      setLePlatform]      = useState('instagram')
   const [leStyle,         setLeStyle]         = useState('cinematic')
   const [leLoading,       setLeLoading]       = useState(false)
@@ -13199,7 +13203,9 @@ export default function PromptCEOPage() {
           worldId:       leWorld || undefined,
           platform:      lePlatform,
           style:         leStyle,
-          creatorProfile: { ...(creatorProfiles[0] || {}), ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}), ...(s.identityName ? { name: s.identityName } : {}) },
+          creatorProfile: leCharacter
+            ? { name: leCharacter.name, physical_traits: leCharacter.settings?.traits?.subjectA || {}, characterMode: leCharacter.settings?.characterMode || 'female' }
+            : null,
           brandProfile:  activeBrandProfile || null,
           projectId:     s.activeProjectId || null,
         }),
@@ -13230,11 +13236,13 @@ export default function PromptCEOPage() {
           dayType:        fullDayType,
           style:          fullDayStyle,
           platform:       fullDayPlatform,
-          creatorProfile: {
-            ...(creatorProfiles[0] || {}),
-            ...(s.traits?.subjectA ? { physical_traits: s.traits.subjectA } : {}),
-            ...(s.identityName ? { name: s.identityName } : {}),
-          },
+          creatorProfile: leCharacter
+            ? {
+                name:            leCharacter.name,
+                physical_traits: leCharacter.settings?.traits?.subjectA || {},
+                characterMode:   leCharacter.settings?.characterMode || 'female',
+              }
+            : null,
           brandProfile:  activeBrandProfile || null,
           projectId:     s.activeProjectId || null,
         }),
@@ -18501,24 +18509,19 @@ export default function PromptCEOPage() {
                 </select>
               </div>
               {/* Identity pill */}
-              {/* Character picker — applies only traits/identity, not world/director settings */}
-              {studioCharDNA.length > 0 && (
-                <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
-                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
-                  <option value="" disabled>🧬 Character…</option>
+              {/* Character picker — explicit selection only. leCharacter=null means generic (no character injected) */}
+              {studioCharDNA.length > 0 && !leCharacter && (
+                <select defaultValue="" onChange={e => { if (e.target.value) setLeCharacter(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' }}
+                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                  <option value="" disabled>+ Add character</option>
                   {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
                 </select>
               )}
-              {hasIdentity ? (
+              {leCharacter && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
-                  {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
-                  {!s.hasImage && <span style={{ fontSize: 12 }}>🧬</span>}
-                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {identityLabel} — in every scene</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: C.ghost }}>No character —</span>
-                  <span style={{ fontSize: 9, color: C.muted }}>select above or go to Studio → Character DNA</span>
+                  <span style={{ fontSize: 12 }}>🧬</span>
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {leCharacter.name} — in every scene</span>
+                  <button onClick={() => setLeCharacter(null)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>✕</button>
                 </div>
               )}
               <div style={{ flex: 1 }} />
@@ -18826,12 +18829,15 @@ export default function PromptCEOPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                   {studioCharDNA.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Character</div>
-                      <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
-                        style={{ padding: '8px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
-                        <option value="" disabled>{hasIdentity ? `🧬 ${identityLabel}` : '🧬 Select character…'}</option>
-                        {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
-                      </select>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>Character (optional)</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <select defaultValue="" onChange={e => { if (e.target.value) { setLeCharacter(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
+                          style={{ padding: '8px 12px', borderRadius: 6, fontSize: 12, background: C.surface, border: `1px solid ${leCharacter ? C.goldDim : C.subtle}`, color: leCharacter ? C.gold : C.secondary, cursor: 'pointer' }}>
+                          <option value="" disabled>{leCharacter ? leCharacter.name : 'No character (generic)'}</option>
+                          {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
+                        </select>
+                        {leCharacter && <button onClick={() => setLeCharacter(null)} style={{ fontSize: 11, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}>✕ Remove</button>}
+                      </div>
                     </div>
                   )}
                   <button onClick={generateLifeEngine} style={{ padding: '14px 48px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', background: C.gold, color: '#0d0b08', letterSpacing: 0.3 }}>
@@ -18885,24 +18891,19 @@ export default function PromptCEOPage() {
                   {['instagram','tiktok','meta_ads','youtube'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              {/* Identity status banner */}
-              {studioCharDNA.length > 0 && (
-                <select defaultValue="" onChange={e => { if (e.target.value) { applyCharacterToGenerator(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' } }}
-                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.goldDim}`, color: C.gold, cursor: 'pointer' }}>
-                  <option value="" disabled>🧬 Character…</option>
+              {/* Character picker — explicit only. No character = generic prompts */}
+              {studioCharDNA.length > 0 && !leCharacter && (
+                <select defaultValue="" onChange={e => { if (e.target.value) setLeCharacter(studioCharDNA[parseInt(e.target.value)]); e.target.value = '' }}
+                  style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, background: C.surface, border: `1px solid ${C.subtle}`, color: C.secondary, cursor: 'pointer' }}>
+                  <option value="" disabled>+ Add character</option>
                   {studioCharDNA.map((p, i) => <option key={i} value={i}>{p.name}</option>)}
                 </select>
               )}
-              {hasIdentity ? (
+              {leCharacter && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
-                  {s.hasImage && <img src={s.imageDataUrl} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.goldDim}` }} />}
-                  {!s.hasImage && <span style={{ fontSize: 12 }}>🧬</span>}
-                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {identityLabel} — in every scene</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 4, border: `1px solid ${C.subtle}`, background: C.raised, flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: C.ghost }}>No character —</span>
-                  <span style={{ fontSize: 9, color: C.muted }}>select above or go to Studio → Character DNA</span>
+                  <span style={{ fontSize: 12 }}>🧬</span>
+                  <span style={{ fontSize: 9, color: C.gold, whiteSpace: 'nowrap' }}>✓ {leCharacter.name} — in every scene</span>
+                  <button onClick={() => setLeCharacter(null)} style={{ fontSize: 9, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>✕</button>
                 </div>
               )}
               <div style={{ flex: 1 }} />
