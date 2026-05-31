@@ -725,8 +725,13 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
       setSelectedAngle(s.adBridgeAngle)
       set('adBridgeAngle', null)
     }
+    if (s.adBridgeProduct) {
+      // Pre-fill product name so generate buttons are immediately unblocked
+      setProductName(s.adBridgeProduct)
+      set('adBridgeProduct', null)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.adBridgeHook, s.adBridgeAngle])
+  }, [s.adBridgeHook, s.adBridgeAngle, s.adBridgeProduct])
 
   // Load music library once so it's available everywhere
   useEffect(() => {
@@ -11482,6 +11487,7 @@ const INIT = {
   // Campaign → Ad Studio bridge (shared state so PromptCEOPage can pass to AdStudioView)
   adBridgeHook:       null,
   adBridgeAngle:      null,
+  adBridgeProduct:    null,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -13335,7 +13341,7 @@ export default function PromptCEOPage() {
   }, [set])
 
   // Send hook/caption straight to Ad Studio as selected context
-  const sendToAdStudio = useCallback((hookText, angleObj = null) => {
+  const sendToAdStudio = useCallback((hookText, angleObj = null, productHint = null) => {
     const text = typeof hookText === 'string' ? hookText : String(hookText || '')
     // Route through shared s-state bridge — AdStudioView reads these on change
     if (text) set('adBridgeHook', text)
@@ -13343,9 +13349,12 @@ export default function PromptCEOPage() {
       ? (typeof angleObj === 'object' ? angleObj : { title: 'Campaign Hook', hook: String(angleObj) })
       : (text ? { title: 'From Campaign', hook: text.slice(0, 120) } : null)
     if (angle) set('adBridgeAngle', angle)
+    // Pass product name so Ad Studio generate buttons are unblocked immediately
+    const product = productHint || activeBrandProfile?.name || null
+    if (product) set('adBridgeProduct', product)
     setPreviousView(s.view)
     set('view', 'ad_studio')
-  }, [set, s.view])
+  }, [set, s.view, activeBrandProfile])
 
   // Mirror identity to localStorage so other pages (/full-day, /dashboard) can read it
   useEffect(() => {
@@ -18851,7 +18860,7 @@ export default function PromptCEOPage() {
               data: () => FCR?.phases?.awareness?.hooks || FCR?.phases?.attention?.hooks || [],
               isPrompt: false,
               actionLabel: '→ Use in Ad Studio',
-              onAction: (text) => sendToAdStudio(text),
+              onAction: (text) => sendToAdStudio(text, null, fullCampaignProduct || activeBrandProfile?.name),
             },
             {
               id: 'emotional_connection', label: 'Story', sub: 'Days 7–12', num: 2,
@@ -18861,7 +18870,7 @@ export default function PromptCEOPage() {
               data: () => FCR?.phases?.connection?.scripts || FCR?.phases?.emotional_connection?.scripts || [],
               isPrompt: false,
               actionLabel: '→ Use in Ad Studio',
-              onAction: (text) => sendToAdStudio(text),
+              onAction: (text) => sendToAdStudio(text, null, fullCampaignProduct || activeBrandProfile?.name),
             },
             {
               id: 'desire_escalation', label: 'Desire', sub: 'Days 13–20', num: 3,
