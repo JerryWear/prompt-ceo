@@ -14080,7 +14080,21 @@ export default function PromptCEOPage() {
     setStudioVariation(null)
     setStudioCoherence(null)
     addStudioEvent('Character DNA loaded', profile.name)
+    // Remember last loaded profile so it auto-restores on next session
+    try { localStorage.setItem('pce_lastDNA', profile.name) } catch {}
   }
+
+  // Auto-restore last used Character DNA on mount
+  useEffect(() => {
+    try {
+      const lastName = localStorage.getItem('pce_lastDNA')
+      if (!lastName) return
+      const saved = JSON.parse(localStorage.getItem('promptceo_char_dna_v1') || '[]')
+      const profile = saved.find(p => p.name === lastName)
+      if (profile?.settings) merge(profile.settings)
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // hasIdentity: true if photo uploaded OR Character DNA traits are loaded
   // Character DNA alone is enough — physical traits drive the prompts without a photo
