@@ -12839,13 +12839,32 @@ export default function PromptCEOPage() {
   ]
 
   // Load campaign + world memory — reloads whenever a signal fires (brainMemoryTick)
+  // Memory is scoped to the active project when one is set, falling back to global.
   useEffect(() => {
     const loadMemory = async () => {
       try {
-        const [camRes, worldRes] = await Promise.all([
+        const activeProj = s.activeProjectId || null
+        let camQuery = supabase.from('campaign_memory').select('top_hook_types,top_platforms,top_angles,successful_patterns,created_at').order('created_at', { ascending: false }).limit(20)
+        if (activeProj) camQuery = camQuery.eq('project_id', activeProj)
+
+        let worldQuery = supabase.from('world_memory').select('world_name,use_count').order('use_count', { ascending: false }).limit(5)
+        if (activeProj) worldQuery = worldQuery.eq('project_id', activeProj)
+
+        const [camRes, worldRes] = await Promise.all([camQuery, worldQuery])
+
+        // If project-scoped queries return empty, fall back to global memory
+        const useFallback = activeProj && (camRes.data?.length === 0) && (worldRes.data?.length === 0)
+        const [fallbackCam, fallbackWorld] = useFallback ? await Promise.all([
           supabase.from('campaign_memory').select('top_hook_types,top_platforms,top_angles,successful_patterns,created_at').order('created_at', { ascending: false }).limit(20),
           supabase.from('world_memory').select('world_name,use_count').order('use_count', { ascending: false }).limit(5),
-        ])
+        ]) : [camRes, worldRes]
+
+        const [finalCam, finalWorld] = useFallback ? [fallbackCam, fallbackWorld] : [camRes, worldRes]
+        const { data: camData } = finalCam
+        const { data: worldData } = finalWorld
+        // Reassign for rest of function
+        Object.assign(camRes, { data: camData })
+        Object.assign(worldRes, { data: worldData })
         const campaigns = camRes.data || []
         const worlds    = worldRes.data || []
 
@@ -12882,7 +12901,7 @@ export default function PromptCEOPage() {
     }
     loadMemory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brainMemoryTick])
+  }, [brainMemoryTick, s.activeProjectId])
 
   useEffect(() => {
     fetch('/api/signal')
@@ -13077,7 +13096,7 @@ export default function PromptCEOPage() {
           setFullCampaignLoading(true)
           const r = await fetch('/api/full-ad-campaign', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productName: p.productName || activeBrandProfile?.name || 'My Brand', type: p.type || 'personal_brand', goal: p.goal || 'brand_awareness', style: p.style || 'cinematic', platform: p.platform || 'instagram', world: p.world || 'minimal_studio', creatorProfile: p.creatorProfile, brandProfile: p.brandProfile, projectId: p.projectId }),
+            body: JSON.stringify({ productName: p.productName || activeBrandProfile?.name || 'My Brand', type: p.type || 'personal_brand', goal: p.goal || 'brand_awareness', style: p.style || 'cinematic', platform: p.platform || 'instagram', world: p.world || directorParams.world || 'urban_apartment', creatorProfile: p.creatorProfile, brandProfile: p.brandProfile, projectId: p.projectId }),
           })
           const rd = await r.json()
           if (!rd.error) { setFullCampaignResult(rd); setFullCampaignPhase('attention'); set('view', 'full_campaign') }
@@ -13298,7 +13317,7 @@ export default function PromptCEOPage() {
           goal:           fullCampaignGoal,
           style:          fullCampaignStyle,
           platform:       fullCampaignPlatform,
-          world:          s.storyWorldId || 'minimal_studio',
+          world:          directorParams.world || s.storyWorldId || 'urban_apartment',
           creatorProfile: creatorProfiles[0] || null,
           brandProfile:   activeBrandProfile || null,
           projectId:      s.activeProjectId || null,

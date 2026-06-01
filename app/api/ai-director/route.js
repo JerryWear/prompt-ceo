@@ -1165,28 +1165,48 @@ export async function POST(req) {
     const mode   = analysis.mode || 'continuation'
     const intent = analysis.intent || null
 
-    // Build params — priority: AI live extraction > collectedParams > memory/defaults
-    // AI's explicitly extracted non-null params override accumulated collectedParams.
-    // This allows mid-conversation corrections to override history-based defaults.
-    // collectedParams only wins for params the AI didn't explicitly re-extract this turn.
+    // ── Param building — two separate objects ───────────────────────────────────
+    //
+    // SEPARATION OF CONCERNS:
+    //   clientParams  — returned to client and stored in directorParams state.
+    //                   Contains ONLY params the AI explicitly extracted this turn
+    //                   plus params the USER explicitly provided in previous turns.
+    //                   NEVER contains memory-injected or default-filled values.
+    //                   This prevents stale memory world from accumulating across turns.
+    //
+    //   extractedParams — used internally for preview generation and execution.
+    //                   Full params with memory context + hard defaults applied.
+    //                   These are ephemeral per-request and NOT stored by the client.
+    //
+    // ROOT CAUSE FIX (world injection bug):
+    //   Previously, memory.topWorld was injected into extractedParams AFTER AI extraction.
+    //   extractedParams was then returned as collectedParams, stored by the client,
+    //   and re-sent on the next turn — making the memory world persist indefinitely
+    //   even after the user said "skip worlds." Fixed by keeping memory fills
+    //   in extractedParams only, never in clientParams.
+
+    // AI's explicitly extracted non-null params (AI always wins over accumulated state)
     const aiExtracted = Object.fromEntries(
       Object.entries(analysis.params || {}).filter(([, v]) => v !== null)
     )
-    const extractedParams = {
-      ...collectedParams,
-      ...aiExtracted,
-    }
-    Object.keys(extractedParams).forEach(k => { if (extractedParams[k] === null) delete extractedParams[k] })
 
-    // Priority fills
-    if (identity?.identityName && !extractedParams.creatorName)  extractedParams.creatorName  = identity.identityName
-    if (brandProfile?.name     && !collectedParams.productName)  extractedParams.productName  = brandProfile.name
-    if (brandProfile?.style    && !collectedParams.style)        extractedParams.style         = brandProfile.style
-    if (appState?.adPlatform   && !extractedParams.platform)     extractedParams.platform      = appState.adPlatform
-    if (appState?.adStyle      && !extractedParams.style)        extractedParams.style         = appState.adStyle
-    if (memory?.recentStyle    && !extractedParams.style)        extractedParams.style         = memory.recentStyle
-    if (memory?.bestPlatform   && !extractedParams.platform)     extractedParams.platform      = memory.bestPlatform
-    if (memory?.topWorld       && !extractedParams.world)        extractedParams.world         = memory.topWorld
+    // clientParams: only what the AI chose this turn + prior user-explicit choices
+    // Memory and defaults are NOT included — they are recomputed fresh each turn
+    const clientParams = { ...collectedParams, ...aiExtracted }
+    Object.keys(clientParams).forEach(k => { if (clientParams[k] === null) delete clientParams[k] })
+    // Identity/brand fills ARE included (these come from explicit user setup, not memory)
+    if (identity?.identityName && !clientParams.creatorName)   clientParams.creatorName  = identity.identityName
+    if (brandProfile?.name     && !collectedParams.productName) clientParams.productName = brandProfile.name
+
+    // extractedParams: full params for internal use (preview, execution, routing)
+    // Starts from clientParams then adds memory context + hard defaults
+    const extractedParams = { ...clientParams }
+    if (brandProfile?.style    && !extractedParams.style)    extractedParams.style    = brandProfile.style
+    if (appState?.adPlatform   && !extractedParams.platform) extractedParams.platform = appState.adPlatform
+    if (appState?.adStyle      && !extractedParams.style)    extractedParams.style    = appState.adStyle
+    if (memory?.recentStyle    && !extractedParams.style)    extractedParams.style    = memory.recentStyle
+    if (memory?.bestPlatform   && !extractedParams.platform) extractedParams.platform = memory.bestPlatform
+    // memory.topWorld is NOT injected here — AI already has it as context and chose whether to use it
     if (!extractedParams.goal)     extractedParams.goal     = 'brand_awareness'
     if (!extractedParams.type)     extractedParams.type     = 'personal_brand'
     if (!extractedParams.style)    extractedParams.style    = 'cinematic'
@@ -1206,7 +1226,7 @@ export async function POST(req) {
           { value: 'new',         label: 'No, show me around' },
         ],
         intent:          null,
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1219,7 +1239,7 @@ export async function POST(req) {
         directorMessage:   analysis.directorMessage || 'Tell me more so I can route this correctly.',
         discoveryQuestion: analysis.discoveryQuestion || null,
         intent,
-        collectedParams:   extractedParams,
+        collectedParams:   clientParams,
         history:           fullHistory,
         capabilities,
       })
@@ -1237,7 +1257,7 @@ export async function POST(req) {
           { value: 'continue',   label: 'Try again with changes' },
         ] : null,
         intent,
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1250,7 +1270,7 @@ export async function POST(req) {
         directorMessage:   analysis.directorMessage || 'This calls for a multi-system sequence.',
         orchestrationPlan: analysis.orchestrationPlan || null,
         intent,
-        collectedParams:   extractedParams,
+        collectedParams:   clientParams,
         history:           fullHistory,
         capabilities,
       })
@@ -1262,7 +1282,7 @@ export async function POST(req) {
         phase:           'clarify',
         directorMessage: analysis.directorMessage || null,
         intent,
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1281,7 +1301,7 @@ export async function POST(req) {
           { value: 'studio_image',     label: '◧ Studio Image' },
         ] : null,
         intent,
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1300,7 +1320,7 @@ export async function POST(req) {
           { value: 'instant_campaign', label: '⚡ Instant Campaign' },
           { value: 'studio_image',     label: '◧ Studio Image' },
         ],
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1328,7 +1348,7 @@ export async function POST(req) {
         placeholder:     fallbackQ?.placeholder || null,
         paramKey:        missingParam,
         intent,
-        collectedParams: extractedParams,
+        collectedParams: clientParams,
         history:         fullHistory,
         capabilities,
       })
@@ -1348,7 +1368,7 @@ export async function POST(req) {
         directorMessage: analysis.directorMessage || `${world}, ${style} — here's the strategic direction before I build.`,
         campaignPreview: preview,
         intent,
-        collectedParams: { ...extractedParams, confirmedPreview: false },
+        collectedParams: { ...clientParams, confirmedPreview: false },
         history:         fullHistory,
         capabilities,
       })
