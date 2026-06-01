@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
+import { postGeneration, saveGenerationOutput } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -61,7 +63,9 @@ export async function POST(req) {
     const user = await getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { outputs, productName, brandVoice, platforms: targetPlatforms } = await req.json()
+    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+    const { outputs, productName, brandVoice, platforms: targetPlatforms, projectId = null } = await req.json()
     if (!outputs || typeof outputs !== 'object') {
       return NextResponse.json({ error: 'outputs is required' }, { status: 400 })
     }
@@ -168,7 +172,20 @@ Respond ONLY with valid JSON:
       }
     }))
 
-    return NextResponse.json({ platforms: results })
+    // Persist adapted results to generation_outputs
+    try {
+      const logId = await postGeneration(admin, {
+        userId: user.id, projectId, engine: 'adapt-campaign',
+        prompt: productName || 'cross-platform adaptation', campaignPhase: 'conversion',
+      })
+      await saveGenerationOutput(admin, {
+        logId, projectId, userId: user.id,
+        generatorType: 'campaign_adapted',
+        payload: { platforms: results, productName, adaptedAt: new Date().toISOString() },
+      })
+    } catch {}
+
+    return NextResponse.json({ platforms: results, projectId })
   } catch (err) {
     console.error('adapt-campaign error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

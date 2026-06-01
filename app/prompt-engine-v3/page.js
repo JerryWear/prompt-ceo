@@ -12331,13 +12331,20 @@ export default function PromptCEOPage() {
   const router   = useRouter()
   const supabase = createClient()
 
+  // Only these events should trigger a Brain Memory reload — navigation/selection signals do not
+  const BRAIN_RELOAD_EVENTS = new Set([
+    'campaign_created', 'campaign_completed', 'perfect_day_generated',
+    'ad_studio_generated', 'image_generated', 'campaign_adapted',
+    'ad_campaign_created', 'ad_campaign_completed',
+  ])
+
   const fireSignal = (event_type, metadata = {}) => {
     fetch('/api/signal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_type, metadata, project_id: s.activeProjectId || null }),
     })
-      .then(() => setBrainMemoryTick(t => t + 1))
+      .then(() => { if (BRAIN_RELOAD_EVENTS.has(event_type)) setBrainMemoryTick(t => t + 1) })
       .catch(() => {})
   }
 
@@ -12816,8 +12823,9 @@ export default function PromptCEOPage() {
   const [directorInput,      setDirectorInput]      = useState('')
   const [directorPhase,      setDirectorPhase]      = useState('idle') // idle | chat | executing | done
   const [directorMemory,     setDirectorMemory]     = useState(null)   // loaded from campaign_memory + world_memory
+  const [directorMemoryLoaded, setDirectorMemoryLoaded] = useState(false) // true after first successful memory load
   const [brainMemory,        setBrainMemory]        = useState(null)   // loaded from signal_logs
-  const [brainMemoryTick,    setBrainMemoryTick]    = useState(0)      // increments after any signal fires → triggers Brain Memory reload
+  const [brainMemoryTick,    setBrainMemoryTick]    = useState(0)      // increments after meaningful generation signals
   const [thinkingMsg,        setThinkingMsg]        = useState('')     // rotating execution message
 
   const DIRECTOR_THINKING_MSGS = {
@@ -12898,6 +12906,7 @@ export default function PromptCEOPage() {
           topWorldUses: worlds[0]?.use_count || 0,
         })
       } catch { setDirectorMemory({}) }
+      finally { setDirectorMemoryLoaded(true) }
     }
     loadMemory()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -12973,7 +12982,7 @@ export default function PromptCEOPage() {
             hasFullDayVideo: !!fullDayResult,
             hasCampaign:     !!fullCampaignResult,
           },
-          isNewUser:      !directorMemory || directorMemory.campaignCount == null || directorMemory.campaignCount === 0,
+          isNewUser:      directorMemoryLoaded && (!directorMemory || directorMemory.campaignCount === 0),
           projectBrain:   projectBrain || null,
         }),
       })
@@ -20065,14 +20074,25 @@ export default function PromptCEOPage() {
             fetch('/api/adapt-campaign', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ outputs: effectiveOutputs }),
+              body: JSON.stringify({
+                outputs:     effectiveOutputs,
+                productName: activeBrandProfile?.name || null,
+                brandVoice:  activeBrandProfile?.voice || null,
+                projectId:   s.activeProjectId || null,
+              }),
             })
               .then(r => r.json())
               .then(d => {
                 if (d.error) setAdaptError(d.error)
                 else if (d.platforms) {
                   setAdaptResult(d.platforms)
-                  fireSignal('campaign_adapted', { platforms: Object.keys(d.platforms) })
+                  onGenerationComplete({
+                    eventType:  'campaign_adapted',
+                    metadata:   { platforms: Object.keys(d.platforms) },
+                    outputKey:  'campaign_adapted',
+                    projectId:  s.activeProjectId || null,
+                    output:     d.platforms,
+                  })
                 }
               })
               .catch(() => setAdaptError('Request failed. Please try again.'))

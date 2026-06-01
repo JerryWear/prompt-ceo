@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { orchestrate } from '../../instant/orchestration.js'
 import { sequenceDay } from '../../life-engine/lifeSequencer.js'
+import { saveGenerationOutput, GENERATOR_TYPES } from '../../../lib/server/postGeneration.js'
 
 async function getUser() {
   const cookieStore = await cookies()
@@ -186,6 +187,17 @@ export async function POST(req) {
           await admin.from('world_memory').insert({ user_id: user.id, world_id: orch.suggestedWorld, world_name: orch.suggestedWorld.replace(/_/g, ' '), use_count: 1, last_used_at: new Date().toISOString() })
         }
       }
+    } catch {}
+
+    // Step 6b — save to generation_outputs (primary persistence layer)
+    try {
+      await saveGenerationOutput(admin, {
+        logId:         null,
+        projectId:     projectId,
+        userId:        user.id,
+        generatorType: GENERATOR_TYPES.INSTANT_CAMPAIGN || 'instant_campaign',
+        payload:       { hooks, angles, imagePrompts, captions, schedule, orchestration: { type, goal, style, platform: orch.platform, hookType: orch.hookType, suggestedWorld: orch.suggestedWorld } },
+      })
     } catch {}
 
     // Step 7 — update project_brain

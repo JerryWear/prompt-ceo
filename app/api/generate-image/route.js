@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { saveGenerationOutput } from '../../../lib/server/postGeneration.js'
 
 function clean(value) {
   return String(value || '').trim()
@@ -289,6 +290,14 @@ export async function POST(req) {
         images_used_this_period: (userRow.images_used_this_period || 0) + 1,
       }).eq('id', user.id)
 
+      try {
+        await saveGenerationOutput(admin, {
+          logId: null, projectId: projectId || null, userId: user.id,
+          generatorType: 'image_generated',
+          payload: { imageUrl, mode: 'studio_direct', prompt: directPrompt.slice(0, 500) },
+        })
+      } catch {}
+
       return NextResponse.json({ status: 'complete', imageUrl })
     }
 
@@ -569,20 +578,16 @@ If anything conflicts with identity, preserve identity first.
       images_used_this_period: (userRow.images_used_this_period || 0) + 1,
     }).eq('id', user.id)
 
-    // 📝 LOG TO generation_logs
+    // 📝 Save to generation_outputs (primary persistence)
     try {
-      await admin.from('generation_logs').insert({
-        user_id:    user.id,
-        project_id: projectId,
-        type: 'image',
-        mode,
-        prompt: finalPrompt.slice(0, 500),
-        image_url: imageUrl,
-        created_at: new Date().toISOString(),
+      await saveGenerationOutput(admin, {
+        logId:         null,
+        projectId:     projectId || null,
+        userId:        user.id,
+        generatorType: 'image_generated',
+        payload:       { imageUrl, mode, prompt: finalPrompt.slice(0, 500) },
       })
-    } catch {
-      // Non-fatal
-    }
+    } catch {}
 
     return NextResponse.json({ status: 'complete', imageUrl, mode })
 

@@ -179,9 +179,9 @@ export async function GET(req, { params }) {
 
     PHASES.forEach((phase, i) => {
       const count = phaseAssets[phase.id].length
-      // Also count raw log events for this phase
+      // generation_logs as fallback only — prefer verified generation_outputs
       const logCount = (logsByPhase[phase.id] || []).length
-      const totalCount = Math.max(count, logCount)
+      const totalCount = count > 0 ? count : logCount
 
       if (!prevCompleted) {
         phaseStatuses[phase.id] = 'locked'
@@ -207,7 +207,7 @@ export async function GET(req, { params }) {
     const phases = PHASES.map(phase => {
       const assets    = phaseAssets[phase.id].slice(0, 10) // cap display assets
       const logCount  = (logsByPhase[phase.id] || []).length
-      const assetCount = Math.max(assets.length, logCount)
+      const assetCount = assets.length > 0 ? assets.length : logCount
       const progressPct = Math.min(100, Math.round((assetCount / phase.threshold) * 100))
 
       return {
@@ -230,7 +230,9 @@ export async function GET(req, { params }) {
     const healthByPhase = {}
     let overall = 0
     PHASES.forEach(phase => {
-      const assetCount = Math.max(phaseAssets[phase.id].length, (logsByPhase[phase.id] || []).length)
+      const outputCount2 = phaseAssets[phase.id].length
+      const logCount2    = (logsByPhase[phase.id] || []).length
+      const assetCount   = outputCount2 > 0 ? outputCount2 : logCount2
       healthByPhase[phase.id] = Math.min(100, Math.round((assetCount / phase.threshold) * 100))
       overall += healthByPhase[phase.id] * (PHASE_WEIGHTS[phase.id] / 100)
     })

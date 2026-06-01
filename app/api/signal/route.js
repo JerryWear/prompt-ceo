@@ -77,6 +77,12 @@ export async function GET() {
   }
 }
 
+// Events that should update campaign_memory (teach the Brain)
+const MEMORY_EVENTS = new Set([
+  'campaign_created', 'perfect_day_generated', 'ad_studio_generated',
+  'image_generated', 'campaign_adapted', 'campaign_completed',
+])
+
 export async function POST(req) {
   try {
     const user = await getUser()
@@ -86,13 +92,48 @@ export async function POST(req) {
     const weight = EVENT_WEIGHTS[event_type]
     if (!weight) return NextResponse.json({ ok: false, error: 'Unknown event' }, { status: 400 })
 
-    await adminClient().from('signal_logs').insert({
+    const db = adminClient()
+
+    await db.from('signal_logs').insert({
       user_id:    user.id,
       project_id: project_id || null,
       event_type,
       weight,
       metadata,
     })
+
+    // Write to campaign_memory for generation events — this is what teaches the Brain
+    if (MEMORY_EVENTS.has(event_type)) {
+      try {
+        const hookType = metadata.hookType || metadata.hook_type || null
+        const platform = metadata.platform || null
+        const style    = metadata.style    || null
+        const world    = metadata.world    || metadata.worldId  || null
+
+        await db.from('campaign_memory').insert({
+          user_id:             user.id,
+          project_id:          project_id || null,
+          top_hook_types:      hookType ? [hookType] : [],
+          top_platforms:       platform ? [platform] : [],
+          top_angles:          [],
+          successful_patterns: { event_type, style, world, ...(metadata || {}) },
+        })
+
+        // Update world_memory if a world was used
+        if (world) {
+          const { data: existing } = await db.from('world_memory')
+            .select('id, use_count')
+            .eq('user_id', user.id)
+            .eq('world_name', world)
+            .single()
+          if (existing) {
+            await db.from('world_memory').update({ use_count: existing.use_count + 1, last_used_at: new Date().toISOString() }).eq('id', existing.id)
+          } else {
+            await db.from('world_memory').insert({ user_id: user.id, world_name: world, world_id: world, use_count: 1, last_used_at: new Date().toISOString() })
+          }
+        }
+      } catch {}
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
