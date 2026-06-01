@@ -106,6 +106,9 @@ export default function DashboardPage() {
           <button onClick={() => router.push('/prompt-engine-v3')} style={{ padding: '7px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
             Studio
           </button>
+          <button onClick={() => router.push('/edit-studio')} style={{ padding: '7px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.blue}`, background: C.blueGlow, color: C.blue }}>
+            Edit Studio
+          </button>
           <button onClick={() => router.push('/prompt-engine-v3?view=ad_studio')} style={{ padding: '7px 14px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
             Ad Studio →
           </button>

@@ -1,0 +1,17 @@
+{
+  "name": "edit-studio-render-worker",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PromptCEO Edit Studio — standalone FFmpeg render worker",
+  "main": "edit-render-worker.mjs",
+  "scripts": {
+    "start": "node edit-render-worker.mjs",
+    "start:dev": "EDIT_STUDIO_RENDER_MODE=inline node edit-render-worker.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
