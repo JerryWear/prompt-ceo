@@ -688,9 +688,44 @@ function h(str) {
   return overrides[str] || str.replace(/_/g, ' ').replace(/-/g, ' ')
 }
 
-async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser, projectBrain) {
+async function analyzeConversation(apiKey, history, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser, projectBrain, osMemorySummary, topOpportunity) {
   const historyText = (Array.isArray(history) ? history : []).map(m => `${(m.role || 'unknown').toUpperCase()}: ${m.content || ''}`).join('\n')
   const intelligenceCtx = buildIntelligenceContext(projectBrain, memory)
+
+  // ── PromptCEO OS Memory context — compact, never raw payloads ─────────────
+  const osMemoryCtx = osMemorySummary
+    ? [
+        `Recent OS events: ${osMemorySummary.totalEvents}.`,
+        osMemorySummary.adsCreated       > 0 ? `Ads created: ${osMemorySummary.adsCreated}.`             : '',
+        osMemorySummary.campaignsCreated > 0 ? `Campaigns created: ${osMemorySummary.campaignsCreated}.` : '',
+        osMemorySummary.projectsSaved    > 0 ? `Projects saved: ${osMemorySummary.projectsSaved}.`       : '',
+        osMemorySummary.latestProjectNames?.length > 0
+          ? `Latest projects: ${osMemorySummary.latestProjectNames.join(', ')}.`
+          : '',
+        Array.isArray(osMemorySummary.recentSummaries) && osMemorySummary.recentSummaries.length > 0
+          ? `Recent work:\n${osMemorySummary.recentSummaries.map(s => `- ${s}`).join('\n')}`
+          : '',
+      ].filter(Boolean).join(' ')
+    : ''
+
+  // ── PromptCEO Top Opportunity — single highest-priority strategic gap ──────
+  const topOpportunityCtx = topOpportunity
+    ? [
+        `Priority: ${topOpportunity.priority}`,
+        `Type: ${topOpportunity.type}`,
+        `Title: ${topOpportunity.title}`,
+        `Description: ${topOpportunity.description}`,
+        topOpportunity.recommendedAction
+          ? `Recommended next action: ${topOpportunity.recommendedAction.label}`
+          : '',
+        topOpportunity.recommendedAction
+          ? `Target tool: ${topOpportunity.recommendedAction.targetTool}`
+          : '',
+        topOpportunity.recommendedAction
+          ? `Intent: ${topOpportunity.recommendedAction.intent}`
+          : '',
+      ].filter(Boolean).join('\n')
+    : ''
 
   const memoryCtx = memory?.campaignCount > 0
     ? `Campaign history: ${memory.campaignCount} campaign${memory.campaignCount !== 1 ? 's' : ''}. Best hook type: ${memory.bestHookType ? h(memory.bestHookType) + ' hooks' : 'none yet'}. Top world: ${memory.topWorld ? (WORLD_DISPLAY_NAMES[memory.topWorld] || h(memory.topWorld)) : 'none'} (${memory.topWorldUses || 0} uses). Best platform: ${memory.bestPlatform ? h(memory.bestPlatform) : 'none'}. Recent style: ${memory.recentStyle ? h(memory.recentStyle) : 'none'}.`
@@ -843,6 +878,50 @@ Personally, I would bet on campaign memory because that is the one thing no comp
 **When no brain data exists:** Open normally. The observation system only activates when there is real data to reference.
 
 Use mode: **observation** when leading with brain data insight as the opening.
+
+## MEMORY-AWARE OPENING BEHAVIOUR
+
+When PROMPTCEO OS MEMORY CONTEXT is present (see below), treat it as real user activity data and open with a strategic observation — even if no Project Brain data exists. This gives returning users a personalised opening without requiring a formal campaign history.
+
+**Priority order when both memory and brain data exist:**
+1. PATTERN ANALYSIS (brain data patterns — always first)
+2. TOP OPPORTUNITY (from OS Opportunity Engine — specific strategic gap)
+3. OS MEMORY CONTEXT (recent work + counts)
+4. Normal observation behaviour
+
+**When TOP OPPORTUNITY exists:**
+Lead with the opportunity, not a general observation. Frame it as a strategist noticing a gap, not a system reporting data.
+
+WRONG: "According to your memory, you have created 5 ads without a campaign."
+RIGHT: "You have been building ads but there is no campaign structure holding them together yet. That is the most important thing to fix before creating more — otherwise the best angles get lost."
+
+**When only OS MEMORY CONTEXT exists (no brain data, no top opportunity):**
+Read the recent work summaries and counts. Synthesise one sharp observation.
+
+WRONG: "Your recent work includes: Ad created in PromptCEO, Campaign created in PromptCEO."
+RIGHT: "You have been active — ads and a campaign recently. The question is whether what you have built is connected into a direction, or still scattered. That is where I would focus."
+
+**Concrete opening examples by memory pattern:**
+
+When recent work indicates only ads created:
+"You have been generating ads. Before building more, the stronger move is to pick the best angle and build a campaign structure around it."
+
+When recent work indicates campaigns created:
+"You have been launching campaigns. The next step is usually to look at what is working across them and double down — not start something new."
+
+When recent work indicates project saves:
+"You have active projects. The question is whether they are leading somewhere or sitting idle. Let us pick one and move it forward."
+
+If latestProjectNames are present:
+Reference the project name naturally — "In [Project Name], the strongest next move is..." — not "According to your project data..."
+
+**Hard rules:**
+- Never say "according to your memory" or "your memory shows"
+- Never list raw event types (USER_CREATED_AD, etc.)
+- Never recite counts as facts — interpret them as patterns
+- Keep the observation to 1–2 sentences before proposing a direction
+- Always end with a direction or invitation, not "what would you like to build?"
+- If OS memory context is empty or absent, use normal opening behaviour
 
 ## DIRECTOR MODE — the operating principle (overrides everything else in behavior)
 
@@ -1128,7 +1207,7 @@ ${memoryCtx}
 ${memoryPersonality ? `Creative profile: ${memoryPersonality}` : ''}
 ${brandCtx}
 ${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${intelligenceCtx}${patternCtx}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected: ${JSON.stringify(collectedParams)}
-
+${osMemoryCtx ? `\n## PROMPTCEO OS MEMORY CONTEXT\n${osMemoryCtx}\nUse this memory context only when relevant. Do not mention it mechanically. Do not say "according to your memory" unless it adds value. Use it to make sharper recommendations.\n` : ''}${topOpportunityCtx ? `\n## PROMPTCEO TOP OPPORTUNITY\n${topOpportunityCtx}\nUse this opportunity to guide your strategic advice when relevant. Do not force it into every response. Do not mention "Opportunity Engine" to the user. Do not claim the recommended action has been executed — only suggest it.\n` : ''}
 Available params —
 worlds: luxury_penthouse, maldives_villa, bali_villa, dubai_highrise, paris_apartment, greek_islands, miami_penthouse, coastal_house, ski_chalet, urban_apartment, tokyo_apartment, countryside_estate, monaco, amalfi, london_penthouse
 styles: luxury, aspirational_lifestyle, cinematic, soft_feminine, dark_luxury, ugc, emotional, high_status, fitness_motivation, viral, high_energy, corporate_authority
@@ -1239,6 +1318,8 @@ export async function POST(req) {
       appState = null,
       isNewUser = false,
       projectBrain = null,
+      osMemorySummary = null,
+      topOpportunity = null,
     } = body
 
     if (!message?.trim()) {
@@ -1249,7 +1330,7 @@ export async function POST(req) {
 
     const fullHistory = [...history, { role: 'user', content: userMessage }]
     const suggestions  = buildDirectorSuggestions(memory, brandProfile)
-    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser, projectBrain)
+    const analysis     = await analyzeConversation(xaiApiKey, fullHistory, collectedParams, memory, appState, identity, brandProfile, suggestions, capabilities, isNewUser, projectBrain, osMemorySummary, topOpportunity)
 
     const mode   = analysis.mode || 'continuation'
     const intent = analysis.intent || null

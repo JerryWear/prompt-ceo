@@ -24,6 +24,114 @@ import { STORY_CHAPTERS }  from '../prompt-v2/story-chapters/index.js'
 import { SIGNATURE_PACKS } from '../prompt-v2/signature-packs/index.js'
 import { createGenerationPipeline, readCachedOutput, clearProjectCache } from './lib/pipeline.js'
 
+// ── PromptCEO OS Core — Step 2: AI Director pilot integration ──────────────
+// AI Director is the first OS-aware module. It will later become the main
+// interface for Tool Orchestration across all PromptCEO systems.
+// Current implementation is local and non-persistent (no global state, no DB).
+import { SIGNAL_TYPES, SIGNAL_SOURCES, emit as emitOSSignal } from '../../lib/promptceo-os/signalRouter'
+import { getInitialOSContext, mergeOSContext, addRecommendation } from '../../lib/promptceo-os/osContext'
+import { getRecentMemoryEvents, buildMemoryInsights, buildCompactMemorySummary, getEventSummary } from '../../lib/promptceo-os/memoryReader'
+import { buildOpportunities } from '../../lib/promptceo-os/opportunityEngine'
+import { resolveToolRoute, isToolAvailable } from '../../lib/promptceo-os/toolOrchestrator'
+
+// Returns context-aware recommendation strings for the AI Director welcome state.
+// As the OS matures, this function will read live project/campaign/brand data
+// instead of relying on the initial empty context.
+function buildAIDirectorRecommendations(ctx) {
+  const recs = []
+
+  if (!ctx.activeProject) {
+    recs.push('Create or open a project so PromptCEO can connect strategy, campaigns, creatives, and memory.')
+  } else if (ctx.activeProduct && !ctx.activeCampaign) {
+    recs.push('You have a product selected. The next best step is to build a campaign around it.')
+  } else if (ctx.activeCampaign && !ctx.activeWorld) {
+    recs.push('You have a campaign active. You can optionally inject a World to create stronger creative direction.')
+  } else if (ctx.activeWorld) {
+    recs.push('A World is active. PromptCEO can use it as creative context without making it mandatory for ads.')
+  }
+
+  if (!ctx.activeGoal) {
+    recs.push('Set a clear goal so the OS can recommend the right next action.')
+  }
+
+  return recs
+}
+
+// Builds a proactive AI Director briefing from OS context + memory signals.
+// Deterministic — no GPT call. Returns { headline, body, bullets } or null.
+function buildProactiveDirectorOpening({ localOSContext, osRecommendations, memoryInsights, osMemorySummary }) {
+  const bullets = []
+
+  // Memory-derived bullets have highest priority
+  if (Array.isArray(memoryInsights) && memoryInsights.length > 0) {
+    memoryInsights.slice(0, 3).forEach(b => bullets.push(b))
+  }
+
+  // Summary-based signals
+  if (osMemorySummary?.adsCreated >= 3) {
+    const b = 'You have created several ads recently. Review the strongest angles before generating more.'
+    if (!bullets.includes(b)) bullets.push(b)
+  }
+  if (osMemorySummary?.campaignsCreated >= 2) {
+    const b = 'You have multiple campaigns started. Consider choosing one campaign to refine and scale.'
+    if (!bullets.includes(b)) bullets.push(b)
+  }
+
+  // Context-based signals
+  if (localOSContext?.activeProduct && !localOSContext?.activeCampaign) {
+    const b = 'Your product is ready for campaign development.'
+    if (!bullets.includes(b)) bullets.push(b)
+  }
+  if (localOSContext?.activeCampaign && !localOSContext?.activeWorld) {
+    const b = 'You can optionally inject a World to create stronger creative direction.'
+    if (!bullets.includes(b)) bullets.push(b)
+  }
+
+  const finalBullets = bullets.slice(0, 3)
+
+  if (Array.isArray(memoryInsights) && memoryInsights.length > 0) {
+    return {
+      headline: 'PromptCEO has detected new patterns in your work.',
+      body:     'Based on your recent activity, the strongest next move is to organize what you have created into a clearer campaign direction.',
+      bullets:  finalBullets,
+    }
+  }
+
+  if (finalBullets.length > 0) {
+    return {
+      headline: 'PromptCEO OS is ready.',
+      body:     'Here is what the OS is tracking for your current session.',
+      bullets:  finalBullets,
+    }
+  }
+
+  // Fallback — surface osRecommendations as bullets
+  const fallbackBullets = Array.isArray(osRecommendations)
+    ? Array.from(new Set(osRecommendations)).slice(0, 3)
+    : []
+  if (fallbackBullets.length === 0) return null
+
+  return {
+    headline: 'PromptCEO OS is ready.',
+    body:     'Open or create a project so the OS can connect your strategy, campaigns, creatives, and memory.',
+    bullets:  fallbackBullets,
+  }
+}
+
+// Maps an opportunity intent to a pre-filled AI Director conversation starter.
+// Returns a plain string — caller sets directorInput, does NOT auto-send.
+function buildOpportunityDirectorPrompt(opportunity) {
+  const intent = opportunity?.recommendedAction?.intent
+  switch (intent) {
+    case 'consolidate_projects':          return 'Help me consolidate my active projects into one stronger campaign direction.'
+    case 'define_goal':                   return 'Help me define the best campaign goal for my current project.'
+    case 'turn_ads_into_campaign':        return 'Help me turn my recent ads into a structured campaign.'
+    case 'build_product_campaign':        return 'Help me build a campaign for my current product.'
+    case 'create_campaign_video_assets':  return 'Help me create supporting video content for my campaign.'
+    default:                              return 'Help me decide the best next step for this opportunity.'
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // DESIGN TOKENS — Cinematic Dark Studio
 // ─────────────────────────────────────────────────────────────
@@ -1068,6 +1176,27 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         setProjectsLoaded(false)
         // Auto-fire webhook if configured
         if (webhookUrl?.trim()) sendWebhook('campaign.saved')
+
+        // ── PromptCEO OS Core — Step 8: USER_SAVED_PROJECT (ad project) ──────
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[PromptCEO OS] USER_SAVED_PROJECT emitted')
+        }
+        emitOSSignal(
+          SIGNAL_TYPES.USER_SAVED_PROJECT,
+          SIGNAL_SOURCES.PROJECT_SYSTEM,
+          {
+            savedAt:           new Date().toISOString(),
+            activeProjectId:   s.activeProjectId || null,
+            activeProjectName: s.activeProjectName || productName || null,
+            activeProjectType: s.activeProjectType || null,
+            hasBrand:          Boolean(activeBrandProfile),
+            hasProduct:        Boolean(s.adBridgeProduct || productName),
+            hasCampaign:       false, // fullCampaignResult not in AdStudioView scope
+            hasWorld:          Boolean(s.worldId || s.storyWorldId),
+            hasIdentity:       Boolean(s.useIdentity || s.identityName),
+            sourceView:        s.view || null,
+          }
+        ).catch(err => console.warn('[OS Core] USER_SAVED_PROJECT signal failed:', err?.message))
       }
     } catch {}
   }
@@ -12477,6 +12606,27 @@ export default function PromptCEOPage() {
         localStorage.setItem('pce_activeProjectName', d.project.name)
         localStorage.setItem('pce_activeProjectType', d.project.type || 'creator')
       } catch {}
+
+      // ── PromptCEO OS Core — Step 8: USER_SAVED_PROJECT (new project) ──────
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[PromptCEO OS] USER_SAVED_PROJECT emitted')
+      }
+      emitOSSignal(
+        SIGNAL_TYPES.USER_SAVED_PROJECT,
+        SIGNAL_SOURCES.PROJECT_SYSTEM,
+        {
+          savedAt:           new Date().toISOString(),
+          activeProjectId:   d.project.id,
+          activeProjectName: d.project.name,
+          activeProjectType: d.project.type || null,
+          hasBrand:          Boolean(activeBrandProfile),
+          hasProduct:        Boolean(s.adBridgeProduct || fullCampaignProduct),
+          hasCampaign:       Boolean(fullCampaignResult),
+          hasWorld:          Boolean(s.worldId || s.storyWorldId),
+          hasIdentity:       Boolean(s.useIdentity || s.identityName),
+          sourceView:        s.view || null,
+        }
+      ).catch(err => console.warn('[OS Core] USER_SAVED_PROJECT signal failed:', err?.message))
     }
   }
 
@@ -12982,8 +13132,17 @@ export default function PromptCEOPage() {
             hasFullDayVideo: !!fullDayResult,
             hasCampaign:     !!fullCampaignResult,
           },
-          isNewUser:      directorMemoryLoaded && (!directorMemory || directorMemory.campaignCount === 0),
-          projectBrain:   projectBrain || null,
+          isNewUser:       directorMemoryLoaded && (!directorMemory || directorMemory.campaignCount === 0),
+          projectBrain:    projectBrain || null,
+          osMemorySummary: buildCompactMemorySummary(recentOSMemory),
+          topOpportunity:  (() => {
+            const opp = buildOpportunities({
+              osMemorySummary: buildCompactMemorySummary(recentOSMemory),
+              localOSContext,
+              recentOSMemory,
+            })[0] || null
+            return opp ? { type: opp.type, priority: opp.priority, title: opp.title, description: opp.description, recommendedAction: opp.recommendedAction || null } : null
+          })(),
         }),
       })
       const data = await res.json()
@@ -13195,6 +13354,12 @@ export default function PromptCEOPage() {
   const [leOrchStep,      setLeOrchStep]      = useState('world')
   const [leExpanded,      setLeExpanded]      = useState(null)
   const [previousView,    setPreviousView]    = useState('ai_director')
+  // ── PromptCEO OS Core (local, non-persistent — Step 3 hydration) ──
+  const [localOSContext,    setLocalOSContext]    = useState(() => getInitialOSContext())
+  const [osRecommendations, setOsRecommendations] = useState([])
+  // ── PromptCEO OS Memory Pilot — Step 12 ──
+  const [recentOSMemory,    setRecentOSMemory]    = useState([])
+  const [memoryInsights,    setMemoryInsights]    = useState([])
   const [fullDayOrchStep, setFullDayOrchStep] = useState('world')
   const [fullDayWorld,    setFullDayWorld]    = useState('luxury_penthouse')
   const [fullDayType,     setFullDayType]     = useState('luxury_creator_day')
@@ -13350,6 +13515,26 @@ export default function PromptCEOPage() {
           } catch {}
         }
         onGenerationComplete({ eventType: 'campaign_created', metadata: { product: fullCampaignProduct, goal: fullCampaignGoal, platform: fullCampaignPlatform }, outputKey: 'fullCampaign', projectId: resolvedProjectId, output: data })
+
+        // ── PromptCEO OS Core — Step 7: USER_CREATED_CAMPAIGN ────────────────
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[PromptCEO OS] USER_CREATED_CAMPAIGN emitted')
+        }
+        emitOSSignal(
+          SIGNAL_TYPES.USER_CREATED_CAMPAIGN,
+          SIGNAL_SOURCES.CAMPAIGN_BUILDER,
+          {
+            createdAt:          new Date().toISOString(),
+            activeProjectId:    resolvedProjectId || s.activeProjectId || null,
+            activeProjectName:  s.activeProjectName || null,
+            product:            fullCampaignProduct || s.adBridgeProduct || null,
+            goal:               fullCampaignGoal || null,
+            platform:           fullCampaignPlatform || null,
+            campaignStyle:      fullCampaignStyle || null,
+            hasCampaignOutput:  Boolean(data),
+            sourceView:         'campaign_builder',
+          }
+        ).catch(err => console.warn('[OS Core] USER_CREATED_CAMPAIGN signal failed:', err?.message))
       }
     } catch {}
     clearTimeout(ta); clearTimeout(tb); clearTimeout(tc)
@@ -13394,6 +13579,104 @@ export default function PromptCEOPage() {
 
   useEffect(() => {
     if (s.view === 'ai_director') setRecommendationAccepted(false)
+  }, [s.view])
+
+  // ── PromptCEO OS Core — AI Director mount signal + hydrated recommendations ──
+  // Step 3: context is now hydrated from real page state instead of the empty
+  // initial context. AI Director is the first OS-aware module; it will later
+  // become the main interface for Tool Orchestration across all PromptCEO systems.
+  // localOSContext and osRecommendations are local only — no DB writes yet.
+  useEffect(() => {
+    if (s.view !== 'ai_director') return
+
+    // Build OS context from real existing page state.
+    // activeBrandProfile and projectBrain/fullCampaignGoal come from their own
+    // useState hooks (not stored in `s`), so they are captured from the outer
+    // component scope via the closure.
+    const baseOSContext = getInitialOSContext()
+    const hydratedOSContext = mergeOSContext(baseOSContext, {
+      activeProject: s.activeProjectId
+        ? { id: s.activeProjectId, name: s.activeProjectName || null }
+        : null,
+
+      activeBrand: activeBrandProfile || null,
+
+      // adBridgeProduct is set when a campaign hands off to Ad Studio;
+      // fullCampaignProduct is what the user typed into Campaign Builder.
+      activeProduct: s.adBridgeProduct || fullCampaignProduct || null,
+
+      // No dedicated activeCampaign state exists yet; derive from project type.
+      activeCampaign: (s.activeProjectId && s.activeProjectType === 'campaign')
+        ? { projectId: s.activeProjectId, type: 'campaign' }
+        : null,
+
+      // worldId is the Studio scene world; storyWorldId is the narrative world.
+      activeWorld: s.worldId || s.storyWorldId || null,
+
+      activeIdentity: s.useIdentity
+        ? { name: s.identityName || null, traits: s.traits?.subjectA || null }
+        : null,
+
+      // fullCampaignGoal defaults to 'sales' on first load — treat as set.
+      activeGoal: fullCampaignGoal || null,
+    })
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[PromptCEO OS] Hydrated AI Director context', hydratedOSContext)
+    }
+
+    emitOSSignal(
+      SIGNAL_TYPES.USER_OPENED_AI_DIRECTOR,
+      SIGNAL_SOURCES.AI_DIRECTOR,
+      {
+        openedAt:          new Date().toISOString(),
+        activeProjectId:   hydratedOSContext.activeProject?.id   || null,
+        hasActiveProduct:  Boolean(hydratedOSContext.activeProduct),
+        hasActiveCampaign: Boolean(hydratedOSContext.activeCampaign),
+        hasActiveWorld:    Boolean(hydratedOSContext.activeWorld),
+        hasActiveGoal:     Boolean(hydratedOSContext.activeGoal),
+      }
+    ).catch(err => console.warn('[OS Core] AI Director signal failed:', err?.message))
+
+    const recs = buildAIDirectorRecommendations(hydratedOSContext)
+    let updatedCtx = hydratedOSContext
+    recs.forEach(rec => { updatedCtx = addRecommendation(updatedCtx, rec) })
+    setLocalOSContext(updatedCtx)
+    setOsRecommendations(recs)
+
+    // ── PromptCEO OS Memory Pilot — load recent events + derive insights ──────
+    // Non-blocking: memory load runs independently of context hydration above.
+    getRecentMemoryEvents().then(events => {
+      setRecentOSMemory(events)
+      setMemoryInsights(buildMemoryInsights(events))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.view])
+
+  // ── PromptCEO OS Core — Ad Studio mount signal (Step 5) ─────────────────────
+  // Second OS-aware module. Signal-only — no UI changes, no recommendations yet.
+  // Proves the OS signal bus works across more than one tool.
+  useEffect(() => {
+    if (s.view !== 'ad_studio') return
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[PromptCEO OS] Ad Studio opened signal emitted')
+    }
+
+    emitOSSignal(
+      SIGNAL_TYPES.USER_OPENED_AD_STUDIO,
+      SIGNAL_SOURCES.AD_STUDIO,
+      {
+        openedAt:          new Date().toISOString(),
+        activeProjectId:   localOSContext?.activeProject?.id   || s.activeProjectId   || null,
+        activeProjectName: localOSContext?.activeProject?.name || s.activeProjectName  || null,
+        activeBrand:       Boolean(localOSContext?.activeBrand  || activeBrandProfile),
+        hasActiveProduct:  Boolean(localOSContext?.activeProduct || s.adBridgeProduct || fullCampaignProduct),
+        hasActiveCampaign: Boolean(localOSContext?.activeCampaign),
+        activeGoal:        localOSContext?.activeGoal || fullCampaignGoal || null,
+      }
+    ).catch(err => console.warn('[OS Core] Ad Studio signal failed:', err?.message))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.view])
 
   // Load saved campaigns when Campaign Builder opens (from generation_outputs via campaign journey API)
@@ -14773,6 +15056,28 @@ export default function PromptCEOPage() {
       if (data?.status === 'complete') {
         merge({ adGeneratedImage: data.imageUrl, adGenerating: false })
         fireSignal('image_generated', { source: 'ad_studio', platform: s.adPlatform || 'instagram' })
+
+        // ── PromptCEO OS Core — Step 6: USER_CREATED_AD (image) ──────────────
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[PromptCEO OS] USER_CREATED_AD emitted')
+        }
+        emitOSSignal(
+          SIGNAL_TYPES.USER_CREATED_AD,
+          SIGNAL_SOURCES.AD_STUDIO,
+          {
+            createdAt:         new Date().toISOString(),
+            activeProjectId:   s.activeProjectId || null,
+            activeProjectName: s.activeProjectName || null,
+            product:           adConfig?.productName || s.adBridgeProduct || fullCampaignProduct || null,
+            goal:              adConfig?.platformGoal || fullCampaignGoal || null,
+            platform:          adConfig?.platform || null,
+            adStyle:           adConfig?.adStyle || null,
+            mode:              mode || null,
+            hasImagePrompt:    true,
+            hasVideoDirection: false,
+            sourceView:        'ad_studio',
+          }
+        ).catch(err => console.warn('[OS Core] USER_CREATED_AD signal failed:', err?.message))
       } else {
         const msg = data?.message || ''
         if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('not enough')) {
@@ -14804,6 +15109,28 @@ export default function PromptCEOPage() {
       if (data?.status === 'complete') {
         merge({ adVideoUrl: data.videoUrl, adVideoGenerating: false })
         onGenerationComplete({ eventType: 'video_generated', metadata: { source: 'ad_studio', type: 'ad_video' }, outputKey: 'adVideo', projectId: s.activeProjectId, output: { videoUrl: data.videoUrl } })
+
+        // ── PromptCEO OS Core — Step 6: USER_CREATED_AD (video) ──────────────
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[PromptCEO OS] USER_CREATED_AD emitted')
+        }
+        emitOSSignal(
+          SIGNAL_TYPES.USER_CREATED_AD,
+          SIGNAL_SOURCES.AD_STUDIO,
+          {
+            createdAt:         new Date().toISOString(),
+            activeProjectId:   s.activeProjectId || null,
+            activeProjectName: s.activeProjectName || null,
+            product:           adConfig?.productName || s.adBridgeProduct || fullCampaignProduct || null,
+            goal:              adConfig?.platformGoal || fullCampaignGoal || null,
+            platform:          adConfig?.platform || null,
+            adStyle:           adConfig?.adStyle || null,
+            mode:              mode || null,
+            hasImagePrompt:    false,
+            hasVideoDirection: true,
+            sourceView:        'ad_studio',
+          }
+        ).catch(err => console.warn('[OS Core] USER_CREATED_AD signal failed:', err?.message))
       } else {
         merge({ adVideoError: data?.error || 'Video generation failed', adVideoGenerating: false })
       }
@@ -18523,6 +18850,183 @@ export default function PromptCEOPage() {
                         </div>
                       </div>
                     </>
+                  )}
+
+                  {/* ── PromptCEO Opportunity Engine v1 (Step 15) ── */}
+                  {(() => {
+                    const summary      = buildCompactMemorySummary(recentOSMemory)
+                    const opportunities = buildOpportunities({
+                      osMemorySummary: summary,
+                      localOSContext,
+                      recentOSMemory,
+                    }).slice(0, 3)
+                    if (opportunities.length === 0) return null
+                    const priorityColor = { high: '#c87a4a', medium: C.gold, low: C.muted }
+                    return (
+                      <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#c87a4a', boxShadow: '0 0 6px #c87a4a80' }} />
+                          <span style={{ fontSize: 10, fontWeight: 800, color: '#c87a4a', letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Opportunities</span>
+                          <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>Opportunity Engine</span>
+                        </div>
+                        <div style={{ padding: '8px 16px 4px', fontSize: 11, color: C.muted }}>
+                          Strategic opportunities identified by the OS.
+                        </div>
+                        {/* PromptCEO OS action bridge v1 — user-triggered only */}
+                        <div style={{ padding: '6px 16px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {opportunities.map((opp) => {
+                            const route = resolveToolRoute(opp)
+                            const canGo = route && isToolAvailable(opp.recommendedAction?.targetTool) && route.view && route.view !== s.view
+                            return (
+                              <div key={opp.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: priorityColor[opp.priority] || C.muted, background: (priorityColor[opp.priority] || C.muted) + '18', border: `1px solid ${(priorityColor[opp.priority] || C.muted)}33`, borderRadius: 3, padding: '1px 6px' }}>{opp.priority}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{opp.title}</span>
+                                </div>
+                                <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.55 }}>{opp.description}</div>
+                                {opp.recommendedAction?.label && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                                    <span style={{ fontSize: 10, color: C.muted }}>
+                                      Next move: <span style={{ color: '#c87a4a' }}>{opp.recommendedAction.label}</span>
+                                    </span>
+                                    {/* PromptCEO OS conversation starter — prefill only, user sends manually */}
+                                    {canGo && (
+                                      <button
+                                        onClick={() => {
+                                          if (route.view === 'ai_director') {
+                                            // Pre-fill Director input with intent-based prompt; do NOT auto-send
+                                            setDirectorInput(buildOpportunityDirectorPrompt(opp))
+                                            set('view', 'ai_director')
+                                          } else {
+                                            // All other tools: navigate only, no input pre-fill
+                                            setPreviousView('ai_director')
+                                            set('view', route.view)
+                                          }
+                                        }}
+                                        style={{ fontSize: 10, fontWeight: 700, color: '#c87a4a', background: 'none', border: `1px solid #c87a4a44`, borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#c87a4a18'; e.currentTarget.style.borderColor = '#c87a4a' }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = '#c87a4a44' }}
+                                      >
+                                        Open {route.label} →
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── AI Director Briefing — proactive OS-aware opening (Step 14) ── */}
+                  {(() => {
+                    const opening = buildProactiveDirectorOpening({
+                      localOSContext,
+                      osRecommendations,
+                      memoryInsights,
+                      osMemorySummary: buildCompactMemorySummary(recentOSMemory),
+                    })
+                    if (!opening) return null
+                    return (
+                      <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.goldDim}60`, background: 'linear-gradient(135deg, #0e0c08 0%, #080808 100%)', overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 6px ${C.gold}80` }} />
+                          <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: 1.5, textTransform: 'uppercase' }}>AI Director Briefing</span>
+                          <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>Your OS-level starting point.</span>
+                        </div>
+                        <div style={{ padding: '12px 16px 4px' }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 4 }}>{opening.headline}</div>
+                          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 4 }}>{opening.body}</div>
+                        </div>
+                        {opening.bullets.length > 0 && (
+                          <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {opening.bullets.map((bullet, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                <span style={{ color: C.gold, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
+                                <span style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5 }}>{bullet}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* PromptCEO OS pilot insights — local, non-persistent for now */}
+                  {osRecommendations && osRecommendations.length > 0 && (
+                    <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue, boxShadow: `0 0 6px ${C.blue}80` }} />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO OS Insights</span>
+                        <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>OS Layer</span>
+                      </div>
+                      <div style={{ padding: '10px 16px 4px', fontSize: 11, color: C.muted }}>
+                        Context-aware next steps from the OS layer.
+                      </div>
+                      <div style={{ padding: '8px 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {Array.from(new Set(osRecommendations)).slice(0, 3).map((rec, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                            <span style={{ color: C.blue, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
+                            <span style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5 }}>{rec}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PromptCEO OS Memory Pilot — pattern insights from persisted events */}
+                  {memoryInsights && memoryInsights.length > 0 && (
+                    <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue, boxShadow: `0 0 6px ${C.blue}80` }} />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1.5, textTransform: 'uppercase' }}>PromptCEO Memory Insights</span>
+                        <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>Memory</span>
+                      </div>
+                      <div style={{ padding: '10px 16px 4px', fontSize: 11, color: C.muted }}>
+                        Patterns detected from your recent work history.
+                      </div>
+                      <div style={{ padding: '8px 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {memoryInsights.slice(0, 3).map((insight, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                            <span style={{ color: C.blue, fontSize: 11, marginTop: 1, flexShrink: 0 }}>→</span>
+                            <span style={{ fontSize: 13, color: C.secondary, lineHeight: 1.5 }}>{insight}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PromptCEO OS recent memory preview */}
+                  {recentOSMemory && recentOSMemory.length > 0 && (
+                    <div style={{ width: '100%', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.raised, overflow: 'hidden' }}>
+                      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue, boxShadow: `0 0 6px ${C.blue}80` }} />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1.5, textTransform: 'uppercase' }}>Recent OS Memory</span>
+                        <span style={{ fontSize: 9, color: C.muted, marginLeft: 'auto', background: C.surface, border: `1px solid ${C.hairline}`, borderRadius: 3, padding: '2px 7px' }}>{recentOSMemory.length} event{recentOSMemory.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div style={{ padding: '8px 16px 4px', fontSize: 11, color: C.muted }}>
+                        Latest meaningful actions saved by PromptCEO OS.
+                      </div>
+                      <div style={{ padding: '6px 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {recentOSMemory.slice(0, 3).map((evt, i) => (
+                          <div key={evt.id || i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>{getEventSummary(evt)}</span>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                              {evt.project_name && (
+                                <span style={{ fontSize: 10, color: C.muted }}>Project: <span style={{ color: C.secondary }}>{evt.project_name}</span></span>
+                              )}
+                              {evt.created_at && (
+                                <span style={{ fontSize: 10, color: C.ghost }}>
+                                  {new Date(evt.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
