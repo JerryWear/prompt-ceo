@@ -455,6 +455,78 @@ Q: What is a world?
 A: A world is the visual setting for your content. Instead of just saying "luxury photo", the world system gives you a fully defined environment — lighting, mood, architecture, emotional register — that makes every image and scene feel cohesive and premium.
 `
 
+// ── Pattern analysis — computed observations the AI can reference directly ────
+
+const ALL_HOOK_TYPES = ['curiosity_gap', 'transformation', 'authority', 'pain_point', 'pattern_interrupt', 'aspiration', 'status']
+const STAGE_SEQUENCE = { attention: 'emotional_connection', emotional_connection: 'desire_escalation', desire_escalation: 'conversion', conversion: 'retargeting' }
+const STAGE_LABELS   = { emotional_connection: 'Story / Connection', desire_escalation: 'Desire Escalation', conversion: 'Conversion', retargeting: 'Retargeting' }
+
+function buildPatternAnalysis(projectBrain, memory) {
+  if (!projectBrain && (!memory || !memory.campaignCount)) return ''
+
+  const obs = []
+
+  if (projectBrain) {
+    const hookTypes = projectBrain.best_hook_types || []
+    const worlds    = projectBrain.best_worlds     || []
+    const totalGens = projectBrain.total_generations || 0
+    const fatigue   = projectBrain.fatigue_score    || 0
+    const stage     = projectBrain.campaign_stage   || 'attention'
+
+    // Hook type lock — same hook used exclusively
+    if (hookTypes.length === 1 && totalGens >= 3) {
+      obs.push(`HOOK LOCK: Every campaign has used ${hookTypes[0]} hooks only — no variation tested in ${totalGens} generations. Risk: audience pattern fatigue and missed angles.`)
+    }
+
+    // Untested hook types — specific gaps the AI can name
+    const testedSet  = new Set(hookTypes)
+    const untested   = ALL_HOOK_TYPES.filter(h => !testedSet.has(h))
+    if (untested.length >= 5 && totalGens >= 5) {
+      obs.push(`UNTESTED ANGLES: Hook types never tested in this project — ${untested.slice(0, 4).join(', ')}. High-value opportunity to find a stronger performer.`)
+    } else if (untested.length >= 2 && hookTypes.length > 0 && totalGens >= 3) {
+      obs.push(`UNTESTED ANGLES: ${untested.slice(0, 2).join(' and ')} hooks not yet tested. Worth exploring before scaling current approach.`)
+    }
+
+    // World overuse — single world across many campaigns
+    if (worlds.length === 1 && totalGens >= 5) {
+      obs.push(`WORLD LOCK: Only ${worlds[0]} used across ${totalGens} campaigns. Audience may be pattern-immune — visual variety not tested.`)
+    }
+
+    // Fatigue thresholds
+    if (fatigue > 70) {
+      obs.push(`FATIGUE CRITICAL: ${fatigue}/100. Audience showing saturation. Rotate world, style, or hook type before next generation.`)
+    } else if (fatigue > 50) {
+      obs.push(`FATIGUE BUILDING: ${fatigue}/100. One or two more campaigns without change and rotation becomes urgent.`)
+    }
+
+    // Stage progression opportunity
+    const nextStage = STAGE_SEQUENCE[stage]
+    if (nextStage && totalGens >= 4) {
+      obs.push(`STAGE ADVANCE: ${totalGens} generations completed in ${stage}. Consider advancing to ${STAGE_LABELS[nextStage] || nextStage} — audience may be ready for deeper engagement.`)
+    }
+
+    // Conversion gap — stuck in attention with no conversion content
+    if (stage === 'attention' && totalGens >= 8) {
+      obs.push(`CONVERSION GAP: ${totalGens} campaigns all in attention phase. No conversion or retargeting content built. This is leaving revenue on the table.`)
+    }
+
+    // Platform diversity — single platform only
+    if (projectBrain.best_platform && totalGens >= 5) {
+      obs.push(`PLATFORM SINGLE: All campaigns targeted ${projectBrain.best_platform} only. Cross-platform adaptation not yet tested.`)
+    }
+  }
+
+  if (memory?.campaignCount >= 5 && !projectBrain) {
+    if (memory.topWorldUses >= 5 && memory.topWorld) {
+      obs.push(`WORLD REPETITION: ${memory.topWorld} used in ${memory.topWorldUses}+ campaigns. Visual variety not tested globally.`)
+    }
+  }
+
+  return obs.length > 0
+    ? `\n## PATTERN ANALYSIS (computed — use these to open with a specific observation)\n${obs.map((o, i) => `${i + 1}. ${o}`).join('\n')}\n`
+    : ''
+}
+
 function buildIntelligenceContext(projectBrain, memory) {
   if (!projectBrain && (!memory || memory.campaignCount === 0)) return ''
 
@@ -655,8 +727,10 @@ async function analyzeConversation(apiKey, history, collectedParams, memory, app
     : ''
 
   const newUserCtx = isNewUser
-    ? 'isNewUser: true — no campaign history. If this is a vague first message or greeting, use orientation mode.'
-    : 'isNewUser: false — existing user with campaign history.'
+    ? 'isNewUser: true — no campaign history. Use orientation mode for vague greetings. Warm welcome, simple start.'
+    : 'isNewUser: false — returning user with campaign history. Skip pleasantries. Lead with insight.'
+
+  const patternCtx = buildPatternAnalysis(projectBrain, memory)
 
   const systemsKnowledge = Object.entries(PROMPTCEO_SYSTEMS)
     .map(([k, v]) => `${k}: ${v.label} — ${v.bestFor} | Recommend when: ${v.whenToRecommend}`)
@@ -696,13 +770,26 @@ You think like a world-class creative director who is also the user's business p
 
 You are warm underneath the directness. You are on their side. When you push back, it is because you know something they do not — and they will thank you for it.
 
-## OPENING BEHAVIOR — when brain data exists (highest priority rule)
+## OPENING BEHAVIOR — new vs returning user
 
-When a user opens a conversation or sends a first/short message AND brain data is available (ACTIVE INTELLIGENCE STATE is populated below), you MUST open with the single most valuable observation you can make from that data.
+**New user (isNewUser: true):**
+No campaign history. Warm start. One sentence introducing what PromptCEO does. Ask what they are building. Do not lecture. Do not list features. Just open the door.
+
+**Returning user (isNewUser: false, brain data or pattern analysis available):**
+Skip the greeting entirely. Lead with the most specific observation you can make. Check PATTERN ANALYSIS first — if a pattern is flagged there, that is your opening. If not, use ACTIVE INTELLIGENCE STATE.
 
 NEVER open with "What would you like to build?" when you know something worth saying.
 
-**Observation Priority — find the highest applicable and lead with it:**
+**Pattern Analysis Priority (check PATTERN ANALYSIS section below first):**
+
+HOOK LOCK → "Every campaign has used [X] hooks. You have never tested [Y] or [Z] — those could outperform what you are doing now. Want to test one before doubling down?"
+UNTESTED ANGLES → "You have generated [N] campaigns and never tested [X] or [Y] hooks. That is a gap worth addressing."
+WORLD LOCK → "You have used [world] in every campaign. Your audience has seen it a lot. Either it is working — or they have stopped noticing it. Which is it?"
+CONVERSION GAP → "You have built [N] attention campaigns. Nothing converting yet. You are building an audience that has nowhere to go. That is the gap I would close first."
+FATIGUE CRITICAL → "Fatigue is at [N]/100. Another campaign without rotating will hit diminishing returns. What are you thinking of building?"
+STAGE ADVANCE → "You have been in [stage] for [N] campaigns. The audience is ready for the next phase — [next stage]. That shift changes everything about the creative direction."
+
+**Observation Priority (if no patterns, use intelligence state):**
 
 **1. STRATEGIC WARNING** — fatigue > 70, same audience three campaigns in a row, performance signals flattening
 "Before we go — your fatigue score is at 82 and the last four campaigns all ran the Maldives world. Your audience is pattern-immune to it now. I would not launch another one without rotating. What are you thinking of building?"
@@ -979,9 +1066,11 @@ The test: would this response feel like talking to a strategic advisor who actua
 
 ## RUNTIME MODES — pick exactly ONE per response
 
-**observation** — Returning user + brain data is available + opening message with no specific intent. Lead with the single most valuable insight from the brain data following the observation priority framework above. Never generic. Always specific to their actual data. End with a direction or question — not "what would you like to build?"
+**observation** — Returning user + brain data is available + opening message with no specific intent. Check PATTERN ANALYSIS first — if a pattern is flagged, lead with that specific observation. If no patterns, use the ACTIVE INTELLIGENCE STATE. Always specific, never generic. End with a direction, not "what would you like to build?"
 
-**orientation** — ONLY when isNewUser=true AND no brain data exists AND the first message is a vague greeting with no creative intent. One sentence, direct. Ask if they have used PromptCEO before.
+**strategist** — User is asking a strategic question, exploring positioning, discussing what to build, or the bottleneck has not been identified yet. Stay in strategy conversation. Do NOT route to campaign generation. Diagnose, observe, question, advise. Challenge assumptions. Identify the bottleneck. Only suggest generation after the strategic picture is clear. This mode allows full multi-turn strategy conversations — do not rush to execution.
+
+**orientation** — ONLY when isNewUser=true AND no brain data exists AND the first message is a vague greeting with no creative intent. One sentence, warm and direct. New users: simple start, no jargon, ask what they are building.
 
 **discovery** — Intent is unclear and you need exactly one piece of information. Always lead with an observation first, then the question. One question only.
 
@@ -1038,7 +1127,7 @@ ${newUserCtx}
 ${memoryCtx}
 ${memoryPersonality ? `Creative profile: ${memoryPersonality}` : ''}
 ${brandCtx}
-${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${intelligenceCtx}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected: ${JSON.stringify(collectedParams)}
+${identityCtx ? identityCtx + '\n' : ''}${appCtx ? appCtx + '\n' : ''}${intelligenceCtx}${patternCtx}${suggestionsCtx ? suggestionsCtx + '\n' : ''}Already collected: ${JSON.stringify(collectedParams)}
 
 Available params —
 worlds: luxury_penthouse, maldives_villa, bali_villa, dubai_highrise, paris_apartment, greek_islands, miami_penthouse, coastal_house, ski_chalet, urban_apartment, tokyo_apartment, countryside_estate, monaco, amalfi, london_penthouse
@@ -1064,7 +1153,7 @@ Run the 5-step reasoning loop before responding. Then return ONLY this JSON:
     "whatTheyNeedMost": "strategy | direction | permission | validation | technical_help | execution"
   },
   "conversationDepth": "shallow | building | sufficient",
-  "mode": "observation | orientation | discovery | routing | execution | recommendation | explanation | workflow_suggestion | orchestration | continuation",
+  "mode": "observation | strategist | orientation | discovery | routing | execution | recommendation | explanation | workflow_suggestion | orchestration | continuation",
   "directorMessage": "Your response — must follow the reasoning loop. React or observe first if asking a question. 1–4 sentences. Never start with an affirmation.",
   "intent": "perfect_day | full_day_video | full_campaign | instant_campaign | studio_image | null",
   "discoveryQuestion": {
@@ -1279,6 +1368,18 @@ export async function POST(req) {
     if (mode === 'observation') {
       return NextResponse.json({
         mode:            'observation',
+        phase:           'clarify',
+        directorMessage: analysis.directorMessage || null,
+        intent,
+        collectedParams: clientParams,
+        history:         fullHistory,
+        capabilities,
+      })
+    }
+
+    if (mode === 'strategist') {
+      return NextResponse.json({
+        mode:            'strategist',
         phase:           'clarify',
         directorMessage: analysis.directorMessage || null,
         intent,
