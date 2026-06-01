@@ -13361,7 +13361,7 @@ export default function PromptCEOPage() {
     fetch(`/api/project-brain/${s.activeProjectId}`)
       .then(r => r.json())
       .then(d => { if (d.brain) setProjectBrain(d.brain) })
-      .catch(() => {})
+      .catch(e => console.warn('[project-brain] load failed:', e?.message))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.activeProjectId, brainMemoryTick])
 
@@ -13371,7 +13371,7 @@ export default function PromptCEOPage() {
     fetch(`/api/campaign-timeline/${s.activeProjectId}`)
       .then(r => r.json())
       .then(d => { if (d.phases) setCampaignTimeline(d) })
-      .catch(() => {})
+      .catch(e => console.warn('[campaign-timeline] load failed:', e?.message))
       .finally(() => setTimelineLoading(false))
   }, [s.view, s.activeProjectId])
 
@@ -13382,7 +13382,7 @@ export default function PromptCEOPage() {
     fetch(`/api/campaign-journey/${s.activeProjectId}`)
       .then(r => r.json())
       .then(d => { if (!d.error) setCampaignJourney(d) })
-      .catch(() => {})
+      .catch(e => console.warn('[campaign-journey] load failed:', e?.message))
       .finally(() => setJourneyLoading(false))
   }
 
@@ -13402,7 +13402,7 @@ export default function PromptCEOPage() {
     fetch(`/api/campaign-journey/${s.activeProjectId}`)
       .then(r => r.json())
       .then(d => { if (d.history?.length) setSavedCampaigns(d.history) })
-      .catch(() => {})
+      .catch(e => console.warn('[saved-campaigns] load failed:', e?.message))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.view, s.activeProjectId])
 
@@ -13418,7 +13418,7 @@ export default function PromptCEOPage() {
     fetch('/api/performance-reasoning')
       .then(r => r.json())
       .then(d => { if (d.ready && d.insights?.length) setPerfInsights(d.insights) })
-      .catch(() => {})
+      .catch(e => console.warn('[performance-reasoning] load failed:', e?.message))
   }, [])
 
   // ── Cross-section wiring helpers ────────────────────────
@@ -14637,7 +14637,7 @@ export default function PromptCEOPage() {
   // ── Image generation ──────────────────────────────────────
   const generateImage = useCallback(async () => {
     if (!result?.finalPrompt) return
-    if (!s.imageDataUrl) { merge({ imageError: 'Upload an identity image first.' }); return }
+    if (!s.imageDataUrl) { merge({ imageError: 'Image generation requires a Creator Profile identity. Upload or select one in the left sidebar first.' }); return }
     // Gate: check image limit
     if (subscription && !subscription.isAdmin && subscription.imagesRemaining === 0) {
       setStudioPaywallOpen(true)
@@ -17864,7 +17864,7 @@ export default function PromptCEOPage() {
         {s.view === 'timeline' && (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ flexShrink: 0, padding: '10px 16px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 12, background: C.deep }}>
-              <button onClick={() => { setPreviousView('timeline'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
+              <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', d) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Director's Timeline</span>
               {batch.length > 0 && (<><Chip>{batch.length} scenes</Chip><Chip>{activeScene + 1} active</Chip></>)}
               <button onClick={() => { setPreviousView('timeline'); set('view', 'studio') }} style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.raised, border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 12px', cursor: 'pointer' }}>◧ Studio</button>
@@ -17930,8 +17930,8 @@ export default function PromptCEOPage() {
               {batch.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.ghost, gap: 12 }}>
                   <div style={{ fontSize: 32 }}>🎬</div>
-                  <div style={{ fontSize: 12, letterSpacing: 1 }}>No scenes generated yet.</div>
-                  <div style={{ fontSize: 10, color: C.ghost, opacity: 0.6 }}>Switch to Studio view and press Batch Generate.</div>
+                  <div style={{ fontSize: 12, letterSpacing: 1 }}>No timeline events yet.</div>
+                  <div style={{ fontSize: 10, color: C.ghost, opacity: 0.6 }}>Saved generations will appear here. Go to Studio and generate scenes first.</div>
                   <Btn variant="gold" onClick={() => set('view', 'studio')}>← Back to Studio</Btn>
                 </div>
               ) : batch.map((r, i) => (
@@ -19493,7 +19493,7 @@ export default function PromptCEOPage() {
 
               {/* ── Header controls ── */}
               <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: `1px solid ${C.hairline}`, display: 'flex', alignItems: 'center', gap: 8, background: C.deep, flexWrap: 'wrap' }}>
-                <button onClick={() => { setPreviousView('full_campaign'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>← Back</button>
+                <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', d) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>← Back</button>
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>◈ Full Campaign™</span>
                 <input
                   value={fullCampaignProduct}
@@ -19843,7 +19843,7 @@ export default function PromptCEOPage() {
 
               {/* ── Header ── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button onClick={() => { setPreviousView('campaign_journey'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
+                <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', d) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
                 <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.gold }}>Campaign Journey</div>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   {s.activeProjectId && <button onClick={loadCampaignJourney} disabled={journeyLoading} style={{ padding: '5px 12px', borderRadius: 5, fontSize: 10, cursor: 'pointer', border: `1px solid ${C.subtle}`, background: 'none', color: C.muted }}>{journeyLoading ? '…' : '↺ Refresh'}</button>}
@@ -19887,6 +19887,14 @@ export default function PromptCEOPage() {
 
               {s.activeProjectId && journeyLoading && !CJ && (
                 <div style={{ fontSize: 12, color: C.muted }}>Loading campaign journey…</div>
+              )}
+
+              {s.activeProjectId && !journeyLoading && !CJ && (
+                <div style={{ padding: '32px 24px', textAlign: 'center', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.surface }}>
+                  <div style={{ fontSize: 13, color: C.secondary, marginBottom: 8 }}>No journey data yet.</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Generate a campaign to begin building your campaign timeline.</div>
+                  <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', 'full_campaign') }} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: 'transparent', color: C.gold }}>Campaign Builder →</button>
+                </div>
               )}
 
               {s.activeProjectId && CJ && (() => {
@@ -20109,7 +20117,7 @@ export default function PromptCEOPage() {
           return (
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
-              <button onClick={() => { setPreviousView('cross_platform'); set('view', previousView || 'ai_director') }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', alignSelf: 'flex-start' }}>← Back</button>
+              <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', d) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer', alignSelf: 'flex-start' }}>← Back</button>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, letterSpacing: -0.5 }}>⊕ Cross-Platform Adaptation™</div>
@@ -20677,6 +20685,9 @@ export default function PromptCEOPage() {
           <div style={{ maxWidth: 820, margin: '0 auto', padding: '32px 24px 80px' }}>
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: 16 }}>
+                <button onClick={() => { const d = previousView || 'ai_director'; setPreviousView(s.view); set('view', d) }} style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.subtle}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>← Back</button>
+              </div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, marginBottom: 8 }}>✦ Creative Director</div>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: C.primary, margin: '0 0 8px', letterSpacing: -0.5 }}>Brand Audit</h1>
               <p style={{ fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.6 }}>Upload your product. The AI reads your brand, market position, and biggest opportunities — then tells you exactly what it would do.</p>
