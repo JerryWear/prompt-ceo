@@ -2943,6 +2943,8 @@ export default function EditStudioPage() {
                     <a
                       href={exportUrl}
                       download={`edit_${project.title || 'export'}.mp4`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
                         padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none',
