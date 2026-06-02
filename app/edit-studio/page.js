@@ -757,6 +757,11 @@ export default function EditStudioPage() {
 
   const handleCreateRenderJob = useCallback(async () => {
     if (!renderPlan) return
+    // Never create a job without a source video URL — stops null jobs flooding the worker
+    if (!renderPlan.sourceVideoUrl) {
+      setRenderJob({ id: null, status: 'failed', error: 'Source video not uploaded to storage. Go to Export tab → Upload Source Video first, then Rebuild Render Plan.', createdAt: new Date().toISOString() })
+      return
+    }
     setCreatingJob(true)
     try {
       const res  = await fetch('/api/edit-studio/render', {
