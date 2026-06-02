@@ -101,9 +101,30 @@ function cleanup(workDir) {
 
 // ─── Source video download ────────────────────────────────────────────────────
 
-async function downloadVideo(url, destPath) {
-  log('info', 'Downloading source video', null, { url: url.slice(0, 60) + '…', dest: destPath })
-  const res = await fetch(url, { redirect: 'follow' })
+function extractStoragePath(url) {
+  try {
+    const u = new URL(url)
+    const match = u.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/edit-studio-assets\/(.+)/)
+    if (match) return decodeURIComponent(match[1].split('?')[0])
+  } catch {}
+  return null
+}
+
+async function downloadVideo(url, destPath, admin) {
+  log('info', 'Downloading source video', null, { url: url.slice(0, 60) + '…' })
+
+  // Private bucket — create a fresh signed URL using the admin key
+  let downloadUrl = url
+  const storagePath = extractStoragePath(url)
+  if (storagePath) {
+    const { data: signed, error } = await admin.storage
+      .from('edit-studio-assets')
+      .createSignedUrl(storagePath, 300)
+    if (error) throw new Error(`Could not sign storage URL: ${error.message}`)
+    downloadUrl = signed.signedUrl
+  }
+
+  const res = await fetch(downloadUrl, { redirect: 'follow' })
   if (!res.ok) throw new Error(`Source video download failed: HTTP ${res.status} ${res.statusText}`)
   const buf = Buffer.from(await res.arrayBuffer())
   fs.writeFileSync(destPath, buf)
@@ -393,7 +414,7 @@ async function processJob(admin, job) {
 
   try {
     // 1. Download source
-    await downloadVideo(plan.sourceVideoUrl, inputPath)
+    await downloadVideo(plan.sourceVideoUrl, inputPath, admin)
 
     // 2. Generate ASS captions (Phase 12A)
     let captionPath = null
