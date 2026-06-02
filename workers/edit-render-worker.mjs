@@ -233,11 +233,10 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
   filters.push(`${vParts.join('')}concat=n=${n}:v=1:a=0[catv]`)
   filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[scaled]`)
 
-  let finalVideo = '[scaled]'
-  if (hasCaps) {
-    filters.push(`[scaled]subtitles='${escAssPath(captionPath)}'[withsubs]`)
-    finalVideo = '[withsubs]'
-  }
+  // TODO Phase 12B: re-enable captions once libass fonts are confirmed on server
+  // Disabled for Phase 10A stability — subtitles filter crashes without proper fonts
+  const finalVideo = '[scaled]'
+  void hasCaps // suppress unused warning
 
   let finalAudio = '[cata]'
   if (hasMusic) {
