@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import SimpleModeWizard from './simple.js'
 import { useRouter } from 'next/navigation'
 import { createClient as createBrowserSupabase } from '../../lib/supabase/client'
 
@@ -217,6 +218,9 @@ export default function EditStudioPage() {
   const [sourceUploadPct,    setSourceUploadPct]        = useState(0)
   const [sourceUploadError,  setSourceUploadError]      = useState(null)
   const [showHealthPanel,    setShowHealthPanel]         = useState(false)
+  const [simpleMode, setSimpleMode] = useState(() => {
+    try { return localStorage.getItem('edit_studio_mode') !== 'advanced' } catch { return true }
+  })
   const [retryingRender,     setRetryingRender]         = useState(false)
   const [showTestNotes,      setShowTestNotes]           = useState(false)
   const [testNotes,          setTestNotes]              = useState(() => {
@@ -798,6 +802,11 @@ export default function EditStudioPage() {
       setRetryingRender(false)
     }
   }, [renderPlan, retryingRender, handleCreateRenderJob]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchMode = useCallback((mode) => {
+    try { localStorage.setItem('edit_studio_mode', mode) } catch {}
+    setSimpleMode(mode === 'simple')
+  }, [])
 
   const updateTestNotes = useCallback((field, value) => {
     setTestNotes(prev => {
@@ -3041,6 +3050,10 @@ export default function EditStudioPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  if (simpleMode) {
+    return <SimpleModeWizard onSwitchAdvanced={() => switchMode('advanced')} />
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.primary, fontFamily: 'system-ui, sans-serif' }}>
 
@@ -3160,6 +3173,14 @@ export default function EditStudioPage() {
             title="Pipeline health (Ctrl+D)"
             style={{ padding: '5px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', border: `1px solid ${showHealthPanel ? C.violet : C.hairline}`, background: showHealthPanel ? C.violetGlow : 'none', color: showHealthPanel ? C.violet : C.ghost, opacity: 0.8 }}>
             ⊙
+          </button>
+
+          {/* Simple Mode toggle */}
+          <button
+            onClick={() => switchMode('simple')}
+            title="Switch to Simple Mode"
+            style={{ padding: '5px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.ghost, opacity: 0.8 }}>
+            Simple
           </button>
 
           {/* Save status indicator */}
