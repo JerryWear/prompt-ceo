@@ -1050,18 +1050,22 @@ export default function EditStudioPage() {
     transcriptSegs.length, aiCuts.length,
   ])
 
-  // On mount: load recent projects + try to restore last local session title/platform/goal
+  // On mount: load the most recent saved project automatically.
+  // This ensures users always see their latest work, not stale localStorage.
   useEffect(() => {
-    loadRecentProjects()
-    const local = loadFromLocal()
-    if (local && !project.videoFile) {
-      setProject(p => ({
-        ...p,
-        title:    local.title    || p.title,
-        platform: local.platform || p.platform,
-        goal:     local.goal     || p.goal,
-      }))
+    const init = async () => {
+      const res = await fetch('/api/edit-projects')
+      const data = await res.json()
+      if (data.status === 'success' && data.projects?.length) {
+        // Auto-load the most recently updated project
+        await loadProject(data.projects[0].id)
+        setRecentProjects(data.projects)
+      } else {
+        // No saved projects — load recent list for sidebar only
+        loadRecentProjects()
+      }
     }
+    init().catch(() => loadRecentProjects())
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh sidebar list whenever a save succeeds
