@@ -393,17 +393,9 @@ export default function EditStudioPage() {
 
     try {
       let res
-      if (file) {
-        // File is available in memory (same session) — send directly via multipart
-        const fd = new FormData()
-        fd.append('file', file, file.name)
-        if (projectId) fd.append('projectId', projectId)
-        fd.append('sourceVideoName', project.videoFile || '')
-        fd.append('sourceVideoType', project.videoType || 'video/mp4')
-        if (project.sourceVideoUrl) fd.append('sourceVideoUrl', project.sourceVideoUrl)
-        res = await fetch('/api/edit-studio/transcribe', { method: 'POST', body: fd })
-      } else if (project.sourceVideoUrl) {
-        // File not in memory (page was reloaded) but video is in storage — use URL path
+      if (project.sourceVideoUrl) {
+        // ALWAYS prefer the storage URL path — avoids Vercel's 4.5 MB body limit.
+        // The server downloads the video from Supabase Storage and sends to Whisper.
         res = await fetch('/api/edit-studio/transcribe', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -414,13 +406,19 @@ export default function EditStudioPage() {
             sourceVideoType: project.videoType || 'video/mp4',
           }),
         })
+      } else if (file && file.size <= 4 * 1024 * 1024) {
+        // File in memory AND under 4 MB — safe to send directly (local dev / small files)
+        const fd = new FormData()
+        fd.append('file', file, file.name)
+        if (projectId) fd.append('projectId', projectId)
+        fd.append('sourceVideoName', project.videoFile || '')
+        fd.append('sourceVideoType', project.videoType || 'video/mp4')
+        res = await fetch('/api/edit-studio/transcribe', { method: 'POST', body: fd })
       } else {
-        // Nothing available — will return mock with a clear message
-        res = await fetch('/api/edit-studio/transcribe', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ projectId, sourceVideoName: project.videoFile }),
-        })
+        // No storage URL and file too large for Vercel — tell user to upload first
+        setTranscribeError('Video too large to send directly. Go to the Export tab → click "Upload Source Video" first, then come back and try again.')
+        setTranscribing(false)
+        return
       }
       const data = await res.json()
 
