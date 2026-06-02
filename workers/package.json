@@ -9,7 +9,8 @@
     "start:dev": "EDIT_STUDIO_RENDER_MODE=inline node edit-render-worker.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.104.1"
+    "@supabase/supabase-js": "^2.104.1",
+    "ws": "^8.18.0"
   },
   "engines": {
     "node": ">=18.0.0"

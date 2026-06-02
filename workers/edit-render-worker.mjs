@@ -34,6 +34,7 @@ import path           from 'path'
 import os             from 'os'
 import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 const execFileAsync = promisify(execFile)
 
@@ -70,6 +71,8 @@ function makeAdmin() {
   }
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: fetch.bind(globalThis) },
+    realtime: { transport: ws },
   })
 }
 
