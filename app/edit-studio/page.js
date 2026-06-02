@@ -3190,6 +3190,11 @@ export default function EditStudioPage() {
           {saveStatus === 'error'   && <div style={{ fontSize: 11, color: '#c45a5a', width: 100 }}>Saved locally</div>}
 
           <button
+            onClick={() => { if (window.confirm('Start a new project? Unsaved changes will be lost.')) handleNewProject() }}
+            style={{ padding: '7px 13px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.ghost }}>
+            + New
+          </button>
+          <button
             onClick={() => saveProject(false)}
             disabled={saveStatus === 'saving'}
             style={{ padding: '7px 13px', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
