@@ -99,6 +99,14 @@ export async function POST(req) {
       }, { status: 400 })
     }
 
+    // ── Hard block: no sourceVideoUrl = no job ───────────────────────────────
+    if (!renderPlan.sourceVideoUrl) {
+      return NextResponse.json({
+        status:  'error',
+        message: 'No source video URL in render plan. Upload your source video to storage first (Export tab → Upload Source Video).',
+      }, { status: 400 })
+    }
+
     // ── Validate ─────────────────────────────────────────────────────────────
     const validation = validateRenderPlan(renderPlan)
     if (!validation.valid) {
