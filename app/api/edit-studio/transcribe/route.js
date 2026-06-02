@@ -80,31 +80,68 @@ function buildMockTranscript(durationHint = 29) {
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
-// Accepts multipart/form-data:
-//   file          — the video/audio Blob (required for Whisper)
-//   projectId     — UUID of the edit_projects row (optional)
-//   sourceVideoName — filename string
-//   sourceVideoType — MIME type string
+// Accepts EITHER:
+//   multipart/form-data with a 'file' blob  (local dev / small files)
+//   application/json with { projectId, sourceVideoUrl, sourceVideoName }  (production / large files)
+//
+// The JSON + sourceVideoUrl path is the production path on Vercel because
+// large video files exceed Vercel's 4.5 MB serverless request body limit.
+// The file is uploaded to Supabase Storage first (upload-source API), then
+// this route downloads it server-side for Whisper — no size limit issues.
 
 export async function POST(req) {
   const log = makeRouteLogger('transcribe')
   try {
-    // ── Parse multipart ──────────────────────────────────────────────────────
-    let formData
-    try {
-      formData = await req.formData()
-    } catch {
-      return NextResponse.json({ status: 'error', message: 'Expected multipart/form-data' }, { status: 400 })
+    const contentType = req.headers.get('content-type') || ''
+    let file            = null
+    let projectId       = null
+    let sourceVideoName = 'video.mp4'
+    let sourceVideoType = 'video/mp4'
+    let sourceVideoUrl  = null
+
+    if (contentType.includes('multipart/form-data')) {
+      // ── Multipart path (local dev / small files) ─────────────────────────
+      let formData
+      try { formData = await req.formData() } catch {
+        return NextResponse.json({ status: 'error', message: 'Expected multipart/form-data or JSON' }, { status: 400 })
+      }
+      file            = formData.get('file')            || null
+      projectId       = formData.get('projectId')       || null
+      sourceVideoName = formData.get('sourceVideoName') || 'video.mp4'
+      sourceVideoType = formData.get('sourceVideoType') || 'video/mp4'
+      sourceVideoUrl  = formData.get('sourceVideoUrl')  || null
+    } else {
+      // ── JSON path (production — file already in Supabase Storage) ────────
+      const body = await req.json()
+      projectId       = body.projectId       || null
+      sourceVideoUrl  = body.sourceVideoUrl  || null
+      sourceVideoName = body.sourceVideoName || 'video.mp4'
+      sourceVideoType = body.sourceVideoType || 'video/mp4'
     }
 
-    const file            = formData.get('file')            // Blob | null
-    const projectId       = formData.get('projectId')       || null
-    const sourceVideoName = formData.get('sourceVideoName') || 'video.mp4'
-    const sourceVideoType = formData.get('sourceVideoType') || 'video/mp4'
-
-    // ── Auth (optional — route still works for unauthenticated saves) ────────
+    // ── Auth ─────────────────────────────────────────────────────────────────
     const supabase = await makeSupabase()
     const { data: { user } } = await supabase.auth.getUser()
+
+    // ── If no direct file but we have a storage URL, download it ─────────────
+    if (!file && sourceVideoUrl) {
+      try {
+        log.info('Downloading source from storage URL')
+        const dlRes = await fetch(sourceVideoUrl)
+        if (!dlRes.ok) throw new Error(`Storage download failed: HTTP ${dlRes.status}`)
+        const buf  = await dlRes.arrayBuffer()
+        const blob = new Blob([buf], { type: sourceVideoType || 'video/mp4' })
+        // Re-wrap as a File-like object for Whisper
+        file = new File([blob], sourceVideoName, { type: sourceVideoType || 'video/mp4' })
+      } catch (err) {
+        log.failure({ projectId, errorCode: 'STORAGE_DOWNLOAD_FAILED', message: err.message })
+        return NextResponse.json({
+          status:  'error',
+          ok:      false,
+          message: `Could not download source video from storage: ${err.message}. Try uploading the video to storage again.`,
+        }, { status: 400 })
+      }
+    }
 
     // ── File size guard ──────────────────────────────────────────────────────
     if (file && file.size > MAX_BYTES) {
@@ -127,7 +164,7 @@ export async function POST(req) {
       transcript     = buildMockTranscript()
     } else if (!file) {
       fallback       = true
-      fallbackReason = 'No file provided — using mock transcript for testing'
+      fallbackReason = 'No file provided and no source video URL — using mock transcript. Upload your video to storage first.'
       transcript     = buildMockTranscript()
     } else {
       try {

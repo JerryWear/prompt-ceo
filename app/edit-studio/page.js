@@ -392,13 +392,36 @@ export default function EditStudioPage() {
     setTranscribeError(null)
 
     try {
-      const fd = new FormData()
-      if (file) fd.append('file', file, file.name)
-      if (projectId)          fd.append('projectId',       projectId)
-      fd.append('sourceVideoName', project.videoFile || '')
-      fd.append('sourceVideoType', project.videoType || 'video/mp4')
-
-      const res  = await fetch('/api/edit-studio/transcribe', { method: 'POST', body: fd })
+      let res
+      if (file) {
+        // File is available in memory (same session) — send directly via multipart
+        const fd = new FormData()
+        fd.append('file', file, file.name)
+        if (projectId) fd.append('projectId', projectId)
+        fd.append('sourceVideoName', project.videoFile || '')
+        fd.append('sourceVideoType', project.videoType || 'video/mp4')
+        if (project.sourceVideoUrl) fd.append('sourceVideoUrl', project.sourceVideoUrl)
+        res = await fetch('/api/edit-studio/transcribe', { method: 'POST', body: fd })
+      } else if (project.sourceVideoUrl) {
+        // File not in memory (page was reloaded) but video is in storage — use URL path
+        res = await fetch('/api/edit-studio/transcribe', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            projectId,
+            sourceVideoUrl:  project.sourceVideoUrl,
+            sourceVideoName: project.videoFile || 'video.mp4',
+            sourceVideoType: project.videoType || 'video/mp4',
+          }),
+        })
+      } else {
+        // Nothing available — will return mock with a clear message
+        res = await fetch('/api/edit-studio/transcribe', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ projectId, sourceVideoName: project.videoFile }),
+        })
+      }
       const data = await res.json()
 
       if (data.status !== 'success') throw new Error(data.message || 'Transcription failed')
