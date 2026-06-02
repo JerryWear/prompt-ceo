@@ -58,7 +58,7 @@ export async function POST(req) {
     const admin = makeAdmin()
     const { data, error } = await admin.storage
       .from('edit-studio-assets')
-      .createSignedUploadUrl(storagePath)
+      .createSignedUploadUrl(storagePath, { upsert: true })
 
     if (error) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })

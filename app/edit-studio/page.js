@@ -215,6 +215,7 @@ export default function EditStudioPage() {
   const [renderWarnings,     setRenderWarnings]         = useState([])
   const [uploadingSource,    setUploadingSource]        = useState(false)
   const [sourceUploadPct,    setSourceUploadPct]        = useState(0)
+  const [sourceUploadError,  setSourceUploadError]      = useState(null)
   const [showHealthPanel,    setShowHealthPanel]         = useState(false)
   const [retryingRender,     setRetryingRender]         = useState(false)
   const [showTestNotes,      setShowTestNotes]           = useState(false)
@@ -813,9 +814,13 @@ export default function EditStudioPage() {
   // Upload source video to Supabase Storage so the render server can access it
   const handleUploadSource = useCallback(async () => {
     const file = videoFileRef.current
-    if (!file) return
+    if (!file) {
+      setSourceUploadError('Video file not in memory. Go back to Upload tab and re-drop your video first.')
+      return
+    }
     setUploadingSource(true)
     setSourceUploadPct(0)
+    setSourceUploadError(null)
     try {
       // 1. Get signed upload URL from server
       const presignRes = await fetch('/api/edit-studio/upload-source', {
@@ -824,30 +829,30 @@ export default function EditStudioPage() {
         body:    JSON.stringify({ projectId, fileName: file.name, fileSize: file.size, mimeType: file.type }),
       })
       const presignData = await presignRes.json()
-      if (presignData.status !== 'success') throw new Error(presignData.message)
+      if (presignData.status !== 'success') throw new Error(presignData.message || 'Presign failed')
 
-      // 2. Upload directly to Supabase Storage via signed URL (bypasses function limits)
-      const xhr = new XMLHttpRequest()
-      await new Promise((resolve, reject) => {
-        xhr.upload.addEventListener('progress', e => {
-          if (e.lengthComputable) setSourceUploadPct(Math.round(e.loaded / e.total * 100))
-        })
-        xhr.addEventListener('load',  () => xhr.status < 400 ? resolve() : reject(new Error(`Upload HTTP ${xhr.status}`)))
-        xhr.addEventListener('error', () => reject(new Error('Upload network error')))
-        xhr.open('PUT', presignData.signedUrl)
-        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
-        xhr.send(file)
+      // 2. Upload directly to Supabase Storage (browser → Supabase, bypasses Vercel)
+      setSourceUploadPct(10)
+      const uploadRes = await fetch(presignData.signedUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': file.type || 'video/mp4' },
+        body:    file,
       })
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => uploadRes.statusText)
+        throw new Error(`Storage upload failed: HTTP ${uploadRes.status} — ${errText}`)
+      }
+      setSourceUploadPct(100)
 
-      // 3. Store the public URL on the project
+      // 3. Store the storage URL on the project and save
       setProject(p => ({ ...p, sourceVideoUrl: presignData.publicUrl }))
       isDirty.current = true
       saveProject(true)
     } catch (err) {
+      setSourceUploadError(err.message)
       console.error('Source upload error:', err)
     } finally {
       setUploadingSource(false)
-      setSourceUploadPct(0)
     }
   }, [videoFileRef, projectId, saveProject]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2659,6 +2664,11 @@ export default function EditStudioPage() {
                     style={{ padding: '8px 18px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: videoFileRef.current ? 'pointer' : 'not-allowed', border: `1px solid ${videoFileRef.current ? C.gold : C.hairline}`, background: videoFileRef.current ? C.goldGlow : C.surface, color: videoFileRef.current ? C.gold : C.ghost }}>
                     ⬆ Upload Source Video
                   </button>
+                )}
+                {sourceUploadError && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: '#c45a5a', lineHeight: 1.5 }}>
+                    ✗ {sourceUploadError}
+                  </div>
                 )}
               </>
             )}
