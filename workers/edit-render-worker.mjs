@@ -305,7 +305,9 @@ async function uploadToStorage(admin, localPath, storagePath, jobId) {
 async function claimJob(admin) {
   const { data, error } = await admin.rpc('claim_render_job', { p_worker_id: WORKER_ID })
   if (error) throw new Error(`Claim RPC error: ${error.message}`)
-  return data || null
+  // Supabase returns {} (truthy empty object) when the function returns NULL.
+  // Must check for a real id — otherwise the worker processes phantom jobs forever.
+  return (data && data.id) ? data : null
 }
 
 async function markCompleted(admin, jobId, exportUrl, plan) {
