@@ -1,7 +1,27 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { makeRouteLogger } from '../../../../lib/edit-studio/apiLogger.js'
+
+function makeAdminClient() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
+
+// Extract Supabase storage path from a public or signed URL
+// e.g. https://xxx.supabase.co/storage/v1/object/public/edit-studio-assets/userId/proj/file.mp4
+//   → userId/proj/file.mp4
+function extractStoragePath(url) {
+  try {
+    const u = new URL(url)
+    const match = u.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/edit-studio-assets\/(.+)/)
+    if (match) return decodeURIComponent(match[1].split('?')[0])
+  } catch {}
+  return null
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // Whisper accepts: mp4, m4a, mov, webm, mp3, wav, mpeg — max 25 MB
@@ -123,15 +143,30 @@ export async function POST(req) {
     const supabase = await makeSupabase()
     const { data: { user } } = await supabase.auth.getUser()
 
-    // ── If no direct file but we have a storage URL, download it ─────────────
+    // ── If no direct file but we have a storage URL, download via signed URL ──
+    // The bucket is private — we must create a signed URL using the service role
+    // key before downloading. The stored URL may be a public URL (400 on private
+    // buckets) or an expired signed URL. Either way, re-sign it fresh.
     if (!file && sourceVideoUrl) {
       try {
-        log.info('Downloading source from storage URL')
-        const dlRes = await fetch(sourceVideoUrl)
+        log.info('Creating signed download URL from storage path')
+        const admin       = makeAdminClient()
+        const storagePath = extractStoragePath(sourceVideoUrl)
+
+        let downloadUrl = sourceVideoUrl
+        if (storagePath) {
+          const { data: signed, error: signErr } = await admin.storage
+            .from('edit-studio-assets')
+            .createSignedUrl(storagePath, 300) // 5 minute window
+          if (signErr) throw new Error(`Could not sign storage URL: ${signErr.message}`)
+          downloadUrl = signed.signedUrl
+        }
+
+        log.info('Downloading source video from storage')
+        const dlRes = await fetch(downloadUrl)
         if (!dlRes.ok) throw new Error(`Storage download failed: HTTP ${dlRes.status}`)
         const buf  = await dlRes.arrayBuffer()
         const blob = new Blob([buf], { type: sourceVideoType || 'video/mp4' })
-        // Re-wrap as a File-like object for Whisper
         file = new File([blob], sourceVideoName, { type: sourceVideoType || 'video/mp4' })
       } catch (err) {
         log.failure({ projectId, errorCode: 'STORAGE_DOWNLOAD_FAILED', message: err.message })
