@@ -628,9 +628,45 @@ export default function SimpleModeWizard({ onSwitchAdvanced }) {
   const [currentStep,  setCurrentStep]  = useState(null)
   const [stepsDone,    setStepsDone]    = useState([])
   const [pipelineError, setPipelineError] = useState(null)
+  const [showResume, setShowResume] = useState(false)
+  const [latestProject, setLatestProject] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/edit-projects')
+      .then(r => r.json())
+      .then(data => {
+        const latest = data.projects?.[0]
+        if (latest && latest.status !== 'draft') {
+          setLatestProject(latest)
+          setShowResume(true)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.primary, fontFamily: 'system-ui, sans-serif' }}>
+      {showResume && latestProject && screen === 'upload' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: C.raised, borderRadius: 14, padding: '28px 32px', border: `1px solid ${C.hairline}`, maxWidth: 380, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 8 }}>Resume last project?</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 24, lineHeight: 1.6 }}>
+              <strong style={{ color: C.secondary }}>{latestProject.title}</strong><br />
+              {latestProject.platform} · {latestProject.status}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowResume(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
+                New Project
+              </button>
+              <button onClick={() => { setShowResume(false); window.location.href = '/edit-studio?mode=advanced' }}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                Continue Editing →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {screen === 'upload'     && <UploadScreen     {...{ platform, setPlatform, goal, setGoal, videoFile, setVideoFile, videoError, setVideoError, videoRef, fileInputRef, setScreen, setCurrentStep, setStepsDone, setPipelineError, setPipelineResult, setProjectId, onSwitchAdvanced }} />}
       {screen === 'processing' && <ProcessingScreen {...{ currentStep, stepsDone, pipelineError, setScreen, setPipelineError }} />}
       {screen === 'review'     && <ReviewScreen     {...{ pipelineResult, projectId, platform, goal, setScreen, setRenderJob, onSwitchAdvanced }} />}
