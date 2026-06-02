@@ -283,6 +283,7 @@ export default function EditStudioPage() {
       source_video_name: s.videoFile         ?? null,
       source_video_size: s.videoSize         ?? null,
       source_video_type: s.videoType         ?? null,
+      source_video_url:  s.sourceVideoUrl    ?? null,
       transcript_data:   snap.transcriptSegs,
       ai_cuts_data:      snap.aiCuts,
       caption_settings:  snap.captionSettings,
@@ -2623,34 +2624,44 @@ export default function EditStudioPage() {
         </div>
 
         {/* ── Source video upload for rendering ────────────────────────── */}
-        {project.videoFile && !project.sourceVideoUrl && (
-          <div style={{ padding: '14px 16px', borderRadius: 9, border: `1px solid ${C.gold}33`, background: C.gold + '08' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 6 }}>Upload video for rendering</div>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
-              The render engine needs to download your source video. Upload it to secure storage first.
-              {videoFileRef.current ? ' Your file is loaded and ready.' : ' Re-upload your video file to enable this.'}
-            </div>
-            {uploadingSource ? (
-              <div>
-                <div style={{ height: 4, background: C.hairline, borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
-                  <div style={{ width: `${sourceUploadPct}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width 0.2s' }} />
+        {project.videoFile && (
+          <div style={{ padding: '14px 16px', borderRadius: 9, border: `1px solid ${project.sourceVideoUrl ? C.green + '44' : C.gold + '33'}`, background: project.sourceVideoUrl ? C.greenGlow : C.gold + '08' }}>
+            {project.sourceVideoUrl ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 12, color: C.green }}>✓</div>
+                  <div style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>Source video uploaded to storage</div>
                 </div>
-                <div style={{ fontSize: 11, color: C.gold }}>Uploading… {sourceUploadPct}%</div>
+                {videoFileRef.current && (
+                  <button onClick={handleUploadSource} disabled={uploadingSource}
+                    style={{ fontSize: 10, color: C.muted, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                    {uploadingSource ? `${sourceUploadPct}%` : '↺ Re-upload'}
+                  </button>
+                )}
               </div>
             ) : (
-              <button
-                onClick={handleUploadSource}
-                disabled={!videoFileRef.current}
-                style={{ padding: '8px 18px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: videoFileRef.current ? 'pointer' : 'not-allowed', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
-                ⬆ Upload Source Video
-              </button>
+              <>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 6 }}>Upload video for rendering</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
+                  {videoFileRef.current
+                    ? 'Your file is loaded and ready to upload.'
+                    : '⚠ File not in memory — go back to the Upload tab, re-drop your video file, then come back here.'}
+                </div>
+                {uploadingSource ? (
+                  <div>
+                    <div style={{ height: 4, background: C.hairline, borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                      <div style={{ width: `${sourceUploadPct}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width 0.2s' }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: C.gold }}>Uploading… {sourceUploadPct}%</div>
+                  </div>
+                ) : (
+                  <button onClick={handleUploadSource} disabled={!videoFileRef.current}
+                    style={{ padding: '8px 18px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: videoFileRef.current ? 'pointer' : 'not-allowed', border: `1px solid ${videoFileRef.current ? C.gold : C.hairline}`, background: videoFileRef.current ? C.goldGlow : C.surface, color: videoFileRef.current ? C.gold : C.ghost }}>
+                    ⬆ Upload Source Video
+                  </button>
+                )}
+              </>
             )}
-          </div>
-        )}
-        {project.sourceVideoUrl && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 7, border: `1px solid ${C.green}33`, background: C.greenGlow }}>
-            <div style={{ fontSize: 12, color: C.green }}>✓</div>
-            <div style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>Source video uploaded to storage</div>
           </div>
         )}
 
