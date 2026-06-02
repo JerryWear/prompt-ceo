@@ -313,10 +313,304 @@ function UploadScreen({ platform, setPlatform, goal, setGoal, videoFile, setVide
   )
 }
 
-// Placeholder components — filled in subsequent tasks
-function ProcessingScreen() { return <div style={{ padding: 40, color: '#e8e4dc' }}>Processing Screen (Task 3)</div> }
-function ReviewScreen()     { return <div style={{ padding: 40, color: '#e8e4dc' }}>Review Screen (Task 4)</div> }
-function DownloadScreen()   { return <div style={{ padding: 40, color: '#e8e4dc' }}>Download Screen (Task 5)</div> }
+// ─── Shared: Step progress bar ────────────────────────────────────────────────
+function StepBar({ current }) {
+  const steps = ['Upload', 'Review', 'Download']
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      {steps.map((label, i) => {
+        const num    = i + 1
+        const done   = num < current
+        const active = num === current
+        return (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800,
+                background: done ? C.green : active ? C.gold : C.hairline,
+                color: done || active ? C.void : C.ghost }}>
+                {done ? '✓' : num}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: active ? 700 : 400, color: active ? C.gold : done ? C.green : C.ghost, whiteSpace: 'nowrap' }}>{label}</div>
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: done ? C.green : C.hairline, margin: '0 8px', marginBottom: 18, borderRadius: 1 }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Screen 2a: Processing ────────────────────────────────────────────────────
+function ProcessingScreen({ currentStep, stepsDone, pipelineError, setScreen, setPipelineError }) {
+  const progress = Math.round((stepsDone.length / PIPELINE_STEPS.length) * 100)
+  const currentLabel = PIPELINE_STEPS.find(s => s.id === currentStep)?.label || 'Working…'
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+      <StepBar current={2} />
+      <div style={{ marginTop: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+        {pipelineError ? (
+          <>
+            <div style={{ fontSize: 40 }}>⚠</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#c45a5a' }}>Something went wrong</div>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, maxWidth: 360 }}>{pipelineError}</div>
+            <button onClick={() => { setPipelineError(null); setScreen('upload') }}
+              style={{ padding: '12px 28px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+              ← Try Again
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 48 }}>✦</div>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.primary, marginBottom: 8 }}>Creating your AI edit…</div>
+              <div style={{ fontSize: 14, color: C.muted }}>{currentLabel}</div>
+            </div>
+            <div style={{ width: '100%', height: 4, background: C.hairline, borderRadius: 2 }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width 0.5s ease' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', textAlign: 'left' }}>
+              {PIPELINE_STEPS.map(step => {
+                const done   = stepsDone.includes(step.id)
+                const active = currentStep === step.id && !done
+                return (
+                  <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: done || active ? 1 : 0.35 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800,
+                      background: done ? C.green : active ? C.gold : C.hairline,
+                      color: done || active ? C.void : C.ghost }}>
+                      {done ? '✓' : active ? '⟳' : '○'}
+                    </div>
+                    <div style={{ fontSize: 13, color: done ? C.secondary : active ? C.gold : C.ghost, fontWeight: active ? 700 : 400 }}>
+                      {step.label}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Screen 2b: Review ────────────────────────────────────────────────────────
+function ReviewScreen({ pipelineResult, projectId, platform, goal, setScreen, setRenderJob, onSwitchAdvanced }) {
+  const [creating, setCreating] = useState(false)
+  const [error, setError]       = useState(null)
+
+  const { directorAnalysis, selectedCutPlan, captionTimeline, musicIntelligence, renderPlan } = pipelineResult || {}
+  const topTrack = musicIntelligence?.recommendedTracks?.[0]
+  const keptSegs = selectedCutPlan?.segments?.filter(s => s.keep) || []
+  const totalDur = keptSegs.reduce((n, s) => n + (s.duration || 0), 0)
+
+  const handleCreateVideo = async () => {
+    if (!renderPlan) return
+    setCreating(true)
+    setError(null)
+    try {
+      const res  = await fetch('/api/edit-studio/render', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, renderPlan }),
+      })
+      const data = await res.json()
+      if (data.status !== 'success') throw new Error(data.message)
+      setRenderJob({ id: data.jobId, status: data.jobStatus, message: data.message, queuedAt: data.queuedAt, exportUrl: data.exportUrl || null, createdAt: new Date().toISOString() })
+      setScreen('download')
+    } catch (err) {
+      setError(err.message)
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: '60px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, letterSpacing: 2, textTransform: 'uppercase' }}>PROMPT CEO</div>
+        <button onClick={onSwitchAdvanced} style={{ fontSize: 11, color: C.ghost, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Advanced Mode</button>
+      </div>
+      <StepBar current={2} />
+      <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {directorAnalysis?.directorSummary?.verdict && (
+          <div style={{ padding: '20px', borderRadius: 12, border: `1px solid ${C.violet}28`, background: C.violet + '0a' }}>
+            <div style={{ fontSize: 10, color: C.violet, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>AI Director</div>
+            <div style={{ fontSize: 14, color: C.primary, lineHeight: 1.65, fontStyle: 'italic' }}>"{directorAnalysis.directorSummary.verdict}"</div>
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {[
+            { label: 'Duration',  value: `${Math.round(totalDur * 10) / 10}s`,         color: C.gold  },
+            { label: 'Captions',  value: `${captionTimeline?.length || 0} lines`,       color: C.blue  },
+            { label: 'Segments',  value: `${keptSegs.length} kept`,                     color: C.green },
+          ].map(item => (
+            <div key={item.label} style={{ padding: '14px', borderRadius: 9, border: `1px solid ${item.color}22`, background: item.color + '08', textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: item.color, lineHeight: 1 }}>{item.value}</div>
+              <div style={{ fontSize: 9, color: C.ghost, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+        {topTrack && (
+          <div style={{ padding: '14px 16px', borderRadius: 9, border: `1px solid ${C.gold}22`, background: C.gold + '08', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 20 }}>🎵</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{topTrack.title}</div>
+              <div style={{ fontSize: 11, color: C.muted }}>{topTrack.mood} · {topTrack.bpm} BPM — auto-selected</div>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginLeft: 'auto' }}>Score {topTrack.fitScore}</div>
+          </div>
+        )}
+        {keptSegs.length > 0 && (
+          <div style={{ borderRadius: 9, border: `1px solid ${C.hairline}`, background: C.surface, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.hairline}`, fontSize: 10, fontWeight: 700, color: C.secondary, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              Edit Timeline
+            </div>
+            {keptSegs.map((seg, i) => (
+              <div key={seg.id || i} style={{ padding: '10px 14px', borderBottom: i < keptSegs.length - 1 ? `1px solid ${C.hairline}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, padding: '1px 6px', borderRadius: 6, border: `1px solid ${C.gold}44`, background: C.goldGlow }}>
+                  {seg.type?.toUpperCase() || 'CUT'}
+                </div>
+                <div style={{ fontSize: 10, color: C.ghost, fontFamily: 'monospace' }}>
+                  {seg.start?.toFixed(1)}s → {seg.end?.toFixed(1)}s
+                </div>
+                <div style={{ fontSize: 12, color: C.primary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {seg.transcriptText?.slice(0, 60) || seg.reason || ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #c45a5a44', background: '#c45a5a0a', fontSize: 12, color: '#c45a5a' }}>
+            ⚠ {error}
+          </div>
+        )}
+        <button onClick={handleCreateVideo} disabled={creating || !renderPlan}
+          style={{ padding: '18px 24px', borderRadius: 12, fontSize: 15, fontWeight: 800, cursor: 'pointer', letterSpacing: 0.5, transition: 'all 0.2s',
+            border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green }}>
+          {creating ? '⟳  Creating video…' : '🎬  Create Final Video'}
+        </button>
+        <button onClick={() => setScreen('upload')}
+          style={{ fontSize: 12, color: C.ghost, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+          ← Start over
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Screen 3: Download ───────────────────────────────────────────────────────
+const STAGE_LABELS = { queued: 'Queued — worker will start shortly', processing: 'Rendering your video…', completed: 'Your video is ready!', failed: 'Render failed' }
+
+function DownloadScreen({ renderJob, setRenderJob, projectId, pipelineResult, onSwitchAdvanced }) {
+  const [retrying, setRetrying] = useState(false)
+
+  useEffect(() => {
+    const active = renderJob?.status === 'queued' || renderJob?.status === 'processing'
+    if (!renderJob?.id || !active) return
+    const iv = setInterval(async () => {
+      try {
+        const res  = await fetch(`/api/edit-studio/render-status?jobId=${renderJob.id}`)
+        const data = await res.json()
+        if (data.status !== 'success') return
+        setRenderJob(prev => ({ ...prev, status: data.jobStatus, exportUrl: data.exportUrl || prev?.exportUrl, renderDetails: data.renderDetails, error: data.errorMessage }))
+        if (data.jobStatus === 'completed' || data.jobStatus === 'failed') clearInterval(iv)
+      } catch {}
+    }, 3000)
+    return () => clearInterval(iv)
+  }, [renderJob?.id, renderJob?.status])
+
+  const handleRetry = async () => {
+    const renderPlan = pipelineResult?.renderPlan
+    if (!renderPlan || retrying) return
+    setRetrying(true)
+    try {
+      const res  = await fetch('/api/edit-studio/render', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, renderPlan }),
+      })
+      const data = await res.json()
+      if (data.status !== 'success') throw new Error(data.message)
+      setRenderJob({ id: data.jobId, status: data.jobStatus, message: data.message, createdAt: new Date().toISOString() })
+    } catch (err) {
+      setRenderJob(prev => ({ ...prev, error: err.message }))
+    } finally {
+      setRetrying(false)
+    }
+  }
+
+  const st        = renderJob?.status || 'queued'
+  const isDone    = st === 'completed'
+  const isFailed  = st === 'failed'
+  const exportUrl = renderJob?.exportUrl
+
+  return (
+    <div style={{ maxWidth: 520, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, letterSpacing: 2, textTransform: 'uppercase' }}>PROMPT CEO</div>
+        <button onClick={onSwitchAdvanced} style={{ fontSize: 11, color: C.ghost, background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Advanced Mode</button>
+      </div>
+      <StepBar current={3} />
+      <div style={{ marginTop: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
+        <div style={{ fontSize: 56 }}>{isDone ? '✓' : isFailed ? '⚠' : '⟳'}</div>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: isDone ? C.green : isFailed ? '#c45a5a' : C.gold, marginBottom: 8 }}>
+            {isDone ? 'Your video is ready' : isFailed ? 'Render failed' : 'Rendering your video…'}
+          </div>
+          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+            {isDone ? 'Download link expires in 1 hour.' : isFailed ? (renderJob?.error || 'Something went wrong.') : STAGE_LABELS[st]}
+          </div>
+        </div>
+        {!isDone && !isFailed && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['queued', 'processing'].map(stage => (
+              <div key={stage} style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 10, textTransform: 'capitalize',
+                border: `1px solid ${st === stage ? C.gold + '66' : C.hairline}`,
+                background: st === stage ? C.goldGlow : 'none',
+                color: st === stage ? C.gold : C.ghost }}>
+                {stage}
+              </div>
+            ))}
+            <div style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 10, textTransform: 'capitalize',
+              border: `1px solid ${isDone ? C.green + '66' : C.hairline}`,
+              background: isDone ? C.greenGlow : 'none',
+              color: isDone ? C.green : C.ghost }}>
+              complete
+            </div>
+          </div>
+        )}
+        {isDone && exportUrl && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+            <a href={exportUrl} download target="_blank" rel="noopener noreferrer"
+              style={{ display: 'block', padding: '16px 24px', borderRadius: 12, fontSize: 15, fontWeight: 800, textDecoration: 'none', textAlign: 'center', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green }}>
+              ⬇ Download MP4
+            </a>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => navigator.clipboard?.writeText(exportUrl).catch(() => {})}
+                style={{ flex: 1, padding: '10px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
+                Copy Link
+              </button>
+              <a href={exportUrl} target="_blank" rel="noopener noreferrer"
+                style={{ flex: 1, padding: '10px', borderRadius: 9, fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
+                Open ↗
+              </a>
+            </div>
+          </div>
+        )}
+        {isFailed && (
+          <button onClick={handleRetry} disabled={retrying}
+            style={{ padding: '12px 28px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+            {retrying ? '⟳ Retrying…' : '↺ Retry Render'}
+          </button>
+        )}
+        {(isDone || isFailed) && (
+          <a href="/edit-studio" style={{ fontSize: 12, color: C.ghost, textDecoration: 'none' }}>+ Create another video</a>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function SimpleModeWizard({ onSwitchAdvanced }) {
   const [screen, setScreen]         = useState('upload')
