@@ -392,8 +392,12 @@ export default function EditStudioPage() {
     setTranscribeError(null)
 
     try {
+      // Always read sourceVideoUrl from the live snapshot — the useCallback dep array
+      // may not include it, so the closure could be stale after an upload.
+      const sourceVideoUrl = stateSnapshot.current.project.sourceVideoUrl || project.sourceVideoUrl
+
       let res
-      if (project.sourceVideoUrl) {
+      if (sourceVideoUrl) {
         // ALWAYS prefer the storage URL path — avoids Vercel's 4.5 MB body limit.
         // The server downloads the video from Supabase Storage and sends to Whisper.
         res = await fetch('/api/edit-studio/transcribe', {
@@ -401,7 +405,7 @@ export default function EditStudioPage() {
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             projectId,
-            sourceVideoUrl:  project.sourceVideoUrl,
+            sourceVideoUrl,
             sourceVideoName: project.videoFile || 'video.mp4',
             sourceVideoType: project.videoType || 'video/mp4',
           }),
