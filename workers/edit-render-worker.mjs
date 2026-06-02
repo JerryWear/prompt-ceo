@@ -225,13 +225,12 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
 
   segs.forEach((seg, i) => {
     filters.push(`[0:v]trim=start=${seg.start}:end=${seg.end},setpts=PTS-STARTPTS[v${i}]`)
-    filters.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[a${i}]`)
     vParts.push(`[v${i}]`)
-    aParts.push(`[a${i}]`)
   })
 
   const n = segs.length
-  filters.push(`${vParts.join('')}${aParts.join('')}concat=n=${n}:v=1:a=1[catv][cata]`)
+  // Video-only concat (no audio stream assumption — avoids mismatch errors)
+  filters.push(`${vParts.join('')}concat=n=${n}:v=1:a=0[catv]`)
   filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[scaled]`)
 
   let finalVideo = '[scaled]'
@@ -259,9 +258,9 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
     args: [
       ...inputs,
       '-filter_complex', filters.join(';'),
-      '-map', finalVideo, '-map', finalAudio,
+      '-map', finalVideo,
       '-c:v', 'libx264', '-preset', 'fast', '-crf', crf,
-      '-c:a', 'aac', '-b:a', '128k',
+      '-an', // no audio (video-only for Phase 10A)
       '-r', String(plan.fps || 30),
       '-movflags', '+faststart', '-y', outputPath,
     ],
