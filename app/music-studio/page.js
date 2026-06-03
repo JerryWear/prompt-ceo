@@ -329,6 +329,96 @@ export default function MusicStudioPage() {
     )
   }
 
+  function renderDirectorHero() {
+    if (intelligenceLoading) {
+      return (
+        <div style={{ padding: '20px 24px', borderRadius: 12, border: `1px solid ${C.gold}22`, background: C.gold + '06', marginBottom: 20 }}>
+          <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>AI Music Director™</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Reading your campaign history…</div>
+        </div>
+      )
+    }
+
+    const intel = intelligence
+    if (!intel?.userProfile?.hasEnoughData) {
+      return (
+        <div style={{ padding: '20px 24px', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.surface, marginBottom: 20 }}>
+          <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>AI Music Director™</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 6 }}>Tell the Director what you're building.</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Select a platform and goal below to get AI-ranked recommendations.</div>
+        </div>
+      )
+    }
+
+    const { userProfile, heroRecommendation } = intel
+    const colDef = intelligence.collections?.find(c => c.id === heroRecommendation?.collectionId)
+
+    return (
+      <div style={{ padding: '20px 24px', borderRadius: 12, border: `1px solid ${C.gold}33`, background: `linear-gradient(135deg, ${C.gold}08 0%, ${C.void} 100%)`, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>AI Music Director™</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>Recommended for you</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: C.ghost, marginBottom: 2 }}>{userProfile.confidenceLabel}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: C.green }}>{Math.round(userProfile.confidence * 100)}%</div>
+          </div>
+        </div>
+
+        {heroRecommendation && (
+          <div style={{ padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.gold}33`, background: C.gold + '10', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              {colDef?.emoji && <span style={{ fontSize: 18 }}>{colDef.emoji}</span>}
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.gold, flex: 1 }}>{heroRecommendation.collectionLabel}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.green }}>{heroRecommendation.confidence}% match</div>
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{heroRecommendation.reason}</div>
+            <button
+              onClick={() => handleCollectionClick(
+                intelligence.collections?.find(c => c.id === heroRecommendation.collectionId) ||
+                { filterMood: null, filterEnergy: null }
+              )}
+              style={{ padding: '6px 14px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+              Browse Collection →
+            </button>
+          </div>
+        )}
+
+        <div style={{ fontSize: 10, color: C.ghost }}>
+          Derived from {userProfile.derivedFrom}
+          {userProfile.primaryPlatform ? ` · ${PLATFORM_LABELS[userProfile.primaryPlatform] || userProfile.primaryPlatform}` : ''}
+          {userProfile.primaryGoal ? ` · ${userProfile.primaryGoal}` : ''}
+        </div>
+      </div>
+    )
+  }
+
+  function renderMetricsStrip() {
+    const m = intelligence?.metrics
+    if (!m) return null
+
+    const cards = [
+      { label: 'Total Tracks',    value: String(m.totalTracks ?? '—'),                                                                              color: C.primary },
+      { label: 'Your Licenses',   value: String(m.licensedByUser ?? '0'),                                                                           color: C.green   },
+      { label: 'Top Mood',        value: m.mostUsedMood      || 'Not enough data',                                                                  color: C.gold    },
+      { label: 'Top Platform',    value: m.topPlatform       || 'Not enough data',                                                                  color: C.blue    },
+      { label: 'Best BPM Range',  value: m.bestBpmRange      || '–',                                                                                color: C.violet  },
+      { label: 'Top Recommended', value: m.mostRecommendedTrack ? m.mostRecommendedTrack.split(' ').slice(0, 3).join(' ') : '–',                    color: C.gold    },
+    ]
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
+        {cards.map(card => (
+          <div key={card.label} style={{ padding: '12px', borderRadius: 9, border: `1px solid ${C.hairline}`, background: C.surface }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{card.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: card.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.value}</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   function renderLibrary() {
     return (
       <div>
@@ -347,71 +437,72 @@ export default function MusicStudioPage() {
   }
 
   function renderRecommendations() {
+    const intelligenceTracks = intelligence?.recommendedTracks || []
+    const manualTracks       = recResults?.recommendedTracks   || []
+    const displayTracks      = recResults ? manualTracks : intelligenceTracks
+    const displaySummary     = recResults?.musicSummary || null
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ padding: '16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.secondary, marginBottom: 12 }}>What are you creating?</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {renderDirectorHero()}
+
+        <div style={{ padding: '16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 10 }}>Override — specify your own brief</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             {PLATFORMS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setRecPlatform(p.id)}
-                style={{
-                  padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  border: `1px solid ${recPlatform === p.id ? C.gold : C.hairline}`,
-                  background: recPlatform === p.id ? C.goldGlow : 'none',
-                  color: recPlatform === p.id ? C.gold : C.secondary,
-                }}>
-                {p.label}
-              </button>
+              <button key={p.id} onClick={() => setRecPlatform(p.id)} style={{
+                padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${recPlatform === p.id ? C.gold : C.hairline}`,
+                background: recPlatform === p.id ? C.goldGlow : 'none',
+                color: recPlatform === p.id ? C.gold : C.secondary,
+              }}>{p.label}</button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {GOALS.map(g => (
-              <button
-                key={g.id}
-                onClick={() => setRecGoal(g.id)}
-                style={{
-                  padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  border: `1px solid ${recGoal === g.id ? C.blue : C.hairline}`,
-                  background: recGoal === g.id ? C.blueGlow : 'none',
-                  color: recGoal === g.id ? C.blue : C.secondary,
-                }}>
-                {g.label}
-              </button>
+              <button key={g.id} onClick={() => setRecGoal(g.id)} style={{
+                padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${recGoal === g.id ? C.blue : C.hairline}`,
+                background: recGoal === g.id ? C.blueGlow : 'none',
+                color: recGoal === g.id ? C.blue : C.secondary,
+              }}>{g.label}</button>
             ))}
           </div>
-          <button
-            onClick={handleRecommend}
-            disabled={!recPlatform || !recGoal || recLoading}
-            style={{
-              padding: '9px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-              cursor: (!recPlatform || !recGoal || recLoading) ? 'not-allowed' : 'pointer',
-              border: `1px solid ${(!recPlatform || !recGoal) ? C.hairline : C.gold}`,
-              background: (!recPlatform || !recGoal) ? C.surface : C.goldGlow,
-              color: (!recPlatform || !recGoal) ? C.ghost : C.gold,
-            }}>
-            {recLoading ? 'Finding tracks…' : '★ Get Recommendations'}
-          </button>
+          <button onClick={handleRecommend} disabled={!recPlatform || !recGoal || recLoading} style={{
+            padding: '7px 16px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+            cursor: (!recPlatform || !recGoal || recLoading) ? 'not-allowed' : 'pointer',
+            border: `1px solid ${(!recPlatform || !recGoal) ? C.hairline : C.gold}`,
+            background: (!recPlatform || !recGoal) ? C.surface : C.goldGlow,
+            color: (!recPlatform || !recGoal) ? C.ghost : C.gold,
+          }}>{recLoading ? 'Finding tracks…' : '★ Get Custom Recommendations'}</button>
         </div>
 
-        {recResults && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {recResults.musicSummary && (
-              <div style={{ padding: '14px 16px', borderRadius: 9, border: `1px solid ${C.gold}22`, background: C.gold + '08' }}>
-                <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-                  <div><div style={{ fontSize: 10, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Mood</div><div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{recResults.musicSummary.recommendedMood}</div></div>
-                  <div><div style={{ fontSize: 10, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Pacing</div><div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{recResults.musicSummary.pacing}</div></div>
-                  <div><div style={{ fontSize: 10, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Confidence</div><div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{Math.round(recResults.musicSummary.confidence * 100)}%</div></div>
-                </div>
-                <div style={{ fontSize: 11, color: C.muted }}>{recResults.musicSummary.reason}</div>
-              </div>
-            )}
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, letterSpacing: 1.5, textTransform: 'uppercase' }}>Top Tracks</div>
-            {(recResults.recommendedTracks || []).map(t => (
-              <TrackCard key={t.id} track={t} playing={playing} onPlay={handlePlay} onLicense={handleLicense} />
-            ))}
+        {displaySummary && (
+          <div style={{ padding: '14px 16px', borderRadius: 9, border: `1px solid ${C.gold}22`, background: C.gold + '08', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+              <div><div style={{ fontSize: 9, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Mood</div><div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{displaySummary.recommendedMood}</div></div>
+              <div><div style={{ fontSize: 9, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Pacing</div><div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{displaySummary.pacing}</div></div>
+              <div><div style={{ fontSize: 9, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Confidence</div><div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{Math.round(displaySummary.confidence * 100)}%</div></div>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted }}>{displaySummary.reason}</div>
           </div>
+        )}
+
+        {displayTracks.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.secondary, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>
+              {recResults ? 'Custom Recommendations' : 'AI Director Picks'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {displayTracks.map(t => (
+                <TrackCard key={t.id} track={t} playing={playing} onPlay={handlePlay} onLicense={handleLicense} onSelect={setSelectedTrack} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {intelligenceLoading && intelligenceTracks.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 24, color: C.muted, fontSize: 12 }}>Loading AI recommendations…</div>
         )}
       </div>
     )
