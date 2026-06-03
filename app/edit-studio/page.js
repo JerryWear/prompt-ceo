@@ -98,13 +98,6 @@ const MOCK_AI_CUTS = [
   { id: 'c5', type: 'full',      startTime: 0.0,  endTime: 29.0, reason: 'Full video — strong LinkedIn or YouTube Short at 29 seconds.',               score: 79 },
 ]
 
-const MOCK_MUSIC = [
-  { id: 'm1', title: 'Drive Forward',   artist: 'Studio Collective', mood: 'Motivational', bpm: 128, duration: 180, licensed: true  },
-  { id: 'm2', title: 'Quiet Momentum',  artist: 'Ambient Works',     mood: 'Focused',      bpm: 95,  duration: 210, licensed: true  },
-  { id: 'm3', title: 'Executive Pulse', artist: 'Signal Audio',      mood: 'Professional', bpm: 112, duration: 165, licensed: true  },
-  { id: 'm4', title: 'Clean Energy',    artist: 'Upbeat Labs',       mood: 'Energetic',    bpm: 140, duration: 195, licensed: false },
-]
-
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PLATFORMS = [
@@ -231,7 +224,7 @@ export default function EditStudioPage() {
   })
   const [aiCuts,           setAiCuts]            = useState([])
   const [captionSettings,  setCaptionSettings]   = useState(DEFAULT_CAPTION_SETTINGS)
-  const [musicRecs,        setMusicRecs]         = useState(MOCK_MUSIC)
+  const [musicRecs,        setMusicRecs]         = useState([])
   const [selectedMusic,    setSelectedMusic]      = useState(null)
   const [exportSettings,   setExportSettings]    = useState(DEFAULT_EXPORT_SETTINGS)
 
@@ -677,7 +670,6 @@ export default function EditStudioPage() {
           captionSummary,
           captionSettings,
           editorCleanup,
-          availableTracks: musicRecs,
         }),
       })
       const data = await res.json()
@@ -690,7 +682,7 @@ export default function EditStudioPage() {
     } finally {
       setRecommendingMusic(false)
     }
-  }, [cutPlans, selectedPlanId, aiDirectorAnalysis, project, projectId, captionSummary, captionSettings, editorCleanup, musicRecs, saveProject]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cutPlans, selectedPlanId, aiDirectorAnalysis, project, projectId, captionSummary, captionSettings, editorCleanup, saveProject]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectMusicBed = useCallback((track, timingPlan) => {
     const bed = {
@@ -1081,6 +1073,28 @@ export default function EditStudioPage() {
   useEffect(() => {
     if (saveStatus === 'saved') loadRecentProjects()
   }, [saveStatus, loadRecentProjects])
+
+  // Load real music library from DB
+  useEffect(() => {
+    fetch('/api/music-tracks')
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'success' && Array.isArray(data.tracks)) {
+          setMusicRecs(data.tracks.map(t => ({
+            id:          t.id,
+            title:       t.title,
+            artist:      t.artist_name || t.artist || '',
+            mood:        t.mood         || 'Professional',
+            bpm:         t.bpm          || 100,
+            duration:    t.duration_seconds || 180,
+            energy:      (t.energy || 'medium').toLowerCase(),
+            licenseType: t.is_premium ? 'premium' : ((t.license_credits || 0) > 0 ? 'credit' : 'included'),
+            preview_file_url: t.preview_file_url,
+          })))
+        }
+      })
+      .catch(() => {}) // non-fatal
+  }, [])
 
   // ─── Section: Upload ───────────────────────────────────────────────────────
 
