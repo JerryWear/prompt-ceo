@@ -700,6 +700,14 @@ export default function EditStudioPage() {
     }
     setSelectedMusicBed(bed)
     setSelectedMusic(track)   // backward compat with existing state
+    // Log track selection (non-fatal, fire-and-forget)
+    if (projectId) {
+      fetch('/api/music-studio/log-usage', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ trackId: track.id, projectId, projectType: 'edit_studio', action: 'selected' }),
+      }).catch(() => {})
+    }
     isDirty.current = true
     saveProject(true)
   }, [saveProject])
