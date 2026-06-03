@@ -101,6 +101,16 @@ export async function POST(req) {
       return NextResponse.json({ status: 'error', message: 'License insert failed' }, { status: 500 })
     }
 
+    // Log usage (non-fatal)
+    try {
+      await admin.from('music_usage_logs').insert({
+        user_id:      user.id,
+        track_id:     track.id,
+        project_type: 'ad_studio',
+        action:       'licensed',
+      })
+    } catch { /* non-fatal */ }
+
     // ── Return track metadata — NO full file URL ─────────────
     return NextResponse.json({
       status: 'success',
