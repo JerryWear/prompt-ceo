@@ -52,7 +52,6 @@ export async function GET() {
 
     const [
       campaignMemoryResult,
-      osEventsResult,
       usageLogsResult,
       perfLogsResult,
       tracksResult,
@@ -62,12 +61,6 @@ export async function GET() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100),
-
-      admin.from('os_memory_events')
-        .select('event_type, event_payload, project_name, memory_summary, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20),
 
       admin.from('music_usage_logs')
         .select('track_id, action, created_at, music_tracks(title, mood, bpm, energy)')
@@ -119,7 +112,7 @@ export async function GET() {
     const recommendedTracks = topTracks.map(t => ({
       ...t,
       fitScore:         t.matchScore,
-      reason:           t.matchReasons,
+      reason:           t.whyFits,
       preview_file_url: t.preview_file_url ? `/api/stream-track/${t.id}` : null,
     }))
 
