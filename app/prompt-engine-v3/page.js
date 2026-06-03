@@ -15786,6 +15786,10 @@ export default function PromptCEOPage() {
                         onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.blue }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.blue }}
                       ><span style={{ fontSize: 11 }}>✂</span>Edit Studio</a>
+                      <a href="/music-studio" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: C.gold, borderLeft: '2px solid transparent' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.gold }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.gold }}
+                      ><span style={{ fontSize: 11 }}>♫</span>Music Studio</a>
                       <a href="/instant" onClick={() => setNavOpenGroup(null)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 12, fontWeight: 500, textDecoration: 'none', color: C.secondary, borderLeft: '2px solid transparent' }}
                         onMouseEnter={e => { e.currentTarget.style.background = C.raised; e.currentTarget.style.color = C.secondary }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.secondary }}
