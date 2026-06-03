@@ -24,6 +24,15 @@ export async function GET(req, { params }) {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'preview'
 
+    // Auth check happens before DB lookup for full tracks — never reveal
+    // track existence to unauthenticated requests for paid content.
+    if (type === 'full') {
+      const user = await getUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized — full track requires authentication' }, { status: 401 })
+      }
+    }
+
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -37,9 +46,12 @@ export async function GET(req, { params }) {
 
     if (error || !track) return NextResponse.json({ error: 'Track not found' }, { status: 404 })
 
-    // Full-track access requires authentication
+    // Serve the correct URL — fallback to full requires auth (already checked above)
     let fileUrl
-    if (type === 'full' || (!track.preview_file_url && track.full_file_url)) {
+    if (type === 'full') {
+      fileUrl = track.full_file_url
+    } else if (!track.preview_file_url && track.full_file_url) {
+      // No preview exists — full track only — require auth
       const user = await getUser()
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized — full track requires authentication' }, { status: 401 })
