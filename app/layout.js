@@ -11,6 +11,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#040404",
+};
+
 export const metadata = {
   title: "Prompt CEO — Creative Marketing OS",
   description: "One brief. Your entire marketing stack. Hooks, landing pages, email sequences, SMS, retargeting, video storyboards, and the world's most advanced cinematic prompt engine.",
@@ -18,13 +26,6 @@ export const metadata = {
   authors: [{ name: "Zirunas Michailovas" }],
   creator: "Zirunas Michailovas",
   manifest: "/manifest.json",
-  themeColor: "#040404",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
