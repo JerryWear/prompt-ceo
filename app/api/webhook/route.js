@@ -236,6 +236,72 @@ export async function POST(req) {
         break
       }
 
+      // ── Refund — reverse affiliate commission and credits ─────
+      case 'charge.refunded': {
+        const charge = event.data.object
+        // Only act on full refunds (amount_refunded === amount)
+        if (charge.amount_refunded < charge.amount) break
+
+        const customerId = charge.customer
+        if (!customerId) break
+
+        const user = await getUserByCustomer(customerId)
+        if (!user) break
+
+        // Void any affiliate commission tied to the invoice for this charge
+        const invoiceId = charge.invoice
+        if (invoiceId) {
+          await supabase
+            .from('affiliate_commissions')
+            .update({ status: 'refunded' })
+            .eq('stripe_invoice_id', invoiceId)
+        }
+
+        // If this was a legacy credit purchase, reverse the credits
+        const creditsAdded = Number(charge.metadata?.credits || 0)
+        if (creditsAdded > 0) {
+          const current = await supabase
+            .from('app_users')
+            .select('credits')
+            .eq('id', user.id)
+            .single()
+          const newCredits = Math.max(0, (current.data?.credits || 0) - creditsAdded)
+          await supabase.from('app_users').update({ credits: newCredits }).eq('id', user.id)
+        }
+        break
+      }
+
+      // ── Dispute — flag account, void commission ────────────────
+      case 'charge.dispute.created': {
+        const dispute = event.data.object
+        const customerId = dispute.customer || dispute.charge
+
+        // Retrieve the customer to find the user
+        let resolvedUserId = null
+        if (dispute.customer) {
+          const user = await getUserByCustomer(dispute.customer)
+          resolvedUserId = user?.id
+        }
+
+        if (resolvedUserId) {
+          // Flag the account for manual review
+          await supabase
+            .from('app_users')
+            .update({ dispute_flag: true })
+            .eq('id', resolvedUserId)
+        }
+
+        // Void the commission for the disputed invoice
+        const chargeObj = await stripe.charges.retrieve(dispute.charge)
+        if (chargeObj?.invoice) {
+          await supabase
+            .from('affiliate_commissions')
+            .update({ status: 'disputed' })
+            .eq('stripe_invoice_id', chargeObj.invoice)
+        }
+        break
+      }
+
       // ── Legacy: one-time credit purchase ─────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object
