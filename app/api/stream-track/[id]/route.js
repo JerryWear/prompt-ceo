@@ -1,13 +1,29 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 
-// GET /api/stream-track/[id]
-// Generates a fresh signed URL for the track file and redirects to it.
-// Works for both public (music-previews) and private (music-full) buckets.
+// GET /api/stream-track/[id]?type=preview|full
+// Preview URLs are public — no auth required.
+// Full-track signed URLs require an authenticated session.
+
+async function getUser() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { cookies: { get: (n) => cookieStore.get(n)?.value, set() {}, remove() {} } }
+  )
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
 
 export async function GET(req, { params }) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(req.url)
+    const type = searchParams.get('type') || 'preview'
+
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -21,7 +37,18 @@ export async function GET(req, { params }) {
 
     if (error || !track) return NextResponse.json({ error: 'Track not found' }, { status: 404 })
 
-    const fileUrl = track.preview_file_url || track.full_file_url
+    // Full-track access requires authentication
+    let fileUrl
+    if (type === 'full' || (!track.preview_file_url && track.full_file_url)) {
+      const user = await getUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized — full track requires authentication' }, { status: 401 })
+      }
+      fileUrl = track.full_file_url
+    } else {
+      fileUrl = track.preview_file_url
+    }
+
     if (!fileUrl) return NextResponse.json({ error: 'No file URL' }, { status: 404 })
 
     // Extract bucket name and path from the Supabase storage URL
