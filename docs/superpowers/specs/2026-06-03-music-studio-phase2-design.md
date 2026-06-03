@@ -1,6 +1,105 @@
 # Music Studio Phase 2 — Soundtrack Intelligence™ Design Spec
 **Date:** 2026-06-03
-**Status:** Proposed — awaiting user approval before implementation
+**Status:** Shipped — 2026-06-03 (9 commits, `1aa997d` → `9c84a7b`, cleanup `HEAD`)
+
+---
+
+## Implementation Record
+
+### Files Shipped
+
+| File | Type | Description |
+|---|---|---|
+| `lib/music/intelligenceAssembler.js` | Created | Pure functions: `deriveUserProfile`, `buildAdConfig`, `selectHeroCollection`, `computeCollectionStats`, `computeMetrics`, `buildReasoningChain`, `COLLECTION_DEFINITIONS`, `PLATFORM_LABELS` |
+| `app/api/music-studio/intelligence/route.js` | Created | GET endpoint — 4 parallel queries via `Promise.allSettled`, runs `recommendMusicForAd`, returns structured intelligence response |
+| `app/music-studio/page.js` | Modified | Major upgrade — AI Director hero, metrics strip, enriched collections, Track Intelligence Panel, Recommendations as default tab |
+
+### Final Response Shape (`/api/music-studio/intelligence`)
+
+Stable contract — shape must not change between Phase 2 and Phase 3 GPT upgrade:
+
+```json
+{
+  "status": "success",
+  "userProfile": {
+    "primaryPlatform": "linkedin",
+    "primaryGoal": "founder",
+    "primaryStyle": "lifestyle",
+    "mostUsedMood": "Professional",
+    "confidence": 0.82,
+    "confidenceLabel": "Strong match",
+    "derivedFrom": "14 campaign patterns",
+    "hasEnoughData": true
+  },
+  "heroRecommendation": {
+    "collectionId": "founder_authority",
+    "collectionLabel": "Founder Authority",
+    "reason": "Your recent campaigns focus on founder update content for LinkedIn.",
+    "confidence": 82
+  },
+  "recommendedTracks": [
+    { "id": "uuid", "title": "...", "fitScore": 91, "reason": "...", "preview_file_url": "/api/stream-track/uuid", "...": "all track fields" }
+  ],
+  "recommendedCollections": [
+    { "id": "founder_authority", "confidence": 82, "reason": "..." },
+    { "id": "educational_content", "confidence": 70, "reason": "..." }
+  ],
+  "collections": [
+    { "id": "founder_authority", "label": "Founder Authority", "emoji": "👤", "description": "...", "platforms": ["LinkedIn","YouTube"], "filterMood": null, "filterEnergy": null, "trackCount": 3, "moodProfile": ["Professional","Confident"] }
+  ],
+  "metrics": {
+    "totalTracks": 6,
+    "licensedByUser": 2,
+    "mostUsedMood": "Professional",
+    "topPlatform": "LinkedIn",
+    "bestBpmRange": "85–110 BPM",
+    "mostRecommendedTrack": "Executive Pulse"
+  },
+  "reasoningChain": [
+    "Campaign memory: 14 patterns, primary goal = founder, primary platform = linkedin",
+    "Derived music profile: luxury,professional,confident mood, medium energy, 85–110 BPM",
+    "Top track scored 91/100: Matches founder content style. Aligned with Founder Update pacing"
+  ]
+}
+```
+
+**Key implementation notes:**
+- `recommendMusicForAd` (from `app/prompt-engine-v3/ad-system/musicRecommendation.js`) is the scorer — NOT the BPM scorer in `lib/music/scorer.js`. Uses rich `platform_fit[]`, `mood_fit[]`, `campaign_fit[]` arrays.
+- `whyFits` is the correct return field from `recommendMusicForAd` (aliased as `reason` on `recommendedTracks`)
+- `fitScore` is aliased from `matchScore` so `TrackCard` score bar renders correctly
+- `FULL_TRACK_SELECT = TRACK_SELECT + ', mood_fit, visual_style_fit, commercial_score'` — extends the base scorer's select to include fields `recommendMusicForAd` needs
+- OS memory events were removed from the parallel query set — fetched but never consumed (eliminated dead round-trip)
+
+### Edge Case Verification
+
+| Scenario | Behaviour |
+|---|---|
+| Zero campaign history | `hasEnoughData: false` → hero shows "Tell the Director what you're building" empty state |
+| Zero usage logs | `mostUsedMood: null`, `licensedByUser: 0`, BPM range falls back to goal-derived value from `GOAL_MUSIC_MAP` |
+| Empty performance logs | `performanceInsights: { ready: false }` → platform derived from campaign memory only |
+| Populated tracks | Normal flow — `recommendMusicForAd` scores all tracks, top 5 returned |
+| No tracks in catalog | `recommendedTracks: []`, `metrics.totalTracks: 0`, collections show 0 track counts |
+
+### Known Limitations
+
+| Limitation | Impact |
+|---|---|
+| `reasoningChain` is deterministic prose, not GPT | Explanations are formulaic, not conversational |
+| Campaign memory gated on content creation | New users (0 campaigns) always see the empty state hero |
+| Performance insights gated at ≥5 log entries | Platform signal not used until user has submitted results |
+| Collections are code-defined presets | Cannot be customised per user or admin |
+| Confidence score is a function of pattern count, not actual recommendation quality | May show high confidence on a poor recommendation if user has many patterns |
+
+### Phase 3 Dependency: Catalog Must Be Seeded First
+
+**The GPT Director upgrade (Phase 3) is only worthwhile after the catalog is seeded.**
+
+Reason: Claude would be writing narrative recommendations like "I recommend Cinematic Momentum for your luxury founder campaign" — but if there are only 6 tracks in the catalog, the intelligence surface is thin and recommendations feel arbitrary regardless of how good the language is.
+
+Priority order before Phase 3:
+1. **Seed catalog** — upload all PromptCEO-owned tracks via `/api/admin/upload-music`. More tracks = richer recommendations, more meaningful `platform_fit[]`/`campaign_fit[]` arrays, better differentiation between collections.
+2. **Confirm `music_usage_logs` is collecting** — a few weeks of real usage data will make the metrics strip and BPM range derivation meaningful.
+3. **Then upgrade to GPT Director** — swap the deterministic `deriveUserProfile → buildAdConfig → recommendMusicForAd` pipeline for a Claude call in the intelligence route. Response shape stays identical. UI never changes.
 
 ---
 

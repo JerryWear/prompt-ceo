@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
+import { COLLECTION_DEFINITIONS } from '../../lib/music/intelligenceAssembler.js'
 
 const C = {
   void:       '#040404', deep:      '#070707', base:       '#0a0a0a',
@@ -41,17 +42,6 @@ const GOALS = [
   { id: 'edu',      label: 'Educational'     },
 ]
 
-const COLLECTIONS = [
-  { id: 'founder_launch', label: 'Founder Launch',   desc: 'Confident · Professional · Motivational', emoji: '👤', filter: { mood: 'Confident'    } },
-  { id: 'product_demo',   label: 'Product Demo',     desc: 'Professional · Cinematic',                emoji: '🖥', filter: { mood: 'Professional' } },
-  { id: 'luxury_brand',   label: 'Luxury Brand',     desc: 'Luxury score ≥ 7',                        emoji: '✦', filter: { mood: 'Cinematic'    } },
-  { id: 'ugc_ads',        label: 'UGC Ads',          desc: 'High energy · Fast BPM',                  emoji: '🎥', filter: { energy: 'high'       } },
-  { id: 'fitness',        label: 'Fitness Content',  desc: 'Medium-high energy · 125+ BPM',           emoji: '💪', filter: { energy: 'medium-high'} },
-  { id: 'educational',    label: 'Educational',      desc: 'Focused · Low energy',                    emoji: '🎓', filter: { mood: 'Focused'      } },
-  { id: 'viral',          label: 'Viral Short Form', desc: '128+ BPM · High energy',                  emoji: '⚡', filter: { energy: 'high'       } },
-  { id: 'linkedin',       label: 'LinkedIn',         desc: 'Professional · Low energy',               emoji: '💼', filter: { energy: 'low'        } },
-  { id: 'tiktok',         label: 'TikTok',           desc: '120+ BPM · High energy',                  emoji: '🎵', filter: { energy: 'high'       } },
-]
 
 const LICENSE_COLORS = { included: C.green, credit: C.gold, premium: C.violet }
 const LICENSE_LABELS = { included: 'INCLUDED', credit: 'CREDIT', premium: 'PREMIUM' }
@@ -573,10 +563,16 @@ export default function MusicStudioPage() {
   }
 
   function renderCollections() {
-    const cols = intelligence?.collections || COLLECTIONS.map(c => ({
-      id: c.id, label: c.label, emoji: c.emoji, description: c.desc,
-      platforms: [], filterMood: c.filter?.mood || null, filterEnergy: c.filter?.energy || null,
-      trackCount: null, moodProfile: [],
+    const cols = intelligence?.collections || COLLECTION_DEFINITIONS.map(col => ({
+      id:          col.id,
+      label:       col.label,
+      emoji:       col.emoji,
+      description: col.description,
+      platforms:   col.platforms,
+      filterMood:  col.filterMood,
+      filterEnergy:col.filterEnergy,
+      trackCount:  null,
+      moodProfile: [],
     }))
 
     return (
