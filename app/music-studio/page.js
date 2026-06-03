@@ -73,7 +73,7 @@ function Chip({ label, color }) {
   )
 }
 
-function TrackCard({ track, onLicense, playing, onPlay }) {
+function TrackCard({ track, onLicense, playing, onPlay, onSelect }) {
   const lColor = LICENSE_COLORS[track.licenseType] || C.muted
   const lLabel = LICENSE_LABELS[track.licenseType] || (track.licenseType || '').toUpperCase()
   const isPlaying = playing === track.id
@@ -99,7 +99,12 @@ function TrackCard({ track, onLicense, playing, onPlay }) {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>{track.title}</span>
+            <span
+              onClick={() => onSelect?.(track)}
+              style={{ fontSize: 13, fontWeight: 700, color: C.primary, cursor: onSelect ? 'pointer' : 'default' }}
+              title={onSelect ? 'View track intelligence' : undefined}>
+              {track.title}
+            </span>
             <Chip label={lLabel} color={lColor} />
             {track.is_premium && <Chip label="PREMIUM" color={C.violet} />}
             {track.featured && <Chip label="FEATURED" color={C.gold} />}
@@ -429,7 +434,7 @@ export default function MusicStudioPage() {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {tracks.map(t => (
-            <TrackCard key={t.id} track={t} playing={playing} onPlay={handlePlay} onLicense={handleLicense} />
+            <TrackCard key={t.id} track={t} playing={playing} onPlay={handlePlay} onLicense={handleLicense} onSelect={setSelectedTrack} />
           ))}
         </div>
       </div>
@@ -568,28 +573,194 @@ export default function MusicStudioPage() {
   }
 
   function renderCollections() {
+    const cols = intelligence?.collections || COLLECTIONS.map(c => ({
+      id: c.id, label: c.label, emoji: c.emoji, description: c.desc,
+      platforms: [], filterMood: c.filter?.mood || null, filterEnergy: c.filter?.energy || null,
+      trackCount: null, moodProfile: [],
+    }))
+
     return (
       <div>
         <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
-          Curated track groupings by use case. Click a collection to browse those tracks in the Library.
+          Curated collections by use case. Click to browse tracks in the Library.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-          {COLLECTIONS.map(col => (
+          {cols.map(col => (
             <button
               key={col.id}
               onClick={() => handleCollectionClick(col)}
-              style={{
-                padding: '16px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
-                border: `1px solid ${C.hairline}`, background: C.surface,
-                transition: 'all 0.15s',
-              }}
+              style={{ padding: '16px', borderRadius: 10, textAlign: 'left', cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = C.goldGlow }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.hairline; e.currentTarget.style.background = C.surface }}>
               <div style={{ fontSize: 22, marginBottom: 8 }}>{col.emoji}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.primary, marginBottom: 4 }}>{col.label}</div>
-              <div style={{ fontSize: 11, color: C.muted }}>{col.desc}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: col.trackCount != null ? 6 : 0 }}>{col.description}</div>
+              {col.trackCount != null && (
+                <div style={{ fontSize: 10, color: C.ghost }}>{col.trackCount} track{col.trackCount !== 1 ? 's' : ''}</div>
+              )}
+              {col.moodProfile?.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                  {col.moodProfile.map(mood => (
+                    <span key={mood} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, border: `1px solid ${C.gold}33`, color: C.gold, background: C.gold + '10' }}>{mood}</span>
+                  ))}
+                </div>
+              )}
             </button>
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  function TrackIntelligencePanel() {
+    const track = selectedTrack
+    if (!track) return null
+
+    function platformConfidence(platformId) {
+      const fit  = (track.platform_fit || []).map(p => String(p).toLowerCase())
+      const bpm  = track.bpm || 100
+      const nrgy = (track.energy || '').toLowerCase()
+      let score  = 40
+      if (fit.includes(platformId)) score += 40
+      if (platformId === 'tiktok'    && bpm >= 120 && nrgy === 'high')                  score += 15
+      if (platformId === 'linkedin'  && bpm < 110  && ['low','medium'].includes(nrgy))  score += 15
+      if (platformId === 'instagram' && bpm >= 100 && bpm <= 140)                       score += 10
+      if (platformId === 'youtube'   && bpm >= 85  && bpm <= 120)                       score += 10
+      if (platformId === 'meta'      && nrgy === 'high')                                score += 10
+      return Math.min(95, score)
+    }
+
+    const tags = new Set()
+    const energy = (track.energy || '').toLowerCase()
+    const mood   = (track.mood   || '').toLowerCase()
+    if (energy === 'high' || energy === 'explosive') { tags.add('high-energy'); tags.add('driven') }
+    if (energy === 'medium')  { tags.add('balanced');   tags.add('dynamic') }
+    if (energy === 'low')     { tags.add('subtle');     tags.add('atmospheric') }
+    if (mood.includes('cinematic'))   tags.add('cinematic')
+    if (mood.includes('professional')) tags.add('professional')
+    if (mood.includes('confident'))   tags.add('confident')
+    if (mood.includes('energetic'))   tags.add('energetic')
+    if ((track.luxury_score    || 0) >= 7) tags.add('luxury')
+    if ((track.hook_strength   || 0) >= 8) tags.add('hook-driven')
+    if ((track.drop_strength   || 0) >= 8) tags.add('drop-impact')
+    if ((track.emotional_depth || 0) >= 7) tags.add('emotional')
+
+    const platforms = ['linkedin','instagram','tiktok','youtube','meta']
+      .map(id => ({ id, label: PLATFORM_LABELS[id], score: platformConfidence(id) }))
+      .filter(p => p.score >= 50)
+      .sort((a, b) => b.score - a.score)
+
+    const campaignFit = (track.campaign_fit || []).filter(Boolean)
+
+    function fmtTime(s) {
+      if (!s) return null
+      const m = Math.floor(s / 60)
+      const sec = String(Math.floor(s % 60)).padStart(2, '0')
+      return m > 0 ? `${m}:${sec}` : `0:${sec}`
+    }
+
+    const moments = [
+      track.best_hook_end_seconds  && { label: 'Hook Window',   value: `0 – ${fmtTime(track.best_hook_end_seconds)}`,  note: 'Use for opening visual hook' },
+      track.drop_time_seconds      && { label: 'Drop / Reveal', value: fmtTime(track.drop_time_seconds),              note: 'Sync product reveal here' },
+      track.best_cta_start_seconds && { label: 'CTA Window',    value: `${fmtTime(track.best_cta_start_seconds)} +`,  note: 'Drive action from here' },
+    ].filter(Boolean)
+
+    return (
+      <div
+        onClick={e => { if (e.target === e.currentTarget) setSelectedTrack(null) }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(4,4,4,0.85)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 640, maxHeight: '80vh', overflowY: 'auto', background: C.base, borderRadius: '16px 16px 0 0', border: `1px solid ${C.hairline}`, padding: '24px' }}>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.primary, marginBottom: 4 }}>{track.title}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{track.artist} · {track.mood} · {track.bpm} BPM · {fmtDur(track.duration_seconds)}</div>
+            </div>
+            <button onClick={() => setSelectedTrack(null)} style={{ background: 'none', border: `1px solid ${C.hairline}`, borderRadius: 8, color: C.muted, cursor: 'pointer', padding: '6px 10px', fontSize: 12 }}>✕ Close</button>
+          </div>
+
+          {tags.size > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Track Identity</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[...tags].map(tag => (
+                  <span key={tag} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, border: `1px solid ${C.gold}33`, background: C.gold + '10', color: C.gold }}>{tag}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
+            {[
+              { label: 'Hook',      value: track.hook_strength   || 0, color: C.gold   },
+              { label: 'Drop',      value: track.drop_strength   || 0, color: C.violet },
+              { label: 'Luxury',    value: track.luxury_score    || 0, color: C.gold   },
+              { label: 'Emotional', value: track.emotional_depth || 0, color: C.blue   },
+            ].map(s => (
+              <div key={s.label} style={{ padding: '10px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: C.ghost, textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {platforms.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Platform Intelligence</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {platforms.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 72, fontSize: 11, color: C.secondary, flexShrink: 0 }}>{p.label}</div>
+                    <div style={{ flex: 1, height: 6, background: C.hairline, borderRadius: 3 }}>
+                      <div style={{ width: `${p.score}%`, height: '100%', background: p.score >= 80 ? C.green : p.score >= 65 ? C.gold : C.blue, borderRadius: 3 }} />
+                    </div>
+                    <div style={{ width: 32, fontSize: 11, fontWeight: 700, color: p.score >= 80 ? C.green : p.score >= 65 ? C.gold : C.blue, textAlign: 'right' }}>{p.score}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {campaignFit.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Best Campaign Types</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {campaignFit.map(f => (
+                  <span key={f} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, border: `1px solid ${C.blue}33`, background: C.blue + '10', color: C.blue }}>{f}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {moments.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.ghost, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Best Moments</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {moments.map(m => (
+                  <div key={m.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface }}>
+                    <div style={{ minWidth: 80, fontSize: 12, fontWeight: 700, color: C.gold }}>{m.value}</div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.primary }}>{m.label}</div>
+                      <div style={{ fontSize: 10, color: C.muted }}>{m.note}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => handleLicense(track)}
+              style={{ flex: 1, padding: '10px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+              License Track
+            </button>
+            <button
+              onClick={() => handlePlay(track)}
+              style={{ padding: '10px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
+              {playing === track.id ? '■ Stop' : '▶ Preview'}
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -606,6 +777,7 @@ export default function MusicStudioPage() {
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.primary, fontFamily: 'system-ui, sans-serif' }}>
       <audio ref={audioRef} onEnded={() => setPlaying(null)} style={{ display: 'none' }} />
+      {selectedTrack && <TrackIntelligencePanel />}
 
       <div style={{ borderBottom: `1px solid ${C.hairline}`, padding: '0 24px', display: 'flex', alignItems: 'center', gap: 16, height: 52 }}>
         <a href="/prompt-engine-v3" style={{ fontSize: 11, color: C.ghost, textDecoration: 'none' }}>← Studio</a>
