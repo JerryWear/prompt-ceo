@@ -445,6 +445,7 @@ export default function MusicStudioPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {renderDirectorHero()}
+        {renderMetricsStrip()}
 
         <div style={{ padding: '16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, marginBottom: 10 }}>Override — specify your own brief</div>
