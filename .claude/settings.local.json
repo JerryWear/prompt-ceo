@@ -28,7 +28,10 @@
       "Bash(grep -n \"import\\(\" /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/instant-campaign/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/full-day-generate/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/full-ad-campaign/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/generate-ad-text/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/generate-image/route.js /c/Users/Work/OneDrive\\\\Desktop\\\\prompt-ceo/app/api/performance-insights/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/save-ad-project/route.js /c/Users/Work/OneDrive/Desktop/prompt-ceo/app/api/load-ad-projects/route.js)",
       "Read(//c/Users/Work/OneDriveDesktopprompt-ceo/app/api/performance-insights/**)",
       "WebSearch",
-      "Bash(grep -n \"APP_KNOWLEDGE\\\\|systemPrompt\\\\|system_prompt\\\\|\\\\${APP\")"
+      "Bash(grep -n \"APP_KNOWLEDGE\\\\|systemPrompt\\\\|system_prompt\\\\|\\\\${APP\")",
+      "PowerShell(winget install GitHub.cli --accept-source-agreements --accept-package-agreements 2>&1)",
+      "PowerShell(npx @playwright/mcp@latest --version 2>&1)",
+      "PowerShell(cd \"$env:TEMP\\\\pw-audit\"; npx playwright install chromium 2>&1 | Select-Object -Last 5)"
     ]
   }
 }
