@@ -356,7 +356,7 @@ export default function MusicStudioPage() {
     }
 
     const { userProfile, heroRecommendation } = intel
-    const colDef = intelligence.collections?.find(c => c.id === heroRecommendation?.collectionId)
+    const colDef = intel.collections?.find(c => c.id === heroRecommendation?.collectionId)
 
     return (
       <div style={{ padding: '20px 24px', borderRadius: 12, border: `1px solid ${C.gold}33`, background: `linear-gradient(135deg, ${C.gold}08 0%, ${C.void} 100%)`, marginBottom: 20 }}>
@@ -381,7 +381,7 @@ export default function MusicStudioPage() {
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{heroRecommendation.reason}</div>
             <button
               onClick={() => handleCollectionClick(
-                intelligence.collections?.find(c => c.id === heroRecommendation.collectionId) ||
+                intel.collections?.find(c => c.id === heroRecommendation.collectionId) ||
                 { filterMood: null, filterEnergy: null }
               )}
               style={{ padding: '6px 14px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
@@ -612,7 +612,7 @@ export default function MusicStudioPage() {
     )
   }
 
-  function TrackIntelligencePanel() {
+  function renderTrackIntelligencePanel() {
     const track = selectedTrack
     if (!track) return null
 
@@ -667,9 +667,11 @@ export default function MusicStudioPage() {
 
     return (
       <div
-        onClick={e => { if (e.target === e.currentTarget) setSelectedTrack(null) }}
+        onClick={() => setSelectedTrack(null)}
         style={{ position: 'fixed', inset: 0, background: 'rgba(4,4,4,0.85)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 640, maxHeight: '80vh', overflowY: 'auto', background: C.base, borderRadius: '16px 16px 0 0', border: `1px solid ${C.hairline}`, padding: '24px' }}>
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ width: '100%', maxWidth: 640, maxHeight: '80vh', overflowY: 'auto', background: C.base, borderRadius: '16px 16px 0 0', border: `1px solid ${C.hairline}`, padding: '24px' }}>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
@@ -777,7 +779,7 @@ export default function MusicStudioPage() {
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.primary, fontFamily: 'system-ui, sans-serif' }}>
       <audio ref={audioRef} onEnded={() => setPlaying(null)} style={{ display: 'none' }} />
-      {selectedTrack && <TrackIntelligencePanel />}
+      {selectedTrack && renderTrackIntelligencePanel()}
 
       <div style={{ borderBottom: `1px solid ${C.hairline}`, padding: '0 24px', display: 'flex', alignItems: 'center', gap: 16, height: 52 }}>
         <a href="/prompt-engine-v3" style={{ fontSize: 11, color: C.ghost, textDecoration: 'none' }}>← Studio</a>
