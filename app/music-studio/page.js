@@ -55,6 +55,10 @@ const COLLECTIONS = [
 
 const LICENSE_COLORS = { included: C.green, credit: C.gold, premium: C.violet }
 const LICENSE_LABELS = { included: 'INCLUDED', credit: 'CREDIT', premium: 'PREMIUM' }
+const PLATFORM_LABELS = {
+  linkedin: 'LinkedIn', instagram: 'Instagram', tiktok: 'TikTok',
+  youtube: 'YouTube', meta: 'Meta', facebook: 'Facebook',
+}
 
 function fmtDur(s) { if (!s) return '—'; const m = Math.floor(s / 60); const r = Math.floor(s % 60); return m > 0 ? `${m}m ${r}s` : `${r}s` }
 function fmtDate(s) { return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) }
@@ -137,7 +141,7 @@ export default function MusicStudioPage() {
 
   const [user,          setUser]          = useState(null)
   const [loading,       setLoading]       = useState(true)
-  const [activeTab,     setActiveTab]     = useState('library')
+  const [activeTab,     setActiveTab]     = useState('recommendations')
 
   const [tracks,        setTracks]        = useState([])
   const [tracksLoading, setTracksLoading] = useState(false)
@@ -156,6 +160,10 @@ export default function MusicStudioPage() {
   const [licenses,      setLicenses]      = useState(null)
   const [licLoading,    setLicLoading]    = useState(false)
 
+  const [intelligence,        setIntelligence]        = useState(null)
+  const [intelligenceLoading, setIntelligenceLoading] = useState(false)
+  const [selectedTrack,       setSelectedTrack]       = useState(null)
+
   const [licensing,     setLicensing]     = useState(false)
   const [licenseError,  setLicenseError]  = useState(null)
 
@@ -167,6 +175,16 @@ export default function MusicStudioPage() {
       setLoading(false)
     })
   }, [router])
+
+  useEffect(() => {
+    if (!user) return
+    setIntelligenceLoading(true)
+    fetch('/api/music-studio/intelligence')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setIntelligence(d) })
+      .catch(() => {})
+      .finally(() => setIntelligenceLoading(false))
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!user) return
@@ -264,8 +282,10 @@ export default function MusicStudioPage() {
   }
 
   function handleCollectionClick(col) {
-    if (col.filter.mood)   setFilterMood(col.filter.mood)
-    if (col.filter.energy) setFilterEnergy(col.filter.energy)
+    const mood   = col.filterMood   ?? col.filter?.mood   ?? null
+    const energy = col.filterEnergy ?? col.filter?.energy ?? null
+    if (mood)   setFilterMood(mood)
+    if (energy) setFilterEnergy(energy)
     setTracks([])
     setActiveTab('library')
   }
