@@ -309,7 +309,7 @@ Credit system: Users purchase credit packs ($50/$100/$250/$500) for generation b
 | `firecrawl` | `firecrawl-mcp` | Competitor research, landing page audits, structured web scraping |
 
 Config location: `C:\Users\Work\.claude\settings.json`
-Firecrawl requires `FIRECRAWL_API_KEY` — add key to settings.json before use.
+Firecrawl API key active — 1,000 credits/month, resets 2026-07-04.
 
 ---
 
