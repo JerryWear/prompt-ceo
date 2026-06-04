@@ -341,6 +341,15 @@ export default function EditStudioPage() {
 
   const handleFileSelect = useCallback((file) => {
     if (!file || !file.type.startsWith('video/')) return
+    const MAX_MB = 25
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setSourceUploadError(
+        `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — over the ${MAX_MB} MB transcription limit. ` +
+        `Compress it with HandBrake (free) or export audio-only before uploading.`
+      )
+      return
+    }
+    setSourceUploadError(null)
     videoFileRef.current = file // keep the File object alive for Whisper upload
     setProject(p => ({
       ...p,
