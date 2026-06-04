@@ -19,7 +19,7 @@
 //   'empty'               — nothing resolved
 // ─────────────────────────────────────────────────────────────
 
-import { STORY_CHAPTERS } from '../../prompt-v2/story-chapters/index.js'
+import { STORY_CHAPTERS } from '../../lib/content/story-chapters/index.js'
 
 // ─────────────────────────────────────────────────────────────
 // PHASE_1_FALLBACK_POOLS

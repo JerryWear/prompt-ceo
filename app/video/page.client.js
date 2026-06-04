@@ -4,16 +4,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 
-import { SIGNATURE_PACKS } from '../prompt-v2/signature-packs/index'
+import { SIGNATURE_PACKS } from '../lib/content/signature-packs/index'
 import {
   AGE_RANGE_OPTIONS,
   AGE_FLAT_LIBRARY,
   resolveAgeFromRange,
 } from '../prompt-v2/age-system'
 
-import { STORY_WORLDS } from '../prompt-v2/story-worlds/index'
-import { STORY_CHAPTERS } from '../prompt-v2/story-chapters'
-import { WORLD_LOCATIONS, getWorldById } from '../prompt-v2/worlds'
+import { STORY_WORLDS } from '../lib/content/story-worlds/index'
+import { STORY_CHAPTERS } from '../lib/content/story-chapters'
+import { WORLD_LOCATIONS, getWorldById } from '../lib/content/worlds'
 
 const EMPTY_BLOCKS = {
   identity: '',

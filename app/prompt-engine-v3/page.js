@@ -17,11 +17,11 @@ import {
   STORY_STYLE_WORLDS,
   CREATIVE_STORY_WORLDS,
   getWorldById,
-} from '../prompt-v2/worlds/index.js'
+} from '../lib/content/worlds/index.js'
 
-import { STORY_WORLDS }    from '../prompt-v2/story-worlds/index.js'
-import { STORY_CHAPTERS }  from '../prompt-v2/story-chapters/index.js'
-import { SIGNATURE_PACKS } from '../prompt-v2/signature-packs/index.js'
+import { STORY_WORLDS }    from '../lib/content/story-worlds/index.js'
+import { STORY_CHAPTERS }  from '../lib/content/story-chapters/index.js'
+import { SIGNATURE_PACKS } from '../lib/content/signature-packs/index.js'
 import { createGenerationPipeline, readCachedOutput, clearProjectCache } from './lib/pipeline.js'
 
 // ── PromptCEO OS Core — Step 2: AI Director pilot integration ──────────────

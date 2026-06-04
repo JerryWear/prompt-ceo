@@ -11,7 +11,7 @@ import {
   deriveTimeOfDay,
 } from '../schemas/layerTypes.js'
 
-import { getWorldById } from '../../prompt-v2/worlds/index.js'
+import { getWorldById } from '../../lib/content/worlds/index.js'
 
 // ─────────────────────────────────────────────────────────────
 // STORY_WORLD_TO_WORLD_ID

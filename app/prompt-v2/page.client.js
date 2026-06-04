@@ -12,18 +12,18 @@ import {
   UNRESTRICTED_PRESETS,
 } from './presets'
 import { LIBRARIES } from './libraries'
-import { SIGNATURE_PACKS } from './signature-packs/index'
+import { SIGNATURE_PACKS } from '../lib/content/signature-packs/index'
 import {
   AGE_RANGE_OPTIONS,
   AGE_FLAT_LIBRARY,
   resolveAgeFromRange,
 } from './age-system'
 
-import { STORY_WORLDS } from './story-worlds/index'
-import { STORY_CHAPTERS } from './story-chapters'
+import { STORY_WORLDS } from '../lib/content/story-worlds/index'
+import { STORY_CHAPTERS } from '../lib/content/story-chapters'
 
-import { WORLD_LOCATIONS, getWorldById } from './worlds'
-import { ITALY_CINEMATIC_PHASES } from './worlds/italy'
+import { WORLD_LOCATIONS, getWorldById } from '../lib/content/worlds'
+import { ITALY_CINEMATIC_PHASES } from '../lib/content/worlds/italy'
 
 import {
   ESCALATION_BY_PHASE,
@@ -41,24 +41,24 @@ import {
   baliStoryRoutes,
   baliCinematicOverlays,
   baliWorldIdentityPhrases,
-} from './worlds/bali'
+} from '../lib/content/worlds/bali'
 
 import { FANVUE_PACKAGE } from './packages/fanvue'
 
-import { WORLD_PRIVATE_CREATOR } from './worlds/privateCreator'
+import { WORLD_PRIVATE_CREATOR } from '../lib/content/worlds/privateCreator'
 
-import { WORLD_FITNESS_LIFE } from './worlds/fitnessLife'
+import { WORLD_FITNESS_LIFE } from '../lib/content/worlds/fitnessLife'
 
-import { WORLD_LUXURY_LIFE } from './worlds/luxuryLife'
+import { WORLD_LUXURY_LIFE } from '../lib/content/worlds/luxuryLife'
 
-import { WORLD_FANVUE_CREATOR } from './worlds/fanvueCreator'
-import { WORLD_ONLYFANS_CREATOR } from './worlds/onlyfansCreator'
+import { WORLD_FANVUE_CREATOR } from '../lib/content/worlds/fanvueCreator'
+import { WORLD_ONLYFANS_CREATOR } from '../lib/content/worlds/onlyfansCreator'
 
-import { WORLD_GYM_INFLUENCER } from './worlds/gymInfluencer'
+import { WORLD_GYM_INFLUENCER } from '../lib/content/worlds/gymInfluencer'
 
-import { WORLD_LUXURY_YACHT_RIVIERA } from './worlds/luxuryYachtRiviera'
+import { WORLD_LUXURY_YACHT_RIVIERA } from '../lib/content/worlds/luxuryYachtRiviera'
 
-import { WORLD_FITNESS_GLOBAL_ELITE } from './worlds/fitness-global-elite'
+import { WORLD_FITNESS_GLOBAL_ELITE } from '../lib/content/worlds/fitness-global-elite'
 
 import {
   createEmptySubjectState,
