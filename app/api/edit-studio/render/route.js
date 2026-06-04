@@ -170,9 +170,11 @@ export async function POST(req) {
     await updateJobStatus(supabase, jobId, user.id, 'processing')
 
     let exportUrl
+    let renderDetails = {}
     try {
-      const result = await executeRenderJob(renderPlan, jobId, user.id, admin)
-      exportUrl    = result.exportUrl
+      const result  = await executeRenderJob(renderPlan, jobId, user.id, admin)
+      exportUrl     = result.exportUrl
+      renderDetails = result.renderDetails || {}
     } catch (renderErr) {
       // Render failed — update job, return structured error
       await updateJobStatus(supabase, jobId, user.id, 'failed', {
