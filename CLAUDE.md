@@ -305,8 +305,11 @@ Credit system: Users purchase credit packs ($50/$100/$250/$500) for generation b
 | `context7` | Built-in via plugin | Real-time framework docs (Next.js, Supabase, Stripe) |
 | `playwright` | `@playwright/mcp@latest` | Browser automation, UI testing, screenshot verification |
 | `github` | `@modelcontextprotocol/server-github` | Repo access, PR management, commit history |
+| `memory` | `@modelcontextprotocol/server-memory` | Persistent knowledge graph across Claude Code sessions |
+| `firecrawl` | `firecrawl-mcp` | Competitor research, landing page audits, structured web scraping |
 
 Config location: `C:\Users\Work\.claude\settings.json`
+Firecrawl requires `FIRECRAWL_API_KEY` — add key to settings.json before use.
 
 ---
 
