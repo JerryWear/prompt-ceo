@@ -697,6 +697,7 @@ export default function EditStudioPage() {
       fadeOut:     timingPlan?.outroFade   ?? 2.0,
       startTime:   timingPlan?.recommendedStartTime ?? 0,
       loop:        timingPlan?.loop ?? false,
+      fileUrl:     track.preview_file_url || null,
     }
     setSelectedMusicBed(bed)
     setSelectedMusic(track)   // backward compat with existing state

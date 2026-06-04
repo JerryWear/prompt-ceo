@@ -136,6 +136,8 @@ export async function POST(req) {
         fadeOut:   selectedMusicBed.fadeOut   ?? 2.0,
         startTime: selectedMusicBed.startTime ?? 0,
         loop:      selectedMusicBed.loop      ?? false,
+        fileUrl:   selectedMusicBed.fileUrl   || null,
+        trackUrl:  selectedMusicBed.trackUrl  || null,
       } : null,
       // Overlay settings
       overlays: {

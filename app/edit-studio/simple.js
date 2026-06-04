@@ -155,11 +155,17 @@ function useAutoPipeline() {
         const topTrack = musicData.recommendedTracks?.[0]
         if (topTrack) {
           selectedMusicBed = {
-            trackId: topTrack.id, title: topTrack.title, mood: topTrack.mood, bpm: topTrack.bpm,
-            volume: musicData.timingPlan?.targetVolume ?? 0.6,
-            fadeIn: musicData.timingPlan?.introFade ?? 1.0,
-            fadeOut: musicData.timingPlan?.outroFade ?? 2.0,
-            startTime: 0, loop: false, selectedAt: new Date().toISOString(),
+            trackId:    topTrack.id,
+            title:      topTrack.title,
+            mood:       topTrack.mood,
+            bpm:        topTrack.bpm,
+            volume:     musicData.timingPlan?.targetVolume ?? 0.6,
+            fadeIn:     musicData.timingPlan?.introFade    ?? 1.0,
+            fadeOut:    musicData.timingPlan?.outroFade    ?? 2.0,
+            startTime:  0,
+            loop:       false,
+            selectedAt: new Date().toISOString(),
+            fileUrl:    topTrack.preview_file_url || null,
           }
         }
       }
