@@ -218,7 +218,7 @@ export async function POST(req) {
     log.info(`Video saved to temp (${(videoBuffer.byteLength / 1024 / 1024).toFixed(1)} MB)`)
 
     // ── Extract frames via FFmpeg (graceful fallback) ──────────────────────────
-    const frames = await extractFrames(videoPath, workDir, log, 15)
+    const frames = await extractFrames(videoPath, workDir, log, 10)
 
     // ── Build transcript text ─────────────────────────────────────────────────
     const transcriptText = buildTranscriptText(transcriptSegments)
@@ -274,7 +274,9 @@ export async function POST(req) {
         }
 
         const gptData = await gptRes.json()
-        understanding = JSON.parse(gptData.choices[0].message.content)
+        const content = gptData.choices?.[0]?.message?.content
+        if (!content) throw new Error(`GPT-4o returned empty content (finish_reason: ${gptData.choices?.[0]?.finish_reason ?? 'unknown'})`)
+        understanding = JSON.parse(content)
       } catch (err) {
         fallback       = true
         fallbackReason = `Vision analysis unavailable: ${err.message}`
