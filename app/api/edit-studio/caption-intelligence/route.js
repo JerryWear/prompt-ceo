@@ -101,10 +101,17 @@ const SPLIT_BEFORE = new Set(['and', 'but', 'or', 'so', 'because', 'when', 'if',
 // Punctuation that ends a phrase — split AFTER these
 const PUNCTUATION_BREAK = /[.,?!—]$/
 
-// Key product/domain terms used in saas_demo uppercase detection
+// Key product/domain terms used in saas_demo uppercase detection + emphasis pop
 const KEY_TERMS = new Set([
   'promptceo', 'prompt', 'studio', 'campaign', 'ai', 'director',
   'builder', 'intelligence',
+])
+
+// High-emotion words that get their own single-word chunk in tiktok_ugc / high_energy
+const EMOTION_WORDS = new Set([
+  'tired', 'stuck', 'frustrated', 'love', 'hate', 'finally',
+  'never', 'always', 'stop', 'wait', 'wrong', 'broken', 'free',
+  'fast', 'done', 'now', 'gone', 'win', 'lose', 'pain',
 ])
 
 /**
@@ -153,7 +160,15 @@ function buildChunks(words, style) {
       (hasPunctuationBreak(word) || (i + 1 < words.length && shouldBreakBefore(words[i + 1])))
     const punctAfterOne  = hasPunctuationBreak(word) && current.length >= 1
 
-    const shouldBreak = atMax || atMinWithBreak || punctAfterOne
+    // For styles with minWords === 1 (tiktok_ugc, high_energy), break after any
+    // high-emphasis word so it gets its own single-word chunk — the "pop" effect.
+    const isEmphasisWord = minWords === 1 && current.length === 1 && (
+      KEY_TERMS.has(word.toLowerCase().replace(/[^a-z]/g, '')) ||
+      /\d/.test(word) ||
+      EMOTION_WORDS.has(word.toLowerCase().replace(/[^a-z]/g, ''))
+    )
+
+    const shouldBreak = atMax || atMinWithBreak || punctAfterOne || isEmphasisWord
 
     if (shouldBreak && i < words.length - 1) {
       chunks.push([...current])
