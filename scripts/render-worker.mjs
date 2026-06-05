@@ -291,14 +291,26 @@ function writeCaptionAss(captions, settings, workDir) {
 
 // ─── FFmpeg args builder ──────────────────────────────────────────────────────
 
-function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath = null, introPath = null, outroPath = null, watermarkPath = null) {
+function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath = null, introPath = null, outroPath = null, watermarkPath = null, voiceoverPath = null) {
   const segs = (plan.segments||[]).filter(s => (s.duration ?? (s.end - s.start)) > 0)
   if (!segs.length) throw new Error('No segments with duration > 0')
   const [w,h]  = (plan.resolution||'1080x1920').split('x')
   const crf    = plan.quality==='high' ? '18' : plan.quality==='web' ? '26' : '23'
   const inputs = ['-i', inputPath]
-  if (musicPath) inputs.push('-i', musicPath)
-  let nextIdx        = musicPath ? 2 : 1
+
+  // v2: voiceover replaces original video audio — add voiceover as input 1.
+  // For v2, music mixing is skipped (voiceover is the sole audio track).
+  const hasVoiceover = plan.v2 === true && !!voiceoverPath
+  let voIdx = null
+  if (hasVoiceover) {
+    voIdx = inputs.length / 2  // index 1
+    inputs.push('-i', voiceoverPath)
+  }
+
+  // v1 only: music as next input
+  if (!hasVoiceover && musicPath) inputs.push('-i', musicPath)
+
+  let nextIdx        = hasVoiceover ? 2 : (musicPath ? 2 : 1)
   const hasLogo      = !!logoPath
   const logoIdx      = hasLogo      ? nextIdx++ : null
   if (hasLogo)      inputs.push('-i', logoPath)
@@ -317,10 +329,21 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
   const filters=[], vParts=[], aParts=[]
   segs.forEach((seg,i) => {
     filters.push(`[0:v]trim=start=${seg.start}:end=${seg.end},setpts=PTS-STARTPTS[v${i}]`)
-    filters.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[a${i}]`)
-    vParts.push(`[v${i}]`); aParts.push(`[a${i}]`)
+    if (!hasVoiceover) {
+      // v1: use original video audio per segment
+      filters.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[a${i}]`)
+      aParts.push(`[a${i}]`)
+    }
+    vParts.push(`[v${i}]`)
   })
-  filters.push(`${vParts.join('')}${aParts.join('')}concat=n=${segs.length}:v=1:a=1[catv][cata]`)
+
+  if (hasVoiceover) {
+    // v2: video-only concat; voiceover becomes the audio track
+    filters.push(`${vParts.join('')}concat=n=${segs.length}:v=1:a=0[catv]`)
+  } else {
+    filters.push(`${vParts.join('')}${aParts.join('')}concat=n=${segs.length}:v=1:a=1[catv][cata]`)
+  }
+
   filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[scaled]`)
   let finalV = '[scaled]'
   if (captionPath) {
@@ -340,8 +363,10 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
     finalV = '[afterwm]'
   }
 
-  let finalA = '[cata]'
-  if (musicPath) {
+  // v2: audio comes from voiceover input directly
+  // v1: audio from concatenated segments, optionally mixed with music
+  let finalA = hasVoiceover ? `[${voIdx}:a]` : '[cata]'
+  if (!hasVoiceover && musicPath) {
     const m=plan.music||{}, vol=m.volume??0.6, fi=m.fadeIn??1.0, fo=m.fadeOut??2.0
     const dur=plan.totalDuration||segs.reduce((s,g)=>s+g.duration,0)
     filters.push(`[1:a]volume=${vol},afade=t=in:st=0:d=${fi},afade=t=out:st=${Math.max(0,dur-fo)}:d=${fo}[bed]`)
@@ -367,9 +392,11 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
     finalV = '[finalV]'; finalA = '[finalA]'
   }
 
+  const durationArgs = hasVoiceover && plan.totalDuration ? ['-t', String(plan.totalDuration)] : []
+
   return [...inputs,'-filter_complex',filters.join(';'),'-map',finalV,'-map',finalA,
     '-c:v','libx264','-preset','fast','-crf',crf,'-c:a','aac','-b:a','128k',
-    '-r',String(plan.fps||30),'-movflags','+faststart','-y',outputPath]
+    '-r',String(plan.fps||30),'-movflags','+faststart',...durationArgs,'-y',outputPath]
 }
 
 // ─── Storage upload ───────────────────────────────────────────────────────────
@@ -416,9 +443,28 @@ async function executeJob(job) {
     await downloadFile(resolvedSourceUrl, inputPath)
     log('INFO', jobId, 'Source downloaded', { size: `${(fs.statSync(inputPath).size/1024/1024).toFixed(1)} MB` })
 
+    // 1b. Download voiceover (v2 only)
+    let voiceoverPath = null
+    if (plan.v2 && plan.voiceoverStoragePath) {
+      await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'voiceover' } })
+      try {
+        const bucket = plan.voiceoverBucket || 'edit-studio-assets'
+        const { data: voiceSign, error: voiceErr } = await db.storage
+          .from(bucket)
+          .createSignedUrl(plan.voiceoverStoragePath, 3600)
+        if (voiceErr) throw new Error(voiceErr.message)
+        voiceoverPath = path.join(workDir, 'voiceover.mp3')
+        await downloadFile(voiceSign.signedUrl, voiceoverPath)
+        log('INFO', jobId, 'Voiceover downloaded', { path: plan.voiceoverStoragePath })
+      } catch (err) {
+        warnings.push(`Voiceover skipped: ${err.message}`)
+        log('WARN', jobId, `Voiceover skipped: ${err.message}`)
+      }
+    }
+
     // 2. Caption file
     let captionPath = null
-    if (plan.overlays?.captionsEnabled && plan.captions?.length) {
+    if ((plan.overlays?.captionsEnabled || plan.v2) && plan.captions?.length) {
       log('INFO', jobId, 'Writing captions')
       await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'captions' } })
       try {
@@ -480,7 +526,7 @@ async function executeJob(job) {
     // 4. Run FFmpeg
     log('INFO', jobId, 'Running FFmpeg', { segments: plan.segments?.length, captions: !!captionPath, music: !!musicPath })
     await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'ffmpeg' } })
-    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath, introPath, outroPath, watermarkPath)
+    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath, introPath, outroPath, watermarkPath, voiceoverPath)
     await execFileAsync('ffmpeg', args, { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 })
 
     if (!fs.existsSync(outputPath)) throw new Error('FFmpeg exited 0 but output file missing.')
@@ -495,10 +541,22 @@ async function executeJob(job) {
     log('INFO', jobId, 'Uploaded', { storagePath })
 
     // 6. Mark complete
-    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, logoRendered: !!logoPath, introRendered: !!introPath, outroRendered: !!outroPath, watermarkRendered: !!watermarkPath, warnings, retryCount, completedAt: new Date().toISOString() }
+    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, logoRendered: !!logoPath, introRendered: !!introPath, outroRendered: !!outroPath, watermarkRendered: !!watermarkPath, voiceoverRendered: !!voiceoverPath, warnings, retryCount, completedAt: new Date().toISOString() }
     await updateJob(jobId, 'completed', { export_url: exportUrl, render_details: renderDetails })
     await appendJobToProject(projectId, userId, { id: jobId, status: 'completed', exportUrl, createdAt: job.created_at })
     await db.from('edit_projects').update({ status: 'exported' }).eq('id', projectId).eq('user_id', userId)
+
+    // Update edit_ads if this was a v2 ad render
+    if (plan.v2 && plan.adId) {
+      try {
+        await db.from('edit_ads')
+          .update({ render_export_url: exportUrl, status: 'completed' })
+          .eq('id', plan.adId)
+        log('INFO', jobId, 'edit_ads updated with export URL')
+      } catch (err) {
+        log('WARN', jobId, `edit_ads update failed: ${err.message}`)
+      }
+    }
 
     log('INFO', jobId, 'Job complete', { exportUrl: exportUrl.slice(0, 60) + '…' })
   } catch (err) {
