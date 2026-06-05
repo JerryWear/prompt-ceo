@@ -261,6 +261,8 @@ function buildV2RenderPlan(ad, project) {
     // Metadata
     projectId: project.id,
     adType:    ad.ad_type,
+    platform:  ad.ad_type,
+    goal:      'ad_render',
   }
 }
 
