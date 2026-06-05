@@ -1,0 +1,48 @@
+# Dockerfile.worker
+# PromptCEO Edit Studio — Render Worker
+#
+# PURPOSE: Standalone worker image. Does NOT build the Next.js web app.
+# DEPLOY:  In Railway → Service → Settings → Docker File Path → set to "Dockerfile.worker"
+#
+# The render worker is a standalone Node.js script.
+# It only needs:
+#   1. FFmpeg (with libass for subtitle rendering)
+#   2. @supabase/supabase-js (from npm)
+#   3. Node.js built-ins (child_process, fs, path, os)
+#
+# Ubuntu's ffmpeg package includes libass by default (libass9 dependency).
+
+FROM node:20-slim
+
+# Install FFmpeg with libass support
+# libass is required for the 'subtitles' filter used in caption burn-in
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Verify FFmpeg + libass at build time (fails build if broken)
+RUN ffmpeg -version && \
+    ffmpeg -filters 2>/dev/null | grep -q subtitles && \
+    echo "✓ FFmpeg with subtitles/libass filter confirmed"
+
+WORKDIR /app
+
+# Install Node dependencies
+# Only package.json needed — worker uses @supabase/supabase-js + Node built-ins
+COPY package.json package-lock.json* ./
+RUN npm install --omit=optional
+
+# Copy the render worker script
+COPY scripts/render-worker.mjs ./scripts/
+
+# Default environment (override in Railway Variables)
+ENV POLL_INTERVAL_MS=5000
+ENV MAX_CONCURRENT=1
+ENV MAX_RETRIES=3
+ENV STALE_MINUTES=10
+
+# Health check: verify FFmpeg is still available at runtime
+HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
+  CMD ffmpeg -version > /dev/null 2>&1 || exit 1
+
+CMD ["node", "scripts/render-worker.mjs"]
