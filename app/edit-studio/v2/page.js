@@ -326,12 +326,12 @@ export default function EditStudioV2() {
             <div className={styles.resultsCard}>
               <p className={styles.sectionTitle}>Key Screens</p>
               <div className={styles.screenList}>
-                {understanding.screens_detected.map((screen, i) => (
+                {understanding.screens_detected.map((screenItem, i) => (
                   <div key={i} className={styles.screenRow}>
-                    <span className={styles.screenLabel}>{screen.label}</span>
-                    {screen.significance && (
-                      <span className={`${styles.pillSignificance} ${styles[screen.significance] || styles.low}`}>
-                        {screen.significance}
+                    <span className={styles.screenLabel}>{screenItem.label}</span>
+                    {screenItem.significance && (
+                      <span className={`${styles.pillSignificance} ${styles[screenItem.significance] || styles.low}`}>
+                        {screenItem.significance}
                       </span>
                     )}
                   </div>
