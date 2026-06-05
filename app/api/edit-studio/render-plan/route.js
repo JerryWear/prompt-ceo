@@ -73,7 +73,15 @@ export async function POST(req) {
         const { data: userRow } = await makeAdmin()
           .from('app_users').select('brand_kit').eq('id', user.id).single()
         const kit = userRow?.brand_kit || {}
-        if (kit.logoUrl) brandKit = { logoUrl: kit.logoUrl, primaryColor: kit.primaryColor || null }
+        if (kit.logoUrl || kit.introClipUrl || kit.outroClipUrl || kit.watermarkUrl) {
+          brandKit = {
+            logoUrl:      kit.logoUrl      || null,
+            primaryColor: kit.primaryColor || null,
+            introClipUrl: kit.introClipUrl || null,
+            outroClipUrl: kit.outroClipUrl || null,
+            watermarkUrl: kit.watermarkUrl || null,
+          }
+        }
       } catch { /* non-fatal */ }
     }
 
