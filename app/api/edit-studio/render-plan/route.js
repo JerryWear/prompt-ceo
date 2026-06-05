@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { validateRenderPlan, estimateRenderTime } from '../../../../lib/edit-studio/renderEngine.js'
 
@@ -35,6 +36,13 @@ async function makeSupabase() {
   )
 }
 
+function makeAdmin() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 // POST /api/edit-studio/render-plan
 
@@ -57,6 +65,17 @@ export async function POST(req) {
 
     const supabase = await makeSupabase()
     const { data: { user } } = await supabase.auth.getUser()
+
+    // Fetch brand kit (non-fatal — renders proceed without it)
+    let brandKit = null
+    if (user) {
+      try {
+        const { data: userRow } = await makeAdmin()
+          .from('app_users').select('brand_kit').eq('id', user.id).single()
+        const kit = userRow?.brand_kit || {}
+        if (kit.logoUrl) brandKit = { logoUrl: kit.logoUrl, primaryColor: kit.primaryColor || null }
+      } catch { /* non-fatal */ }
+    }
 
     // ── Validate inputs ──────────────────────────────────────────────────────
 
@@ -148,6 +167,7 @@ export async function POST(req) {
       },
       // Caption settings — used by renderEngine to generate the ASS style file
       captionSettings: captionSettings || null,
+      brandKit: brandKit || null,
       estimatedRenderTime: estimateRenderTime({ totalDuration, quality }),
       createdAt: new Date().toISOString(),
     }
