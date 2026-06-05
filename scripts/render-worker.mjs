@@ -175,6 +175,26 @@ async function resolveLogoPath(plan, workDir) {
   }
 }
 
+async function resolveClipPath(url, workDir, filename) {
+  if (!url) return null
+  try {
+    let resolvedUrl = url
+    if (url.includes('/brand-assets/')) {
+      const storagePath = url.split('/brand-assets/').pop()?.split('?')[0]
+      if (storagePath) {
+        const { data: signed } = await db.storage.from('brand-assets').createSignedUrl(storagePath, 3600)
+        if (signed?.signedUrl) resolvedUrl = signed.signedUrl
+      }
+    }
+    const dest = path.join(workDir, filename)
+    await downloadFile(resolvedUrl, dest)
+    return dest
+  } catch (err) {
+    log('WARN', null, `${filename} skipped: ${err.message}`)
+    return null
+  }
+}
+
 // ─── Caption file writer ──────────────────────────────────────────────────────
 
 const ASS_PRESETS = {
@@ -220,16 +240,29 @@ function writeCaptionAss(captions, settings, workDir) {
 
 // ─── FFmpeg args builder ──────────────────────────────────────────────────────
 
-function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath = null) {
+function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath = null, introPath = null, outroPath = null, watermarkPath = null) {
   const segs = (plan.segments||[]).filter(s => (s.duration ?? (s.end - s.start)) > 0)
   if (!segs.length) throw new Error('No segments with duration > 0')
   const [w,h]  = (plan.resolution||'1080x1920').split('x')
   const crf    = plan.quality==='high' ? '18' : plan.quality==='web' ? '26' : '23'
   const inputs = ['-i', inputPath]
   if (musicPath) inputs.push('-i', musicPath)
-  const hasLogo  = !!logoPath
-  const logoIdx  = musicPath ? 2 : 1
-  if (hasLogo) inputs.push('-i', logoPath)
+  let nextIdx        = musicPath ? 2 : 1
+  const hasLogo      = !!logoPath
+  const logoIdx      = hasLogo      ? nextIdx++ : null
+  if (hasLogo)      inputs.push('-i', logoPath)
+
+  const hasIntro     = !!introPath
+  const introIdx     = hasIntro     ? nextIdx++ : null
+  if (hasIntro)     inputs.push('-i', introPath)
+
+  const hasOutro     = !!outroPath
+  const outroIdx     = hasOutro     ? nextIdx++ : null
+  if (hasOutro)     inputs.push('-i', outroPath)
+
+  const hasWatermark = !!watermarkPath
+  const watermarkIdx = hasWatermark ? nextIdx++ : null
+  if (hasWatermark) inputs.push('-i', watermarkPath)
   const filters=[], vParts=[], aParts=[]
   segs.forEach((seg,i) => {
     filters.push(`[0:v]trim=start=${seg.start}:end=${seg.end},setpts=PTS-STARTPTS[v${i}]`)
@@ -246,9 +279,16 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
   }
   if (hasLogo) {
     filters.push(`[${logoIdx}:v]scale=120:-1[slogo]`)
-    filters.push(`[${finalV}][slogo]overlay=W-w-20:H-h-20[withlogo]`)
-    finalV = '[withlogo]'
+    filters.push(`[${finalV}][slogo]overlay=W-w-20:H-h-20[afterlogo]`)
+    finalV = '[afterlogo]'
   }
+
+  if (hasWatermark) {
+    filters.push(`[${watermarkIdx}:v]scale=100:-1,format=rgba,colorchannelmixer=aa=0.6[swm]`)
+    filters.push(`[${finalV}][swm]overlay=20:20[afterwm]`)
+    finalV = '[afterwm]'
+  }
+
   let finalA = '[cata]'
   if (musicPath) {
     const m=plan.music||{}, vol=m.volume??0.6, fi=m.fadeIn??1.0, fo=m.fadeOut??2.0
@@ -258,6 +298,24 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
     filters.push('[voice][bed]amix=inputs=2:duration=first:dropout_transition=2[mixeda]')
     finalA = '[mixeda]'
   }
+
+  if (hasIntro || hasOutro) {
+    const [w, h] = (plan.resolution || '1080x1920').split('x')
+    if (hasIntro) {
+      filters.push(`[${introIdx}:v]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[introV]`)
+    }
+    if (hasOutro) {
+      filters.push(`[${outroIdx}:v]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[outroV]`)
+    }
+    const concatV = [], concatA = []
+    const nSegs   = (hasIntro ? 1 : 0) + 1 + (hasOutro ? 1 : 0)
+    if (hasIntro) { concatV.push('[introV]'); concatA.push(`[${introIdx}:a]`) }
+    concatV.push(`[${finalV}]`); concatA.push(`[${finalA}]`)
+    if (hasOutro) { concatV.push('[outroV]'); concatA.push(`[${outroIdx}:a]`) }
+    filters.push(`${concatV.join('')}${concatA.join('')}concat=n=${nSegs}:v=1:a=1[finalV][finalA]`)
+    finalV = '[finalV]'; finalA = '[finalA]'
+  }
+
   return [...inputs,'-filter_complex',filters.join(';'),'-map',finalV,'-map',finalA,
     '-c:v','libx264','-preset','fast','-crf',crf,'-c:a','aac','-b:a','128k',
     '-r',String(plan.fps||30),'-movflags','+faststart','-y',outputPath]
@@ -343,10 +401,27 @@ async function executeJob(job) {
       if (logoPath) log('INFO', jobId, 'Logo resolved')
     }
 
+    let introPath = null, outroPath = null, watermarkPath = null
+
+    if (plan.brandKit?.introClipUrl) {
+      await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'intro' } })
+      introPath = await resolveClipPath(plan.brandKit.introClipUrl, workDir, 'intro.mp4')
+      if (introPath) log('INFO', jobId, 'Intro clip resolved')
+    }
+    if (plan.brandKit?.outroClipUrl) {
+      await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'outro' } })
+      outroPath = await resolveClipPath(plan.brandKit.outroClipUrl, workDir, 'outro.mp4')
+      if (outroPath) log('INFO', jobId, 'Outro clip resolved')
+    }
+    if (plan.brandKit?.watermarkUrl) {
+      watermarkPath = await resolveClipPath(plan.brandKit.watermarkUrl, workDir, 'watermark.png')
+      if (watermarkPath) log('INFO', jobId, 'Watermark resolved')
+    }
+
     // 4. Run FFmpeg
     log('INFO', jobId, 'Running FFmpeg', { segments: plan.segments?.length, captions: !!captionPath, music: !!musicPath })
     await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'ffmpeg' } })
-    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath)
+    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath, introPath, outroPath, watermarkPath)
     await execFileAsync('ffmpeg', args, { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 })
 
     if (!fs.existsSync(outputPath)) throw new Error('FFmpeg exited 0 but output file missing.')
@@ -361,7 +436,7 @@ async function executeJob(job) {
     log('INFO', jobId, 'Uploaded', { storagePath })
 
     // 6. Mark complete
-    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, logoRendered: !!logoPath, warnings, retryCount, completedAt: new Date().toISOString() }
+    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, logoRendered: !!logoPath, introRendered: !!introPath, outroRendered: !!outroPath, watermarkRendered: !!watermarkPath, warnings, retryCount, completedAt: new Date().toISOString() }
     await updateJob(jobId, 'completed', { export_url: exportUrl, render_details: renderDetails })
     await appendJobToProject(projectId, userId, { id: jobId, status: 'completed', exportUrl, createdAt: job.created_at })
     await db.from('edit_projects').update({ status: 'exported' }).eq('id', projectId).eq('user_id', userId)
