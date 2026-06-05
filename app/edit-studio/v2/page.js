@@ -49,9 +49,10 @@ function activeStepIndex(statusMsg) {
 export default function EditStudioV2() {
   const fileInputRef = useRef(null)
 
-  const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results'
+  const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results' | 'strategy-loading' | 'strategy' | 'hooks'
   const [project,     setProject]     = useState(null)      // { id, storagePath, bucket, publicUrl }
   const [understanding, setUnderstanding] = useState(null)
+  const [strategy,    setStrategy]    = useState(null)      // { strategy, ad_concepts, primary_concept }
   const [error,       setError]       = useState(null)
   const [statusMsg,   setStatusMsg]   = useState('')
   const [dragActive,  setDragActive]  = useState(false)
@@ -192,7 +193,32 @@ export default function EditStudioV2() {
     setScreen('upload')
     setProject(null)
     setUnderstanding(null)
+    setStrategy(null)
   }, [])
+
+  const handleCreateStrategy = useCallback(async () => {
+    if (!understanding || !project?.id) return
+    setScreen('strategy-loading')
+    setError(null)
+    try {
+      const res = await fetch('/api/edit-studio/creative-director', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project.id,
+          understandingData: understanding,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Creative Director failed')
+      setStrategy(data)         // { strategy, ad_concepts, primary_concept }
+      setScreen('strategy')
+    } catch (err) {
+      setError(err.message)
+      setStrategy(null)
+      setScreen('results')      // return to results on error
+    }
+  }, [understanding, project])
 
   // ── Step indicator logic ──────────────────────────────────────────────────
 
@@ -403,10 +429,194 @@ export default function EditStudioV2() {
           )}
 
           <div className={styles.ctaRow}>
-            <button className={styles.ctaButton} type="button" disabled>
+            <button className={styles.ctaButton} type="button" onClick={handleCreateStrategy}>
               Create Ads &rarr;
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Strategy loading screen ────────────────────────────────────────── */}
+      {screen === 'strategy-loading' && (
+        <div className={styles.processingScreen}>
+          <div className={styles.spinner} />
+          <p className={styles.statusMsg}>Building your creative strategy...</p>
+        </div>
+      )}
+
+      {/* ── Strategy screen ─────────────────────────────────────────────────── */}
+      {screen === 'strategy' && strategy && (
+        <div className={styles.strategyScreen}>
+          <button className={styles.backButton} onClick={() => setScreen('results')}>
+            &#8592; Back to Analysis
+          </button>
+
+          <div className={styles.strategyHeader}>
+            <h1 className={styles.strategyTitle}>The Creative Brief</h1>
+            {understanding?.business_description && (
+              <p className={styles.strategySubline}>{understanding.business_description}</p>
+            )}
+          </div>
+
+          {/* 1. Positioning */}
+          {strategy.strategy?.positioning && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Positioning</p>
+              <p className={styles.strategyValue}>{prettifySnakeCase(strategy.strategy.positioning)}</p>
+              {strategy.strategy.positioning_rationale && (
+                <p className={styles.strategyRationale}>{strategy.strategy.positioning_rationale}</p>
+              )}
+            </div>
+          )}
+
+          {/* 2. Target Audience */}
+          {strategy.strategy?.target_audience && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Target Audience</p>
+              <p className={styles.strategyValue}>{strategy.strategy.target_audience}</p>
+            </div>
+          )}
+
+          {/* 3. Platform */}
+          {strategy.strategy?.primary_platform && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Platform</p>
+              <p className={styles.strategyValue}>
+                <span className={styles.platformBadge}>
+                  {strategy.strategy.primary_platform.toUpperCase()}
+                </span>
+              </p>
+              {strategy.strategy.platform_rationale && (
+                <p className={styles.strategyRationale}>{strategy.strategy.platform_rationale}</p>
+              )}
+            </div>
+          )}
+
+          {/* 4. Format + Duration */}
+          {(strategy.strategy?.ad_format || strategy.strategy?.recommended_duration) && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Format + Duration</p>
+              <p className={styles.strategyValue}>
+                {strategy.strategy.ad_format && (
+                  <span>{prettifySnakeCase(strategy.strategy.ad_format)}</span>
+                )}
+                {strategy.strategy.recommended_duration && (
+                  <span className={styles.durationBadge} style={{ marginLeft: 8 }}>
+                    {strategy.strategy.recommended_duration}
+                  </span>
+                )}
+              </p>
+              {strategy.strategy.duration_rationale && (
+                <p className={styles.strategyRationale}>{strategy.strategy.duration_rationale}</p>
+              )}
+            </div>
+          )}
+
+          {/* 5. Primary Message */}
+          {strategy.strategy?.primary_message && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Primary Message</p>
+              <div className={styles.primaryMessageBlock}>{strategy.strategy.primary_message}</div>
+            </div>
+          )}
+
+          {/* 6. Supporting Messages */}
+          {strategy.strategy?.supporting_messages?.length > 0 && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Supporting Messages</p>
+              <ul className={styles.bulletList}>
+                {strategy.strategy.supporting_messages.map((msg, i) => (
+                  <li key={i}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 7. Hook Strategy */}
+          {strategy.strategy?.hook_strategy && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Hook Strategy</p>
+              <p className={styles.strategyValue}>{prettifySnakeCase(strategy.strategy.hook_strategy)}</p>
+              {strategy.strategy.hook_strategy_rationale && (
+                <p className={styles.strategyRationale}>{strategy.strategy.hook_strategy_rationale}</p>
+              )}
+            </div>
+          )}
+
+          {/* 8. Opening Hook */}
+          {strategy.strategy?.opening_hook_example && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Opening Hook</p>
+              <blockquote className={styles.hookQuote}>{strategy.strategy.opening_hook_example}</blockquote>
+            </div>
+          )}
+
+          {/* 9. CTA */}
+          {strategy.strategy?.cta && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>CTA</p>
+              <p className={styles.strategyValue}><strong>{strategy.strategy.cta}</strong></p>
+            </div>
+          )}
+
+          {/* 10. Avoid */}
+          {strategy.strategy?.avoid?.length > 0 && (
+            <div className={styles.strategyCard}>
+              <p className={styles.strategyLabel}>Avoid</p>
+              <ul className={styles.bulletList}>
+                {strategy.strategy.avoid.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Ad Concepts */}
+          {strategy.ad_concepts?.length > 0 && (
+            <div className={styles.conceptsSection}>
+              <p className={styles.conceptsSectionTitle}>Ad Concepts</p>
+              <div className={styles.conceptGrid}>
+                {strategy.ad_concepts.map((concept, i) => {
+                  const isRecommended = concept.type === strategy.primary_concept || concept.recommended
+                  return (
+                    <div
+                      key={i}
+                      className={`${styles.conceptCard} ${isRecommended ? styles.isRecommended : ''}`}
+                    >
+                      {isRecommended && (
+                        <span className={styles.recommendedBadge}>Recommended</span>
+                      )}
+                      <span className={styles.conceptTypeBadge}>{concept.type}</span>
+                      <p className={styles.conceptTitle}>{concept.title}</p>
+                      <p className={styles.conceptLogline}>{concept.logline}</p>
+                      {concept.hook && (
+                        <p className={styles.conceptHook}>{concept.hook}</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className={styles.ctaRow}>
+            <button className={styles.ctaButton} onClick={() => setScreen('hooks')}>
+              Build Hooks &amp; Scripts &rarr;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hooks placeholder screen ─────────────────────────────────────────── */}
+      {screen === 'hooks' && (
+        <div className={styles.processingScreen}>
+          <p className={styles.statusMsg}>Sprint 3: Hook + Script Engine</p>
+          <p className={styles.statusMsg} style={{ color: '#555', marginTop: 8 }}>
+            Coming next — 5 hooks × 3 script lengths
+          </p>
+          <button className={styles.backButton} onClick={() => setScreen('strategy')} style={{ marginTop: 24 }}>
+            &#8592; Back to Strategy
+          </button>
         </div>
       )}
 
