@@ -5,6 +5,52 @@ import styles from './page.module.css'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function formatAdType(type) {
+  const labels = {
+    founder: 'FOUNDER',
+    saas_demo: 'SAAS DEMO',
+    problem_solution: 'PROBLEM / SOLUTION',
+    linkedin_authority: 'LINKEDIN',
+    tiktok_hook: 'TIKTOK',
+  }
+  return labels[type] || type?.toUpperCase() || '?'
+}
+
+function ScriptTabs({ concept }) {
+  const [activeTab, setActiveTab] = useState('30s')
+  const script = concept[`script_${activeTab}`] || {}
+  return (
+    <div className={styles.scriptTabs}>
+      <div className={styles.scriptTabNav}>
+        {['15s', '30s', '60s'].map(dur => (
+          <button
+            key={dur}
+            className={`${styles.scriptTabBtn} ${activeTab === dur ? styles.scriptTabBtnActive : ''}`}
+            onClick={e => { e.stopPropagation(); setActiveTab(dur) }}
+            type="button"
+          >
+            {dur}
+          </button>
+        ))}
+      </div>
+      <div className={styles.scriptBody}>
+        <div className={styles.scriptSection}>
+          <span className={styles.scriptSectionLabel}>Hook</span>
+          <p className={styles.scriptSectionText}>{script.hook}</p>
+        </div>
+        <div className={styles.scriptSection}>
+          <span className={styles.scriptSectionLabel}>Body</span>
+          <p className={styles.scriptSectionText}>{script.body}</p>
+        </div>
+        <div className={styles.scriptSection}>
+          <span className={styles.scriptSectionLabel}>CTA</span>
+          <p className={styles.scriptSectionText}>{script.cta}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function fmtTimestamp(secs) {
   if (secs == null) return '?'
   const m = Math.floor(secs / 60)
@@ -49,10 +95,12 @@ function activeStepIndex(statusMsg) {
 export default function EditStudioV2() {
   const fileInputRef = useRef(null)
 
-  const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results' | 'strategy-loading' | 'strategy' | 'hooks'
+  const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results' | 'strategy-loading' | 'strategy' | 'concepts-loading' | 'concepts'
   const [project,     setProject]     = useState(null)      // { id, storagePath, bucket, publicUrl }
   const [understanding, setUnderstanding] = useState(null)
   const [strategy,    setStrategy]    = useState(null)      // { strategy, ad_concepts, primary_concept }
+  const [adConcepts,  setAdConcepts]  = useState([])        // array of 5 concept objects
+  const [activeConcept, setActiveConcept] = useState(null)  // index of expanded concept card
   const [error,       setError]       = useState(null)
   const [statusMsg,   setStatusMsg]   = useState('')
   const [dragActive,  setDragActive]  = useState(false)
@@ -194,6 +242,8 @@ export default function EditStudioV2() {
     setProject(null)
     setUnderstanding(null)
     setStrategy(null)
+    setAdConcepts([])
+    setActiveConcept(null)
   }, [])
 
   const handleCreateStrategy = useCallback(async () => {
@@ -219,6 +269,31 @@ export default function EditStudioV2() {
       setScreen('results')      // return to results on error
     }
   }, [understanding, project])
+
+  const handleBuildConcepts = useCallback(async () => {
+    if (!understanding || !strategy || !project?.id) return
+    setScreen('concepts-loading')
+    setError(null)
+    try {
+      const res = await fetch('/api/edit-studio/ad-concepts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project.id,
+          understandingData: understanding,
+          creativeStrategy: strategy,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Concept generation failed')
+      setAdConcepts(data.concepts || [])
+      setActiveConcept(0)
+      setScreen('concepts')
+    } catch (err) {
+      setError(err.message)
+      setScreen('strategy')
+    }
+  }, [understanding, strategy, project])
 
   // ── Step indicator logic ──────────────────────────────────────────────────
 
@@ -600,23 +675,78 @@ export default function EditStudioV2() {
           )}
 
           <div className={styles.ctaRow}>
-            <button className={styles.ctaButton} onClick={() => setScreen('hooks')}>
-              Build Hooks &amp; Scripts &rarr;
+            <button className={styles.ctaButton} onClick={handleBuildConcepts}>
+              Build Ad Concepts &rarr;
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Hooks placeholder screen ─────────────────────────────────────────── */}
-      {screen === 'hooks' && (
+      {/* ── Concepts loading screen ───────────────────────────────────────────── */}
+      {screen === 'concepts-loading' && (
         <div className={styles.processingScreen}>
-          <p className={styles.statusMsg}>Sprint 3: Hook + Script Engine</p>
-          <p className={styles.statusMsg} style={{ color: '#555', marginTop: 8 }}>
-            Coming next — 5 hooks × 3 script lengths
-          </p>
-          <button className={styles.backButton} onClick={() => setScreen('strategy')} style={{ marginTop: 24 }}>
+          <div className={styles.spinner} />
+          <p className={styles.statusMsg}>Writing your ad concepts...</p>
+          <p className={styles.statusSubMsg}>Generating hooks, scripts, and strategy for 5 ad formats</p>
+        </div>
+      )}
+
+      {/* ── Concepts screen ───────────────────────────────────────────────────── */}
+      {screen === 'concepts' && adConcepts.length > 0 && (
+        <div className={styles.conceptsScreen}>
+          <button className={styles.backButton} onClick={() => setScreen('strategy')}>
             &#8592; Back to Strategy
           </button>
+          <div className={styles.conceptsHeader}>
+            <h2 className={styles.conceptsTitle}>5 Ad Concepts</h2>
+            <p className={styles.conceptsSubline}>{understanding?.business_description}</p>
+          </div>
+          <div className={styles.conceptsList}>
+            {adConcepts.map((concept, index) => {
+              const isActive = activeConcept === index
+              return (
+                <div
+                  key={concept.id || index}
+                  className={`${styles.conceptItem} ${isActive ? styles.conceptItemActive : ''}`}
+                >
+                  {/* Collapsed header — always visible */}
+                  <div
+                    className={styles.conceptItemHeader}
+                    onClick={() => setActiveConcept(isActive ? null : index)}
+                  >
+                    <div className={styles.conceptItemMeta}>
+                      <span className={styles.adTypeBadge}>{formatAdType(concept.ad_type)}</span>
+                      <span className={styles.platformBadgeSmall}>{concept.platform?.toUpperCase()}</span>
+                    </div>
+                    <p className={styles.conceptHookLine}>{concept.hook_text}</p>
+                    <p className={styles.conceptObjective}>{concept.objective}</p>
+                    <span className={styles.expandToggle}>{isActive ? 'Collapse ↑' : 'View Scripts ↓'}</span>
+                  </div>
+
+                  {/* Expanded body */}
+                  {isActive && (
+                    <div className={styles.conceptItemBody}>
+                      <p className={styles.hookArchetypeLabel}>
+                        {prettifySnakeCase(concept.hook_type)} Hook
+                      </p>
+                      <p className={styles.whyItWorks}>{concept.why_it_works}</p>
+                      <ScriptTabs concept={concept} />
+                      <div className={styles.ctaBlock}>
+                        <span className={styles.ctaLabel}>CTA</span>
+                        <span className={styles.ctaValue}>{concept.cta}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className={styles.conceptsActions}>
+            <p className={styles.conceptsActionsHint}>
+              Voice and render coming in Sprint 4 &rarr;
+            </p>
+          </div>
         </div>
       )}
 

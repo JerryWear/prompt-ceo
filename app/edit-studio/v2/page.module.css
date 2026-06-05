@@ -740,3 +740,192 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+/* ── Concepts screen ─────────────────────────────────────────────────── */
+.statusSubMsg {
+  font-size: 0.82rem;
+  color: #555;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.conceptsScreen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.conceptsHeader { margin-bottom: 32px; }
+.conceptsTitle { font-size: 1.75rem; font-weight: 700; margin-bottom: 6px; }
+.conceptsSubline { color: #666; font-size: 0.9rem; }
+
+.conceptsList { display: flex; flex-direction: column; gap: 10px; }
+
+.conceptItem {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.conceptItem:hover { border-color: #333; }
+.conceptItemActive { border-color: #2a4a2a; background: #0d160d; }
+
+.conceptItemHeader { padding: 20px 24px; }
+
+.conceptItemMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.adTypeBadge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: #1a1a1a;
+  color: #aaa;
+}
+.conceptItemActive .adTypeBadge {
+  background: #1a2a1a;
+  color: #6fcf6f;
+}
+
+.platformBadgeSmall {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #1a1a2a;
+  color: #8f9fcf;
+}
+
+.conceptHookLine {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.conceptObjective {
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.expandToggle {
+  font-size: 0.75rem;
+  color: #444;
+  letter-spacing: 0.04em;
+}
+.conceptItemActive .expandToggle { color: #5a8a5a; }
+
+.conceptItemBody {
+  padding: 20px 24px 24px;
+  border-top: 1px solid #1a1a1a;
+}
+.conceptItemActive .conceptItemBody { border-top-color: #1e2e1e; }
+
+.hookArchetypeLabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.whyItWorks {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.scriptTabs { margin-bottom: 20px; }
+
+.scriptTabNav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.scriptTabBtn {
+  padding: 6px 16px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #666;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.scriptTabBtnActive {
+  background: #1a2a1a;
+  border-color: #2a4a2a;
+  color: #8fcf8f;
+}
+
+.scriptBody { display: flex; flex-direction: column; gap: 12px; }
+
+.scriptSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scriptSectionLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #444;
+}
+
+.scriptSectionText {
+  font-size: 0.9rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.ctaBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #0d1a0d;
+  border: 1px solid #1e3a1e;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.ctaLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a7a4a;
+  padding-top: 2px;
+  min-width: 28px;
+}
+
+.ctaValue {
+  font-size: 0.9rem;
+  color: #8fcf8f;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.conceptsActions {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.conceptsActionsHint {
+  font-size: 0.82rem;
+  color: #333;
+}
