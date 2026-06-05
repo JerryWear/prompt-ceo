@@ -215,6 +215,11 @@ export default function EditStudioPage() {
     try { return localStorage.getItem('edit_studio_mode') !== 'advanced' } catch { return true }
   })
   const [retryingRender,     setRetryingRender]         = useState(false)
+  const [variantPlatforms,  setVariantPlatforms]  = useState([])
+  const [variantJobs,       setVariantJobs]        = useState([])
+  const [batchRendering,    setBatchRendering]      = useState(false)
+  const [previewSegIdx,     setPreviewSegIdx]       = useState(null)
+  const previewVideoRef = useRef(null)
   const [showTestNotes,      setShowTestNotes]           = useState(false)
   const [testNotes,          setTestNotes]              = useState(() => {
     try {
@@ -794,13 +799,31 @@ export default function EditStudioPage() {
         renderMode: data.renderMode || 'queue',
         createdAt:  new Date().toISOString(),
       })
+      // Signal: video exported (non-fatal)
+      const _phase = { founder: 'awareness', demo: 'consideration', tutorial: 'nurture', launch: 'conversion', ugc: 'awareness', edu: 'awareness' }[project.goal] || 'awareness'
+      fetch('/api/signal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type:  'video_generated',
+          project_id:  projectId || null,
+          metadata: {
+            platform:      project.platform,
+            goal:          project.goal,
+            campaignPhase: _phase,
+            videoLength:   renderPlan?.totalDuration || null,
+            captionStyle:  captionSettings?.style || null,
+            musicTitle:    selectedMusicBed?.title || null,
+            source:        'edit_studio',
+          },
+        }),
+      }).catch(() => {})
       isDirty.current = true
     } catch (err) {
       console.error('Render job error:', err)
     } finally {
       setCreatingJob(false)
     }
-  }, [renderPlan, projectId])
+  }, [renderPlan, projectId, project, captionSettings, selectedMusicBed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRetryRender = useCallback(async () => {
     if (!renderPlan || retryingRender) return
@@ -812,6 +835,51 @@ export default function EditStudioPage() {
       setRetryingRender(false)
     }
   }, [renderPlan, retryingRender, handleCreateRenderJob]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleBatchRender = useCallback(async () => {
+    if (!renderPlan || !variantPlatforms.length || batchRendering) return
+    setBatchRendering(true)
+    try {
+      const res  = await fetch('/api/edit-studio/render-batch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, baseRenderPlan: renderPlan, platforms: variantPlatforms }),
+      })
+      const data = await res.json()
+      if (data.status !== 'success') throw new Error(data.message)
+      setVariantJobs(data.jobs || [])
+    } catch (err) {
+      console.error('Batch render error:', err)
+    } finally {
+      setBatchRendering(false)
+    }
+  }, [renderPlan, variantPlatforms, batchRendering, projectId])
+
+  const handleReRender = useCallback(() => {
+    // Fire re-run signal (non-fatal)
+    if (renderPlan) {
+      const phase = { founder: 'awareness', demo: 'consideration', tutorial: 'nurture', launch: 'conversion', ugc: 'awareness', edu: 'awareness' }[renderPlan.goal] || 'awareness'
+      fetch('/api/signal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type:  'result_re_run',
+          project_id:  projectId || null,
+          metadata: {
+            platform:      renderPlan.platform,
+            goal:          renderPlan.goal,
+            campaignPhase: phase,
+            captionStyle:  renderPlan.captionSettings?.style || null,
+            musicTitle:    renderPlan.music?.title || null,
+            videoLength:   renderPlan.totalDuration || null,
+            source:        'edit_studio',
+          },
+        }),
+      }).catch(() => {})
+    }
+    setRenderJob(null)
+    setRenderPlan(null)
+    setVariantJobs([])
+    isDirty.current = true
+  }, [renderPlan, projectId])
 
   const switchMode = useCallback((mode) => {
     try { localStorage.setItem('edit_studio_mode', mode) } catch {}
@@ -2758,6 +2826,45 @@ export default function EditStudioPage() {
           )
         })()}
 
+        {/* ── Segment preview player ───────────────────────────────────── */}
+        {videoFileRef.current && (() => {
+          const selectedPlan = cutPlans.find(p => p.id === selectedPlanId)
+          const keptSegs     = (selectedPlan?.segments || []).filter(s => s.keep)
+          if (!keptSegs.length) return null
+          let blobUrl = null
+          try { blobUrl = URL.createObjectURL(videoFileRef.current) } catch { return null }
+          if (!blobUrl) return null
+          return (
+            <div>
+              <Label>Preview Edit</Label>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Click a segment to preview it from your source video.</div>
+              <video ref={previewVideoRef} src={blobUrl} preload="metadata" style={{ display: 'none' }} onEnded={() => setPreviewSegIdx(null)} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {keptSegs.map((seg, i) => (
+                  <div key={seg.id || i}
+                    onClick={() => {
+                      const v = previewVideoRef.current
+                      if (!v) return
+                      v.currentTime = seg.start
+                      v.style.display = 'block'
+                      v.play().catch(() => {})
+                      setPreviewSegIdx(i)
+                      setTimeout(() => { v.pause(); v.style.display = 'none'; setPreviewSegIdx(null) }, ((seg.duration || (seg.end - seg.start)) * 1000) + 500)
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 7, cursor: 'pointer', border: `1px solid ${previewSegIdx === i ? C.gold + '55' : C.hairline}`, background: previewSegIdx === i ? C.goldGlow : C.surface, transition: 'all 0.15s' }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: SEG_COLORS[seg.type] || C.muted, padding: '1px 5px', borderRadius: 4, border: `1px solid ${(SEG_COLORS[seg.type] || C.muted)}44`, background: (SEG_COLORS[seg.type] || C.muted) + '14', flexShrink: 0 }}>
+                      {SEG_LABELS[seg.type] || seg.type}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.ghost, fontFamily: 'monospace' }}>{fmtTime(seg.start)} → {fmtTime(seg.end)}</div>
+                    <div style={{ fontSize: 10, color: C.secondary }}>{(seg.duration || (seg.end - seg.start)).toFixed(1)}s</div>
+                    <div style={{ fontSize: 10, color: previewSegIdx === i ? C.gold : C.ghost, marginLeft: 'auto' }}>{previewSegIdx === i ? '▶ Playing…' : '▶'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── Prepare Render Plan button ────────────────────────────────── */}
         <div>
           <button
@@ -2854,6 +2961,52 @@ export default function EditStudioPage() {
               }}>
               {creatingJob ? '⟳  Creating render job…' : hasJob ? '✓  Render Job Created' : '📤  Create Render Job'}
             </button>
+          </div>
+        )}
+
+        {/* ── Re-Render button ─────────────────────────────────────────── */}
+        {renderJob && renderJob.status !== 'processing' && (
+          <button onClick={handleReRender}
+            style={{ width: '100%', padding: '10px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: C.surface, color: C.secondary }}>
+            ↺ Adjust Settings & Re-render
+          </button>
+        )}
+
+        {/* ── Multi-Platform Export ─────────────────────────────────────── */}
+        {renderPlan && !preparingPlan && (
+          <div style={{ padding: '16px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Export Additional Platforms</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Same edit, different resolution. Each becomes a separate render job.</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              {PLATFORMS.filter(p => p.id !== project.platform).map(p => {
+                const on = variantPlatforms.includes(p.id)
+                return (
+                  <button key={p.id}
+                    onClick={() => setVariantPlatforms(prev => on ? prev.filter(x => x !== p.id) : [...prev, p.id])}
+                    style={{ padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? C.gold : C.hairline}`, background: on ? C.goldGlow : 'none', color: on ? C.gold : C.secondary }}>
+                    {p.label}
+                  </button>
+                )
+              })}
+            </div>
+            {variantPlatforms.length > 0 && (
+              <button onClick={handleBatchRender} disabled={batchRendering}
+                style={{ padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: batchRendering ? 'not-allowed' : 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                {batchRendering ? '⟳  Creating jobs…' : `📤  Create ${variantPlatforms.length} Render Job${variantPlatforms.length > 1 ? 's' : ''}`}
+              </button>
+            )}
+            {variantJobs.length > 0 && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {variantJobs.map(j => (
+                  <div key={j.jobId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 7, border: `1px solid ${C.green}33`, background: C.greenGlow }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>✓</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.primary }}>{j.platform}</div>
+                    <div style={{ fontSize: 10, color: C.ghost, fontFamily: 'monospace' }}>{j.jobId?.slice(0, 8)}…</div>
+                    <div style={{ fontSize: 10, color: C.green, marginLeft: 'auto' }}>Queued</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
