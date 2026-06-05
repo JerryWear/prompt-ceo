@@ -51,17 +51,25 @@ export async function POST(req) {
     }
 
     const admin = makeAdmin()
-    const { data, error } = await admin
+
+    // Try inserting with is_v2 (requires migration 20260605_edit_studio_v2.sql).
+    // Fall back without it if the column doesn't exist yet so the UI still works
+    // before the migration is applied in Supabase Studio.
+    let result = await admin
       .from('edit_projects')
-      .insert({
-        user_id: user.id,
-        title,
-        is_v2:   true,
-        status:  'draft',
-      })
+      .insert({ user_id: user.id, title, is_v2: true, status: 'draft' })
       .select('id')
       .single()
 
+    if (result.error?.message?.includes('is_v2')) {
+      result = await admin
+        .from('edit_projects')
+        .insert({ user_id: user.id, title, status: 'draft' })
+        .select('id')
+        .single()
+    }
+
+    const { data, error } = result
     if (error) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
     }
