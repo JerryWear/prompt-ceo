@@ -1,0 +1,415 @@
+'use client'
+
+import { useState, useRef, useCallback } from 'react'
+import styles from './page.module.css'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtTimestamp(secs) {
+  if (secs == null) return '?'
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function prettifySnakeCase(str) {
+  if (!str) return ''
+  return str
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+function typePillClass(type) {
+  if (!type) return styles.other
+  const t = type.toLowerCase()
+  if (t === 'hook')         return styles.hook
+  if (t === 'demo')         return styles.demo
+  if (t === 'cta')          return styles.cta
+  if (t === 'social_proof') return styles['social_proof']
+  return styles.other
+}
+
+// ─── Step definitions ─────────────────────────────────────────────────────────
+
+const PIPELINE_STEPS = ['Uploading', 'Transcribing', 'Analyzing']
+
+// Maps statusMsg prefix to step index (0-based) for the step indicator
+function activeStepIndex(statusMsg) {
+  if (!statusMsg) return 0
+  const m = statusMsg.toLowerCase()
+  if (m.startsWith('uploading') || m.startsWith('creating'))   return 0
+  if (m.startsWith('transcrib'))                                return 1
+  if (m.startsWith('analyz'))                                   return 2
+  return 0
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function EditStudioV2() {
+  const fileInputRef = useRef(null)
+
+  const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results'
+  const [project,     setProject]     = useState(null)      // { id, storagePath, bucket, publicUrl }
+  const [understanding, setUnderstanding] = useState(null)
+  const [error,       setError]       = useState(null)
+  const [statusMsg,   setStatusMsg]   = useState('')
+  const [dragActive,  setDragActive]  = useState(false)
+
+  // ── Pipeline ─────────────────────────────────────────────────────────────────
+
+  const handleFileSelect = useCallback(async (file) => {
+    if (!file) return
+    if (!file.type.startsWith('video/')) {
+      setError('Please select a video file (MP4, MOV, or WebM).')
+      return
+    }
+
+    setError(null)
+    setStatusMsg('Creating project...')
+    setScreen('processing')
+
+    try {
+      // ── Step 1: Create project ──────────────────────────────────────────────
+      setStatusMsg('Uploading video...')
+      const createRes = await fetch('/api/edit-studio/create-project', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ title: file.name.replace(/\.[^.]+$/, '') }),
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok || createData.status !== 'success') {
+        throw new Error(createData.message || 'Failed to create project')
+      }
+      const projectId = createData.projectId
+
+      // ── Step 2: Get signed upload URL ───────────────────────────────────────
+      const sourceRes = await fetch('/api/edit-studio/upload-source', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          projectId,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }),
+      })
+      const sourceData = await sourceRes.json()
+      if (!sourceRes.ok || sourceData.status !== 'success') {
+        throw new Error(sourceData.message || 'Failed to get upload URL')
+      }
+      const { signedUrl, storagePath, bucket, publicUrl } = sourceData
+
+      // ── Step 3: Upload file directly to storage ─────────────────────────────
+      const uploadRes = await fetch(signedUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': file.type },
+        body:    file,
+      })
+      if (!uploadRes.ok) {
+        throw new Error(`Storage upload failed (HTTP ${uploadRes.status})`)
+      }
+
+      // Save project info in state
+      setProject({ id: projectId, storagePath, bucket, publicUrl })
+
+      // ── Step 4: Transcribe ──────────────────────────────────────────────────
+      setStatusMsg('Transcribing audio...')
+      const transcribeRes = await fetch('/api/edit-studio/transcribe', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          projectId,
+          sourceVideoUrl:  publicUrl,
+          sourceVideoName: file.name,
+          sourceVideoType: file.type,
+          storagePath,
+          bucket,
+        }),
+      })
+      const transcribeData = await transcribeRes.json()
+      if (!transcribeRes.ok || transcribeData.status === 'error') {
+        throw new Error(transcribeData.message || 'Transcription failed')
+      }
+      const segments = transcribeData.transcript?.segments || []
+
+      // ── Step 5: Understand ──────────────────────────────────────────────────
+      setStatusMsg('Analyzing video content...')
+      const understandRes = await fetch('/api/edit-studio/understand', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          projectId,
+          storagePath,
+          bucket,
+          transcriptSegments: segments,
+        }),
+      })
+      const understandData = await understandRes.json()
+      if (!understandRes.ok || understandData.status === 'error') {
+        throw new Error(understandData.message || 'Video analysis failed')
+      }
+
+      setUnderstanding(understandData.understanding)
+      setScreen('results')
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.')
+      setScreen('upload')
+    }
+  }, [])
+
+  // ── Event handlers ────────────────────────────────────────────────────────
+
+  const handleInputChange = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (file) handleFileSelect(file)
+    // Reset so same file can be re-selected after an error
+    e.target.value = ''
+  }, [handleFileSelect])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault()
+    setDragActive(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFileSelect(file)
+  }, [handleFileSelect])
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault()
+    setDragActive(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragActive(false)
+  }, [])
+
+  const handleDropZoneClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleRetry = useCallback(() => {
+    setError(null)
+    setScreen('upload')
+    setProject(null)
+    setUnderstanding(null)
+  }, [])
+
+  // ── Step indicator logic ──────────────────────────────────────────────────
+
+  const activeStep = activeStepIndex(statusMsg)
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  return (
+    <div className={styles.page}>
+
+      {/* ── Upload screen ─────────────────────────────────────────────────── */}
+      {screen === 'upload' && (
+        <div className={styles.uploadScreen}>
+          <h1 className={styles.headline}>Turn one video into five ads.</h1>
+          <p className={styles.subline}>Upload your raw footage. AI does the rest.</p>
+
+          <div
+            className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={handleDropZoneClick}
+            role="button"
+            tabIndex={0}
+            aria-label="Drop video file or click to browse"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
+          >
+            <span className={styles.dropZoneIcon} aria-hidden="true">&#x2B06;</span>
+            <span className={styles.dropZoneLabel}>Drop your video here</span>
+            <span className={styles.dropZoneHint}>MP4, MOV, WebM</span>
+          </div>
+
+          <div className={styles.orRow}>
+            <span className={styles.orLine} />
+            <span className={styles.orText}>or</span>
+            <span className={styles.orLine} />
+          </div>
+
+          <button
+            className={styles.browseButton}
+            onClick={handleDropZoneClick}
+            type="button"
+          >
+            Browse files
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            className={styles.fileInput}
+            onChange={handleInputChange}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+
+          {error && (
+            <div className={styles.errorBox} role="alert">
+              <span>{error}</span>
+              <button onClick={handleRetry} type="button" aria-label="Dismiss error">
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Processing screen ──────────────────────────────────────────────── */}
+      {screen === 'processing' && (
+        <div className={styles.processingScreen}>
+          <div className={styles.spinner} aria-label="Loading" role="status" />
+
+          <p className={styles.statusMsg}>{statusMsg || 'Processing...'}</p>
+
+          <div className={styles.stepRow} aria-label="Pipeline steps">
+            {PIPELINE_STEPS.map((label, i) => (
+              <div key={label} className={styles.stepItem}>
+                {i > 0 && (
+                  <span className={`${styles.stepConnector} ${i <= activeStep ? styles.done : ''}`} />
+                )}
+                <span
+                  className={`${styles.stepDot} ${
+                    i < activeStep
+                      ? styles.done
+                      : i === activeStep
+                      ? styles.active
+                      : ''
+                  }`}
+                />
+                <span
+                  className={`${styles.stepLabel} ${
+                    i < activeStep
+                      ? styles.done
+                      : i === activeStep
+                      ? styles.active
+                      : ''
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Results screen ─────────────────────────────────────────────────── */}
+      {screen === 'results' && understanding && (
+        <div className={styles.resultsScreen}>
+          <div className={styles.resultsHeader}>
+            <h1 className={styles.resultsTitle}>Here is what we found in your video.</h1>
+            {understanding.business_description && (
+              <p className={styles.resultsSubline}>{understanding.business_description}</p>
+            )}
+          </div>
+
+          {/* Detected products */}
+          {understanding.detected_products?.length > 0 && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Detected Products</p>
+              <ul className={styles.pillList}>
+                {understanding.detected_products.map((product, i) => (
+                  <li key={i} className={styles.pillHighlight}>{product}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Key screens */}
+          {understanding.screens_detected?.length > 0 && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Key Screens</p>
+              <div className={styles.screenList}>
+                {understanding.screens_detected.map((screen, i) => (
+                  <div key={i} className={styles.screenRow}>
+                    <span className={styles.screenLabel}>{screen.label}</span>
+                    {screen.significance && (
+                      <span className={`${styles.pillSignificance} ${styles[screen.significance] || styles.low}`}>
+                        {screen.significance}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Strong moments */}
+          {understanding.strong_moments?.length > 0 && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Strong Moments</p>
+              <div className={styles.momentList}>
+                {understanding.strong_moments.map((moment, i) => (
+                  <div key={i} className={styles.momentRow}>
+                    <span className={styles.timestamp}>
+                      {fmtTimestamp(moment.timestamp_approx)}
+                    </span>
+                    <span className={styles.momentLabel}>{moment.label}</span>
+                    {moment.type && (
+                      <span className={`${styles.typePill} ${typePillClass(moment.type)}`}>
+                        {prettifySnakeCase(moment.type)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommended positioning */}
+          {understanding.recommended_positioning && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Recommended Positioning</p>
+              <p className={styles.positioningValue}>
+                {prettifySnakeCase(understanding.recommended_positioning)}
+              </p>
+              {understanding.positioning_reason && (
+                <p className={styles.positioningReason}>{understanding.positioning_reason}</p>
+              )}
+            </div>
+          )}
+
+          {/* Key messages */}
+          {understanding.key_messages?.length > 0 && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Key Messages</p>
+              <ol className={styles.messageList}>
+                {understanding.key_messages.map((msg, i) => (
+                  <li key={i} className={styles.messageItem}>
+                    <span className={styles.messageNum}>{i + 1}.</span>
+                    <span className={styles.messageText}>{msg}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* Recommended ad types */}
+          {understanding.recommended_ad_types?.length > 0 && (
+            <div className={styles.resultsCard}>
+              <p className={styles.sectionTitle}>Recommended Ad Types</p>
+              <ul className={styles.pillList}>
+                {understanding.recommended_ad_types.map((type, i) => (
+                  <li key={i} className={styles.pillHighlight}>{prettifySnakeCase(type)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className={styles.ctaRow}>
+            <button className={styles.ctaButton} type="button" disabled>
+              Create Ads &rarr;
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
 import SimpleModeWizard from './simple.js'
-import { useRouter } from 'next/navigation'
+import EditStudioV2 from './v2/page'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient as createBrowserSupabase } from '../../lib/supabase/client'
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
@@ -171,8 +172,9 @@ function fmtSize(b)  { return `${(b / 1024 / 1024).toFixed(1)} MB` }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function EditStudioPage() {
-  const router       = useRouter()
+function EditStudioPageInner() {
+  const router        = useRouter()
+  const searchParams  = useSearchParams()
   const fileInputRef  = useRef(null)
   const dropRef       = useRef(null)
   const videoFileRef  = useRef(null) // holds the actual File object for Whisper upload (lost on reload)
@@ -3318,6 +3320,14 @@ export default function EditStudioPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  // Route to v2 when explicitly forced (?v2=1) or when no project is loaded from
+  // the URL (new sessions). v1 is preserved for existing projects loaded by ID.
+  const urlProjectId = searchParams?.get('project')
+  const forceV2      = searchParams?.get('v2') === '1'
+  if (forceV2 || !urlProjectId) {
+    return <EditStudioV2 />
+  }
+
   if (simpleMode) {
     return <SimpleModeWizard onSwitchAdvanced={() => switchMode('advanced')} />
   }
@@ -3692,5 +3702,17 @@ function Tag({ children, color }) {
     <div style={{ fontSize: 9, fontWeight: 700, color, padding: '1px 6px', borderRadius: 8, border: `1px solid ${color}44`, background: color + '18' }}>
       {children}
     </div>
+  )
+}
+
+// ─── Default export ───────────────────────────────────────────────────────────
+// Wraps the inner component in Suspense so that useSearchParams() does not
+// cause a prerender error during the Next.js static generation pass.
+
+export default function EditStudioPage() {
+  return (
+    <Suspense>
+      <EditStudioPageInner />
+    </Suspense>
   )
 }
