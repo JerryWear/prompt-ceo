@@ -215,6 +215,8 @@ export default function EditStudioPage() {
     try { return localStorage.getItem('edit_studio_mode') !== 'advanced' } catch { return true }
   })
   const [retryingRender,     setRetryingRender]         = useState(false)
+  const [exportInsights,  setExportInsights]  = useState(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
   const [variantPlatforms,  setVariantPlatforms]  = useState([])
   const [variantJobs,       setVariantJobs]        = useState([])
   const [batchRendering,    setBatchRendering]      = useState(false)
@@ -974,6 +976,18 @@ export default function EditStudioPage() {
 
     return () => clearInterval(interval)
   }, [renderJob?.id, renderJob?.status])
+
+  // Load AI Director insights when entering Export tab (step 5)
+  useEffect(() => {
+    if (activeStep !== 5) return
+    if (exportInsights) return
+    setInsightsLoading(true)
+    fetch('/api/edit-studio/user-insights')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setExportInsights(d) })
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false))
+  }, [activeStep]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Nav helpers ────────────────────────────────────────────────────────────
 
@@ -2657,6 +2671,57 @@ export default function EditStudioPage() {
 
   // ─── Section: Export ──────────────────────────────────────────────────────
 
+  function renderDirectorExportTips() {
+    const ins = exportInsights
+    if (insightsLoading) return null
+    if (!ins?.hasEnoughData) return null
+
+    const tips = []
+
+    if (ins.preferredPlatform && ins.preferredPlatform !== project.platform) {
+      const PLATFORM_LABELS = { tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', linkedin: 'LinkedIn', meta: 'Meta' }
+      tips.push(`You usually export to ${PLATFORM_LABELS[ins.preferredPlatform] || ins.preferredPlatform} first.`)
+    }
+
+    if (ins.preferredVideoLength) {
+      const planDuration = cutPlans.find(p => p.id === selectedPlanId)?.totalDuration
+      if (planDuration && Math.abs(planDuration - ins.preferredVideoLength) > 15) {
+        tips.push(`Most of your successful exports are ${ins.preferredVideoLength}s. This edit is ${Math.round(planDuration)}s.`)
+      }
+    }
+
+    if (ins.preferredCaptionStyle && captionSettings?.style && ins.preferredCaptionStyle !== captionSettings.style) {
+      tips.push(`You frequently use "${ins.preferredCaptionStyle}" captions. Currently set to "${captionSettings.style}".`)
+    }
+
+    if (ins.preferredMusicTitle && selectedMusicBed?.title && ins.preferredMusicTitle !== selectedMusicBed.title) {
+      tips.push(`You often use "${ins.preferredMusicTitle}" for this type of content.`)
+    }
+
+    if (ins.reRendersThisWeek >= 3) {
+      tips.push(`You've re-rendered ${ins.reRendersThisWeek} times this week — preview the edit before rendering.`)
+    }
+
+    if (!tips.length) return null
+
+    return (
+      <div style={{ padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.gold}22`, background: C.gold + '06', marginBottom: 4 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>AI Director · Export Tips</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tips.map((tip, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 11, color: C.gold, flexShrink: 0, marginTop: 1 }}>·</div>
+              <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{tip}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: C.ghost, marginTop: 10 }}>
+          Based on {ins.totalExports} export{ins.totalExports !== 1 ? 's' : ''}. These are observations, not requirements.
+        </div>
+      </div>
+    )
+  }
+
   const renderExport = () => {
     const platformMeta   = PLATFORMS.find(p => p.id === project.platform)
     const goalMeta       = GOALS.find(g => g.id === project.goal)
@@ -2683,6 +2748,7 @@ export default function EditStudioPage() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {renderDirectorExportTips()}
 
         {/* ── Render Readiness checklist ────────────────────────────────── */}
         <div>
