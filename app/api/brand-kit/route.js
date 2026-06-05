@@ -38,12 +38,14 @@ export async function PATCH(req) {
     if (!user) return NextResponse.json({ status: 'error', message: 'Not authenticated' }, { status: 401 })
 
     const body = await req.json()
-    const { logoUrl, primaryColor } = body
 
     // Only allow known keys
     const patch = {}
-    if (typeof logoUrl      === 'string') patch.logoUrl      = logoUrl.trim()
-    if (typeof primaryColor === 'string') patch.primaryColor = primaryColor.trim()
+    const ALLOWED_FIELDS = ['logoUrl', 'primaryColor', 'introClipUrl', 'outroClipUrl', 'watermarkUrl']
+    const body2 = body
+    ALLOWED_FIELDS.forEach(field => {
+      if (typeof body2[field] === 'string') patch[field] = body2[field].trim()
+    })
 
     if (!Object.keys(patch).length) {
       return NextResponse.json({ status: 'error', message: 'No valid fields provided' }, { status: 400 })
