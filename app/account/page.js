@@ -46,6 +46,9 @@ function AdminPanel() {
   const [musicError,    setMusicError]    = useState(null)
   const [musicSuccess,  setMusicSuccess]  = useState(null)
 
+  const [renderOps,        setRenderOps]        = useState(null)
+  const [renderOpsLoading, setRenderOpsLoading] = useState(false)
+
   const loadData = () => {
     fetch('/api/admin/stats')
       .then(r => r.json())
@@ -78,6 +81,17 @@ function AdminPanel() {
   useEffect(() => { loadData() }, [])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === 'members') loadMembers('all', 0) }, [tab])
+  useEffect(() => {
+    if (tab !== 'renders') return
+    setRenderOpsLoading(true)
+    Promise.all([
+      fetch('/api/admin/render-health').then(r => r.json()),
+      fetch('/api/admin/render-ops').then(r => r.json()),
+    ])
+      .then(([health, ops]) => setRenderOps({ health, ops }))
+      .catch(() => {})
+      .finally(() => setRenderOpsLoading(false))
+  }, [tab])
 
   const handleAffiliate = async (id, action, extra = {}) => {
     setActing(id + action)
@@ -131,6 +145,7 @@ function AdminPanel() {
           { id: 'members',    label: `Members (${stats.totalUsers})` },
           { id: 'affiliates', label: `Affiliates${pendingApps.length > 0 ? ` ⚠ ${pendingApps.length}` : ` (${affiliates.length})`}` },
           { id: 'music',      label: 'Music Upload' },
+          { id: 'renders',    label: 'Render Ops' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: 'none', color: tab === t.id ? C.violet : C.muted, borderBottom: tab === t.id ? `2px solid ${C.violet}` : '2px solid transparent', transition: 'all 0.15s' }}>
@@ -492,6 +507,112 @@ function AdminPanel() {
                 {musicUploading ? 'Uploading…' : 'Upload Track'}
               </button>
             </form>
+          )
+        })()}
+
+        {/* ── RENDERS TAB ── */}
+        {tab === 'renders' && (() => {
+          if (renderOpsLoading) return <div style={{ padding: 32, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading render ops…</div>
+          if (!renderOps) return <div style={{ padding: 32, textAlign: 'center', color: C.muted, fontSize: 13 }}>No data</div>
+
+          const { health, ops } = renderOps
+          const statusColor = health?.status === 'healthy' ? C.green : health?.status === 'idle' ? C.muted : health?.status === 'warning' ? C.gold : '#c45a5a'
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Health banner */}
+              <div style={{ padding: '14px 18px', borderRadius: 10, border: `1px solid ${statusColor}44`, background: statusColor + '10' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+                  <div style={{ fontSize: 13, fontWeight: 700, color: statusColor, textTransform: 'capitalize' }}>{health?.status || '—'}</div>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted }}>{health?.statusMessage}</div>
+                {health?.lastSuccess && (
+                  <div style={{ fontSize: 11, color: C.ghost, marginTop: 6 }}>
+                    Last success: {health.lastSuccess.minutesAgo != null ? `${health.lastSuccess.minutesAgo}m ago` : new Date(health.lastSuccess.at).toLocaleTimeString()}
+                  </div>
+                )}
+                {health?.lastFailure && (
+                  <div style={{ fontSize: 11, color: '#c45a5a', marginTop: 4 }}>
+                    Last failure: {new Date(health.lastFailure.at).toLocaleTimeString()} — {health.lastFailure.message?.slice(0, 80)}
+                  </div>
+                )}
+              </div>
+
+              {/* Queue metrics */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {[
+                  { label: 'Queued',     value: health?.queueSize      || 0, color: C.gold  },
+                  { label: 'Processing', value: health?.activeJobs     || 0, color: C.blue  },
+                  { label: 'Completed',  value: ops?.counts?.completed || 0, color: C.green },
+                  { label: 'Failed',     value: ops?.counts?.failed    || 0, color: '#c45a5a' },
+                ].map(m => (
+                  <div key={m.label} style={{ padding: '12px', borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.surface, textAlign: 'center' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: m.color }}>{m.value}</div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{m.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Avg render time */}
+              {ops?.avgRenderSeconds != null && (
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  Average render duration: <strong style={{ color: C.primary }}>{ops.avgRenderSeconds}s</strong>
+                </div>
+              )}
+
+              {/* Recent failures */}
+              {ops?.recentFailures?.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Recent Failures</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {ops.recentFailures.map(f => (
+                      <div key={f.id} style={{ padding: '10px 12px', borderRadius: 7, border: `1px solid #c45a5a33`, background: '#c45a5a08' }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 10, color: C.ghost, fontFamily: 'monospace' }}>{f.id?.slice(0, 12)}…</span>
+                          <span style={{ fontSize: 10, color: C.muted }}>{f.platform || '—'}</span>
+                          {f.retries > 0 && <span style={{ fontSize: 10, color: C.gold }}>retry {f.retries}</span>}
+                          <span style={{ fontSize: 10, color: C.ghost, marginLeft: 'auto' }}>{new Date(f.failedAt).toLocaleTimeString()}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#c45a5a' }}>{f.error?.slice(0, 120)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent jobs */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Recent Jobs</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {(ops?.recentJobs || []).map(j => {
+                    const statusClr = j.status === 'completed' ? C.green : j.status === 'failed' ? '#c45a5a' : j.status === 'processing' ? C.blue : C.gold
+                    return (
+                      <div key={j.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.hairline}`, background: C.base }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusClr, flexShrink: 0 }} />
+                        <span style={{ fontSize: 10, color: C.ghost, fontFamily: 'monospace', flexShrink: 0 }}>{j.id?.slice(0, 8)}…</span>
+                        <span style={{ fontSize: 10, color: C.muted }}>{j.platform || '—'}</span>
+                        <span style={{ fontSize: 10, color: statusClr, textTransform: 'uppercase', letterSpacing: 0.5 }}>{j.status}</span>
+                        {j.stage && <span style={{ fontSize: 10, color: C.ghost }}>@ {j.stage}</span>}
+                        <span style={{ fontSize: 10, color: C.ghost, marginLeft: 'auto' }}>{new Date(j.createdAt).toLocaleTimeString()}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Refresh button */}
+              <button onClick={() => {
+                setRenderOpsLoading(true)
+                Promise.all([fetch('/api/admin/render-health').then(r=>r.json()), fetch('/api/admin/render-ops').then(r=>r.json())])
+                  .then(([h,o])=>setRenderOps({health:h,ops:o}))
+                  .catch(()=>{})
+                  .finally(()=>setRenderOpsLoading(false))
+              }}
+                style={{ padding: '8px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.secondary, alignSelf: 'flex-start' }}>
+                ↺ Refresh
+              </button>
+            </div>
           )
         })()}
 
