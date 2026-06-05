@@ -81,6 +81,7 @@ export async function GET() {
 const MEMORY_EVENTS = new Set([
   'campaign_created', 'perfect_day_generated', 'ad_studio_generated',
   'image_generated', 'campaign_adapted', 'campaign_completed',
+  'video_generated',
 ])
 
 export async function POST(req) {
