@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { makeRouteLogger } from '../../../../lib/edit-studio/apiLogger.js'
 
@@ -23,13 +22,6 @@ async function makeSupabase() {
         setAll: (cs) => cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
       },
     }
-  )
-}
-
-function makeAdminClient() {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 }
 
@@ -218,6 +210,13 @@ export async function POST(req) {
           throw new Error(`GPT-4o returned empty content (finish_reason: ${gptData.choices?.[0]?.finish_reason ?? 'unknown'})`)
         }
         result = JSON.parse(content)
+
+        // Ensure primary_concept matches a real concept type
+        const recommendedConcept = result.ad_concepts?.find(c => c.recommended)
+        if (result.primary_concept && result.ad_concepts?.length) {
+          const valid = result.ad_concepts.some(c => c.type === result.primary_concept)
+          if (!valid) result.primary_concept = recommendedConcept?.type ?? result.ad_concepts[0]?.type
+        }
       } catch (err) {
         fallback       = true
         fallbackReason = `Marketing strategy unavailable: ${err.message}`
