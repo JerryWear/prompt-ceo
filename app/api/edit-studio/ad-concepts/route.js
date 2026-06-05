@@ -348,7 +348,34 @@ export async function POST(req) {
         if (!Array.isArray(parsed.concepts) || parsed.concepts.length !== 5) {
           throw new Error(`GPT-4o returned ${parsed.concepts?.length ?? 0} concepts — expected exactly 5`)
         }
-        concepts = parsed.concepts
+        const rawConcepts = parsed.concepts
+
+        // Fix 1 — Enforce canonical ad_type values and required order (Spec item 8)
+        const REQUIRED_AD_TYPES = ['founder', 'saas_demo', 'problem_solution', 'linkedin_authority', 'tiktok_hook']
+        const orderedConcepts = REQUIRED_AD_TYPES.map((requiredType, idx) => {
+          const match = rawConcepts.find(c => c.ad_type === requiredType) || rawConcepts[idx] || {}
+          return { ...match, ad_type: requiredType }
+        })
+
+        // Fix 2 — Field validation: fill in safe defaults for any missing fields (Spec item 9)
+        const REQUIRED_CONCEPT_FIELDS = {
+          hook: '',
+          hook_archetype: 'problem',
+          script_15s: { hook: '', body: '', cta: '' },
+          script_30s: { hook: '', body: '', cta: '' },
+          script_60s: { hook: '', body: '', cta: '' },
+          cta: '',
+          platform: 'linkedin',
+          objective: '',
+          why_it_works: '',
+        }
+        concepts = orderedConcepts.map(c => ({
+          ...REQUIRED_CONCEPT_FIELDS,
+          ...c,
+          script_15s: { ...REQUIRED_CONCEPT_FIELDS.script_15s, ...(c.script_15s || {}) },
+          script_30s: { ...REQUIRED_CONCEPT_FIELDS.script_30s, ...(c.script_30s || {}) },
+          script_60s: { ...REQUIRED_CONCEPT_FIELDS.script_60s, ...(c.script_60s || {}) },
+        }))
       } catch (err) {
         fallback       = true
         fallbackReason = `Ad concept generation unavailable: ${err.message}`
@@ -385,7 +412,7 @@ export async function POST(req) {
     // On fallback, return the mock with no id.
     const responseConcepts = fallback
       ? concepts.map(c => ({
-          id:           undefined,
+          id:           null,                   // Fix 5 — clean sentinel instead of undefined
           ad_type:      c.ad_type,
           hook_type:    c.hook_archetype,
           hook_text:    c.hook,
@@ -395,19 +422,24 @@ export async function POST(req) {
           platform:     c.platform,
           objective:    c.objective,
           why_it_works: c.why_it_works,
+          cta:          c.cta || '',            // Fix 3 — include cta (Spec item 13)
         }))
-      : insertedRows.map((row, i) => ({
-          id:           row.id,
-          ad_type:      row.ad_type,
-          hook_type:    row.hook_type,
-          hook_text:    row.hook_text,
-          script_15s:   row.script_15s,
-          script_30s:   row.script_30s,
-          script_60s:   row.script_60s,
-          platform:     row.quality_scores?.platform,
-          objective:    row.quality_scores?.objective,
-          why_it_works: row.quality_scores?.why_it_works,
-        }))
+      : insertedRows.map((row) => {
+          const qs = row.quality_scores || {}  // Fix 4 — explicit fallback for quality_scores
+          return {
+            id:           row.id,
+            ad_type:      row.ad_type,
+            hook_type:    row.hook_type,
+            hook_text:    row.hook_text,
+            script_15s:   row.script_15s,
+            script_30s:   row.script_30s,
+            script_60s:   row.script_60s,
+            platform:     qs.platform,
+            objective:    qs.objective,
+            why_it_works: qs.why_it_works,
+            cta:          qs.cta || '',         // Fix 3 — include cta (Spec item 13)
+          }
+        })
 
     log.success({
       projectId,
