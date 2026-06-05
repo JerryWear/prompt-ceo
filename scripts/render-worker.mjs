@@ -148,6 +148,33 @@ async function resolveMusicUrl(music) {
   return null
 }
 
+// ─── Logo path resolution ────────────────────────────────────────────────────
+
+async function resolveLogoPath(plan, workDir) {
+  const logoUrl = plan.brandKit?.logoUrl
+  if (!logoUrl) return null
+
+  try {
+    let resolvedUrl = logoUrl
+    // brand-assets bucket is private — resolve signed URL if path contains it
+    if (logoUrl.includes('/brand-assets/')) {
+      const storagePath = logoUrl.split('/brand-assets/').pop()?.split('?')[0]
+      if (storagePath) {
+        const { data: signed } = await db.storage.from('brand-assets').createSignedUrl(storagePath, 3600)
+        if (signed?.signedUrl) resolvedUrl = signed.signedUrl
+      }
+    }
+
+    const ext  = resolvedUrl.split('?')[0].split('.').pop()?.toLowerCase() || 'png'
+    const dest = path.join(workDir, `logo.${ext}`)
+    await downloadFile(resolvedUrl, dest)
+    return dest
+  } catch (err) {
+    log('WARN', null, `Logo skipped: ${err.message}`)
+    return null
+  }
+}
+
 // ─── Caption file writer ──────────────────────────────────────────────────────
 
 const ASS_PRESETS = {
@@ -193,13 +220,16 @@ function writeCaptionAss(captions, settings, workDir) {
 
 // ─── FFmpeg args builder ──────────────────────────────────────────────────────
 
-function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
+function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath = null) {
   const segs = (plan.segments||[]).filter(s => (s.duration ?? (s.end - s.start)) > 0)
   if (!segs.length) throw new Error('No segments with duration > 0')
   const [w,h]  = (plan.resolution||'1080x1920').split('x')
   const crf    = plan.quality==='high' ? '18' : plan.quality==='web' ? '26' : '23'
   const inputs = ['-i', inputPath]
   if (musicPath) inputs.push('-i', musicPath)
+  const hasLogo  = !!logoPath
+  const logoIdx  = musicPath ? 2 : 1
+  if (hasLogo) inputs.push('-i', logoPath)
   const filters=[], vParts=[], aParts=[]
   segs.forEach((seg,i) => {
     filters.push(`[0:v]trim=start=${seg.start}:end=${seg.end},setpts=PTS-STARTPTS[v${i}]`)
@@ -213,6 +243,11 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
     const safe = captionPath.replace(/\\/g,'/').replace(/^([A-Za-z]):/,'$1\\:').replace(/'/g,"\\'")
     filters.push(`[scaled]subtitles='${safe}'[withsubs]`)
     finalV = '[withsubs]'
+  }
+  if (hasLogo) {
+    filters.push(`[${logoIdx}:v]scale=120:-1[slogo]`)
+    filters.push(`[${finalV}][slogo]overlay=W-w-20:H-h-20[withlogo]`)
+    finalV = '[withlogo]'
   }
   let finalA = '[cata]'
   if (musicPath) {
@@ -300,10 +335,18 @@ async function executeJob(job) {
       }
     }
 
+    // 4b. Resolve logo (brand kit)
+    let logoPath = null
+    if (plan.brandKit?.logoUrl) {
+      await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'logo' } })
+      logoPath = await resolveLogoPath(plan, workDir)
+      if (logoPath) log('INFO', jobId, 'Logo resolved')
+    }
+
     // 4. Run FFmpeg
     log('INFO', jobId, 'Running FFmpeg', { segments: plan.segments?.length, captions: !!captionPath, music: !!musicPath })
     await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'ffmpeg' } })
-    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath)
+    const args = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath)
     await execFileAsync('ffmpeg', args, { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 })
 
     if (!fs.existsSync(outputPath)) throw new Error('FFmpeg exited 0 but output file missing.')
@@ -318,7 +361,7 @@ async function executeJob(job) {
     log('INFO', jobId, 'Uploaded', { storagePath })
 
     // 6. Mark complete
-    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, warnings, retryCount, completedAt: new Date().toISOString() }
+    const renderDetails = { captionsRendered: !!captionPath, musicRendered: !!musicPath, logoRendered: !!logoPath, warnings, retryCount, completedAt: new Date().toISOString() }
     await updateJob(jobId, 'completed', { export_url: exportUrl, render_details: renderDetails })
     await appendJobToProject(projectId, userId, { id: jobId, status: 'completed', exportUrl, createdAt: job.created_at })
     await db.from('edit_projects').update({ status: 'exported' }).eq('id', projectId).eq('user_id', userId)
