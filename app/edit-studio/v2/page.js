@@ -215,6 +215,7 @@ export default function EditStudioV2() {
       setScreen('strategy')
     } catch (err) {
       setError(err.message)
+      setStrategy(null)
       setScreen('results')      // return to results on error
     }
   }, [understanding, project])
