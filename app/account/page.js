@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -554,6 +554,11 @@ export default function AccountPage() {
   const [portalLoading, setPortalLoad]  = useState(false)
   const [upgradeLoad,  setUpgradeLoad]  = useState(null)
   const [error,        setError]        = useState('')
+  const [brandKit,        setBrandKit]        = useState({ logoUrl: '', primaryColor: '#c8a84b' })
+  const [brandKitSaving,  setBrandKitSaving]  = useState(false)
+  const [brandKitMsg,     setBrandKitMsg]      = useState(null)
+  const [logoUploading,   setLogoUploading]   = useState(false)
+  const brandLogoRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -563,6 +568,10 @@ export default function AccountPage() {
         .then(r => r.json())
         .then(d => { if (d.status === 'success') setSub(d) })
         .finally(() => setLoading(false))
+      fetch('/api/brand-kit')
+        .then(r => r.json())
+        .then(d => { if (d.status === 'success') setBrandKit({ logoUrl: d.brandKit?.logoUrl || '', primaryColor: d.brandKit?.primaryColor || '#c8a84b' }) })
+        .catch(() => {})
     })
   }, [])
 
@@ -602,6 +611,61 @@ export default function AccountPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const handleLogoUpload = async (file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setBrandKitMsg({ type: 'error', text: 'Please upload an image file.' }); return }
+    if (file.size > 2 * 1024 * 1024) { setBrandKitMsg({ type: 'error', text: 'Logo must be under 2 MB.' }); return }
+
+    setLogoUploading(true)
+    setBrandKitMsg(null)
+    try {
+      const presignRes = await fetch('/api/brand-kit/presign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name }),
+      })
+      const presignData = await presignRes.json()
+      if (presignData.status !== 'success') throw new Error(presignData.message)
+
+      const uploadRes = await fetch(presignData.signedUrl, {
+        method: 'PUT', body: file,
+        headers: { 'Content-Type': file.type, 'x-upsert': 'true' },
+      })
+      if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+
+      const saveRes = await fetch('/api/brand-kit', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoUrl: presignData.publicUrl }),
+      })
+      const saveData = await saveRes.json()
+      if (saveData.status !== 'success') throw new Error(saveData.message)
+
+      setBrandKit(k => ({ ...k, logoUrl: presignData.publicUrl }))
+      setBrandKitMsg({ type: 'success', text: 'Logo saved.' })
+    } catch (err) {
+      setBrandKitMsg({ type: 'error', text: err.message })
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  const handleBrandColorSave = async () => {
+    setBrandKitSaving(true)
+    setBrandKitMsg(null)
+    try {
+      const res  = await fetch('/api/brand-kit', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primaryColor: brandKit.primaryColor }),
+      })
+      const data = await res.json()
+      if (data.status !== 'success') throw new Error(data.message)
+      setBrandKitMsg({ type: 'success', text: 'Brand color saved.' })
+    } catch (err) {
+      setBrandKitMsg({ type: 'error', text: err.message })
+    } finally {
+      setBrandKitSaving(false)
+    }
   }
 
   if (loading) return (
@@ -804,6 +868,61 @@ export default function AccountPage() {
           </button>
         </div>
 
+      </div>
+
+      {/* ── Brand Kit ─────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 24px 48px' }}>
+        <div style={{ padding: '24px', borderRadius: 12, border: `1px solid ${C.hairline}`, background: C.surface }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.primary, marginBottom: 4 }}>Brand Kit</div>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Your logo and brand color are automatically added to all Edit Studio renders.</div>
+
+          {/* Logo upload */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Logo</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              {brandKit.logoUrl ? (
+                <div style={{ width: 64, height: 64, borderRadius: 8, border: `1px solid ${C.hairline}`, background: C.subtle, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                  <img src={brandKit.logoUrl} alt="Brand logo" style={{ maxWidth: 56, maxHeight: 56, objectFit: 'contain' }} />
+                </div>
+              ) : (
+                <div style={{ width: 64, height: 64, borderRadius: 8, border: `1px dashed ${C.hairline}`, background: C.subtle, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: C.ghost, fontSize: 11 }}>No logo</div>
+              )}
+              <div>
+                <input ref={brandLogoRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style={{ display: 'none' }} onChange={e => handleLogoUpload(e.target.files?.[0])} />
+                <button onClick={() => brandLogoRef.current?.click()} disabled={logoUploading}
+                  style={{ padding: '8px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: logoUploading ? 'not-allowed' : 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                  {logoUploading ? 'Uploading…' : brandKit.logoUrl ? '↺ Replace Logo' : '⬆ Upload Logo'}
+                </button>
+                <div style={{ fontSize: 10, color: C.ghost, marginTop: 5 }}>PNG, JPG, SVG or WebP · max 2 MB</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Primary color */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Brand Color</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="color" value={brandKit.primaryColor || '#c8a84b'}
+                onChange={e => setBrandKit(k => ({ ...k, primaryColor: e.target.value }))}
+                style={{ width: 44, height: 44, borderRadius: 8, border: `1px solid ${C.hairline}`, cursor: 'pointer', padding: 2, background: 'none' }} />
+              <input type="text" value={brandKit.primaryColor || '#c8a84b'}
+                onChange={e => setBrandKit(k => ({ ...k, primaryColor: e.target.value }))}
+                placeholder="#c8a84b"
+                style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.hairline}`, background: C.raised, color: C.primary, fontSize: 13, fontFamily: 'monospace', width: 100, outline: 'none' }} />
+              <button onClick={handleBrandColorSave} disabled={brandKitSaving}
+                style={{ padding: '8px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: brandKitSaving ? 'not-allowed' : 'pointer', border: `1px solid ${C.green}`, background: C.greenGlow, color: C.green }}>
+                {brandKitSaving ? 'Saving…' : 'Save Color'}
+              </button>
+            </div>
+          </div>
+
+          {/* Status message */}
+          {brandKitMsg && (
+            <div style={{ padding: '8px 12px', borderRadius: 7, fontSize: 12, color: brandKitMsg.type === 'success' ? C.green : '#c45a5a', border: `1px solid ${brandKitMsg.type === 'success' ? C.green + '44' : '#c45a5a44'}`, background: brandKitMsg.type === 'success' ? C.greenGlow : '#c45a5a08' }}>
+              {brandKitMsg.text}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
