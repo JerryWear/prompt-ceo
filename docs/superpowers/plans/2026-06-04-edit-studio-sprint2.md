@@ -16,19 +16,88 @@ PromptCEO is not CapCut. The AI Director makes all cut decisions. Users approve,
 
 ---
 
+## Sprint 2.5 Ecosystem Integration (Pre-Implementation Review — 2026-06-05)
+
+Three additive amendments identified during the architecture review. These ensure Sprint 2 features write intelligence signals from day one rather than being isolated features.
+
+**Amendment 1 — `video_generated` added to MEMORY_EVENTS** (`app/api/signal/route.js`)
+Every video export writes to `campaign_memory`, feeding Music Director and AI Director preference learning.
+
+**Amendment 2 — Export + re-render signals** (`app/edit-studio/page.js`)
+- `handleCreateRenderJob` fires `video_generated` signal (non-fatal, fire-and-forget)
+- `handleReRender` fires `result_re_run` signal with current render plan settings
+- Signal metadata includes derived `campaignPhase` from `goal`
+
+**Amendment 3 — batch_id + signals in render-batch API** (`app/api/edit-studio/render-batch/route.js`)
+- `batch_id` UUID column added to DB migration for future job grouping
+- One `video_generated` signal per platform created in batch exports
+
+**GOAL_TO_CAMPAIGN_PHASE mapping (used in signal metadata):**
+```js
+const GOAL_TO_CAMPAIGN_PHASE = {
+  founder: 'awareness', demo: 'consideration', tutorial: 'nurture',
+  launch: 'conversion', ugc: 'awareness', edu: 'awareness',
+}
+```
+
+---
+
 ## File Map
 
 | Action | File | Responsibility |
 |---|---|---|
-| Create | `supabase/migrations/20260604_brand_kit.sql` | Add `brand_kit` jsonb column to `app_users` |
+| Create | `supabase/migrations/20260604_brand_kit.sql` | Add `brand_kit` jsonb + `batch_id` to `edit_render_jobs` |
+| Modify | `app/api/signal/route.js` | Add `video_generated` to MEMORY_EVENTS |
 | Create | `app/api/brand-kit/route.js` | GET + PATCH user brand kit |
 | Create | `app/api/brand-kit/presign/route.js` | Presigned upload URL for logo PNG |
-| Create | `app/api/edit-studio/render-batch/route.js` | Create multiple render jobs from one base plan |
+| Create | `app/api/edit-studio/render-batch/route.js` | Create multiple render jobs + fire per-platform signals |
 | Modify | `app/api/edit-studio/render-plan/route.js` | Inject brand kit into render plan |
 | Modify | `lib/edit-studio/renderEngine.js` | Add `logoPath` param to `buildFullFfmpegArgs` |
 | Modify | `scripts/render-worker.mjs` | Fetch brand kit, download logo, pass to `buildArgs` |
-| Modify | `app/edit-studio/page.js` | Multi-platform variant UI, preview player, re-render button |
+| Modify | `app/edit-studio/page.js` | Multi-platform export UI, preview player, re-render button + signals |
 | Modify | `app/account/page.js` | Brand Kit section (logo upload + color picker) |
+
+---
+
+## Task 0: Ecosystem Signal Wiring (Sprint 2.5 Amendment)
+
+**Files:**
+- Modify: `app/api/signal/route.js` — add `video_generated` to MEMORY_EVENTS
+
+This is the unlock for AI Director preference learning. Without it, video exports log to `signal_logs` but never update `campaign_memory`. With it, every export feeds Music Director, the AI Director, and future Jarvis Producer recommendations.
+
+- [ ] **Step 1: Add `video_generated` to MEMORY_EVENTS in `app/api/signal/route.js`**
+
+Find the `MEMORY_EVENTS` Set (around line 81):
+```js
+const MEMORY_EVENTS = new Set([
+  'campaign_created', 'perfect_day_generated', 'ad_studio_generated',
+  'image_generated', 'campaign_adapted', 'campaign_completed',
+])
+```
+
+Replace with:
+```js
+const MEMORY_EVENTS = new Set([
+  'campaign_created', 'perfect_day_generated', 'ad_studio_generated',
+  'image_generated', 'campaign_adapted', 'campaign_completed',
+  'video_generated',
+])
+```
+
+- [ ] **Step 2: Verify `video_generated` is in EVENT_WEIGHTS**
+
+```bash
+grep -n "video_generated" app/api/signal/route.js
+```
+Expected: 2 lines — one in `EVENT_WEIGHTS` (weight 5), one in `MEMORY_EVENTS`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add app/api/signal/route.js
+git commit -m "feat: add video_generated to MEMORY_EVENTS so exports feed campaign intelligence"
+```
 
 ---
 
@@ -41,11 +110,19 @@ PromptCEO is not CapCut. The AI Director makes all cut decisions. Users approve,
 
 ```sql
 -- supabase/migrations/20260604_brand_kit.sql
--- Adds brand_kit column to app_users for logo URL + primary color.
+-- Adds brand_kit to app_users and batch_id to edit_render_jobs.
 -- brand_kit shape: { logoUrl: string, primaryColor: string }
+-- batch_id: groups jobs created together in a multi-platform export
 
 alter table public.app_users
   add column if not exists brand_kit jsonb default '{}';
+
+alter table public.edit_render_jobs
+  add column if not exists batch_id uuid default null;
+
+create index if not exists edit_render_jobs_batch_id_idx
+  on public.edit_render_jobs (batch_id)
+  where batch_id is not null;
 ```
 
 - [ ] **Step 2: Apply in Supabase Dashboard**
