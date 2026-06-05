@@ -51,8 +51,11 @@ export async function POST(req) {
     }
 
     // Build storage path: edit-studio-assets/{userId}/{projectId}/{fileName}
+    // Use a stable UUID when no projectId — avoids 'unknown' placeholder and ensures
+    // the path is unique per upload session even before the project is saved.
     const safeName = (fileName || 'source.mp4').replace(/[^a-zA-Z0-9._-]/g, '_')
-    const storagePath = `${user.id}/${projectId || 'unknown'}/${safeName}`
+    const pathSegment = projectId || crypto.randomUUID()
+    const storagePath = `${user.id}/${pathSegment}/${safeName}`
 
     // Create signed upload URL using service role (bypasses RLS for the presign)
     const admin = makeAdmin()
@@ -81,11 +84,13 @@ export async function POST(req) {
     }
 
     return NextResponse.json({
-      status:     'success',
-      signedUrl:  data.signedUrl,
-      token:      data.token,
-      path:       storagePath,
-      publicUrl:  urlData.publicUrl,
+      status:      'success',
+      signedUrl:   data.signedUrl,
+      token:       data.token,
+      path:        storagePath,
+      storagePath: storagePath,                 // permanent path — use for signed URL regeneration
+      bucket:      'edit-studio-assets',        // bucket name for worker
+      publicUrl:   urlData.publicUrl,
     })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })

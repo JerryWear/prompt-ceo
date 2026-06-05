@@ -148,6 +148,57 @@ async function resolveMusicUrl(music) {
   return null
 }
 
+// ─── Source video URL resolution ─────────────────────────────────────────────
+// The source video URL stored in the render plan is a public-format Supabase URL
+// which returns 400 if the bucket is private. We always create a fresh signed URL
+// from the storage path + bucket when available, falling back to URL-pattern parsing.
+
+async function resolveSourceUrl(plan) {
+  const url         = plan.sourceVideoUrl
+  const storagePath = plan.sourceVideoStoragePath
+  const bucket      = plan.sourceVideoBucket || 'edit-studio-assets'
+
+  if (!url && !storagePath) return null
+
+  // Prefer explicit storagePath (most reliable — doesn't depend on URL format)
+  if (storagePath) {
+    try {
+      const { data: signed, error } = await db.storage.from(bucket).createSignedUrl(storagePath, 7200)
+      if (signed?.signedUrl) {
+        log('INFO', null, `Source video signed via storagePath: ${storagePath}`)
+        return signed.signedUrl
+      }
+      if (error) log('WARN', null, `storagePath sign failed: ${error.message} — trying URL parse`)
+    } catch (err) {
+      log('WARN', null, `storagePath sign error: ${err.message} — trying URL parse`)
+    }
+  }
+
+  // Fall back to parsing the URL itself to extract bucket + path
+  if (url) {
+    // Matches: /storage/v1/object/(public|sign)/bucketName/path...
+    const m = url.match(/\/storage\/v1\/object\/(?:public\/|sign\/)?([^/?]+)\/(.+?)(?:\?.*)?$/)
+    if (m) {
+      const parsedBucket = m[1]
+      const parsedPath   = decodeURIComponent(m[2])
+      try {
+        const { data: signed, error } = await db.storage.from(parsedBucket).createSignedUrl(parsedPath, 7200)
+        if (signed?.signedUrl) {
+          log('INFO', null, `Source video signed via URL parse: ${parsedBucket}/${parsedPath.slice(0, 40)}`)
+          return signed.signedUrl
+        }
+        if (error) log('WARN', null, `URL parse sign failed: ${error.message} — using original URL`)
+      } catch (err) {
+        log('WARN', null, `URL parse sign error: ${err.message} — using original URL`)
+      }
+    }
+  }
+
+  // Last resort: use the URL as-is (works for truly public buckets)
+  log('WARN', null, `Could not sign source URL — using original (may fail if bucket is private): ${url?.slice(0,80)}`)
+  return url || null
+}
+
 // ─── Logo path resolution ────────────────────────────────────────────────────
 
 async function resolveLogoPath(plan, workDir) {
@@ -350,11 +401,19 @@ async function executeJob(job) {
     })
     log('INFO', jobId, 'Job started', { projectId, retry: retryCount })
 
-    // 1. Download source
-    if (!plan.sourceVideoUrl) throw new Error('No sourceVideoUrl in render plan.')
-    log('INFO', jobId, 'Downloading source video')
+    // 1. Download source — resolve signed URL before downloading
+    if (!plan.sourceVideoUrl && !plan.sourceVideoStoragePath) {
+      throw new Error('No sourceVideoUrl or sourceVideoStoragePath in render plan. Upload the source video to storage first.')
+    }
+    log('INFO', jobId, 'Resolving source video URL', {
+      hasUrl:  !!plan.sourceVideoUrl,
+      hasPath: !!plan.sourceVideoStoragePath,
+      bucket:  plan.sourceVideoBucket || 'edit-studio-assets',
+    })
     await updateJob(jobId, 'processing', { render_details: { ...existingDetails, retryCount, stage: 'downloading' } })
-    await downloadFile(plan.sourceVideoUrl, inputPath)
+    const resolvedSourceUrl = await resolveSourceUrl(plan)
+    if (!resolvedSourceUrl) throw new Error('Could not resolve source video URL to a downloadable URL.')
+    await downloadFile(resolvedSourceUrl, inputPath)
     log('INFO', jobId, 'Source downloaded', { size: `${(fs.statSync(inputPath).size/1024/1024).toFixed(1)} MB` })
 
     // 2. Caption file

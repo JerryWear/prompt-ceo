@@ -53,7 +53,9 @@ const EMPTY_PROJECT = {
   videoDuration:  null,   // seconds (number)
   videoSize:      null,   // bytes (number)
   videoType:      null,   // MIME type string
-  sourceVideoUrl: null,   // Supabase Storage URL (set after upload-source)
+  sourceVideoUrl:         null,   // Supabase Storage URL (set after upload-source)
+  sourceVideoStoragePath: null,   // permanent storage path for signed URL regeneration
+  sourceVideoBucket:      null,   // storage bucket name
   status:         'idle', // 'idle' | 'uploading' | 'analyzing' | 'ready'
   createdAt:      null,
   updatedAt:      null,
@@ -288,7 +290,9 @@ export default function EditStudioPage() {
       source_video_name: s.videoFile         ?? null,
       source_video_size: s.videoSize         ?? null,
       source_video_type: s.videoType         ?? null,
-      source_video_url:  s.sourceVideoUrl    ?? null,
+      source_video_url:          s.sourceVideoUrl         ?? null,
+      source_video_storage_path: s.sourceVideoStoragePath ?? null,
+      source_video_bucket:       s.sourceVideoBucket      ?? null,
       transcript_data:   snap.transcriptSegs,
       ai_cuts_data:      snap.aiCuts,
       caption_settings:  snap.captionSettings,
@@ -434,8 +438,12 @@ export default function EditStudioPage() {
         fd.append('sourceVideoType', project.videoType || 'video/mp4')
         res = await fetch('/api/edit-studio/transcribe', { method: 'POST', body: fd })
       } else {
-        // No storage URL and file too large for Vercel — tell user to upload first
-        setTranscribeError('Video too large to send directly. Go to the Export tab → click "Upload Source Video" first, then come back and try again.')
+        // No storage URL and file too large for direct send — guide user to upload step
+        setTranscribeError(
+          'Your video is too large to process directly (Vercel 4.5 MB limit). ' +
+          'Before transcribing: scroll down to the Export tab → click "⬆ Upload Source Video". ' +
+          'Once uploaded, return here and click "Generate Transcript" again.'
+        )
         setTranscribing(false)
         return
       }
@@ -746,8 +754,10 @@ export default function EditStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           projectId,
-          sourceVideoUrl:  project.sourceVideoUrl  || null,
-          sourceVideoName: project.videoFile,
+          sourceVideoUrl:         project.sourceVideoUrl         || null,
+          sourceVideoName:        project.videoFile,
+          sourceVideoStoragePath: project.sourceVideoStoragePath || null,
+          sourceVideoBucket:      project.sourceVideoBucket      || 'edit-studio-assets',
           selectedCutPlan: selectedPlan || null,
           editorCleanup,
           captionTimeline,
@@ -780,7 +790,7 @@ export default function EditStudioPage() {
     if (!renderPlan) return
     // Never create a job without a source video URL — stops null jobs flooding the worker
     if (!renderPlan.sourceVideoUrl) {
-      setRenderJob({ id: null, status: 'failed', error: 'Source video not uploaded to storage. Go to Export tab → Upload Source Video first, then Rebuild Render Plan.', createdAt: new Date().toISOString() })
+      setRenderJob({ id: null, status: 'failed', error: 'Source video not uploaded to storage. In the Export tab, click "⬆ Upload Source Video", then rebuild the render plan.', createdAt: new Date().toISOString() })
       return
     }
     setCreatingJob(true)
@@ -938,8 +948,13 @@ export default function EditStudioPage() {
       }
       setSourceUploadPct(100)
 
-      // 3. Store the storage URL on the project and save
-      setProject(p => ({ ...p, sourceVideoUrl: presignData.publicUrl }))
+      // 3. Store the storage URL + permanent path on the project and save
+      setProject(p => ({
+        ...p,
+        sourceVideoUrl:         presignData.publicUrl,
+        sourceVideoStoragePath: presignData.storagePath || null,
+        sourceVideoBucket:      presignData.bucket      || 'edit-studio-assets',
+      }))
       isDirty.current = true
       saveProject(true)
     } catch (err) {
@@ -1019,7 +1034,9 @@ export default function EditStudioPage() {
         goal:            p.goal,
         videoFile:       p.source_video_name,
         videoSize:       p.source_video_size,
-        sourceVideoUrl:  p.source_video_url || null,
+        sourceVideoUrl:         p.source_video_url          || null,
+        sourceVideoStoragePath: p.source_video_storage_path || null,
+        sourceVideoBucket:      p.source_video_bucket       || null,
         videoDuration:   derivedDuration,
         status:          (p.transcript_data?.length || p.ai_cuts_data?.length) ? 'ready' : 'idle',
       })

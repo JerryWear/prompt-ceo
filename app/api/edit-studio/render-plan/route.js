@@ -53,6 +53,8 @@ export async function POST(req) {
       projectId,
       sourceVideoUrl,
       sourceVideoName,
+      sourceVideoStoragePath,
+      sourceVideoBucket,
       selectedCutPlan,
       editorCleanup,
       captionTimeline,
@@ -119,8 +121,10 @@ export async function POST(req) {
 
     const renderPlan = {
       projectId,
-      sourceVideoUrl:  sourceVideoUrl  || null,
-      sourceVideoName: sourceVideoName || null,
+      sourceVideoUrl:         sourceVideoUrl         || null,
+      sourceVideoName:        sourceVideoName        || null,
+      sourceVideoStoragePath: sourceVideoStoragePath || null,  // permanent path for signed URL regeneration
+      sourceVideoBucket:      sourceVideoBucket      || 'edit-studio-assets',
       outputFormat:    exportSettings?.format  || 'mp4',
       aspectRatio:     platformMeta.aspectRatio,
       resolution,
