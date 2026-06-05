@@ -35,7 +35,17 @@ function makeAdminClient() {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a senior performance creative director at a top SaaS marketing agency. You write ads that convert — not ads that describe software. Every script line must be short enough to say out loud in one breath. Every hook must name the specific product. No filler words. No hedging. No generic SaaS copy. Write as if you are handing this to a video production team tomorrow.`
+const SYSTEM_PROMPT = `You are a performance creative director who writes ad scripts specifically for text-to-speech narration and video ads. Your scripts are SPOKEN, not read.
+
+Core rules you never break:
+- Every sentence is 10 words or fewer. Break longer sentences in two.
+- Use contractions always: "I'm" not "I am", "you're" not "you are", "it's" not "it is"
+- Write out all numbers and symbols: "$10k" → "ten thousand dollars", "5 ads" → "five ads", "promptceo.io" → "PromptCEO dot io"
+- No three-item lists crammed in one sentence. One idea per sentence.
+- No corporate buzzwords: never use "revolutionize", "leverage", "synergy", "enhance", "optimize", "utilize"
+- Use "..." only before a genuine dramatic pause or reveal — not after every sentence
+- Each script persona has a different voice register — match it exactly
+- No generic SaaS copy. Every line must be specific to the actual product.`
 
 // ─── User prompt builder ──────────────────────────────────────────────────────
 
@@ -48,32 +58,18 @@ function buildConceptPrompt(understandingData, creativeStrategy) {
       ? `Products detected: ${understandingData.detected_products.join(', ')}`
       : '',
     understandingData?.business_description
-      ? `Business description: ${understandingData.business_description}`
+      ? `Business: ${understandingData.business_description}`
       : '',
     understandingData?.key_messages?.length
-      ? `Key messages:\n${understandingData.key_messages.map(m => `- ${m}`).join('\n')}`
+      ? `Key messages: ${understandingData.key_messages.join(' | ')}`
       : '',
-  ].filter(Boolean).join('\n\n')
+  ].filter(Boolean).join('\n')
 
   const strategyContext = [
-    strategy.positioning
-      ? `Positioning: ${strategy.positioning}`
-      : '',
-    strategy.target_audience
-      ? `Target audience: ${strategy.target_audience}`
-      : '',
-    strategy.primary_message
-      ? `Primary message: ${strategy.primary_message}`
-      : '',
-    strategy.hook_strategy
-      ? `Hook strategy: ${strategy.hook_strategy}`
-      : '',
-    strategy.opening_hook_example
-      ? `Opening hook example: ${strategy.opening_hook_example}`
-      : '',
-    strategy.cta
-      ? `CTA: ${strategy.cta}`
-      : '',
+    strategy.target_audience  ? `Audience: ${strategy.target_audience}`        : '',
+    strategy.primary_message  ? `Core message: ${strategy.primary_message}`    : '',
+    strategy.opening_hook_example ? `Hook example: ${strategy.opening_hook_example}` : '',
+    strategy.cta              ? `CTA direction: ${strategy.cta}`               : '',
   ].filter(Boolean).join('\n')
 
   return `Product context:
@@ -82,23 +78,50 @@ ${productContext}
 Creative strategy:
 ${strategyContext}
 
-Generate exactly 5 ad concepts in this order:
-1. Founder Ad (hook_archetype: authority)
-2. SaaS Demo Ad (hook_archetype: curiosity)
-3. Problem/Solution Ad (hook_archetype: problem)
-4. LinkedIn Authority Ad (hook_archetype: transformation)
-5. TikTok Hook Ad (hook_archetype: contrarian)
+Generate exactly 5 ad concepts. Return JSON: { "concepts": [ ...5 objects... ] }
 
-For each concept generate: ad_type, hook_archetype, hook, script_15s (hook/body/cta), script_30s (hook/body/cta), script_60s (hook/body/cta), cta, platform, objective, why_it_works.
+Each concept MUST have these exact fields — no exceptions:
+{
+  "ad_type": "founder|saas_demo|problem_solution|linkedin_authority|tiktok_hook",
+  "hook_archetype": "authority|curiosity|problem|transformation|contrarian",
+  "hook": "the opening line",
+  "script_15s": { "hook": "...", "body": "...", "cta": "..." },
+  "script_30s": { "hook": "...", "body": "...", "cta": "..." },
+  "script_60s": { "hook": "...", "body": "...", "cta": "..." },
+  "cta": "standalone call to action",
+  "platform": "linkedin|tiktok|youtube|instagram|meta",
+  "objective": "what this ad achieves",
+  "why_it_works": "specific psychology, not generic benefits"
+}
 
-Rules:
-- Every hook must include the product name "${productName}"
-- Every script section (hook/body/cta) must be a complete, speakable sentence
-- 15s script total = under 40 words. 30s = under 85 words. 60s = under 175 words.
-- The CTA must be specific — include a URL or action verb + product name
-- why_it_works must explain the specific psychological mechanism, not generic benefits
+AD TYPES (in this order):
+1. founder (platform: linkedin, hook_archetype: authority) — first person founder story. Start with what you paid or lost. Sound like a real person on camera, not a brand.
+   Good: "I was paying eight thousand dollars a month to a creative agency. Two weeks for one ad. I built ${productName} because I got tired of it."
+   Bad: "Revolutionize your workflow with AI-powered solutions."
 
-Return JSON: { "concepts": [ ...5 concept objects... ] }`
+2. saas_demo (platform: youtube, hook_archetype: curiosity) — narrator reacting to the product live. Short excited sentences. React to what you see on screen.
+   Good: "Watch this. I just uploaded one video. It built me five ads. Each with a script and a voiceover."
+   Bad: "PromptCEO's platform leverages AI to enhance your creative capabilities."
+
+3. problem_solution (platform: meta, hook_archetype: problem) — name the exact pain first, then fix it. Two acts, no middle fluff.
+   Good: "You briefed your agency three weeks ago. You got one ad. It didn't convert. There's a better way."
+   Bad: "Tired of slow creative processes? Optimize your workflow today."
+
+4. linkedin_authority (platform: linkedin, hook_archetype: transformation) — lead with an industry insight. Never open with a product pitch. Let ${productName} arrive as the logical conclusion.
+   Good: "Most marketing teams outsource creative because they think there's no other option. There is."
+   Bad: "Transform your marketing strategy with ${productName}'s cutting-edge AI."
+
+5. tiktok_hook (platform: tiktok, hook_archetype: contrarian) — phone-camera feel. Very short sentences: 4 to 6 words each. Mid-thought. Sounds unscripted.
+   Good: "Okay wait. You need to see this. I just replaced my entire ad agency. With one tool."
+   Bad: "Discover how PromptCEO challenges the status quo of creative production."
+
+SCRIPT RULES:
+- 15s = under 40 words total. 30s = under 80 words total. 60s = under 165 words total.
+- Write out ALL numbers: "$5,000" → "five thousand dollars". "5 ads" → "five ads".
+- Speak URLs: "promptceo.io" → "${productName} dot io".
+- Max 12 words per sentence. Split anything longer.
+- Use contractions: "I'm", "it's", "you're" — not "I am", "it is", "you are".
+- BANNED: revolutionize, leverage, enhance, optimize, utilize, unlock, empower, transform, seamless, cutting-edge, game-changing.`
 }
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
