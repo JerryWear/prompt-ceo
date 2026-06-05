@@ -675,11 +675,14 @@ export default function AccountPage() {
   const [portalLoading, setPortalLoad]  = useState(false)
   const [upgradeLoad,  setUpgradeLoad]  = useState(null)
   const [error,        setError]        = useState('')
-  const [brandKit,        setBrandKit]        = useState({ logoUrl: '', primaryColor: '#c8a84b' })
+  const [brandKit,        setBrandKit]        = useState({ logoUrl: '', primaryColor: '#c8a84b', introClipUrl: '', outroClipUrl: '', watermarkUrl: '' })
   const [brandKitSaving,  setBrandKitSaving]  = useState(false)
   const [brandKitMsg,     setBrandKitMsg]      = useState(null)
   const [logoUploading,   setLogoUploading]   = useState(false)
   const brandLogoRef = useRef(null)
+  const brandIntroRef     = useRef(null)
+  const brandOutroRef     = useRef(null)
+  const brandWatermarkRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -691,7 +694,15 @@ export default function AccountPage() {
         .finally(() => setLoading(false))
       fetch('/api/brand-kit')
         .then(r => r.json())
-        .then(d => { if (d.status === 'success') setBrandKit({ logoUrl: d.brandKit?.logoUrl || '', primaryColor: d.brandKit?.primaryColor || '#c8a84b' }) })
+        .then(d => {
+        if (d.status === 'success') setBrandKit({
+          logoUrl:      d.brandKit?.logoUrl      || '',
+          primaryColor: d.brandKit?.primaryColor || '#c8a84b',
+          introClipUrl: d.brandKit?.introClipUrl || '',
+          outroClipUrl: d.brandKit?.outroClipUrl || '',
+          watermarkUrl: d.brandKit?.watermarkUrl || '',
+        })
+      })
         .catch(() => {})
     })
   }, [])
@@ -786,6 +797,39 @@ export default function AccountPage() {
       setBrandKitMsg({ type: 'error', text: err.message })
     } finally {
       setBrandKitSaving(false)
+    }
+  }
+
+  const handleClipUpload = async (file, uploadType, fieldName) => {
+    if (!file) return
+    setBrandKitMsg(null)
+    setLogoUploading(true)
+    try {
+      const presignRes = await fetch('/api/brand-kit/presign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, uploadType }),
+      })
+      const presignData = await presignRes.json()
+      if (presignData.status !== 'success') throw new Error(presignData.message)
+
+      const uploadRes = await fetch(presignData.signedUrl, {
+        method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'x-upsert': 'true' },
+      })
+      if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+
+      const saveRes = await fetch('/api/brand-kit', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [fieldName]: presignData.publicUrl }),
+      })
+      const saveData = await saveRes.json()
+      if (saveData.status !== 'success') throw new Error(saveData.message)
+
+      setBrandKit(k => ({ ...k, [fieldName]: presignData.publicUrl }))
+      setBrandKitMsg({ type: 'success', text: `${uploadType} saved.` })
+    } catch (err) {
+      setBrandKitMsg({ type: 'error', text: err.message })
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -1036,6 +1080,60 @@ export default function AccountPage() {
               </button>
             </div>
           </div>
+
+            {/* Intro clip */}
+            <div style={{ marginBottom: 20, paddingTop: 16, borderTop: `1px solid ${C.hairline}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Intro Clip</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Short branded video (≤10s) prepended to every render. MP4, MOV, or WebM · max 50 MB</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 11, color: brandKit.introClipUrl ? C.green : C.ghost }}>{brandKit.introClipUrl ? '✓ Intro clip set' : 'No intro clip'}</span>
+                <input ref={brandIntroRef} type="file" accept="video/mp4,video/quicktime,video/webm" style={{ display: 'none' }} onChange={e => handleClipUpload(e.target.files?.[0], 'intro', 'introClipUrl')} />
+                <button onClick={() => brandIntroRef.current?.click()} disabled={logoUploading}
+                  style={{ padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                  {brandKit.introClipUrl ? '↺ Replace' : '⬆ Upload'}
+                </button>
+                {brandKit.introClipUrl && (
+                  <button onClick={() => { fetch('/api/brand-kit', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introClipUrl: '' }) }).then(() => setBrandKit(k => ({ ...k, introClipUrl: '' }))) }}
+                    style={{ padding: '6px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.ghost }}>Remove</button>
+                )}
+              </div>
+            </div>
+
+            {/* Outro clip */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Outro Clip</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Short branded video (≤10s) appended to every render. MP4, MOV, or WebM · max 50 MB</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 11, color: brandKit.outroClipUrl ? C.green : C.ghost }}>{brandKit.outroClipUrl ? '✓ Outro clip set' : 'No outro clip'}</span>
+                <input ref={brandOutroRef} type="file" accept="video/mp4,video/quicktime,video/webm" style={{ display: 'none' }} onChange={e => handleClipUpload(e.target.files?.[0], 'outro', 'outroClipUrl')} />
+                <button onClick={() => brandOutroRef.current?.click()} disabled={logoUploading}
+                  style={{ padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                  {brandKit.outroClipUrl ? '↺ Replace' : '⬆ Upload'}
+                </button>
+                {brandKit.outroClipUrl && (
+                  <button onClick={() => { fetch('/api/brand-kit', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outroClipUrl: '' }) }).then(() => setBrandKit(k => ({ ...k, outroClipUrl: '' }))) }}
+                    style={{ padding: '6px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.ghost }}>Remove</button>
+                )}
+              </div>
+            </div>
+
+            {/* Watermark */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.secondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Watermark</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Transparent PNG overlaid top-left on every render. PNG or WebP · max 2 MB</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 11, color: brandKit.watermarkUrl ? C.green : C.ghost }}>{brandKit.watermarkUrl ? '✓ Watermark set' : 'No watermark'}</span>
+                <input ref={brandWatermarkRef} type="file" accept="image/png,image/webp" style={{ display: 'none' }} onChange={e => handleClipUpload(e.target.files?.[0], 'watermark', 'watermarkUrl')} />
+                <button onClick={() => brandWatermarkRef.current?.click()} disabled={logoUploading}
+                  style={{ padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.gold}`, background: C.goldGlow, color: C.gold }}>
+                  {brandKit.watermarkUrl ? '↺ Replace' : '⬆ Upload'}
+                </button>
+                {brandKit.watermarkUrl && (
+                  <button onClick={() => { fetch('/api/brand-kit', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watermarkUrl: '' }) }).then(() => setBrandKit(k => ({ ...k, watermarkUrl: '' }))) }}
+                    style={{ padding: '6px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'none', color: C.ghost }}>Remove</button>
+                )}
+              </div>
+            </div>
 
           {/* Status message */}
           {brandKitMsg && (
