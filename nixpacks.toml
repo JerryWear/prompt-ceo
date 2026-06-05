@@ -1,0 +1,9 @@
+# nixpacks.toml
+# Railway build configuration for the PromptCEO render worker.
+# ffmpeg-full includes libx264, libass, aac, and all common codecs.
+
+[phases.setup]
+nixPkgs = ["ffmpeg-full", "nodejs_20"]
+
+[start]
+cmd = "node scripts/render-worker.mjs"
