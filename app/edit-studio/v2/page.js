@@ -24,6 +24,14 @@ const VOICE_OPTIONS = [
   { key: 'energetic_creator',   label: 'Energetic Creator',   description: 'High energy, punchy',   emoji: '⚡' },
 ]
 
+const CAPTION_STYLE_OPTIONS = [
+  { key: 'tiktok_ugc',         label: 'TikTok UGC',        description: '1-2 words, punchy',     emoji: '⚡' },
+  { key: 'founder',            label: 'Founder',            description: 'Short, personal',       emoji: '🎙' },
+  { key: 'high_energy',        label: 'High-Energy',        description: 'Single words, fast',    emoji: '🔥' },
+  { key: 'saas_demo',          label: 'SaaS Demo',          description: 'Key terms highlighted', emoji: '💻' },
+  { key: 'linkedin_authority', label: 'LinkedIn Authority', description: 'Longer, measured',      emoji: '💼' },
+]
+
 function VoicePanel({ concept, projectId }) {
   const [selectedVoice, setSelectedVoice] = useState('professional_female')
   const [selectedDuration, setSelectedDuration] = useState('30s')
@@ -144,6 +152,162 @@ function VoicePanel({ concept, projectId }) {
       {error && (
         <p className={styles.voiceError}>{error}</p>
       )}
+    </div>
+  )
+}
+
+function CaptionPanel({ concept, projectId, selectedDuration }) {
+  const [selectedStyle, setSelectedStyle] = useState('tiktok_ugc')
+  const [loading, setLoading]             = useState(false)
+  const [captions, setCaptions]           = useState(null)  // caption_timeline array
+  const [meta, setMeta]                   = useState(null)  // { style_name, chunk_count, total_duration, timing_source }
+  const [error, setError]                 = useState(null)
+  const [previewIndex, setPreviewIndex]   = useState(0)     // which caption chunk is being previewed
+
+  // Determine which script to use based on selectedDuration prop
+  const scriptObj = concept[`script_${selectedDuration || '30s'}`] || {}
+
+  const handleGenerate = async (e) => {
+    e.stopPropagation()
+    if (!scriptObj.hook) return
+    setLoading(true)
+    setError(null)
+    setCaptions(null)
+    try {
+      const res = await fetch('/api/edit-studio/caption-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adId:        concept.id,
+          projectId,
+          scriptObj,
+          selectedDuration: selectedDuration || '30s',
+          captionStyle: selectedStyle,
+          // voiceoverDurationSecs not passed — uses estimated timing
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Caption generation failed')
+      setCaptions(data.caption_timeline || [])
+      setMeta({ style_name: data.style_name, chunk_count: data.chunk_count, total_duration: data.total_duration, timing_source: data.timing_source })
+      setPreviewIndex(0)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Cycle through caption chunks in the preview
+  const handlePrevChunk = (e) => { e.stopPropagation(); setPreviewIndex(i => Math.max(0, i - 1)) }
+  const handleNextChunk = (e) => { e.stopPropagation(); setPreviewIndex(i => Math.min((captions?.length || 1) - 1, i + 1)) }
+
+  const currentCaption = captions?.[previewIndex]
+
+  return (
+    <div className={styles.captionPanel} onClick={e => e.stopPropagation()}>
+      <p className={styles.captionPanelTitle}>Caption Intelligence</p>
+
+      {/* Style selector */}
+      <div className={styles.captionStyleOptions}>
+        {CAPTION_STYLE_OPTIONS.map(s => (
+          <button
+            key={s.key}
+            type="button"
+            className={`${styles.captionStyleOption} ${selectedStyle === s.key ? styles.captionStyleOptionSelected : ''}`}
+            onClick={e => { e.stopPropagation(); setSelectedStyle(s.key); setCaptions(null) }}
+          >
+            <span className={styles.captionStyleEmoji}>{s.emoji}</span>
+            <span className={styles.captionStyleLabel}>{s.label}</span>
+            <span className={styles.captionStyleDesc}>{s.description}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Generate button */}
+      {!captions && !loading && (
+        <button
+          type="button"
+          className={styles.generateCaptionsBtn}
+          onClick={handleGenerate}
+          disabled={!scriptObj.hook}
+        >
+          Generate Captions
+        </button>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className={styles.captionLoading}>
+          <span className={styles.voiceLoadingDot} />
+          <span>Generating {CAPTION_STYLE_OPTIONS.find(s => s.key === selectedStyle)?.label} captions...</span>
+        </div>
+      )}
+
+      {/* Caption preview */}
+      {captions && !loading && (
+        <div className={styles.captionPreviewWrap}>
+          {/* Meta row */}
+          <div className={styles.captionMeta}>
+            <span className={styles.captionMetaBadge}>{meta?.style_name}</span>
+            <span className={styles.captionMetaInfo}>{meta?.chunk_count} chunks · {meta?.total_duration?.toFixed(1)}s</span>
+            <span className={styles.captionTimingSource}>{meta?.timing_source === 'voiceover' ? '⏱ Voiceover timed' : '⏱ Estimated'}</span>
+            <button type="button" className={styles.reGenerateBtn} onClick={e => { e.stopPropagation(); setCaptions(null) }}>
+              Re-generate
+            </button>
+          </div>
+
+          {/* Phone mockup with caption preview */}
+          <div className={styles.phoneMockup}>
+            <div className={styles.phoneMockupScreen}>
+              <div className={`${styles.captionDisplay} ${styles['caption_' + selectedStyle]}`}>
+                {currentCaption?.text || ''}
+              </div>
+              <div className={styles.captionTimingBar}>
+                <span className={styles.captionTimingText}>
+                  {currentCaption?.start?.toFixed(1)}s – {currentCaption?.end?.toFixed(1)}s
+                </span>
+                <span className={`${styles.captionEmphasisDot} ${styles['emphasis_' + (currentCaption?.emphasis || 'normal')]}`} />
+              </div>
+            </div>
+            {/* Nav arrows */}
+            <div className={styles.captionNav}>
+              <button type="button" className={styles.captionNavBtn} onClick={handlePrevChunk} disabled={previewIndex === 0}>&#8249;</button>
+              <span className={styles.captionNavCounter}>{previewIndex + 1} / {captions.length}</span>
+              <button type="button" className={styles.captionNavBtn} onClick={handleNextChunk} disabled={previewIndex >= captions.length - 1}>&#8250;</button>
+            </div>
+          </div>
+
+          {/* Section badges — show section distribution */}
+          <div className={styles.captionSectionRow}>
+            {['hook', 'body', 'cta'].map(sec => {
+              const count = captions.filter(c => c.section === sec).length
+              return count > 0 ? (
+                <span key={sec} className={`${styles.captionSectionBadge} ${styles['section_' + sec]}`}>
+                  {sec.toUpperCase()} × {count}
+                </span>
+              ) : null
+            })}
+          </div>
+
+          {/* Scrollable chunk list — all captions in a compact list */}
+          <div className={styles.captionList}>
+            {captions.map((cap, i) => (
+              <div
+                key={cap.id}
+                className={`${styles.captionListItem} ${i === previewIndex ? styles.captionListItemActive : ''} ${styles['capSection_' + cap.section]}`}
+                onClick={e => { e.stopPropagation(); setPreviewIndex(i) }}
+              >
+                <span className={styles.captionListText}>{cap.text}</span>
+                <span className={styles.captionListTime}>{cap.start?.toFixed(1)}s</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <p className={styles.voiceError}>{error}</p>}
     </div>
   )
 }
@@ -868,6 +1032,7 @@ export default function EditStudioV2() {
                         <span className={styles.ctaValue}>{concept.cta}</span>
                       </div>
                       <VoicePanel concept={concept} projectId={project?.id} />
+                      <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                     </div>
                   )}
                 </div>
