@@ -16,6 +16,138 @@ function formatAdType(type) {
   return labels[type] || type?.toUpperCase() || '?'
 }
 
+const VOICE_OPTIONS = [
+  { key: 'founder_male',        label: 'Founder Male',        description: 'Deep, authoritative',   emoji: '🎙' },
+  { key: 'professional_male',   label: 'Professional Male',   description: 'Clear, trustworthy',    emoji: '💼' },
+  { key: 'professional_female', label: 'Professional Female', description: 'Warm, confident',       emoji: '✨' },
+  { key: 'ugc_creator',         label: 'UGC Creator',         description: 'Casual, authentic',     emoji: '📱' },
+  { key: 'energetic_creator',   label: 'Energetic Creator',   description: 'High energy, punchy',   emoji: '⚡' },
+]
+
+function VoicePanel({ concept, projectId }) {
+  const [selectedVoice, setSelectedVoice] = useState('professional_female')
+  const [selectedDuration, setSelectedDuration] = useState('30s')
+  const [loading, setLoading]   = useState(false)
+  const [voiceUrl, setVoiceUrl] = useState(null)   // signed URL for playback
+  const [voiceLabel, setVoiceLabel] = useState('')
+  const [error, setError]       = useState(null)
+
+  const scriptForDuration = concept[`script_${selectedDuration}`] || {}
+  const scriptText = [scriptForDuration.hook, scriptForDuration.body, scriptForDuration.cta]
+    .filter(Boolean).join(' ')
+
+  const handleGenerate = async (e) => {
+    e.stopPropagation()
+    if (!scriptText || !concept.id || !projectId) return
+    setLoading(true)
+    setError(null)
+    setVoiceUrl(null)
+    try {
+      const res = await fetch('/api/edit-studio/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adId:       concept.id,
+          projectId,
+          scriptText,
+          voiceKey:   selectedVoice,
+          duration:   selectedDuration,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Voice generation failed')
+      setVoiceUrl(data.voiceover_url)
+      setVoiceLabel(data.voice_label || '')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={styles.voicePanel} onClick={e => e.stopPropagation()}>
+      <p className={styles.voicePanelTitle}>Voice Studio</p>
+
+      {/* Voice persona selector */}
+      <div className={styles.voiceOptions}>
+        {VOICE_OPTIONS.map(v => (
+          <button
+            key={v.key}
+            type="button"
+            className={`${styles.voiceOption} ${selectedVoice === v.key ? styles.voiceOptionSelected : ''}`}
+            onClick={e => { e.stopPropagation(); setSelectedVoice(v.key) }}
+          >
+            <span className={styles.voiceEmoji}>{v.emoji}</span>
+            <span className={styles.voiceOptionLabel}>{v.label}</span>
+            <span className={styles.voiceOptionDesc}>{v.description}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Duration selector */}
+      <div className={styles.voiceDurationRow}>
+        <span className={styles.voiceDurationLabel}>Script:</span>
+        {['15s', '30s', '60s'].map(dur => (
+          <button
+            key={dur}
+            type="button"
+            className={`${styles.voiceDurationBtn} ${selectedDuration === dur ? styles.voiceDurationBtnActive : ''}`}
+            onClick={e => { e.stopPropagation(); setSelectedDuration(dur); setVoiceUrl(null) }}
+          >
+            {dur}
+          </button>
+        ))}
+        <span className={styles.voiceDurationChars}>{scriptText.length} chars</span>
+      </div>
+
+      {/* Generate button */}
+      {!voiceUrl && !loading && (
+        <button
+          type="button"
+          className={styles.generateVoiceBtn}
+          onClick={handleGenerate}
+          disabled={!scriptText}
+        >
+          Generate Voiceover
+        </button>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className={styles.voiceLoading}>
+          <span className={styles.voiceLoadingDot} />
+          <span>Synthesizing {VOICE_OPTIONS.find(v => v.key === selectedVoice)?.label}...</span>
+        </div>
+      )}
+
+      {/* Audio player */}
+      {voiceUrl && !loading && (
+        <div className={styles.audioPlayerWrap}>
+          <div className={styles.audioPlayerMeta}>
+            <span className={styles.audioVoiceLabel}>{voiceLabel}</span>
+            <span className={styles.audioDurationLabel}>{selectedDuration}</span>
+            <button
+              type="button"
+              className={styles.reGenerateBtn}
+              onClick={e => { e.stopPropagation(); setVoiceUrl(null) }}
+            >
+              Re-generate
+            </button>
+          </div>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls src={voiceUrl} className={styles.audioPlayer} />
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <p className={styles.voiceError}>{error}</p>
+      )}
+    </div>
+  )
+}
+
 function ScriptTabs({ concept }) {
   const [activeTab, setActiveTab] = useState('30s')
   const script = concept[`script_${activeTab}`] || {}
@@ -735,6 +867,7 @@ export default function EditStudioV2() {
                         <span className={styles.ctaLabel}>CTA</span>
                         <span className={styles.ctaValue}>{concept.cta}</span>
                       </div>
+                      <VoicePanel concept={concept} projectId={project?.id} />
                     </div>
                   )}
                 </div>
@@ -742,11 +875,7 @@ export default function EditStudioV2() {
             })}
           </div>
 
-          <div className={styles.conceptsActions}>
-            <p className={styles.conceptsActionsHint}>
-              Voice and render coming in Sprint 4 &rarr;
-            </p>
-          </div>
+          <div className={styles.conceptsActions} />
         </div>
       )}
 

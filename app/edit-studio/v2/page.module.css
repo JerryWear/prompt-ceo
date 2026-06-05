@@ -929,3 +929,186 @@
   font-size: 0.82rem;
   color: #333;
 }
+
+/* ── Voice panel ─────────────────────────────────────────────────────── */
+.voicePanel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #1e2e1e;
+}
+
+.voicePanelTitle {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a7a4a;
+  margin-bottom: 14px;
+}
+
+.voiceOptions {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.voiceOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.12s;
+}
+.voiceOption:hover { border-color: #333; }
+.voiceOptionSelected {
+  border-color: #2a4a2a;
+  background: #0d160d;
+}
+
+.voiceEmoji { font-size: 1.2rem; }
+.voiceOptionLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #aaa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.voiceOptionSelected .voiceOptionLabel { color: #8fcf8f; }
+.voiceOptionDesc {
+  font-size: 0.6rem;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.voiceDurationRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.voiceDurationLabel {
+  font-size: 0.72rem;
+  color: #555;
+  margin-right: 4px;
+}
+
+.voiceDurationBtn {
+  padding: 5px 12px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #666;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.voiceDurationBtnActive {
+  background: #1a2a1a;
+  border-color: #2a4a2a;
+  color: #8fcf8f;
+}
+
+.voiceDurationChars {
+  font-size: 0.7rem;
+  color: #333;
+  margin-left: auto;
+}
+
+.generateVoiceBtn {
+  width: 100%;
+  padding: 12px;
+  background: #1a2a1a;
+  border: 1px solid #2a4a2a;
+  border-radius: 8px;
+  color: #8fcf8f;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.generateVoiceBtn:hover { background: #1e321e; }
+.generateVoiceBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.voiceLoading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  color: #4a7a4a;
+  font-size: 0.85rem;
+}
+
+.voiceLoadingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a7a4a;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+.audioPlayerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audioPlayerMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audioVoiceLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8fcf8f;
+}
+
+.audioDurationLabel {
+  font-size: 0.72rem;
+  color: #555;
+  padding: 2px 8px;
+  background: #1a1a1a;
+  border-radius: 6px;
+}
+
+.reGenerateBtn {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #555;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.reGenerateBtn:hover { color: #aaa; }
+
+.audioPlayer {
+  width: 100%;
+  height: 36px;
+  border-radius: 6px;
+  accent-color: #6fcf6f;
+}
+
+.voiceError {
+  font-size: 0.8rem;
+  color: #cf6f6f;
+  margin-top: 8px;
+}
