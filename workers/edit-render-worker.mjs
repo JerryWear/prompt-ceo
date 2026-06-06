@@ -402,7 +402,7 @@ async function processJob(admin, job) {
 
   log('info', 'Job claimed', jobId, { userId, platform: plan?.platform, goal: plan?.goal, segments: plan?.segments?.length })
 
-  if (!plan?.sourceVideoUrl) {
+  if (!plan?.sourceVideoUrl && !plan?.sourceVideoStoragePath) {
     const err = 'No source video URL — upload the source video to storage before rendering.'
     log('error', err, jobId)
     await markFailed(admin, jobId, err, plan)
@@ -415,9 +415,26 @@ async function processJob(admin, job) {
 
   const warnings = []
 
+  // Resolve source URL — prefer explicit URL, fall back to signing from storagePath
+  let resolvedSourceUrl = plan.sourceVideoUrl
+  if (!resolvedSourceUrl && plan.sourceVideoStoragePath) {
+    const bucket = plan.sourceVideoBucket || 'edit-studio-assets'
+    const { data: signed, error: signErr } = await admin.storage
+      .from(bucket)
+      .createSignedUrl(plan.sourceVideoStoragePath, 300)
+    if (signErr) {
+      const err = `Could not sign source video URL: ${signErr.message}`
+      log('error', err, jobId)
+      await markFailed(admin, jobId, err, plan)
+      return
+    }
+    resolvedSourceUrl = signed.signedUrl
+    log('info', 'Source URL resolved from storage path', jobId)
+  }
+
   try {
     // 1. Download source
-    await downloadVideo(plan.sourceVideoUrl, inputPath, admin)
+    await downloadVideo(resolvedSourceUrl, inputPath, admin)
 
     // 2. Generate ASS captions (Phase 12A)
     let captionPath = null

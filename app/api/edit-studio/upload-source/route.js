@@ -72,12 +72,16 @@ export async function POST(req) {
       .from('edit-studio-assets')
       .getPublicUrl(storagePath)
 
-    // Update edit_projects.source_video_url (non-fatal)
+    // Update edit_projects with source video fields (non-fatal)
     if (projectId) {
       try {
         await supabase
           .from('edit_projects')
-          .update({ source_video_url: urlData.publicUrl })
+          .update({
+            source_video_url:          urlData.publicUrl,
+            source_video_storage_path: storagePath,
+            source_video_bucket:       'edit-studio-assets',
+          })
           .eq('id', projectId)
           .eq('user_id', user.id)
       } catch { /* non-fatal */ }
