@@ -647,11 +647,21 @@ export default function EditStudioV2() {
   const [brandProfiles, setBrandProfiles] = useState([])
 
   // ── Multi-input state ─────────────────────────────────────────────────────
-  const [inputMode,     setInputMode]     = useState('video')   // 'video' | 'image' | 'prompt'
+  const [activeInputs,  setActiveInputs]  = useState(new Set(['video']))  // any combo of 'video','image','prompt'
   const [promptText,    setPromptText]    = useState('')
-  const [sourceType,    setSourceType]    = useState('video')   // tracks what was uploaded (for assemble-ad)
+  const [pendingImage,  setPendingImage]  = useState(null)   // { file, base64, publicUrl } — image staged but not yet analyzed
+  const [sourceType,    setSourceType]    = useState('video')   // primary visual for assemble-ad
   const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
   const imageInputRef = useRef(null)
+
+  const toggleInput = (key) => {
+    setActiveInputs(prev => {
+      const next = new Set(prev)
+      if (next.has(key) && next.size > 1) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const { setStudioContext } = useJarvisContext()
   useEffect(() => {
@@ -678,6 +688,7 @@ export default function EditStudioV2() {
     setError(null)
     setStatusMsg('Creating project...')
     setScreen('processing')
+    setSourceType('video')
 
     try {
       // ── Step 1: Create project ──────────────────────────────────────────────
@@ -688,39 +699,22 @@ export default function EditStudioV2() {
         body:    JSON.stringify({ title: file.name.replace(/\.[^.]+$/, '') }),
       })
       const createData = await createRes.json()
-      if (!createRes.ok || createData.status !== 'success') {
-        throw new Error(createData.message || 'Failed to create project')
-      }
+      if (!createRes.ok || createData.status !== 'success') throw new Error(createData.message || 'Failed to create project')
       const projectId = createData.projectId
 
       // ── Step 2: Get signed upload URL ───────────────────────────────────────
       const sourceRes = await fetch('/api/edit-studio/upload-source', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          projectId,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-        }),
+        body:    JSON.stringify({ projectId, fileName: file.name, fileSize: file.size, mimeType: file.type }),
       })
       const sourceData = await sourceRes.json()
-      if (!sourceRes.ok || sourceData.status !== 'success') {
-        throw new Error(sourceData.message || 'Failed to get upload URL')
-      }
+      if (!sourceRes.ok || sourceData.status !== 'success') throw new Error(sourceData.message || 'Failed to get upload URL')
       const { signedUrl, storagePath, bucket, publicUrl } = sourceData
 
-      // ── Step 3: Upload file directly to storage ─────────────────────────────
-      const uploadRes = await fetch(signedUrl, {
-        method:  'PUT',
-        headers: { 'Content-Type': file.type },
-        body:    file,
-      })
-      if (!uploadRes.ok) {
-        throw new Error(`Storage upload failed (HTTP ${uploadRes.status})`)
-      }
-
-      // Save project info in state
+      // ── Step 3: Upload video ─────────────────────────────────────────────────
+      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
+      if (!uploadRes.ok) throw new Error(`Storage upload failed (HTTP ${uploadRes.status})`)
       setProject({ id: projectId, storagePath, bucket, publicUrl })
 
       // ── Step 4: Transcribe ──────────────────────────────────────────────────
@@ -728,45 +722,56 @@ export default function EditStudioV2() {
       const transcribeRes = await fetch('/api/edit-studio/transcribe', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          projectId,
-          sourceVideoUrl:  publicUrl,
-          sourceVideoName: file.name,
-          sourceVideoType: file.type,
-          storagePath,
-          bucket,
-        }),
+        body:    JSON.stringify({ projectId, sourceVideoUrl: publicUrl, sourceVideoName: file.name, sourceVideoType: file.type, storagePath, bucket }),
       })
       const transcribeData = await transcribeRes.json()
-      if (!transcribeRes.ok || transcribeData.status === 'error') {
-        throw new Error(transcribeData.message || 'Transcription failed')
-      }
+      if (!transcribeRes.ok || transcribeData.status === 'error') throw new Error(transcribeData.message || 'Transcription failed')
       const segments = transcribeData.transcript?.segments || []
 
-      // ── Step 5: Understand ──────────────────────────────────────────────────
-      setStatusMsg('Analyzing video content...')
-      const understandRes = await fetch('/api/edit-studio/understand', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          projectId,
-          storagePath,
-          bucket,
-          transcriptSegments: segments,
-        }),
-      })
-      const understandData = await understandRes.json()
-      if (!understandRes.ok || understandData.status === 'error') {
-        throw new Error(understandData.message || 'Video analysis failed')
+      // ── Step 5: Understand video (+ image + prompt in parallel if selected) ─
+      setStatusMsg('Jarvis is analyzing your content...')
+      const understandPromises = [
+        fetch('/api/edit-studio/understand', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, storagePath, bucket, transcriptSegments: segments }),
+        }).then(r => r.json()),
+      ]
+
+      // If image was also staged, analyze it in parallel
+      if (pendingImage) {
+        understandPromises.push(
+          fetch('/api/edit-studio/understand-image', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, imageBase64: pendingImage.base64, mimeType: pendingImage.mimeType }),
+          }).then(r => r.json())
+        )
       }
 
-      setUnderstanding(understandData.understanding)
+      // If prompt was also entered, analyze it in parallel
+      if (activeInputs.has('prompt') && promptText.trim()) {
+        understandPromises.push(
+          fetch('/api/edit-studio/understand-prompt', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, productDescription: promptText }),
+          }).then(r => r.json())
+        )
+      }
+
+      const results = await Promise.all(understandPromises)
+      let merged = results[0]?.understanding || results[0]
+      for (let i = 1; i < results.length; i++) {
+        const u = results[i]?.understanding || results[i]
+        if (u) merged = mergeUnderstandings(merged, u)
+      }
+
+      setUnderstanding(merged)
+      setPendingImage(null)
       setScreen('results')
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
       setScreen('upload')
     }
-  }, [])
+  }, [pendingImage, activeInputs, promptText, mergeUnderstandings])
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
@@ -813,18 +818,51 @@ export default function EditStudioV2() {
     setFixes({})
   }, [])
 
+  // ── Merge two understanding objects into one richer profile ──────────────
+  const mergeUnderstandings = (a, b) => ({
+    detected_products:       [...new Set([...(a.detected_products || []), ...(b.detected_products || [])])],
+    business_type:           a.business_type           || b.business_type,
+    business_description:    a.business_description    || b.business_description,
+    key_messages:            [...new Set([...(a.key_messages || []), ...(b.key_messages || [])])].slice(0, 6),
+    recommended_positioning: a.recommended_positioning || b.recommended_positioning,
+    positioning_reason:      a.positioning_reason      || b.positioning_reason,
+    recommended_ad_types:    [...new Set([...(a.recommended_ad_types || []), ...(b.recommended_ad_types || [])])],
+    visual_style:            b.visual_style             || a.visual_style,   // prefer image visual style
+    target_audience:         a.target_audience          || b.target_audience,
+    key_benefit:             a.key_benefit              || b.key_benefit,
+    screens_detected:        a.screens_detected         || [],
+    key_moments:             a.key_moments              || [],
+    strong_moments:          a.strong_moments           || [],
+    weak_moments:            a.weak_moments             || [],
+    estimated_duration:      a.estimated_duration       || 30,
+  })
+
   // ── Image pipeline ────────────────────────────────────────────────────────
   const handleImageSelect = useCallback(async (file) => {
     if (!file) return
     if (!file.type.startsWith('image/')) { setError('Please select an image file (JPG, PNG, WebP).'); return }
-
     setError(null)
+
+    // Convert to base64 immediately so it's ready for analysis
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload  = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+    // If video is also active, stage the image — video pipeline will pick it up
+    if (activeInputs.has('video')) {
+      setPendingImage({ file, base64, mimeType: file.type })
+      return
+    }
+
+    // Image-only pipeline
     setStatusMsg('Creating project...')
     setScreen('processing')
     setSourceType('image')
 
     try {
-      // Create project record
       const createRes  = await fetch('/api/edit-studio/create-project', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: file.name.replace(/\.[^.]+$/, '') }),
@@ -833,7 +871,6 @@ export default function EditStudioV2() {
       if (!createRes.ok || createData.status !== 'success') throw new Error(createData.message || 'Failed to create project')
       const projectId = createData.projectId
 
-      // Upload image to storage (reuse upload-source endpoint)
       setStatusMsg('Uploading image...')
       const sourceRes = await fetch('/api/edit-studio/upload-source', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -842,19 +879,10 @@ export default function EditStudioV2() {
       const sourceData = await sourceRes.json()
       if (!sourceRes.ok || sourceData.status !== 'success') throw new Error(sourceData.message || 'Failed to get upload URL')
       const { signedUrl, storagePath, bucket, publicUrl } = sourceData
-
       await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
       setProject({ id: projectId, storagePath, bucket, publicUrl })
 
-      // Convert to base64 for vision analysis
       setStatusMsg('Analyzing image...')
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload  = () => resolve(reader.result)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-
       const understandRes  = await fetch('/api/edit-studio/understand-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, imageBase64: base64, mimeType: file.type }),
@@ -868,15 +896,15 @@ export default function EditStudioV2() {
       setError(err.message || 'Something went wrong.')
       setScreen('upload')
     }
-  }, [])
+  }, [activeInputs])
 
   // ── Prompt pipeline ───────────────────────────────────────────────────────
   const handlePromptSubmit = useCallback(async () => {
     if (!promptText.trim()) return
     setError(null)
-    setStatusMsg('Understanding your product...')
+    setStatusMsg('Jarvis is analyzing your product...')
     setScreen('processing')
-    setSourceType('prompt')
+    setSourceType(pendingImage ? 'image' : 'prompt')
 
     try {
       const createRes  = await fetch('/api/edit-studio/create-project', {
@@ -888,20 +916,48 @@ export default function EditStudioV2() {
       const projectId = createData.projectId
       setProject({ id: projectId, storagePath: null, bucket: null, publicUrl: null })
 
-      const understandRes  = await fetch('/api/edit-studio/understand-prompt', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, productDescription: promptText }),
-      })
-      const understandData = await understandRes.json()
-      if (!understandRes.ok || understandData.status === 'error') throw new Error(understandData.message || 'Product analysis failed')
+      // Run prompt analysis + image analysis in parallel if image was also added
+      const understandPromises = [
+        fetch('/api/edit-studio/understand-prompt', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, productDescription: promptText }),
+        }).then(r => r.json()),
+      ]
 
-      setUnderstanding(understandData.understanding)
+      if (pendingImage) {
+        understandPromises.push(
+          fetch('/api/edit-studio/understand-image', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, imageBase64: pendingImage.base64, mimeType: pendingImage.mimeType }),
+          }).then(r => r.json())
+        )
+        // Upload image to storage so assemble-ad can use it
+        fetch('/api/edit-studio/upload-source', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, fileName: 'image.jpg', fileSize: pendingImage.file.size, mimeType: pendingImage.mimeType }),
+        }).then(r => r.json()).then(async (sd) => {
+          if (sd.signedUrl) {
+            await fetch(sd.signedUrl, { method: 'PUT', headers: { 'Content-Type': pendingImage.mimeType }, body: pendingImage.file })
+            setProject(prev => prev ? { ...prev, publicUrl: sd.publicUrl, storagePath: sd.storagePath, bucket: sd.bucket } : prev)
+          }
+        }).catch(() => {})
+      }
+
+      const results = await Promise.all(understandPromises)
+      let merged = results[0]?.understanding || results[0]
+      for (let i = 1; i < results.length; i++) {
+        const u = results[i]?.understanding || results[i]
+        if (u) merged = mergeUnderstandings(merged, u)
+      }
+
+      setUnderstanding(merged)
+      setPendingImage(null)
       setScreen('results')
     } catch (err) {
       setError(err.message || 'Something went wrong.')
       setScreen('upload')
     }
-  }, [promptText])
+  }, [promptText, pendingImage, mergeUnderstandings])
 
   // ── Assemble final ad from script + voice + source ────────────────────────
   const handleBuildFinalAd = useCallback(async (concept, voiceUrl) => {
@@ -1214,99 +1270,99 @@ export default function EditStudioV2() {
 
           <PipelineSteps />
 
-          {/* ── Input mode tabs ──────────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 28, marginBottom: 0 }}>
+          {/* ── Input toggles — select any combination ───────────────── */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 28 }}>
             {[
-              { key: 'video',  label: '▶  Video'  },
-              { key: 'image',  label: '◻  Image'  },
-              { key: 'prompt', label: '✦  Describe' },
+              { key: 'video',  label: '▶  Video'    },
+              { key: 'image',  label: '◻  Image'    },
+              { key: 'prompt', label: '✦  Describe'  },
             ].map(tab => (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setInputMode(tab.key)}
+                onClick={() => toggleInput(tab.key)}
                 style={{
                   padding: '7px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                   cursor: 'pointer',
-                  border: inputMode === tab.key ? '1px solid #c8a84b' : '1px solid #1a1a1a',
-                  background: inputMode === tab.key ? '#1a1408' : '#0d0d0d',
-                  color: inputMode === tab.key ? '#c8a84b' : '#888888',
+                  border: activeInputs.has(tab.key) ? '1px solid #c8a84b' : '1px solid #1a1a1a',
+                  background: activeInputs.has(tab.key) ? '#1a1408' : '#0d0d0d',
+                  color: activeInputs.has(tab.key) ? '#c8a84b' : '#888888',
                   transition: 'all 0.15s',
                 }}
               >
                 {tab.label}
+                {activeInputs.has(tab.key) && activeInputs.size > 1 && <span style={{ marginLeft: 5, fontSize: 9, opacity: 0.7 }}>✓</span>}
               </button>
             ))}
           </div>
+          {activeInputs.size > 1 && (
+            <div style={{ fontSize: 10, color: '#c8a84b', marginTop: 6, opacity: 0.8 }}>
+              Jarvis will combine all {activeInputs.size} inputs for a richer ad brief
+            </div>
+          )}
 
-          {/* ── Video input ─────────────────────────────────────────── */}
-          {inputMode === 'video' && (
-            <>
+          {/* ── Video drop zone ──────────────────────────────────────── */}
+          {activeInputs.has('video') && (
+            <div style={{ width: '100%', maxWidth: 520, marginTop: 16 }}>
+              {activeInputs.size > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Video</div>}
               <div
                 className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={handleDropZoneClick}
-                role="button" tabIndex={0}
-                aria-label="Drop video file or click to browse"
+                onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+                onClick={handleDropZoneClick} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
-                style={{ marginTop: 16 }}
               >
                 <span className={styles.dropZoneIcon}>&#x2B06;</span>
                 <span className={styles.dropZoneLabel}>Drop your video here</span>
                 <span className={styles.dropZoneHint}>MP4, MOV, WebM · product demos, walkthroughs, footage</span>
               </div>
-              <div className={styles.orRow}>
-                <span className={styles.orLine} /><span className={styles.orText}>or</span><span className={styles.orLine} />
-              </div>
-              <button className={styles.browseButton} onClick={handleDropZoneClick} type="button">Browse files</button>
               <input ref={fileInputRef} type="file" accept="video/*" className={styles.fileInput} onChange={handleInputChange} tabIndex={-1} aria-hidden="true" />
-            </>
+            </div>
           )}
 
-          {/* ── Image input ─────────────────────────────────────────── */}
-          {inputMode === 'image' && (
-            <>
+          {/* ── Image drop zone ──────────────────────────────────────── */}
+          {activeInputs.has('image') && (
+            <div style={{ width: '100%', maxWidth: 520, marginTop: activeInputs.has('video') ? 12 : 16 }}>
+              {activeInputs.size > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Image</div>}
               <div
-                className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
-                onDrop={(e) => { e.preventDefault(); setDragActive(false); const f = e.dataTransfer.files?.[0]; if (f) handleImageSelect(f) }}
-                onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-                onDragLeave={() => setDragActive(false)}
+                className={`${styles.dropZone} ${pendingImage ? styles.dragActive : ''}`}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleImageSelect(f) }}
+                onDragOver={(e) => e.preventDefault()}
                 onClick={() => imageInputRef.current?.click()}
                 role="button" tabIndex={0}
-                aria-label="Drop image or click to browse"
-                style={{ marginTop: 16 }}
               >
-                <span className={styles.dropZoneIcon}>◻</span>
-                <span className={styles.dropZoneLabel}>Drop your image here</span>
-                <span className={styles.dropZoneHint}>JPG, PNG, WebP · product shots, lifestyle images, screenshots</span>
+                {pendingImage ? (
+                  <>
+                    <span className={styles.dropZoneIcon} style={{ color: '#4caf50' }}>✓</span>
+                    <span className={styles.dropZoneLabel} style={{ color: '#4caf50' }}>Image ready</span>
+                    <span className={styles.dropZoneHint}>{pendingImage.file.name} · will be analyzed with video</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.dropZoneIcon}>◻</span>
+                    <span className={styles.dropZoneLabel}>Drop your image here</span>
+                    <span className={styles.dropZoneHint}>JPG, PNG, WebP · product shots, lifestyle, screenshots</span>
+                  </>
+                )}
               </div>
-              <div className={styles.orRow}>
-                <span className={styles.orLine} /><span className={styles.orText}>or</span><span className={styles.orLine} />
-              </div>
-              <button className={styles.browseButton} onClick={() => imageInputRef.current?.click()} type="button">Browse images</button>
               <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/*"
-                className={styles.fileInput}
+                ref={imageInputRef} type="file" accept="image/*" className={styles.fileInput}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageSelect(f); e.target.value = '' }}
                 tabIndex={-1} aria-hidden="true"
               />
-            </>
+            </div>
           )}
 
           {/* ── Prompt input ─────────────────────────────────────────── */}
-          {inputMode === 'prompt' && (
-            <div style={{ width: '100%', maxWidth: 520, marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {activeInputs.has('prompt') && (
+            <div style={{ width: '100%', maxWidth: 520, marginTop: activeInputs.size > 1 ? 12 : 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {activeInputs.size > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase' }}>Product Description</div>}
               <textarea
                 value={promptText}
                 onChange={e => setPromptText(e.target.value)}
-                placeholder="Describe your product or service. Include what it does, who it's for, what makes it different, and any key benefits you want highlighted in the ad."
-                rows={6}
+                placeholder="Describe your product — what it does, who it's for, key benefits, what makes it different. The more detail, the better the ads."
+                rows={activeInputs.size > 1 ? 3 : 6}
                 style={{
-                  width: '100%', padding: '16px', borderRadius: 10,
+                  width: '100%', padding: '14px', borderRadius: 10,
                   border: '1px solid #2a2a2a', background: '#0d0d0d',
                   color: '#ede9e1', fontSize: 13, lineHeight: 1.6,
                   resize: 'vertical', outline: 'none', fontFamily: 'inherit',
@@ -1314,21 +1370,24 @@ export default function EditStudioV2() {
                 onFocus={e => e.target.style.borderColor = '#c8a84b44'}
                 onBlur={e => e.target.style.borderColor = '#2a2a2a'}
               />
-              <button
-                onClick={handlePromptSubmit}
-                disabled={!promptText.trim()}
-                style={{
-                  padding: '13px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: promptText.trim() ? 'pointer' : 'not-allowed',
-                  border: '1px solid #c8a84b',
-                  background: promptText.trim() ? '#1a1408' : '#0d0d0d',
-                  color: promptText.trim() ? '#c8a84b' : '#444444',
-                  transition: 'all 0.15s',
-                }}
-              >
-                Analyze Product → Build Ads
-              </button>
             </div>
+          )}
+
+          {/* ── Submit button for prompt-only or image+prompt ────────── */}
+          {!activeInputs.has('video') && (
+            <button
+              onClick={handlePromptSubmit}
+              disabled={activeInputs.has('prompt') ? !promptText.trim() : !pendingImage}
+              style={{
+                width: '100%', maxWidth: 520, marginTop: 12,
+                padding: '13px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                cursor: 'pointer',
+                border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b',
+                opacity: (activeInputs.has('prompt') ? !promptText.trim() : !pendingImage) ? 0.4 : 1,
+              }}
+            >
+              ✦ Analyze &amp; Build Ads
+            </button>
           )}
 
           {error && (
