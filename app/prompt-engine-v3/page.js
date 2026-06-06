@@ -15567,7 +15567,7 @@ export default function PromptCEOPage() {
           display: 'flex', alignItems: 'center',
           padding: '0 20px', gap: 4, zIndex: 110,
         }}>
-          <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: C.gold, textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
+          <a href="https://www.promptceo.io/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: C.gold, textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
             PromptCEO
           </a>
           {[
@@ -15663,9 +15663,9 @@ export default function PromptCEOPage() {
               🎬
             </div>
             <div
-              onClick={() => window.location.href = '/'}
+              onClick={() => window.open('https://www.promptceo.io/', '_blank', 'noopener,noreferrer')}
               style={{ cursor: 'pointer' }}
-              title="Back to home"
+              title="Go to PromptCEO website"
             >
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: C.gold, fontFamily: C.display }}>
                 PROMPT CEO

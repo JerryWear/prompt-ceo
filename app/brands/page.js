@@ -83,7 +83,7 @@ export default function BrandsPage() {
         background: `${C.void}ee`, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         padding: '0 28px', display: 'flex', alignItems: 'center', height: 52, gap: 4, flexShrink: 0,
       }}>
-        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: C.gold, textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
+        <a href="https://www.promptceo.io/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: C.gold, textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
           PromptCEO
         </a>
         {NAV.map(({ label, href, active }) => (

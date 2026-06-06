@@ -927,7 +927,7 @@ export default function EditStudioV2() {
         height: 52, gap: 4, flexShrink: 0,
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}>
-        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
+        <a href="https://www.promptceo.io/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
           PromptCEO
         </a>
         {[
