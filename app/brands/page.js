@@ -168,7 +168,7 @@ export default function BrandsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
             {[
               { icon: '◈', label: 'Brand DNA Editor',      desc: 'Deep audience, voice, and visual identity settings' },
-              { icon: '▣', label: 'Campaign Memory',        desc: 'What worked, what didn't — applied to every new campaign' },
+              { icon: '▣', label: 'Campaign Memory',        desc: "What worked, what didn't — applied to every new campaign" },
               { icon: '✦', label: 'Jarvis Brand Context',   desc: 'AI Director that knows your brand before you brief it' },
               { icon: '◧', label: 'Multi-Brand Workspace',  desc: 'Agency mode — manage client brands separately' },
             ].map(item => (
