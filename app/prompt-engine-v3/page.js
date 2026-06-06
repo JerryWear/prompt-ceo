@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
+import { useJarvisContext } from '../components/JarvisRail/JarvisContext'
 
 import React, { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
 import { buildPromptV3 } from './index.js'
@@ -12525,6 +12526,24 @@ export default function PromptCEOPage() {
   const [s, setS]   = useState(INIT)
   const set         = useCallback((k, v) => setS(p => ({ ...p, [k]: v })), [])
   const merge       = useCallback(patch  => setS(p => ({ ...p, ...patch })), [])
+
+  // ── Jarvis live context sync ──────────────────────────────
+  const { setStudioContext: setJarvisCtx } = useJarvisContext()
+  useEffect(() => {
+    const isAdStudio = s.view === 'ad_studio'
+    setJarvisCtx({
+      studio:        isAdStudio ? 'ad-studio' : 'prompt-studio',
+      view:          s.view,
+      world:         s.world || null,
+      style:         s.style || null,
+      productName:   s.productName || null,
+      adPlatform:    s.adPlatform || null,
+      selectedAngle: s.selectedAngle ? (typeof s.selectedAngle === 'object' ? s.selectedAngle.angle : s.selectedAngle) : null,
+      selectedHook:  s.selectedHook  ? (typeof s.selectedHook  === 'object' ? s.selectedHook.hook   : s.selectedHook)  : null,
+      hasImage:      s.hasImage || false,
+      hasResult:     !!s.result?.finalPrompt,
+    })
+  }, [s.view, s.world, s.style, s.productName, s.adPlatform, s.selectedAngle, s.selectedHook, s.hasImage, s.result, setJarvisCtx])
 
   // ── Project System State ──────────────────────────────────
   const [projects,          setProjects]          = useState([])

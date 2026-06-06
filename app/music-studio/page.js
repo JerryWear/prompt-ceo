@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import { COLLECTION_DEFINITIONS } from '../../lib/music/intelligenceAssembler.js'
+import { useJarvisContext } from '../components/JarvisRail/JarvisContext'
 
 const C = {
   void:       '#040404', deep:      '#070707', base:       '#0a0a0a',
@@ -161,6 +162,18 @@ export default function MusicStudioPage() {
 
   const [licensing,     setLicensing]     = useState(false)
   const [licenseError,  setLicenseError]  = useState(null)
+
+  const { setStudioContext } = useJarvisContext()
+  useEffect(() => {
+    setStudioContext({
+      studio:       'music-studio',
+      activeTab,
+      playing:      playing?.title || null,
+      selectedTrack: selectedTrack?.title || null,
+      recPlatform:  recPlatform || null,
+      recGoal:      recGoal || null,
+    })
+  }, [activeTab, playing, selectedTrack, recPlatform, recGoal, setStudioContext])
 
   useEffect(() => {
     const supabase = createClient()

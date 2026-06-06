@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import JarvisRail from "./components/JarvisRail/JarvisRail";
+import { JarvisProvider } from "./components/JarvisRail/JarvisContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,8 +90,10 @@ export default function RootLayout({ children }) {
         `}} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
-        <JarvisRail />
+        <JarvisProvider>
+          {children}
+          <JarvisRail />
+        </JarvisProvider>
       </body>
     </html>
   );

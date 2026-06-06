@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePathname, useRouter }                    from 'next/navigation'
 import styles                                        from './JarvisRail.module.css'
+import { useJarvisContext }                          from './JarvisContext'
 
 const SUGGESTIONS = [
   'What should I work on next?',
@@ -29,10 +30,11 @@ function formatTime(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function JarvisRail({ studioContext = {} }) {
+export default function JarvisRail() {
   const pathname = usePathname()
   const router   = useRouter()
   const studio   = detectStudio(pathname)
+  const { studioContext } = useJarvisContext()
 
 
   const [open,     setOpen]     = useState(false)

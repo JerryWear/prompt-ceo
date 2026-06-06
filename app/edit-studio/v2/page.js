@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import styles from './page.module.css'
+import { useJarvisContext } from '../../components/JarvisRail/JarvisContext'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -599,6 +600,19 @@ export default function EditStudioV2() {
   const [activeBrand,   setActiveBrand]   = useState(null)
   const [brandDropOpen, setBrandDropOpen] = useState(false)
   const [brandProfiles, setBrandProfiles] = useState([])
+
+  const { setStudioContext } = useJarvisContext()
+  useEffect(() => {
+    setStudioContext({
+      studio:       'edit-studio',
+      screen,
+      projectId:    project?.id || null,
+      status:       statusMsg || screen,
+      adsReady:     adConcepts.length,
+      brand:        activeBrand?.name || null,
+      strategy:     strategy?.strategy || null,
+    })
+  }, [screen, project, statusMsg, adConcepts.length, activeBrand, strategy, setStudioContext])
 
   // ── Pipeline ─────────────────────────────────────────────────────────────────
 
