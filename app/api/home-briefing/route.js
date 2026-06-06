@@ -92,7 +92,12 @@ export async function GET() {
     const recentAds    = recentAdsRes.data || []
     const editProjects = editRes.data || []
 
-    const strongestAngle = mostCommon(recentAds.map(a => a.selected_angle).filter(Boolean))
+    const strongestAngle = mostCommon(recentAds.map(a => {
+      const v = a.selected_angle
+      if (!v) return null
+      if (typeof v === 'object') return v.angle || v.label || v.name || null
+      return v
+    }).filter(Boolean))
     const topPlatform    = mostCommon(recentAds.map(a => a.platform).filter(Boolean))
     const lastAdProject  = recentAds[0]
       ? { id: recentAds[0].id, name: recentAds[0].campaign_name || recentAds[0].product_name || 'Untitled' }
