@@ -4643,9 +4643,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           }
         </button>
 
-        {/* AI Creative Director™ */}
-        <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* AI Creative Director™ — replaced by Jarvis */}
+        {false && <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}><div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: C.violet, flexShrink: 0 }}>✦ AI Director</span>
             <input
               value={cdInstruction}
@@ -4757,7 +4756,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               )}
             </div>
           )}
-        </div>
+        </div>}
 
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
           <div style={{ padding: '24px 20px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -19408,8 +19407,8 @@ export default function PromptCEOPage() {
               )}
             </div>
 
-            {/* Input area */}
-            {directorPhase !== 'executing' && (
+            {/* Input area — replaced by Jarvis */}
+            {false && directorPhase !== 'executing' && (
               <div style={{ flexShrink: 0, padding: '14px 20px', borderTop: `1px solid ${C.hairline}`, background: C.deep, display: 'flex', gap: 10 }}>
                 {s.hasImage && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', borderRadius: 6, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>

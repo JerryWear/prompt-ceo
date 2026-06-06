@@ -288,49 +288,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* CHAT */}
-        <div style={{ marginBottom: 28, animation: 'fadeUp 0.4s ease 0.06s both' }}>
-          <div style={{
-            display: 'flex', gap: 8, alignItems: 'stretch',
-            padding: '5px 5px 5px 14px', borderRadius: 10,
-            border: `1px solid ${chatInput.trim() ? C.gold + '44' : C.border}`,
-            background: C.surface, transition: 'border-color 0.2s',
-          }}>
-            <span style={{ fontSize: 13, color: C.ghost, display: 'flex', alignItems: 'center', flexShrink: 0 }}>✦</span>
-            <input
-              ref={chatRef}
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && runChat()}
-              placeholder={activeBrand ? `Tell the Director what to build for ${activeBrand.name}…` : 'Tell me what to create — "A luxury campaign for my skincare brand targeting women 25–35"'}
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: C.primary, fontSize: 13, padding: '9px 0', fontFamily: 'inherit' }}
-            />
-            <button
-              onClick={runChat}
-              disabled={!chatInput.trim() || chatLoading}
-              style={{
-                padding: '8px 18px', borderRadius: 7, fontSize: 11, fontWeight: 700,
-                cursor: chatInput.trim() && !chatLoading ? 'pointer' : 'not-allowed',
-                border: `1px solid ${chatInput.trim() ? C.gold : C.border}`,
-                background: chatInput.trim() ? C.goldDim : 'transparent',
-                color: chatInput.trim() ? C.gold : C.ghost, flexShrink: 0, transition: 'all 0.15s',
-              }}
-            >
-              {chatLoading
-                ? <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid ${C.gold}44`, borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                : 'Create →'}
-            </button>
-          </div>
-          {chatResult && (
-            <div style={{ marginTop: 6, padding: '8px 12px', borderRadius: 7, background: C.greenDim, border: `1px solid ${C.green}33`, fontSize: 11, color: C.green, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>✓</span>
-              <span>{chatResult.understood} — routing to {chatResult.output_type?.replace(/_/g, ' ')}…</span>
-            </div>
-          )}
-          {chatError && (
-            <div style={{ marginTop: 6, padding: '8px 12px', borderRadius: 7, background: '#110606', border: '1px solid #2a1010', fontSize: 11, color: '#f87171' }}>{chatError}</div>
-          )}
-        </div>
+        {/* CHAT — replaced by Jarvis (✦ bottom right) */}
 
         {/* ACTION LAYER */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, animation: 'fadeUp 0.4s ease 0.12s both' }}>
