@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import JarvisRail from "@/app/components/JarvisRail/JarvisRail";
+import JarvisRail from "./components/JarvisRail/JarvisRail";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
