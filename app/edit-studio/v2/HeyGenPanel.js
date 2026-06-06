@@ -105,7 +105,10 @@ export default function HeyGenPanel({ concept, styles }) {
     finally { setKeySaving(false) }
   }
 
-  // ── Compress image to ≤200KB base64 via canvas, then POST as JSON ────────────
+  // ── Two-step upload: browser → Supabase directly, then path → our route ──────
+  // Step 1: GET /api/heygen/photo-avatar?action=upload-url  → signed PUT URL
+  // Step 2: PUT file directly to Supabase (no body through our server)
+  // Step 3: POST /api/heygen/photo-avatar { storagePath } (tiny JSON)
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -116,30 +119,31 @@ export default function HeyGenPanel({ concept, styles }) {
     setPhotoAvatarError(null)
 
     try {
-      // Resize to max 512×512 and compress to JPEG so the JSON body stays small
-      const imageBase64 = await new Promise((resolve, reject) => {
-        const img = new Image()
-        img.onload = () => {
-          const MAX = 512
-          const scale  = Math.min(1, MAX / Math.max(img.width, img.height))
-          const canvas = document.createElement('canvas')
-          canvas.width  = Math.round(img.width  * scale)
-          canvas.height = Math.round(img.height * scale)
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-          resolve(canvas.toDataURL('image/jpeg', 0.85))
-        }
-        img.onerror = reject
-        img.src = URL.createObjectURL(file)
-      })
+      // Step 1 — get a signed upload URL from our server
+      const urlRes  = await fetch(`/api/heygen/photo-avatar?action=upload-url&fileName=${encodeURIComponent(file.name)}`)
+      const urlData = await urlRes.json()
+      if (!urlRes.ok || urlData.status === 'error') throw new Error(urlData.message)
 
-      const res  = await fetch('/api/heygen/photo-avatar', {
+      // Step 2 — PUT the file directly to Supabase (same pattern as video upload)
+      const putRes = await fetch(urlData.signedUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': file.type || 'image/jpeg' },
+        body:    file,
+      })
+      if (!putRes.ok) throw new Error(`Storage upload failed (${putRes.status})`)
+
+      // Step 3 — send tiny JSON to route: just the path, no file data
+      const avatarRes  = await fetch('/api/heygen/photo-avatar', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ imageBase64, mimeType: 'image/jpeg' }),
+        body:    JSON.stringify({ storagePath: urlData.storagePath, bucket: urlData.bucket }),
       })
-      const data = await res.json()
-      if (!res.ok || data.status === 'error') throw new Error(data.message)
-      setPhotoAvatarId(data.avatarId)
+      const avatarData = await avatarRes.json()
+      if (!avatarRes.ok || avatarData.status === 'error') {
+        throw new Error(avatarData.heygen ? `${avatarData.message} — HeyGen: ${avatarData.heygen}` : avatarData.message)
+      }
+
+      setPhotoAvatarId(avatarData.avatarId)
       setUsingPhotoAvatar(true)
     } catch (err) {
       setPhotoAvatarError(err.message)
