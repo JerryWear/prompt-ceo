@@ -32,11 +32,17 @@ const SYSTEM_PROMPT = `You are a senior performance marketing strategist. You ha
 // ─── User prompt ──────────────────────────────────────────────────────────────
 
 function buildUserPrompt(understandingData) {
-  return `Here is the video understanding analysis:
+  const sources = understandingData?.input_sources || [understandingData?.input_type || 'video']
+  const sourceLabel = sources.length > 1
+    ? `combined analysis from: ${sources.join(' + ')}`
+    : `${sources[0]} analysis`
+
+  return `Here is the ${sourceLabel} for this product:
 
 ${JSON.stringify(understandingData, null, 2)}
 
 Produce a complete marketing strategy and ad concept set for this specific product.
+Note: the understanding above may combine signals from video (what was said/shown), image (visual aesthetic, product appearance), and a written product description. Use all available signals — do not default to video-only thinking.
 
 Return JSON with exactly this schema:
 {
