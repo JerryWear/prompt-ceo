@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
 
 async function makeSupabase() {
   const cookieStore = await cookies()
@@ -69,6 +70,14 @@ export async function GET(req) {
           .createSignedUrl(storagePath, 3600)
         if (signed?.signedUrl) exportUrl = signed.signedUrl
       } catch { /* use stored URL as fallback */ }
+    }
+
+    if (job.status === 'completed') {
+      logEvent(user.id, JARVIS_EVENTS.VIDEO_RENDERED, 'edit-studio', {
+        jobId,
+        projectId: job.render_plan?.projectId || null,
+        segments:  job.render_details?.segmentsRendered || null,
+      }).catch(() => {})
     }
 
     return NextResponse.json({

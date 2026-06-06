@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
 
 // POST /api/save-ad-project
 // Saves the current connected ad project to Supabase
@@ -66,6 +67,14 @@ export async function POST(req) {
     if (error) {
       return NextResponse.json({ status: 'error', message: error.message }, { status: 500 })
     }
+
+    logEvent(user.id, JARVIS_EVENTS.AD_CREATED, 'ad-studio', {
+      projectId:     data.id,
+      productName:   productName || '',
+      campaignGoal:  campaignGoal || '',
+      selectedAngle: selectedAngle || '',
+      selectedHook:  selectedHook || '',
+    }).catch(() => {})
 
     return NextResponse.json({ status: 'success', projectId: data.id, version })
   } catch (err) {

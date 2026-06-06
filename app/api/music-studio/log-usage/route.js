@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
 
 // POST /api/music-studio/log-usage
 // Logs a music track action (selected, previewed) for the current user.
@@ -39,6 +40,11 @@ export async function POST(req) {
       project_type: projectType || null,
       action,
     })
+
+    if (action === 'selected' || action === 'licensed') {
+      const eventType = action === 'licensed' ? JARVIS_EVENTS.MUSIC_LICENSED : JARVIS_EVENTS.MUSIC_SELECTED
+      logEvent(user.id, eventType, 'music-studio', { trackId, projectId: projectId || null, projectType: projectType || null }).catch(() => {})
+    }
 
     return NextResponse.json({ status: 'success' })
   } catch (err) {
