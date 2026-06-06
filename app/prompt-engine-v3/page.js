@@ -4643,8 +4643,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
           }
         </button>
 
-        {/* AI Creative Director™ — replaced by Jarvis */}
-        {false && <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}><div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* AI Creative Director™ */}
+        <div style={{ borderRadius: 5, border: `1px solid ${C.subtle}`, background: C.base, overflow: 'hidden' }}><div style={{ padding: '8px 12px', background: C.raised, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: C.violet, flexShrink: 0 }}>✦ AI Director</span>
             <input
               value={cdInstruction}
@@ -4756,7 +4756,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
               )}
             </div>
           )}
-        </div>}
+        </div>
 
         {adMode === 'product_ad' && !productName.trim() && !isGenerating && (
           <div style={{ padding: '24px 20px', borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.raised, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -15954,7 +15954,48 @@ export default function PromptCEOPage() {
           <Btn variant="danger" onClick={rAll}>↺</Btn>
         </div>
 
-        {/* ── AI CREATIVE CONVERSATION BAR — replaced by Jarvis (✦ bottom right) */}
+        {/* ── AI CREATIVE CONVERSATION BAR ────────────────── */}
+        <div style={{
+          flexShrink: 0, padding: '8px 16px',
+          borderBottom: `1px solid ${C.hairline}`,
+          background: 'linear-gradient(90deg, #080808, #0a0a0f)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>✦</span>
+          <input
+            value={convInput}
+            onChange={e => setConvInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runConversation()}
+            placeholder='Tell me what to create… "Perfect day in Maldives for my travel brand" or "Full campaign for my black hoodie on TikTok"'
+            style={{
+              flex: 1, padding: '7px 12px', borderRadius: 6, fontSize: 12,
+              background: C.surface, border: `1px solid ${C.subtle}`,
+              color: C.primary, outline: 'none',
+            }}
+            onFocus={e => e.target.style.borderColor = C.goldDim}
+            onBlur={e => e.target.style.borderColor = C.subtle}
+          />
+          <button
+            onClick={runConversation}
+            disabled={!convInput.trim() || convLoading}
+            style={{
+              padding: '7px 16px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+              cursor: !convInput.trim() || convLoading ? 'not-allowed' : 'pointer',
+              border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold,
+              opacity: !convInput.trim() || convLoading ? 0.5 : 1, flexShrink: 0,
+            }}
+          >
+            {convLoading ? '…' : 'Create →'}
+          </button>
+          {convUnderstood && !convLoading && (
+            <div style={{ fontSize: 10, color: C.green, flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              ✓ {convUnderstood}
+            </div>
+          )}
+          {convError && (
+            <div style={{ fontSize: 10, color: '#e05050', flexShrink: 0 }}>{convError}</div>
+          )}
+        </div>
 
         {/* ── AD STUDIO VIEW ──────────────────────────────── */}
         {s.view === 'ad_studio' && (
@@ -17734,6 +17775,9 @@ export default function PromptCEOPage() {
 
                     {/* Action buttons */}
                     <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
+                      <button onClick={() => set('view', 'ai_director')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
+                        ✦ Ask Director
+                      </button>
                       <button onClick={() => set('view', 'perfect_day')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>
                         ☀ Perfect Day
                       </button>
@@ -19363,8 +19407,8 @@ export default function PromptCEOPage() {
               )}
             </div>
 
-            {/* Input area — replaced by Jarvis */}
-            {false && directorPhase !== 'executing' && (
+            {/* Input area */}
+            {directorPhase !== 'executing' && (
               <div style={{ flexShrink: 0, padding: '14px 20px', borderTop: `1px solid ${C.hairline}`, background: C.deep, display: 'flex', gap: 10 }}>
                 {s.hasImage && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', borderRadius: 6, border: `1px solid ${C.goldDim}`, background: `${C.gold}0d`, flexShrink: 0 }}>
