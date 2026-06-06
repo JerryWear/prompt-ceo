@@ -1,7 +1,7 @@
 import { NextResponse }            from 'next/server'
 import { createServerClient }      from '@supabase/ssr'
 import { cookies }                 from 'next/headers'
-import { getBrandIntelligence }    from '@/app/lib/jarvis/brandBrain'
+import { getBrandIntelligence }    from '../../../lib/jarvis/brandBrain'
 
 async function getUser() {
   const cookieStore = await cookies()

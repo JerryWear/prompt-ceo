@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
+import { logEvent, JARVIS_EVENTS } from '../../../lib/jarvis/events'
 
 // POST /api/music-studio/log-usage
 // Logs a music track action (selected, previewed) for the current user.

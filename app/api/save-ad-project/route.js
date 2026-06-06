@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
+import { logEvent, JARVIS_EVENTS } from '../../lib/jarvis/events'
 
 // POST /api/save-ad-project
 // Saves the current connected ad project to Supabase

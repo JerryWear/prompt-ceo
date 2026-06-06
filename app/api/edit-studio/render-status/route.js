@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { logEvent, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
+import { logEvent, JARVIS_EVENTS } from '../../../lib/jarvis/events'
 
 async function makeSupabase() {
   const cookieStore = await cookies()

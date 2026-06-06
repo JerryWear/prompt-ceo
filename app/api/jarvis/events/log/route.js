@@ -1,7 +1,7 @@
 import { NextResponse }        from 'next/server'
 import { createServerClient }  from '@supabase/ssr'
 import { cookies }             from 'next/headers'
-import { logEventWithMemory }  from '@/app/lib/jarvis/events'
+import { logEventWithMemory }  from '../../../../lib/jarvis/events'
 
 async function getUser() {
   const cookieStore = await cookies()

@@ -2,9 +2,9 @@ import { NextResponse }        from 'next/server'
 import { createServerClient }  from '@supabase/ssr'
 import { cookies }             from 'next/headers'
 import OpenAI                  from 'openai'
-import { buildBrandContext }   from '@/app/lib/jarvis/brandBrain'
-import { recallMemory }        from '@/app/lib/jarvis/memory'
-import { logEventWithMemory, JARVIS_EVENTS } from '@/app/lib/jarvis/events'
+import { buildBrandContext }   from '../../../lib/jarvis/brandBrain'
+import { recallMemory }        from '../../../lib/jarvis/memory'
+import { logEventWithMemory, JARVIS_EVENTS } from '../../../lib/jarvis/events'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
