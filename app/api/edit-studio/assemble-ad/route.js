@@ -40,52 +40,89 @@ async function checkFfmpeg() {
 }
 
 // Build the FFmpeg command based on source type
-function buildAssembleCommand({ sourceType, sourcePath, voicePath, musicPath, outputPath, duration = 30 }) {
+function audioFilters(voiceIdx, musicIdx, hasMusicTrack) {
+  if (hasMusicTrack) return [
+    `[${voiceIdx}:a]volume=1.0[voice]`,
+    `[${musicIdx}:a]volume=0.12[music]`,
+    '[voice][music]amix=inputs=2:duration=shortest[a]',
+  ]
+  return [`[${voiceIdx}:a]volume=1.0[a]`]
+}
+
+function scaleFilter(inputIdx, outLabel) {
+  return `[${inputIdx}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p[${outLabel}]`
+}
+
+function buildAssembleCommand({ sourceType, sourcePath, imagePath, voicePath, musicPath, outputPath, duration = 30 }) {
   const args = []
   const hasMusicTrack = !!musicPath
 
-  if (sourceType === 'image') {
-    // Image → looped video background
-    args.push('-loop', '1', '-i', sourcePath)          // input 0: image
-    args.push('-i', voicePath)                          // input 1: voiceover
-    if (hasMusicTrack) args.push('-i', musicPath)       // input 2: music
+  // ── COMBINED: image intro (4s Ken Burns) → crossfade → video ──────────────
+  if (sourceType === 'combined' && imagePath) {
+    const introDuration = 4  // seconds of image shown before video starts
 
-    const filters = []
-    // Scale and pad to 9:16 (1080x1920) — standard short-form ad
-    filters.push('[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p[v]')
+    args.push('-loop', '1', '-t', String(introDuration + 1), '-i', imagePath) // 0: image
+    args.push('-i', sourcePath)                                                // 1: video
+    args.push('-i', voicePath)                                                 // 2: voice
+    if (hasMusicTrack) args.push('-i', musicPath)                              // 3: music
 
-    if (hasMusicTrack) {
-      filters.push('[1:a]volume=1.0[voice]')
-      filters.push('[2:a]volume=0.12[music]')
-      filters.push('[voice][music]amix=inputs=2:duration=shortest[a]')
-    } else {
-      filters.push('[1:a]volume=1.0[a]')
-    }
+    const musicStartIdx = hasMusicTrack ? 3 : null
+    const voiceIdx = 2
+
+    const filters = [
+      // Image: scale to 9:16, Ken Burns slow zoom (z goes from 1.0 to 1.15 over introDuration)
+      `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
+        `zoompan=z='min(zoom+0.003,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
+        `d=${introDuration * 25}:s=1080x1920:fps=25,` +
+        `trim=duration=${introDuration},setpts=PTS-STARTPTS,format=yuv420p[img_v]`,
+
+      // Video: scale to 9:16, trim to remaining duration
+      `[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
+        `trim=duration=${duration - introDuration + 2},setpts=PTS-STARTPTS,format=yuv420p[vid_v]`,
+
+      // Crossfade: 0.5s dissolve at the transition point
+      `[img_v][vid_v]xfade=transition=fade:duration=0.5:offset=${introDuration - 0.5}[combined_v]`,
+
+      // Audio
+      ...audioFilters(voiceIdx, musicStartIdx, hasMusicTrack),
+    ]
+
+    args.push('-filter_complex', filters.join(';'))
+    args.push('-map', '[combined_v]', '-map', '[a]')
+    args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '22')
+    args.push('-c:a', 'aac', '-b:a', '128k')
+    args.push('-shortest')
+
+  // ── IMAGE ONLY: looped with Ken Burns zoom ─────────────────────────────────
+  } else if (sourceType === 'image') {
+    args.push('-loop', '1', '-i', sourcePath)
+    args.push('-i', voicePath)
+    if (hasMusicTrack) args.push('-i', musicPath)
+
+    const filters = [
+      `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
+        `zoompan=z='min(zoom+0.002,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
+        `d=${duration * 25}:s=1080x1920:fps=25,format=yuv420p[v]`,
+      ...audioFilters(1, hasMusicTrack ? 2 : null, hasMusicTrack),
+    ]
 
     args.push('-filter_complex', filters.join(';'))
     args.push('-map', '[v]', '-map', '[a]')
     args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '23')
     args.push('-c:a', 'aac', '-b:a', '128k')
-    args.push('-t', String(duration + 2))  // cap at voice duration + buffer
+    args.push('-t', String(duration + 2))
     args.push('-shortest')
 
+  // ── VIDEO ONLY: replace audio ──────────────────────────────────────────────
   } else {
-    // Video → use original footage as visual, replace/mix audio
-    args.push('-i', sourcePath)                         // input 0: video
-    args.push('-i', voicePath)                          // input 1: voiceover
-    if (hasMusicTrack) args.push('-i', musicPath)       // input 2: music
+    args.push('-i', sourcePath)
+    args.push('-i', voicePath)
+    if (hasMusicTrack) args.push('-i', musicPath)
 
-    const filters = []
-    // Scale to 9:16 for short-form ads (add letterboxing if needed)
-    filters.push('[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p[v]')
-
-    if (hasMusicTrack) {
-      filters.push('[1:a]volume=1.0[voice]')
-      filters.push('[2:a]volume=0.12[music]')
-      filters.push('[voice][music]amix=inputs=2:duration=shortest[a]')
-    } else {
-      filters.push('[1:a]volume=1.0[a]')
-    }
+    const filters = [
+      scaleFilter(0, 'v'),
+      ...audioFilters(1, hasMusicTrack ? 2 : null, hasMusicTrack),
+    ]
 
     args.push('-filter_complex', filters.join(';'))
     args.push('-map', '[v]', '-map', '[a]')
@@ -116,10 +153,10 @@ export async function POST(req) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ status: 'error', message: 'Not authenticated' }, { status: 401 })
 
-    const { projectId, adId, adLabel = 'ad', voiceUrl, musicUrl, sourceType = 'video', sourceUrl, duration = 30 } = await req.json()
+    const { projectId, adId, adLabel = 'ad', voiceUrl, musicUrl, sourceType = 'video', sourceUrl, imageUrl, duration = 30 } = await req.json()
 
-    if (!voiceUrl)   return NextResponse.json({ status: 'error', message: 'voiceUrl is required' }, { status: 400 })
-    if (!sourceUrl)  return NextResponse.json({ status: 'error', message: 'sourceUrl is required' }, { status: 400 })
+    if (!voiceUrl)  return NextResponse.json({ status: 'error', message: 'voiceUrl is required' }, { status: 400 })
+    if (!sourceUrl && sourceType !== 'combined') return NextResponse.json({ status: 'error', message: 'sourceUrl is required' }, { status: 400 })
 
     const hasFfmpeg = await checkFfmpeg()
     if (!hasFfmpeg) {
@@ -132,21 +169,29 @@ export async function POST(req) {
     }
 
     // ── Download source files ────────────────────────────────────────────────
-    const ext        = sourceType === 'image' ? '.jpg' : '.mp4'
-    const sourcePath = path.join(workDir, `source${ext}`)
+    const isCombined = sourceType === 'combined'
+    const sourceExt  = (sourceType === 'image') ? '.jpg' : '.mp4'
+    const sourcePath = sourceUrl ? path.join(workDir, `source${sourceExt}`) : null
+    const imagePath  = imageUrl  ? path.join(workDir, 'product_image.jpg')  : null
     const voicePath  = path.join(workDir, 'voice.mp3')
     const outputPath = path.join(workDir, 'ad_output.mp4')
 
     await Promise.all([
-      downloadFile(sourceUrl, sourcePath),
+      sourcePath ? downloadFile(sourceUrl, sourcePath)                          : Promise.resolve(),
+      imagePath  ? downloadFile(imageUrl,  imagePath)                           : Promise.resolve(),
       downloadFile(voiceUrl, voicePath),
-      musicUrl ? downloadFile(musicUrl, path.join(workDir, 'music.mp3')) : Promise.resolve(),
+      musicUrl   ? downloadFile(musicUrl, path.join(workDir, 'music.mp3'))      : Promise.resolve(),
     ])
 
     const musicPath = musicUrl ? path.join(workDir, 'music.mp3') : null
 
+    // For combined mode: imagePath is the intro image, sourcePath is the video
+    const effectiveSourcePath = isCombined ? sourcePath : sourcePath
+
     // ── FFmpeg assembly ──────────────────────────────────────────────────────
-    const ffmpegArgs = buildAssembleCommand({ sourceType, sourcePath, voicePath, musicPath, outputPath, duration })
+    const ffmpegArgs = buildAssembleCommand({
+      sourceType, sourcePath: effectiveSourcePath, imagePath, voicePath, musicPath, outputPath, duration,
+    })
     await execFileAsync('ffmpeg', ffmpegArgs, { timeout: 55_000 })
 
     if (!fs.existsSync(outputPath)) throw new Error('FFmpeg did not produce output file')

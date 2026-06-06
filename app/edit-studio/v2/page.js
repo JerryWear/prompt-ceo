@@ -48,8 +48,9 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
   const [playingTrackId,   setPlayingTrackId]    = useState(null)
   const [audioEl,          setAudioEl]           = useState(null)
 
-  // Visual source: 'video' | 'image' — only relevant when imageSource is present
-  const [useImageVisual, setUseImageVisual] = useState(false)
+  // Visual mode: 'combined' | 'video' | 'image'
+  // 'combined' = image intro + video footage (default when both present)
+  const [visualMode, setVisualMode] = useState('combined')
 
   const scriptForDuration = concept[`script_${selectedDuration}`] || {}
   const scriptText = [scriptForDuration.hook, scriptForDuration.body, scriptForDuration.cta]
@@ -88,17 +89,13 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adContext: {
-            goal: concept.logline || '',
-            platform: concept.type || 'tiktok',
-            mood: concept.hook || '',
-            productName: concept.title || '',
-          },
-          limit: 5,
+          platform: concept.type || 'tiktok',
+          goal:     concept.logline || '',
+          mood:     concept.hook    || '',
         }),
       })
       const data = await res.json()
-      if (data.tracks?.length) setMusicTracks(data.tracks)
+      if (data.recommendedTracks?.length) setMusicTracks(data.recommendedTracks)
     } catch { /* non-fatal */ }
     finally { setMusicLoading(false) }
   }
@@ -240,26 +237,27 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
         </div>
       )}
 
-      {/* ── Visual source selector (only when image was also uploaded) ── */}
+      {/* ── Visual mode selector (only when image was also uploaded) ── */}
       {voiceUrl && !loading && imageSource && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-            Visual Source
+            Visual Style
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {[
-              { value: false, label: '▶ Video backdrop', desc: 'Original footage + new voice' },
-              { value: true,  label: '◻ Image backdrop', desc: 'Product image looped + new voice' },
+              { value: 'combined', label: '✦ Combined (Recommended)',     desc: 'Image intro → video footage — cinematic sequence' },
+              { value: 'video',   label: '▶ Video only',                  desc: 'Original footage with new voiceover' },
+              { value: 'image',   label: '◻ Image only',                  desc: 'Product image looped with new voiceover' },
             ].map(opt => (
-              <button key={String(opt.value)} type="button"
-                onClick={e => { e.stopPropagation(); setUseImageVisual(opt.value) }}
+              <button key={opt.value} type="button"
+                onClick={e => { e.stopPropagation(); setVisualMode(opt.value) }}
                 style={{
-                  flex: 1, padding: '8px 6px', borderRadius: 7, cursor: 'pointer', textAlign: 'left',
-                  border: useImageVisual === opt.value ? '1px solid #c8a84b' : '1px solid #1a1a1a',
-                  background: useImageVisual === opt.value ? '#1a1408' : '#0d0d0d',
+                  padding: '8px 10px', borderRadius: 7, cursor: 'pointer', textAlign: 'left',
+                  border: visualMode === opt.value ? '1px solid #c8a84b' : '1px solid #1a1a1a',
+                  background: visualMode === opt.value ? '#1a1408' : '#0d0d0d',
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 700, color: useImageVisual === opt.value ? '#c8a84b' : '#888888' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: visualMode === opt.value ? '#c8a84b' : '#888888' }}>
                   {opt.label}
                 </div>
                 <div style={{ fontSize: 9, color: '#555555', marginTop: 2 }}>{opt.desc}</div>
@@ -289,11 +287,11 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
             <div style={{ fontSize: 11, color: '#e05050', padding: '4px 0' }}>{assembleState.error}</div>
           ) : (
             <button type="button"
-              onClick={e => { e.stopPropagation(); onBuildAd(voiceUrl, { musicUrl: selectedTrack?.file_url || null, useImageAsVisual: useImageVisual }) }}
+              onClick={e => { e.stopPropagation(); onBuildAd(voiceUrl, { musicUrl: selectedTrack?.file_url || null, visualMode }) }}
               style={{ width: '100%', padding: '11px 0', borderRadius: 7, fontSize: 12, fontWeight: 700,
                 cursor: 'pointer', border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b' }}
             >
-              ✦ Build Final Ad {selectedTrack ? `· ${selectedTrack.title}` : ''}{useImageVisual ? ' · Image' : ''}
+              ✦ Build Final Ad{selectedTrack ? ` · ${selectedTrack.title}` : ''}{visualMode === 'combined' ? ' · Combined' : ''}
             </button>
           )}
         </div>
@@ -1113,14 +1111,13 @@ export default function EditStudioV2() {
   }, [pendingVideo, handleFileSelect])
 
   // ── Assemble final ad from script + voice + source ────────────────────────
-  const handleBuildFinalAd = useCallback(async (concept, voiceUrl, { musicUrl = null, useImageAsVisual = false } = {}) => {
+  const handleBuildFinalAd = useCallback(async (concept, voiceUrl, { musicUrl = null, visualMode = 'video' } = {}) => {
     if (!voiceUrl || !project?.id) return
     const adId = concept.id || `ad_${Date.now()}`
     setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'building' } }))
 
-    // Determine which visual source to use
-    const visualType = (useImageAsVisual && imageSource) ? 'image' : (sourceType === 'prompt' ? null : sourceType)
-    const visualUrl  = (useImageAsVisual && imageSource) ? imageSource : (project.publicUrl || null)
+    const isCombined = visualMode === 'combined' && imageSource && project.publicUrl
+    const isImageOnly = visualMode === 'image' && imageSource
 
     try {
       const res  = await fetch('/api/edit-studio/assemble-ad', {
@@ -1131,8 +1128,10 @@ export default function EditStudioV2() {
           adLabel:    concept.title || concept.ad_type || 'Ad',
           voiceUrl,
           musicUrl:   musicUrl || null,
-          sourceType: visualType,
-          sourceUrl:  visualUrl,
+          // Combined mode passes both URLs; assemble-ad will sequence them
+          sourceType: isCombined ? 'combined' : isImageOnly ? 'image' : (sourceType === 'prompt' ? null : sourceType),
+          sourceUrl:  isImageOnly ? imageSource : (project.publicUrl || null),
+          imageUrl:   isCombined ? imageSource : null,   // extra field for combined mode
           duration:   30,
         }),
       })
