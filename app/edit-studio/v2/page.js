@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import styles from './page.module.css'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -400,6 +400,8 @@ export default function EditStudioV2() {
   const [error,       setError]       = useState(null)
   const [statusMsg,   setStatusMsg]   = useState('')
   const [dragActive,  setDragActive]  = useState(false)
+  const [renderJobs,    setRenderJobs]    = useState([]) // array of job objects from auto-render response
+  const [renderPolling, setRenderPolling] = useState(false)
 
   // ── Pipeline ─────────────────────────────────────────────────────────────────
 
@@ -540,6 +542,8 @@ export default function EditStudioV2() {
     setStrategy(null)
     setAdConcepts([])
     setActiveConcept(null)
+    setRenderJobs([])
+    setRenderPolling(false)
   }, [])
 
   const handleCreateStrategy = useCallback(async () => {
@@ -590,6 +594,56 @@ export default function EditStudioV2() {
       setScreen('strategy')
     }
   }, [understanding, strategy, project])
+
+  const handleGenerateAllAds = useCallback(async () => {
+    if (!project?.id) return
+    setScreen('render-queuing')
+    setError(null)
+    try {
+      const res = await fetch('/api/edit-studio/auto-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Failed to queue renders')
+      setRenderJobs(data.jobs || [])
+      setScreen('rendering')
+      setRenderPolling(true)
+    } catch (err) {
+      setError(err.message)
+      setScreen('concepts')
+    }
+  }, [project])
+
+  useEffect(() => {
+    if (!renderPolling || !renderJobs.length) return
+
+    const interval = setInterval(async () => {
+      // Poll each job that isn't complete or failed yet
+      const activeJobs = renderJobs.filter(j => j.jobId && j.status !== 'completed' && j.status !== 'failed')
+      if (!activeJobs.length) {
+        setRenderPolling(false)
+        return
+      }
+
+      const updated = await Promise.allSettled(
+        activeJobs.map(async j => {
+          const res = await fetch(`/api/edit-studio/render-status?jobId=${j.jobId}`)
+          const data = await res.json()
+          return { jobId: j.jobId, status: data.status, exportUrl: data.export_url }
+        })
+      )
+
+      setRenderJobs(prev => prev.map(job => {
+        const update = updated.find(r => r.status === 'fulfilled' && r.value.jobId === job.jobId)
+        if (!update) return job
+        return { ...job, status: update.value.status, exportUrl: update.value.exportUrl }
+      }))
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [renderPolling, renderJobs])
 
   // ── Step indicator logic ──────────────────────────────────────────────────
 
@@ -1040,7 +1094,108 @@ export default function EditStudioV2() {
             })}
           </div>
 
-          <div className={styles.conceptsActions} />
+          <div className={styles.conceptsActions}>
+            <button
+              type="button"
+              className={styles.generateAllAdsBtn}
+              onClick={handleGenerateAllAds}
+            >
+              ⚡ Generate 5 Finished Ads
+            </button>
+            <p className={styles.generateAllAdsHint}>
+              Voiceover · Captions · Render · Download
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Render queuing screen ─────────────────────────────────────────── */}
+      {screen === 'render-queuing' && (
+        <div className={styles.processingScreen}>
+          <div className={styles.spinner} />
+          <p className={styles.statusMsg}>Queuing your ads...</p>
+          <p className={styles.statusSubMsg}>Generating voiceovers, captions, and render jobs</p>
+        </div>
+      )}
+
+      {/* ── Rendering screen ──────────────────────────────────────────────── */}
+      {screen === 'rendering' && renderJobs.length > 0 && (
+        <div className={styles.renderingScreen}>
+          <div className={styles.renderingHeader}>
+            <h2 className={styles.renderingTitle}>Producing Your Ads</h2>
+            <p className={styles.renderingSubline}>
+              {renderJobs.filter(j => j.status === 'completed').length} of {renderJobs.length} complete
+            </p>
+          </div>
+
+          <div className={styles.renderJobList}>
+            {renderJobs.map((job, i) => {
+              const isComplete = job.status === 'completed'
+              const isFailed   = job.status === 'failed'
+              const isActive   = job.status === 'processing'
+
+              return (
+                <div
+                  key={job.adId || i}
+                  className={`${styles.renderJobCard} ${isComplete ? styles.renderJobComplete : ''} ${isFailed ? styles.renderJobFailed : ''}`}
+                >
+                  <div className={styles.renderJobLeft}>
+                    <span className={styles.renderJobIcon}>
+                      {isComplete ? '✓' : isFailed ? '✗' : isActive ? '◌' : '◦'}
+                    </span>
+                    <div>
+                      <p className={styles.renderJobType}>{formatAdType(job.adType)}</p>
+                      <p className={styles.renderJobStatus}>
+                        {isComplete ? 'Ready to download' :
+                         isFailed   ? (job.error || 'Render failed') :
+                         isActive   ? 'Rendering...' :
+                         job.jobId  ? 'Queued' : 'Preparing...'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.renderJobRight}>
+                    <div className={styles.renderJobBadges}>
+                      <span className={`${styles.renderMiniDot} ${job.voiceoverGenerated ? styles.dotDone : styles.dotPending}`} title="Voice" />
+                      <span className={`${styles.renderMiniDot} ${job.captionsGenerated ? styles.dotDone : styles.dotPending}`} title="Captions" />
+                      <span className={`${styles.renderMiniDot} ${isComplete ? styles.dotDone : isFailed ? styles.dotFailed : styles.dotPending}`} title="Render" />
+                    </div>
+                    {isComplete && job.exportUrl && (
+                      <a
+                        href={job.exportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.downloadBtn}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        Download
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className={styles.renderingFooter}>
+            {renderPolling && (
+              <p className={styles.renderingPolling}>Checking render status every 3 seconds...</p>
+            )}
+            {!renderPolling && renderJobs.some(j => j.status === 'completed') && (
+              <p className={styles.renderingComplete}>
+                {renderJobs.filter(j => j.status === 'completed').length === renderJobs.length
+                  ? 'All ads complete.'
+                  : `${renderJobs.filter(j => j.status === 'completed').length} ads complete. Others may still be rendering on the server.`}
+              </p>
+            )}
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => setScreen('concepts')}
+              style={{ marginTop: 16 }}
+            >
+              ← Back to Concepts
+            </button>
+          </div>
         </div>
       )}
 

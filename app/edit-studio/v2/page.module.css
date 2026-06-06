@@ -1356,3 +1356,108 @@
 .capSection_hook { border-left: 2px solid #2a4a2a; }
 .capSection_body { border-left: 2px solid #1a1a1a; }
 .capSection_cta  { border-left: 2px solid #1a1a3a; }
+
+/* ── Concepts CTA ────────────────────────────────────────────────────── */
+.generateAllAdsBtn {
+  width: 100%;
+  padding: 18px;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 32px;
+  transition: opacity 0.15s;
+}
+.generateAllAdsBtn:hover { opacity: 0.88; }
+
+.generateAllAdsHint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #333;
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
+
+/* ── Rendering screen ────────────────────────────────────────────────── */
+.renderingScreen {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.renderingHeader { margin-bottom: 32px; }
+.renderingTitle { font-size: 1.75rem; font-weight: 700; margin-bottom: 6px; }
+.renderingSubline { color: #666; font-size: 0.9rem; }
+
+.renderJobList { display: flex; flex-direction: column; gap: 10px; }
+
+.renderJobCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+.renderJobComplete { border-color: #2a4a2a; background: #0d160d; }
+.renderJobFailed   { border-color: #4a2a2a; background: #160d0d; }
+
+.renderJobLeft { display: flex; align-items: center; gap: 14px; }
+.renderJobRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.renderJobIcon {
+  font-size: 1.2rem;
+  width: 28px;
+  text-align: center;
+  color: #555;
+}
+.renderJobComplete .renderJobIcon { color: #6fcf6f; }
+.renderJobFailed   .renderJobIcon { color: #cf6f6f; }
+
+.renderJobType {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.renderJobStatus {
+  font-size: 0.75rem;
+  color: #555;
+  margin-top: 2px;
+}
+.renderJobComplete .renderJobStatus { color: #4a8a4a; }
+.renderJobFailed   .renderJobStatus { color: #8a4a4a; }
+
+.renderJobBadges { display: flex; align-items: center; gap: 4px; }
+
+.renderMiniDot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dotDone    { background: #6fcf6f; }
+.dotPending { background: #333; }
+.dotFailed  { background: #cf6f6f; }
+
+.downloadBtn {
+  padding: 7px 14px;
+  background: #1a2a1a;
+  border: 1px solid #2a4a2a;
+  border-radius: 8px;
+  color: #8fcf8f;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.downloadBtn:hover { background: #1e321e; }
+
+.renderingFooter { margin-top: 28px; }
+.renderingPolling { font-size: 0.78rem; color: #333; text-align: center; }
+.renderingComplete { font-size: 0.85rem; color: #4a8a4a; text-align: center; }
