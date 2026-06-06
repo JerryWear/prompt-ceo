@@ -795,6 +795,61 @@ export default function EditStudioV2() {
   return (
     <div className={styles.page}>
 
+      {/* ── PromptCEO top bar ─────────────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        borderBottom: '1px solid #1a1a1a',
+        background: 'rgba(10,10,10,0.94)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        padding: '0 28px',
+        display: 'flex', alignItems: 'center',
+        height: 52, gap: 24, flexShrink: 0,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}>
+        {/* Wordmark */}
+        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0 }}>
+          PromptCEO
+        </a>
+
+        {/* Nav links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {[
+            { label: 'Dashboard',   href: '/dashboard' },
+            { label: 'Studio',      href: '/prompt-engine-v3' },
+            { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio' },
+            { label: 'Edit Studio', href: '/edit-studio/v2', active: true },
+            { label: 'Brands',      href: '/dashboard' },
+          ].map(({ label, href, active }) => (
+            <a
+              key={label}
+              href={href}
+              style={{
+                fontSize: 12, fontWeight: active ? 600 : 400,
+                color: active ? '#ede9e1' : '#6e6a66',
+                textDecoration: 'none',
+                padding: '5px 10px', borderRadius: 6,
+                background: active ? '#161616' : 'transparent',
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Account */}
+        <a href="/account" style={{
+          fontSize: 11, color: '#6e6a66',
+          textDecoration: 'none',
+          border: '1px solid #1a1a1a',
+          borderRadius: 6, padding: '4px 12px',
+        }}>
+          Account
+        </a>
+      </div>
+
       {/* ── Upload screen ─────────────────────────────────────────────────── */}
       {screen === 'upload' && (
         <div className={styles.uploadScreen}>
