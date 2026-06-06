@@ -15954,48 +15954,7 @@ export default function PromptCEOPage() {
           <Btn variant="danger" onClick={rAll}>↺</Btn>
         </div>
 
-        {/* ── AI CREATIVE CONVERSATION BAR ────────────────── */}
-        <div style={{
-          flexShrink: 0, padding: '8px 16px',
-          borderBottom: `1px solid ${C.hairline}`,
-          background: 'linear-gradient(90deg, #080808, #0a0a0f)',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>✦</span>
-          <input
-            value={convInput}
-            onChange={e => setConvInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runConversation()}
-            placeholder='Tell me what to create… "Perfect day in Maldives for my travel brand" or "Full campaign for my black hoodie on TikTok"'
-            style={{
-              flex: 1, padding: '7px 12px', borderRadius: 6, fontSize: 12,
-              background: C.surface, border: `1px solid ${C.subtle}`,
-              color: C.primary, outline: 'none',
-            }}
-            onFocus={e => e.target.style.borderColor = C.goldDim}
-            onBlur={e => e.target.style.borderColor = C.subtle}
-          />
-          <button
-            onClick={runConversation}
-            disabled={!convInput.trim() || convLoading}
-            style={{
-              padding: '7px 16px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-              cursor: !convInput.trim() || convLoading ? 'not-allowed' : 'pointer',
-              border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold,
-              opacity: !convInput.trim() || convLoading ? 0.5 : 1, flexShrink: 0,
-            }}
-          >
-            {convLoading ? '…' : 'Create →'}
-          </button>
-          {convUnderstood && !convLoading && (
-            <div style={{ fontSize: 10, color: C.green, flexShrink: 0, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              ✓ {convUnderstood}
-            </div>
-          )}
-          {convError && (
-            <div style={{ fontSize: 10, color: '#e05050', flexShrink: 0 }}>{convError}</div>
-          )}
-        </div>
+        {/* ── AI CREATIVE CONVERSATION BAR — replaced by Jarvis (✦ bottom right) */}
 
         {/* ── AD STUDIO VIEW ──────────────────────────────── */}
         {s.view === 'ad_studio' && (
