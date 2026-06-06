@@ -17775,9 +17775,6 @@ export default function PromptCEOPage() {
 
                     {/* Action buttons */}
                     <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
-                      <button onClick={() => set('view', 'ai_director')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.goldDim}`, background: '#1a1408', color: C.gold }}>
-                        ✦ Ask Director
-                      </button>
                       <button onClick={() => set('view', 'perfect_day')} style={{ flex: 1, padding: '7px 0', borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${C.hairline}`, background: 'transparent', color: C.secondary }}>
                         ☀ Perfect Day
                       </button>
