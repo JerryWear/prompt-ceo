@@ -32,6 +32,7 @@ import { promisify } from 'util'
 import fs             from 'fs'
 import path           from 'path'
 import os             from 'os'
+import http           from 'http'
 import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import ws from 'ws'
@@ -519,6 +520,15 @@ async function main() {
 
   log('info', 'Worker ready — polling for jobs')
 
+  // Minimal HTTP server so Railway's health check probe succeeds.
+  // Railway probes $PORT on web services — without this it sends SIGTERM immediately.
+  const PORT = parseInt(process.env.PORT || '8080', 10)
+  const healthServer = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' })
+    res.end('ok')
+  })
+  healthServer.listen(PORT, () => log('info', `Health check listening on ${PORT}`))
+
   // ── Stats accumulator (logged every 10 jobs) ──────────────────────────────
   const stats = { jobsClaimed: 0, jobsCompleted: 0, jobsFailed: 0, staleReclaimed: 0, totalRenderMs: 0 }
   const STATS_INTERVAL = 10 // log summary every N jobs
@@ -559,6 +569,7 @@ async function main() {
 
   // Final stats on shutdown
   log('info', 'Worker final stats', null, stats)
+  healthServer.close()
 
   log('info', 'Worker stopped cleanly')
   process.exit(0)
