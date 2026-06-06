@@ -33,7 +33,7 @@ const CAPTION_STYLE_OPTIONS = [
   { key: 'linkedin_authority', label: 'LinkedIn Authority', description: 'Longer, measured',      emoji: '💼' },
 ]
 
-function VoicePanel({ concept, projectId }) {
+function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd }) {
   const [selectedVoice, setSelectedVoice] = useState('professional_female')
   const [selectedDuration, setSelectedDuration] = useState('30s')
   const [loading, setLoading]   = useState(false)
@@ -67,6 +67,7 @@ function VoicePanel({ concept, projectId }) {
       if (!res.ok || data.status === 'error') throw new Error(data.message || 'Voice generation failed')
       setVoiceUrl(data.voiceover_url)
       setVoiceLabel(data.voice_label || '')
+      if (onVoiceReady) onVoiceReady(data.voiceover_url)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -146,6 +147,51 @@ function VoicePanel({ concept, projectId }) {
           </div>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio controls src={voiceUrl} className={styles.audioPlayer} />
+        </div>
+      )}
+
+      {/* ── Build Final Ad ── */}
+      {voiceUrl && !loading && onBuildAd && (
+        <div style={{ marginTop: 12 }}>
+          {assembleState?.status === 'done' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600 }}>✓ Ad rendered</div>
+              <a
+                href={assembleState.publicUrl}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block', textAlign: 'center', padding: '10px 0',
+                  borderRadius: 7, fontSize: 12, fontWeight: 700,
+                  border: '1px solid #4caf5066', background: '#0a1a0a',
+                  color: '#4caf50', textDecoration: 'none',
+                }}
+              >
+                ↓ Download Ad
+              </a>
+            </div>
+          ) : assembleState?.status === 'queued' ? (
+            <div style={{ fontSize: 11, color: '#888888', padding: '8px 0' }}>
+              ⟳ Queued — download the voiceover and assemble locally.
+            </div>
+          ) : assembleState?.status === 'building' ? (
+            <div style={{ fontSize: 11, color: '#c8a84b', padding: '8px 0' }}>⟳ Building final ad…</div>
+          ) : assembleState?.status === 'error' ? (
+            <div style={{ fontSize: 11, color: '#e05050', padding: '4px 0' }}>{assembleState.error}</div>
+          ) : (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onBuildAd(voiceUrl) }}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 7,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b',
+              }}
+            >
+              ✦ Build Final Ad
+            </button>
+          )}
         </div>
       )}
 
@@ -551,14 +597,13 @@ function RecentProjects({ onContinue }) {
 // ─── Pipeline steps overview ──────────────────────────────────────────────────
 
 const PIPELINE_OVERVIEW = [
-  { icon: '↑', label: 'Upload'     },
+  { icon: '↑', label: 'Input'      },
   { icon: '◎', label: 'Understand' },
   { icon: '✦', label: 'Strategy'   },
   { icon: '▣', label: '5 Ads'      },
   { icon: '♪', label: 'Voice'      },
-  { icon: '▤', label: 'Captions'   },
   { icon: '★', label: 'Quality'    },
-  { icon: '▶', label: 'Render'     },
+  { icon: '▶', label: 'Build Ad'   },
 ]
 
 function PipelineSteps() {
@@ -600,6 +645,13 @@ export default function EditStudioV2() {
   const [activeBrand,   setActiveBrand]   = useState(null)
   const [brandDropOpen, setBrandDropOpen] = useState(false)
   const [brandProfiles, setBrandProfiles] = useState([])
+
+  // ── Multi-input state ─────────────────────────────────────────────────────
+  const [inputMode,     setInputMode]     = useState('video')   // 'video' | 'image' | 'prompt'
+  const [promptText,    setPromptText]    = useState('')
+  const [sourceType,    setSourceType]    = useState('video')   // tracks what was uploaded (for assemble-ad)
+  const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
+  const imageInputRef = useRef(null)
 
   const { setStudioContext } = useJarvisContext()
   useEffect(() => {
@@ -760,6 +812,127 @@ export default function EditStudioV2() {
     setFixLoading({})
     setFixes({})
   }, [])
+
+  // ── Image pipeline ────────────────────────────────────────────────────────
+  const handleImageSelect = useCallback(async (file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Please select an image file (JPG, PNG, WebP).'); return }
+
+    setError(null)
+    setStatusMsg('Creating project...')
+    setScreen('processing')
+    setSourceType('image')
+
+    try {
+      // Create project record
+      const createRes  = await fetch('/api/edit-studio/create-project', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: file.name.replace(/\.[^.]+$/, '') }),
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok || createData.status !== 'success') throw new Error(createData.message || 'Failed to create project')
+      const projectId = createData.projectId
+
+      // Upload image to storage (reuse upload-source endpoint)
+      setStatusMsg('Uploading image...')
+      const sourceRes = await fetch('/api/edit-studio/upload-source', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, fileName: file.name, fileSize: file.size, mimeType: file.type }),
+      })
+      const sourceData = await sourceRes.json()
+      if (!sourceRes.ok || sourceData.status !== 'success') throw new Error(sourceData.message || 'Failed to get upload URL')
+      const { signedUrl, storagePath, bucket, publicUrl } = sourceData
+
+      await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
+      setProject({ id: projectId, storagePath, bucket, publicUrl })
+
+      // Convert to base64 for vision analysis
+      setStatusMsg('Analyzing image...')
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const understandRes  = await fetch('/api/edit-studio/understand-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, imageBase64: base64, mimeType: file.type }),
+      })
+      const understandData = await understandRes.json()
+      if (!understandRes.ok || understandData.status === 'error') throw new Error(understandData.message || 'Image analysis failed')
+
+      setUnderstanding(understandData.understanding)
+      setScreen('results')
+    } catch (err) {
+      setError(err.message || 'Something went wrong.')
+      setScreen('upload')
+    }
+  }, [])
+
+  // ── Prompt pipeline ───────────────────────────────────────────────────────
+  const handlePromptSubmit = useCallback(async () => {
+    if (!promptText.trim()) return
+    setError(null)
+    setStatusMsg('Understanding your product...')
+    setScreen('processing')
+    setSourceType('prompt')
+
+    try {
+      const createRes  = await fetch('/api/edit-studio/create-project', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: promptText.slice(0, 60) }),
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok || createData.status !== 'success') throw new Error(createData.message || 'Failed to create project')
+      const projectId = createData.projectId
+      setProject({ id: projectId, storagePath: null, bucket: null, publicUrl: null })
+
+      const understandRes  = await fetch('/api/edit-studio/understand-prompt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, productDescription: promptText }),
+      })
+      const understandData = await understandRes.json()
+      if (!understandRes.ok || understandData.status === 'error') throw new Error(understandData.message || 'Product analysis failed')
+
+      setUnderstanding(understandData.understanding)
+      setScreen('results')
+    } catch (err) {
+      setError(err.message || 'Something went wrong.')
+      setScreen('upload')
+    }
+  }, [promptText])
+
+  // ── Assemble final ad from script + voice + source ────────────────────────
+  const handleBuildFinalAd = useCallback(async (concept, voiceUrl) => {
+    if (!voiceUrl || !project?.id) return
+    const adId = concept.id || `ad_${Date.now()}`
+    setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'building' } }))
+    try {
+      const res  = await fetch('/api/edit-studio/assemble-ad', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId:  project.id,
+          adId,
+          adLabel:    concept.title || concept.ad_type || 'Ad',
+          voiceUrl,
+          sourceType: sourceType === 'prompt' ? null : sourceType,
+          sourceUrl:  project.publicUrl || null,
+          duration:   30,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'done', publicUrl: data.publicUrl } }))
+      } else if (data.status === 'queued') {
+        setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'queued', voiceUrl } }))
+      } else {
+        throw new Error(data.message || 'Assembly failed')
+      }
+    } catch (err) {
+      setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'error', error: err.message } }))
+    }
+  }, [project, sourceType])
 
   const handleCreateStrategy = useCallback(async () => {
     if (!understanding || !project?.id) return
@@ -1031,71 +1204,140 @@ export default function EditStudioV2() {
       {screen === 'upload' && (
         <div className={styles.uploadScreen}>
 
-          {/* Back to Dashboard */}
-          <a href="/dashboard" className={styles.backLink}>
-            ← Dashboard
-          </a>
+          <a href="/dashboard" className={styles.backLink}>← Dashboard</a>
 
-          <h1 className={styles.headline}>Turn one video into five ads.</h1>
+          <h1 className={styles.headline}>Turn any content into ads.</h1>
           <p className={styles.subline}>
-            Upload raw footage. PromptCEO understands your product, writes 5 ad scripts,
-            generates voiceovers, adds captions, scores quality, and renders finished ads.
+            Give Jarvis a video, image, or product description. It understands what you're selling,
+            writes ad scripts, generates voiceovers, and renders finished ads.
           </p>
 
-          {/* Pipeline overview */}
           <PipelineSteps />
 
-          <div
-            className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={handleDropZoneClick}
-            role="button"
-            tabIndex={0}
-            aria-label="Drop video file or click to browse"
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
-            style={{ marginTop: 24 }}
-          >
-            <span className={styles.dropZoneIcon} aria-hidden="true">&#x2B06;</span>
-            <span className={styles.dropZoneLabel}>Drop your video here</span>
-            <span className={styles.dropZoneHint}>MP4, MOV, WebM · screen recordings work best</span>
+          {/* ── Input mode tabs ──────────────────────────────────────── */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 28, marginBottom: 0 }}>
+            {[
+              { key: 'video',  label: '▶  Video'  },
+              { key: 'image',  label: '◻  Image'  },
+              { key: 'prompt', label: '✦  Describe' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setInputMode(tab.key)}
+                style={{
+                  padding: '7px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer',
+                  border: inputMode === tab.key ? '1px solid #c8a84b' : '1px solid #1a1a1a',
+                  background: inputMode === tab.key ? '#1a1408' : '#0d0d0d',
+                  color: inputMode === tab.key ? '#c8a84b' : '#888888',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div className={styles.orRow}>
-            <span className={styles.orLine} />
-            <span className={styles.orText}>or</span>
-            <span className={styles.orLine} />
-          </div>
+          {/* ── Video input ─────────────────────────────────────────── */}
+          {inputMode === 'video' && (
+            <>
+              <div
+                className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={handleDropZoneClick}
+                role="button" tabIndex={0}
+                aria-label="Drop video file or click to browse"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
+                style={{ marginTop: 16 }}
+              >
+                <span className={styles.dropZoneIcon}>&#x2B06;</span>
+                <span className={styles.dropZoneLabel}>Drop your video here</span>
+                <span className={styles.dropZoneHint}>MP4, MOV, WebM · product demos, walkthroughs, footage</span>
+              </div>
+              <div className={styles.orRow}>
+                <span className={styles.orLine} /><span className={styles.orText}>or</span><span className={styles.orLine} />
+              </div>
+              <button className={styles.browseButton} onClick={handleDropZoneClick} type="button">Browse files</button>
+              <input ref={fileInputRef} type="file" accept="video/*" className={styles.fileInput} onChange={handleInputChange} tabIndex={-1} aria-hidden="true" />
+            </>
+          )}
 
-          <button
-            className={styles.browseButton}
-            onClick={handleDropZoneClick}
-            type="button"
-          >
-            Browse files
-          </button>
+          {/* ── Image input ─────────────────────────────────────────── */}
+          {inputMode === 'image' && (
+            <>
+              <div
+                className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
+                onDrop={(e) => { e.preventDefault(); setDragActive(false); const f = e.dataTransfer.files?.[0]; if (f) handleImageSelect(f) }}
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+                onDragLeave={() => setDragActive(false)}
+                onClick={() => imageInputRef.current?.click()}
+                role="button" tabIndex={0}
+                aria-label="Drop image or click to browse"
+                style={{ marginTop: 16 }}
+              >
+                <span className={styles.dropZoneIcon}>◻</span>
+                <span className={styles.dropZoneLabel}>Drop your image here</span>
+                <span className={styles.dropZoneHint}>JPG, PNG, WebP · product shots, lifestyle images, screenshots</span>
+              </div>
+              <div className={styles.orRow}>
+                <span className={styles.orLine} /><span className={styles.orText}>or</span><span className={styles.orLine} />
+              </div>
+              <button className={styles.browseButton} onClick={() => imageInputRef.current?.click()} type="button">Browse images</button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className={styles.fileInput}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageSelect(f); e.target.value = '' }}
+                tabIndex={-1} aria-hidden="true"
+              />
+            </>
+          )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            className={styles.fileInput}
-            onChange={handleInputChange}
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-
-          {error && (
-            <div className={styles.errorBox} role="alert">
-              <span>{error}</span>
-              <button onClick={handleRetry} type="button" aria-label="Dismiss error">
-                Retry
+          {/* ── Prompt input ─────────────────────────────────────────── */}
+          {inputMode === 'prompt' && (
+            <div style={{ width: '100%', maxWidth: 520, marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <textarea
+                value={promptText}
+                onChange={e => setPromptText(e.target.value)}
+                placeholder="Describe your product or service. Include what it does, who it's for, what makes it different, and any key benefits you want highlighted in the ad."
+                rows={6}
+                style={{
+                  width: '100%', padding: '16px', borderRadius: 10,
+                  border: '1px solid #2a2a2a', background: '#0d0d0d',
+                  color: '#ede9e1', fontSize: 13, lineHeight: 1.6,
+                  resize: 'vertical', outline: 'none', fontFamily: 'inherit',
+                }}
+                onFocus={e => e.target.style.borderColor = '#c8a84b44'}
+                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+              />
+              <button
+                onClick={handlePromptSubmit}
+                disabled={!promptText.trim()}
+                style={{
+                  padding: '13px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  cursor: promptText.trim() ? 'pointer' : 'not-allowed',
+                  border: '1px solid #c8a84b',
+                  background: promptText.trim() ? '#1a1408' : '#0d0d0d',
+                  color: promptText.trim() ? '#c8a84b' : '#444444',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Analyze Product → Build Ads
               </button>
             </div>
           )}
 
-          {/* Recent projects */}
+          {error && (
+            <div className={styles.errorBox} role="alert">
+              <span>{error}</span>
+              <button onClick={handleRetry} type="button">Retry</button>
+            </div>
+          )}
+
           <RecentProjects onContinue={(id) => window.location.href = `/edit-studio?project=${id}`} />
 
         </div>
@@ -1484,7 +1726,13 @@ export default function EditStudioV2() {
                         <span className={styles.ctaLabel}>CTA</span>
                         <span className={styles.ctaValue}>{concept.cta}</span>
                       </div>
-                      <VoicePanel concept={concept} projectId={project?.id} />
+                      <VoicePanel
+                        concept={concept}
+                        projectId={project?.id}
+                        onVoiceReady={(url) => {}}
+                        assembleState={assembleJobs[concept.id]}
+                        onBuildAd={(voiceUrl) => handleBuildFinalAd(concept, voiceUrl)}
+                      />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                       <QualityPanel
                         adId={concept.id}
