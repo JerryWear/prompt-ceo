@@ -291,9 +291,14 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
       '-filter_complex', filterComplex,
       '-map', finalVideo,
       '-map', finalAudio,
-      '-c:v', 'libx264', '-preset', 'fast', '-crf', crf,
+      '-c:v', 'libx264',
+      // veryfast + rc-lookahead=5 + ref=1 + bframes=0 cuts peak memory from
+      // ~300 MB (preset fast, 40-frame lookahead) to ~50 MB — required for Railway
+      '-preset', 'veryfast',
+      '-x264-params', 'rc-lookahead=5:ref=1:bframes=0',
+      '-threads', '2',
+      '-crf', crf,
       '-pix_fmt', 'yuv420p',
-      // Override reserved/unknown VUI color metadata — libx264 aborts on reserved values
       '-colorspace', 'bt709',
       '-color_primaries', 'bt709',
       '-color_trc', 'bt709',
