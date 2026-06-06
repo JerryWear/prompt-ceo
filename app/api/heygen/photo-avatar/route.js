@@ -76,44 +76,24 @@ export async function POST(req) {
     const { storagePath, bucket = 'edit-studio-assets' } = body
     if (!storagePath) return NextResponse.json({ status: 'error', message: 'storagePath required' }, { status: 400 })
 
-    // Download from Supabase via admin (bypasses RLS / private bucket)
-    const { data: fileBlob, error: dlError } = await makeAdmin().storage.from(bucket).download(storagePath)
-    if (dlError || !fileBlob) {
-      return NextResponse.json({ status: 'error', message: `Supabase download failed: ${dlError?.message}` }, { status: 500 })
+    // Create a signed read URL so HeyGen can fetch the photo from Supabase
+    const { data: signedData, error: signedError } = await makeAdmin().storage
+      .from(bucket)
+      .createSignedUrl(storagePath, 3600)  // valid for 1 hour
+
+    if (signedError || !signedData?.signedUrl) {
+      return NextResponse.json({ status: 'error', message: `Could not create signed URL: ${signedError?.message}` }, { status: 500 })
     }
 
-    const buffer   = Buffer.from(await fileBlob.arrayBuffer())
-    const mimeType = fileBlob.type || 'image/jpeg'
-
-    // Upload to HeyGen
-    const uploadForm = new FormData()
-    uploadForm.append('file', new Blob([buffer], { type: mimeType }), 'avatar.jpg')
-
-    const uploadRes  = await fetch('https://api.heygen.com/v2/photo_avatar/photo/upload', {
-      method: 'POST',
-      headers: { 'X-Api-Key': apiKey },
-      body:    uploadForm,
-    })
-
-    // Capture raw text first so we can log it on failure
-    const uploadText = await uploadRes.text()
-    let uploadData
-    try { uploadData = JSON.parse(uploadText) } catch { uploadData = {} }
-
-    if (!uploadRes.ok || !uploadData?.data?.photo_id) {
-      console.error('[photo-avatar] HeyGen upload response:', uploadRes.status, uploadText.slice(0, 500))
-      return NextResponse.json({
-        status:   'error',
-        message:  uploadData?.message || `HeyGen upload failed (${uploadRes.status})`,
-        heygen:   uploadText.slice(0, 300),
-      }, { status: 500 })
-    }
-
-    // Create instant avatar
-    const createRes  = await fetch('https://api.heygen.com/v2/photo_avatar/instant/create', {
+    // HeyGen v3 avatars API — accepts a URL directly, no separate upload step needed
+    const createRes  = await fetch('https://api.heygen.com/v3/avatars', {
       method:  'POST',
       headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ photo_id: uploadData.data.photo_id, name: 'My Photo Avatar' }),
+      body:    JSON.stringify({
+        type: 'photo',
+        name: 'My Photo Avatar',
+        file: { type: 'url', url: signedData.signedUrl },
+      }),
     })
 
     const createText = await createRes.text()
@@ -121,24 +101,25 @@ export async function POST(req) {
     try { createData = JSON.parse(createText) } catch { createData = {} }
 
     if (!createRes.ok) {
-      console.error('[photo-avatar] HeyGen create response:', createRes.status, createText.slice(0, 500))
+      console.error('[photo-avatar] HeyGen v3 response:', createRes.status, createText.slice(0, 500))
       return NextResponse.json({
         status:  'error',
-        message: createData?.message || `Avatar creation failed (${createRes.status})`,
+        message: createData?.message || `HeyGen avatar creation failed (${createRes.status})`,
         heygen:  createText.slice(0, 300),
       }, { status: 500 })
     }
 
-    const avatarId = createData?.data?.avatar_id || createData?.data?.id
+    // v3 response: { data: { avatar_item: { id, status }, avatar_group: { id } } }
+    const avatarId = createData?.data?.avatar_item?.id || createData?.data?.id || createData?.avatar_id
     if (!avatarId) {
       return NextResponse.json({
         status:  'error',
-        message: 'No avatar ID in HeyGen response',
+        message: 'No avatar ID in HeyGen v3 response',
         heygen:  createText.slice(0, 300),
       }, { status: 500 })
     }
 
-    return NextResponse.json({ status: 'success', avatarId, photoId: uploadData.data.photo_id })
+    return NextResponse.json({ status: 'success', avatarId, processing: createData?.data?.avatar_item?.status === 'processing' })
 
   } catch (err) {
     console.error('[photo-avatar] fatal:', err)
