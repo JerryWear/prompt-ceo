@@ -1461,3 +1461,160 @@
 .renderingFooter { margin-top: 28px; }
 .renderingPolling { font-size: 0.78rem; color: #333; text-align: center; }
 .renderingComplete { font-size: 0.85rem; color: #4a8a4a; text-align: center; }
+
+/* ── Quality badges ──────────────────────────────────────────────────── */
+.qualityGrade {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.gradeA { background: #1a2a1a; color: #6fcf6f; }
+.gradeB { background: #1a231a; color: #9fcf6f; }
+.gradeC { background: #2a2a1a; color: #cfcf6f; }
+.gradeD { background: #2a1f1a; color: #cf9f6f; }
+.gradeF { background: #2a1a1a; color: #cf6f6f; }
+
+.scoringIndicator {
+  font-size: 0.68rem;
+  color: #444;
+  font-style: italic;
+}
+
+/* ── Quality summary bar ─────────────────────────────────────────────── */
+.qualitySummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+}
+.qualitySummaryGood { background: #0d160d; border: 1px solid #1e3a1e; color: #6fcf6f; }
+.qualitySummaryWarn { background: #1a160a; border: 1px solid #3a2a1e; color: #cfaf6f; }
+
+/* ── Quality panel ───────────────────────────────────────────────────── */
+.qualityPanel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #1e1e1e;
+}
+.qualityPanelTitle {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-bottom: 14px;
+}
+
+.qualityGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.qualityDim {
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.qualityDimWeak {
+  border-color: #3a2a1a;
+  background: #110d0a;
+}
+
+.qualityDimHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.qualityDimLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+}
+.qualityDimScore {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6fcf6f;
+}
+.qualityDimScoreWeak { color: #cf9f6f; }
+
+.qualityDimReason {
+  font-size: 0.75rem;
+  color: #555;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.fixBtn {
+  font-size: 0.7rem;
+  color: #8f9fcf;
+  background: none;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.fixBtn:hover { background: #1a1a2a; }
+.fixBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fixResult {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #0d0d1a;
+  border: 1px solid #1e1e3a;
+  border-radius: 6px;
+}
+.fixResultLabel {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: #4a4a8a;
+  display: block;
+  margin-bottom: 3px;
+}
+.fixResultText {
+  font-size: 0.78rem;
+  color: #9f9fcf;
+  line-height: 1.5;
+}
+
+.qualitySection { margin-top: 12px; }
+.qualitySectionTitle {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #444;
+  margin-bottom: 6px;
+}
+.qualityList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qualityStrength {
+  font-size: 0.78rem;
+  color: #5a8a5a;
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+.qualityStrength::before { content: '+'; position: absolute; left: 0; color: #3a6a3a; }
+.qualityWeakness {
+  font-size: 0.78rem;
+  color: #8a5a3a;
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+.qualityWeakness::before { content: '–'; position: absolute; left: 0; color: #6a3a1a; }
