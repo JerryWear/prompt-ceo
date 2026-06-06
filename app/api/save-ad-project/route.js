@@ -76,7 +76,12 @@ export async function POST(req) {
       selectedHook:  selectedHook || '',
     }).catch(() => {})
 
-    return NextResponse.json({ status: 'success', projectId: data.id, version })
+    return NextResponse.json({
+      status:    'success',
+      projectId: data.id,
+      version,
+      jarvisProactive: { trigger: 'ad_created', context: { productName, selectedAngle, selectedHook, campaignGoal } },
+    })
   } catch (err) {
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
   }

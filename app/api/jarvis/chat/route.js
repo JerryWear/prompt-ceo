@@ -5,6 +5,7 @@ import OpenAI                  from 'openai'
 import { buildBrandContext }   from '../../../lib/jarvis/brandBrain'
 import { recallMemory }        from '../../../lib/jarvis/memory'
 import { logEventWithMemory, JARVIS_EVENTS } from '../../../lib/jarvis/events'
+import APP_KNOWLEDGE           from '../../../lib/jarvis/appKnowledge'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -19,31 +20,37 @@ async function getUser() {
   return user
 }
 
-const JARVIS_SYSTEM = `You are Jarvis — the AI Creative Operating System powering PromptCEO.
+const JARVIS_SYSTEM = `You are Jarvis — the AI Creative Operating System for PromptCEO.
 
-You are not a chatbot. You are a Creative Director, Campaign Engineer, and Brand Strategist rolled into one. You know this user's brand, their history, what has worked, and what hasn't. You speak with authority, not with hedging.
+You are not a chatbot. You are the operating system. You run everything. You know every feature of this app, every studio, every tab, every button. You know the user's brand, their history, what worked, what didn't.
 
-Your job:
-1. Help create better ads, videos, prompts, and campaigns — faster
-2. Remember everything about the brand and apply it automatically
-3. Recommend the next move with confidence ("Here's what I'd do next")
-4. Flag when something doesn't fit the brand or won't convert
-5. Connect dots across all studios (Ad Studio, Edit Studio, Music Studio, Prompt Studio)
+YOUR ROLE:
+1. Guide users through the app with precision — know exactly where to go and why
+2. Execute multi-step workflows when asked — don't describe, DO
+3. Connect every studio together — an ad becomes music becomes a video, automatically
+4. Recommend the next move before the user asks
+5. Remember everything and apply it without being asked
 
-Your tone:
-- Direct. No filler. No "Great question!"
-- Confident but not arrogant
-- Specific — always reference the brand, not generic advice
-- When you recommend, say WHY in one sentence
+YOUR TONE:
+- Direct. No filler. No "Great question!" or "Certainly!"
+- Confident. You know this app better than anyone.
+- Specific — always reference their actual brand, not generic advice
+- Short — say it in 3 sentences if you can
 
-Action format — when you recommend the user do something in the app, append a JSON block after your text response:
+ACTION FORMAT:
+When directing the user somewhere, append this after your text — ONE action block per response:
 \`\`\`action
-{"type": "navigate", "studio": "ad-studio|edit-studio|music-studio|prompt-studio", "label": "Open Ad Studio"}
+{"type": "navigate", "studio": "ad-studio|edit-studio|music-studio|prompt-studio|home", "label": "Open Ad Studio"}
 \`\`\`
 
-Available action types: navigate, generate, recall_memory
+ORCHESTRATION FORMAT:
+When executing a multi-step workflow, output steps like this:
+\`\`\`orchestrate
+{"workflow": "full_campaign|hooks_only|angles_only|music_match", "params": {"productName": "...", "audience": "...", "platform": "..."}}
+\`\`\`
 
-Brand context and memory are injected below. Use them. If context is thin, ask one focused question to fill the most important gap.`
+The app knowledge, brand context, and relevant memories are injected below.
+Use all of it. If brand context is thin, ask ONE focused question — the single most important gap to fill.`
 
 // POST /api/jarvis/chat
 // Body: { message, history?, studio?, context? }
@@ -67,7 +74,10 @@ export async function POST(req) {
     ])
 
     // Build the injected context block for the system prompt
-    const contextParts = [`BRAND CONTEXT:\n${brandContext}`]
+    const contextParts = [
+      `APP KNOWLEDGE:\n${APP_KNOWLEDGE}`,
+      `BRAND CONTEXT:\n${brandContext}`,
+    ]
 
     if (relevantMemories?.length > 0) {
       contextParts.push(`RELEVANT MEMORIES:\n${relevantMemories.map(m => `• [${m.memory_type}] ${m.content}`).join('\n')}`)
@@ -116,8 +126,18 @@ export async function POST(req) {
       try { action = JSON.parse(actionMatch[1]) } catch { /* non-fatal */ }
     }
 
-    // Strip the action block from the display text
-    const displayReply = reply.replace(/```action\n[\s\S]*?\n```/g, '').trim()
+    // Extract orchestration block if present
+    let orchestration = null
+    const orchMatch = reply.match(/```orchestrate\n([\s\S]*?)\n```/)
+    if (orchMatch) {
+      try { orchestration = JSON.parse(orchMatch[1]) } catch { /* non-fatal */ }
+    }
+
+    // Strip all code blocks from display text
+    const displayReply = reply
+      .replace(/```action\n[\s\S]*?\n```/g, '')
+      .replace(/```orchestrate\n[\s\S]*?\n```/g, '')
+      .trim()
 
     // Fire-and-forget: log this chat interaction
     logEventWithMemory({
@@ -133,6 +153,7 @@ export async function POST(req) {
       status: 'success',
       reply:  displayReply,
       action,
+      orchestration,
       usage:  {
         promptTokens:     completion.usage?.prompt_tokens,
         completionTokens: completion.usage?.completion_tokens,

@@ -39,6 +39,7 @@ export default function JarvisRail({ studioContext = {} }) {
   const [input,    setInput]    = useState('')
   const [loading,  setLoading]  = useState(false)
   const [messages, setMessages] = useState([])
+  const [badge,    setBadge]    = useState(0) // unread proactive messages
 
   const messagesEndRef = useRef(null)
   const inputRef       = useRef(null)
@@ -51,7 +52,32 @@ export default function JarvisRail({ studioContext = {} }) {
   useEffect(() => { scrollToBottom() }, [messages, loading, scrollToBottom])
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 120)
+    if (open) { setTimeout(() => inputRef.current?.focus(), 120); setBadge(0) }
+  }, [open])
+
+  // Global event listener — other parts of the app call window.jarvisProactive(trigger, context)
+  // to push a proactive message into Jarvis without opening it
+  useEffect(() => {
+    const handler = async (e) => {
+      const { trigger, context = {} } = e.detail || {}
+      if (!trigger) return
+      try {
+        const res  = await fetch('/api/jarvis/proactive', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ trigger, context }),
+        })
+        const data = await res.json()
+        if (data.message) {
+          const msg = { role: 'assistant', content: data.message, ts: new Date(), proactive: true }
+          setMessages(prev => [...prev, msg])
+          historyRef.current = [...historyRef.current, { role: 'assistant', content: data.message }]
+          if (!open) setBadge(b => b + 1)
+        }
+      } catch { /* non-fatal */ }
+    }
+    window.addEventListener('jarvis:proactive', handler)
+    return () => window.removeEventListener('jarvis:proactive', handler)
   }, [open])
 
   const sendMessage = useCallback(async (text) => {
@@ -88,6 +114,38 @@ export default function JarvisRail({ studioContext = {} }) {
         }
         setMessages(prev => [...prev, assistantMsg])
         historyRef.current = [...historyRef.current, { role: 'assistant', content: data.reply }]
+
+        // If Jarvis returned an orchestration intent, execute it
+        if (data.orchestration?.workflow) {
+          setLoading(true)
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Running ${data.orchestration.workflow.replace(/_/g, ' ')}…`,
+            isStatus: true,
+            ts: new Date(),
+          }])
+          try {
+            const orchRes  = await fetch('/api/jarvis/orchestrate', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify(data.orchestration),
+            })
+            const orchData = await orchRes.json()
+            if (orchData.status === 'success') {
+              const summary = orchData.summary
+              const lines = []
+              if (summary?.angles?.length)   lines.push(`**Angles (${summary.angles.length}):**\n${summary.angles.slice(0,3).map((a,i) => `${i+1}. ${a.angle}`).join('\n')}`)
+              if (summary?.hooks?.length)    lines.push(`**Hooks (${summary.hooks.length}):**\n${summary.hooks.slice(0,3).map((h,i) => `${i+1}. ${h.hook}`).join('\n')}`)
+              if (summary?.captions?.length) lines.push(`**Caption:**\n${summary.captions[0]?.caption}`)
+              setMessages(prev => [
+                ...prev.filter(m => !m.isStatus),
+                { role: 'assistant', content: lines.join('\n\n'), action: { type: 'navigate', studio: 'ad-studio', label: 'Open Ad Studio to continue' }, ts: new Date() },
+              ])
+            }
+          } catch { /* non-fatal */ } finally {
+            setLoading(false)
+          }
+        }
       } else {
         setMessages(prev => [...prev, {
           role:    'assistant',
@@ -147,6 +205,7 @@ export default function JarvisRail({ studioContext = {} }) {
           title="Talk to Jarvis"
         >
           ✦
+          {badge > 0 && <span className={styles.badge}>{badge}</span>}
         </button>
       )}
 
