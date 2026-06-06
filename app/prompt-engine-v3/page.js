@@ -21606,8 +21606,8 @@ export default function PromptCEOPage() {
         </div>
       )}
 
-      {/* ── FLOATING APP GUIDE ── */}
-      {(() => {
+      {/* ── FLOATING APP GUIDE — replaced by Jarvis (✦ bottom right) */}
+      {false && (() => {
         const sendGuide = async (text) => {
           if (!text?.trim() || guideLoading) return
           const userMsg = { role: 'user', content: text.trim() }
