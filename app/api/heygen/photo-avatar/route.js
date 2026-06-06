@@ -17,8 +17,35 @@ async function getHeyGenKey(userId) {
   return data?.heygen_api_key || null
 }
 
-// POST — create an instant photo avatar from an image URL (server fetches it)
-// Body: { imageUrl: string, name?: string }
+async function uploadToHeyGen(buffer, mimeType, apiKey) {
+  const formData = new FormData()
+  formData.append('file', new Blob([buffer], { type: mimeType }), 'avatar.jpg')
+
+  const uploadRes = await fetch('https://api.heygen.com/v1/photo_avatar/photo/upload', {
+    method: 'POST', headers: { 'X-Api-Key': apiKey }, body: formData,
+  })
+  const uploadData = await uploadRes.json()
+  if (!uploadRes.ok || !uploadData?.data?.photo_id) {
+    throw new Error(uploadData?.message || 'Photo upload to HeyGen failed')
+  }
+
+  const photoId   = uploadData.data.photo_id
+  const createRes = await fetch('https://api.heygen.com/v2/photo_avatar/instant/create', {
+    method: 'POST', headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ photo_id: photoId, name: 'My Photo Avatar' }),
+  })
+  const createData = await createRes.json()
+  if (!createRes.ok) throw new Error(createData?.message || 'Avatar creation failed')
+
+  const avatarId = createData?.data?.avatar_id || createData?.data?.id
+  if (!avatarId) throw new Error('No avatar ID returned from HeyGen')
+  return { avatarId, photoId }
+}
+
+// POST /api/heygen/photo-avatar
+// Accepts either:
+//   multipart/form-data  with field "file" (direct file upload — preferred)
+//   application/json     with { imageUrl }  (server fetches the URL)
 export async function POST(req) {
   try {
     const user = await getUser()
@@ -26,48 +53,32 @@ export async function POST(req) {
     const apiKey = await getHeyGenKey(user.id)
     if (!apiKey) return NextResponse.json({ status: 'error', message: 'No HeyGen API key connected' }, { status: 400 })
 
-    const { imageUrl, name = 'My Photo Avatar' } = await req.json()
-    if (!imageUrl?.trim()) return NextResponse.json({ status: 'error', message: 'imageUrl required' }, { status: 400 })
+    const contentType = req.headers.get('content-type') || ''
+    let buffer, mimeType
 
-    // Fetch the image server-side (avoids browser CORS / body-size issues)
-    const imgRes = await fetch(imageUrl)
-    if (!imgRes.ok) return NextResponse.json({ status: 'error', message: `Could not fetch image: ${imgRes.status}` }, { status: 400 })
+    if (contentType.includes('multipart/form-data')) {
+      // ── File upload path ─────────────────────────────────────────────────────
+      const form = await req.formData()
+      const file = form.get('file')
+      if (!file) return NextResponse.json({ status: 'error', message: 'No file provided' }, { status: 400 })
+      buffer   = Buffer.from(await file.arrayBuffer())
+      mimeType = file.type || 'image/jpeg'
 
-    const buffer   = Buffer.from(await imgRes.arrayBuffer())
-    const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
+    } else {
+      // ── URL path ─────────────────────────────────────────────────────────────
+      const body = await req.json()
+      const { imageUrl } = body
+      if (!imageUrl?.trim()) return NextResponse.json({ status: 'error', message: 'imageUrl required' }, { status: 400 })
 
-    // Step 1: Upload the photo to HeyGen
-    const formData = new FormData()
-    const blob = new Blob([buffer], { type: mimeType })
-    formData.append('file', blob, 'avatar.jpg')
-
-    const uploadRes = await fetch('https://api.heygen.com/v1/photo_avatar/photo/upload', {
-      method:  'POST',
-      headers: { 'X-Api-Key': apiKey },
-      body:    formData,
-    })
-    const uploadData = await uploadRes.json()
-    if (!uploadRes.ok || !uploadData?.data?.photo_id) {
-      return NextResponse.json({ status: 'error', message: uploadData?.message || 'Photo upload failed' }, { status: 500 })
+      const imgRes = await fetch(imageUrl)
+      if (!imgRes.ok) return NextResponse.json({ status: 'error', message: `Could not fetch image: ${imgRes.status}` }, { status: 400 })
+      buffer   = Buffer.from(await imgRes.arrayBuffer())
+      mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
     }
 
-    const photoId = uploadData.data.photo_id
+    const { avatarId, photoId } = await uploadToHeyGen(buffer, mimeType, apiKey)
+    return NextResponse.json({ status: 'success', avatarId, photoId })
 
-    // Step 2: Create instant avatar from photo
-    const createRes = await fetch('https://api.heygen.com/v2/photo_avatar/instant/create', {
-      method:  'POST',
-      headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ photo_id: photoId, name }),
-    })
-    const createData = await createRes.json()
-    if (!createRes.ok) {
-      return NextResponse.json({ status: 'error', message: createData?.message || 'Avatar creation failed' }, { status: 500 })
-    }
-
-    const avatarId = createData?.data?.avatar_id || createData?.data?.id
-    if (!avatarId) return NextResponse.json({ status: 'error', message: 'No avatar ID returned' }, { status: 500 })
-
-    return NextResponse.json({ status: 'success', avatarId, photoId, name })
   } catch (err) {
     console.error('Photo avatar error:', err)
     return NextResponse.json({ status: 'error', message: err.message }, { status: 500 })
