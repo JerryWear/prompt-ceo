@@ -33,46 +33,87 @@ const CAPTION_STYLE_OPTIONS = [
   { key: 'linkedin_authority', label: 'LinkedIn Authority', description: 'Longer, measured',      emoji: '💼' },
 ]
 
-function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd }) {
-  const [selectedVoice, setSelectedVoice] = useState('professional_female')
+function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd, imageSource }) {
+  const [selectedVoice,    setSelectedVoice]    = useState('professional_female')
   const [selectedDuration, setSelectedDuration] = useState('30s')
-  const [loading, setLoading]   = useState(false)
-  const [voiceUrl, setVoiceUrl] = useState(null)   // signed URL for playback
+  const [loading,    setLoading]    = useState(false)
+  const [voiceUrl,   setVoiceUrl]   = useState(null)
   const [voiceLabel, setVoiceLabel] = useState('')
-  const [error, setError]       = useState(null)
+  const [error,      setError]      = useState(null)
+
+  // Music state
+  const [musicTracks,      setMusicTracks]      = useState([])
+  const [selectedMusicId,  setSelectedMusicId]  = useState(null)
+  const [musicLoading,     setMusicLoading]      = useState(false)
+  const [playingTrackId,   setPlayingTrackId]    = useState(null)
+  const [audioEl,          setAudioEl]           = useState(null)
+
+  // Visual source: 'video' | 'image' — only relevant when imageSource is present
+  const [useImageVisual, setUseImageVisual] = useState(false)
 
   const scriptForDuration = concept[`script_${selectedDuration}`] || {}
   const scriptText = [scriptForDuration.hook, scriptForDuration.body, scriptForDuration.cta]
     .filter(Boolean).join(' ')
 
+  const selectedTrack = musicTracks.find(t => t.id === selectedMusicId)
+
   const handleGenerate = async (e) => {
     e.stopPropagation()
     if (!scriptText || !concept.id || !projectId) return
-    setLoading(true)
-    setError(null)
-    setVoiceUrl(null)
+    setLoading(true); setError(null); setVoiceUrl(null)
     try {
       const res = await fetch('/api/edit-studio/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adId:       concept.id,
-          projectId,
-          scriptText,
-          voiceKey:   selectedVoice,
-          duration:   selectedDuration,
-        }),
+        body: JSON.stringify({ adId: concept.id, projectId, scriptText, voiceKey: selectedVoice, duration: selectedDuration }),
       })
       const data = await res.json()
       if (!res.ok || data.status === 'error') throw new Error(data.message || 'Voice generation failed')
       setVoiceUrl(data.voiceover_url)
       setVoiceLabel(data.voice_label || '')
       if (onVoiceReady) onVoiceReady(data.voiceover_url)
+      // Load music recommendations after voice is ready
+      fetchMusicRecs()
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchMusicRecs = async () => {
+    setMusicLoading(true)
+    try {
+      const res = await fetch('/api/music-studio/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adContext: {
+            goal: concept.logline || '',
+            platform: concept.type || 'tiktok',
+            mood: concept.hook || '',
+            productName: concept.title || '',
+          },
+          limit: 5,
+        }),
+      })
+      const data = await res.json()
+      if (data.tracks?.length) setMusicTracks(data.tracks)
+    } catch { /* non-fatal */ }
+    finally { setMusicLoading(false) }
+  }
+
+  const togglePlay = (track, e) => {
+    e.stopPropagation()
+    if (audioEl) { audioEl.pause(); setAudioEl(null) }
+    if (playingTrackId === track.id) { setPlayingTrackId(null); return }
+    const url = track.preview_url || track.file_url
+    if (!url) return
+    const a = new Audio(url)
+    a.play().catch(() => {})
+    a.onended = () => { setPlayingTrackId(null); setAudioEl(null) }
+    setAudioEl(a)
+    setPlayingTrackId(track.id)
   }
 
   return (
@@ -82,9 +123,7 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
       {/* Voice persona selector */}
       <div className={styles.voiceOptions}>
         {VOICE_OPTIONS.map(v => (
-          <button
-            key={v.key}
-            type="button"
+          <button key={v.key} type="button"
             className={`${styles.voiceOption} ${selectedVoice === v.key ? styles.voiceOptionSelected : ''}`}
             onClick={e => { e.stopPropagation(); setSelectedVoice(v.key) }}
           >
@@ -99,26 +138,17 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
       <div className={styles.voiceDurationRow}>
         <span className={styles.voiceDurationLabel}>Script:</span>
         {['15s', '30s', '60s'].map(dur => (
-          <button
-            key={dur}
-            type="button"
+          <button key={dur} type="button"
             className={`${styles.voiceDurationBtn} ${selectedDuration === dur ? styles.voiceDurationBtnActive : ''}`}
             onClick={e => { e.stopPropagation(); setSelectedDuration(dur); setVoiceUrl(null) }}
-          >
-            {dur}
-          </button>
+          >{dur}</button>
         ))}
         <span className={styles.voiceDurationChars}>{scriptText.length} chars</span>
       </div>
 
       {/* Generate button */}
       {!voiceUrl && !loading && (
-        <button
-          type="button"
-          className={styles.generateVoiceBtn}
-          onClick={handleGenerate}
-          disabled={!scriptText}
-        >
+        <button type="button" className={styles.generateVoiceBtn} onClick={handleGenerate} disabled={!scriptText}>
           Generate Voiceover
         </button>
       )}
@@ -137,11 +167,8 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
           <div className={styles.audioPlayerMeta}>
             <span className={styles.audioVoiceLabel}>{voiceLabel}</span>
             <span className={styles.audioDurationLabel}>{selectedDuration}</span>
-            <button
-              type="button"
-              className={styles.reGenerateBtn}
-              onClick={e => { e.stopPropagation(); setVoiceUrl(null) }}
-            >
+            <button type="button" className={styles.reGenerateBtn}
+              onClick={e => { e.stopPropagation(); setVoiceUrl(null); setMusicTracks([]) }}>
               Re-generate
             </button>
           </div>
@@ -150,55 +177,129 @@ function VoicePanel({ concept, projectId, onVoiceReady, assembleState, onBuildAd
         </div>
       )}
 
+      {/* ── Music selector (shown after voice is ready) ── */}
+      {voiceUrl && !loading && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+            Background Music
+          </div>
+
+          {musicLoading && (
+            <div style={{ fontSize: 11, color: '#888888', padding: '6px 0' }}>Finding tracks…</div>
+          )}
+
+          {!musicLoading && musicTracks.length === 0 && (
+            <div style={{ fontSize: 11, color: '#555555', padding: '6px 0' }}>No tracks found — ad will render with voice only.</div>
+          )}
+
+          {musicTracks.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {/* None option */}
+              <div
+                onClick={e => { e.stopPropagation(); setSelectedMusicId(null) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                  borderRadius: 7, cursor: 'pointer',
+                  border: selectedMusicId === null ? '1px solid #c8a84b44' : '1px solid #1a1a1a',
+                  background: selectedMusicId === null ? '#1a1408' : '#0d0d0d',
+                }}
+              >
+                <span style={{ fontSize: 13 }}>🔇</span>
+                <span style={{ fontSize: 11, color: selectedMusicId === null ? '#c8a84b' : '#666666' }}>No music</span>
+              </div>
+
+              {musicTracks.map(track => (
+                <div key={track.id}
+                  onClick={e => { e.stopPropagation(); setSelectedMusicId(track.id) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                    borderRadius: 7, cursor: 'pointer',
+                    border: selectedMusicId === track.id ? '1px solid #c8a84b44' : '1px solid #1a1a1a',
+                    background: selectedMusicId === track.id ? '#1a1408' : '#0d0d0d',
+                  }}
+                >
+                  <button type="button"
+                    onClick={e => togglePlay(track, e)}
+                    style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid #333', background: '#1a1a1a',
+                      color: '#c8a84b', fontSize: 9, cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {playingTrackId === track.id ? '■' : '▶'}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: selectedMusicId === track.id ? '#c8a84b' : '#ede9e1',
+                      fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {track.title}
+                    </div>
+                    <div style={{ fontSize: 9, color: '#555555' }}>{track.mood || track.genre || ''}</div>
+                  </div>
+                  {selectedMusicId === track.id && <span style={{ fontSize: 9, color: '#c8a84b' }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Visual source selector (only when image was also uploaded) ── */}
+      {voiceUrl && !loading && imageSource && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+            Visual Source
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { value: false, label: '▶ Video backdrop', desc: 'Original footage + new voice' },
+              { value: true,  label: '◻ Image backdrop', desc: 'Product image looped + new voice' },
+            ].map(opt => (
+              <button key={String(opt.value)} type="button"
+                onClick={e => { e.stopPropagation(); setUseImageVisual(opt.value) }}
+                style={{
+                  flex: 1, padding: '8px 6px', borderRadius: 7, cursor: 'pointer', textAlign: 'left',
+                  border: useImageVisual === opt.value ? '1px solid #c8a84b' : '1px solid #1a1a1a',
+                  background: useImageVisual === opt.value ? '#1a1408' : '#0d0d0d',
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: useImageVisual === opt.value ? '#c8a84b' : '#888888' }}>
+                  {opt.label}
+                </div>
+                <div style={{ fontSize: 9, color: '#555555', marginTop: 2 }}>{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Build Final Ad ── */}
       {voiceUrl && !loading && onBuildAd && (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 14 }}>
           {assembleState?.status === 'done' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600 }}>✓ Ad rendered</div>
-              <a
-                href={assembleState.publicUrl}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block', textAlign: 'center', padding: '10px 0',
-                  borderRadius: 7, fontSize: 12, fontWeight: 700,
-                  border: '1px solid #4caf5066', background: '#0a1a0a',
-                  color: '#4caf50', textDecoration: 'none',
-                }}
-              >
-                ↓ Download Ad
-              </a>
+              <a href={assembleState.publicUrl} download target="_blank" rel="noopener noreferrer"
+                style={{ display: 'block', textAlign: 'center', padding: '10px 0', borderRadius: 7,
+                  fontSize: 12, fontWeight: 700, border: '1px solid #4caf5066', background: '#0a1a0a',
+                  color: '#4caf50', textDecoration: 'none' }}
+              >↓ Download Ad</a>
             </div>
           ) : assembleState?.status === 'queued' ? (
-            <div style={{ fontSize: 11, color: '#888888', padding: '8px 0' }}>
-              ⟳ Queued — download the voiceover and assemble locally.
-            </div>
+            <div style={{ fontSize: 11, color: '#888888', padding: '8px 0' }}>⟳ Queued — FFmpeg unavailable in this environment.</div>
           ) : assembleState?.status === 'building' ? (
             <div style={{ fontSize: 11, color: '#c8a84b', padding: '8px 0' }}>⟳ Building final ad…</div>
           ) : assembleState?.status === 'error' ? (
             <div style={{ fontSize: 11, color: '#e05050', padding: '4px 0' }}>{assembleState.error}</div>
           ) : (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onBuildAd(voiceUrl) }}
-              style={{
-                width: '100%', padding: '11px 0', borderRadius: 7,
-                fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b',
-              }}
+            <button type="button"
+              onClick={e => { e.stopPropagation(); onBuildAd(voiceUrl, { musicUrl: selectedTrack?.file_url || null, useImageAsVisual: useImageVisual }) }}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b' }}
             >
-              ✦ Build Final Ad
+              ✦ Build Final Ad {selectedTrack ? `· ${selectedTrack.title}` : ''}{useImageVisual ? ' · Image' : ''}
             </button>
           )}
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <p className={styles.voiceError}>{error}</p>
-      )}
+      {error && <p className={styles.voiceError}>{error}</p>}
     </div>
   )
 }
@@ -651,6 +752,7 @@ export default function EditStudioV2() {
   const [promptText,    setPromptText]    = useState('')
   const [pendingVideo,  setPendingVideo]  = useState(null)   // { file } — video staged when multi-input mode
   const [pendingImage,  setPendingImage]  = useState(null)   // { file, base64, mimeType } — image staged
+  const [imageSource,   setImageSource]   = useState(null)   // public URL of uploaded image — available after pipeline runs
   const [sourceType,    setSourceType]    = useState('video')   // primary visual for assemble-ad
   const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
   const imageInputRef = useRef(null)
@@ -742,6 +844,25 @@ export default function EditStudioV2() {
       const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
       if (!uploadRes.ok) throw new Error(`Storage upload failed (HTTP ${uploadRes.status})`)
       setProject({ id: projectId, storagePath, bucket, publicUrl })
+
+      // ── Step 3b: Upload image to Storage if staged (so it can be used as visual source) ─
+      let imagePublicUrl = null
+      if (pendingImage) {
+        try {
+          const imgExt  = pendingImage.mimeType?.includes('png') ? 'png' : pendingImage.mimeType?.includes('webp') ? 'webp' : 'jpg'
+          const imgName = `product_image.${imgExt}`
+          const imgSourceRes = await fetch('/api/edit-studio/upload-source', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, fileName: imgName, fileSize: pendingImage.file.size, mimeType: pendingImage.mimeType }),
+          })
+          const imgSourceData = await imgSourceRes.json()
+          if (imgSourceData.status === 'success') {
+            await fetch(imgSourceData.signedUrl, { method: 'PUT', headers: { 'Content-Type': pendingImage.mimeType }, body: pendingImage.file })
+            imagePublicUrl = imgSourceData.publicUrl
+            setImageSource(imagePublicUrl)
+          }
+        } catch { /* non-fatal — image analysis still runs via base64 */ }
+      }
 
       // ── Step 4: Transcribe ──────────────────────────────────────────────────
       setStatusMsg('Transcribing audio...')
@@ -992,10 +1113,15 @@ export default function EditStudioV2() {
   }, [pendingVideo, handleFileSelect])
 
   // ── Assemble final ad from script + voice + source ────────────────────────
-  const handleBuildFinalAd = useCallback(async (concept, voiceUrl) => {
+  const handleBuildFinalAd = useCallback(async (concept, voiceUrl, { musicUrl = null, useImageAsVisual = false } = {}) => {
     if (!voiceUrl || !project?.id) return
     const adId = concept.id || `ad_${Date.now()}`
     setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'building' } }))
+
+    // Determine which visual source to use
+    const visualType = (useImageAsVisual && imageSource) ? 'image' : (sourceType === 'prompt' ? null : sourceType)
+    const visualUrl  = (useImageAsVisual && imageSource) ? imageSource : (project.publicUrl || null)
+
     try {
       const res  = await fetch('/api/edit-studio/assemble-ad', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1004,8 +1130,9 @@ export default function EditStudioV2() {
           adId,
           adLabel:    concept.title || concept.ad_type || 'Ad',
           voiceUrl,
-          sourceType: sourceType === 'prompt' ? null : sourceType,
-          sourceUrl:  project.publicUrl || null,
+          musicUrl:   musicUrl || null,
+          sourceType: visualType,
+          sourceUrl:  visualUrl,
           duration:   30,
         }),
       })
@@ -1020,7 +1147,7 @@ export default function EditStudioV2() {
     } catch (err) {
       setAssembleJobs(prev => ({ ...prev, [adId]: { status: 'error', error: err.message } }))
     }
-  }, [project, sourceType])
+  }, [project, sourceType, imageSource])
 
   const handleCreateStrategy = useCallback(async () => {
     if (!understanding || !project?.id) return
@@ -1843,7 +1970,8 @@ export default function EditStudioV2() {
                         projectId={project?.id}
                         onVoiceReady={(url) => {}}
                         assembleState={assembleJobs[concept.id]}
-                        onBuildAd={(voiceUrl) => handleBuildFinalAd(concept, voiceUrl)}
+                        imageSource={imageSource}
+                        onBuildAd={(voiceUrl, opts) => handleBuildFinalAd(concept, voiceUrl, opts)}
                       />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                       <QualityPanel
