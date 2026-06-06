@@ -26,7 +26,7 @@ export async function buildBrandContext(userId) {
     admin.from('brand_profiles').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3),
     admin.from('ad_projects').select('id, brand_name, product_name, campaign_goal, selected_angle, selected_hook, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(10),
     admin.from('edit_projects').select('id, title, status, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
-    admin.from('music_usage_logs').select('track_id, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(5).catch(() => ({ data: [] })),
+    Promise.resolve(admin.from('music_usage_logs').select('track_id, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(5)).catch(() => ({ data: [] })),
     recallMemory({ userId, query: 'brand voice tone audience positioning style', topK: 8, memoryType: 'brand' }),
     recallMemory({ userId, query: 'never always avoid rules preferences', topK: 6, memoryType: 'instruction' }),
     getRecentEvents(userId, 10),
