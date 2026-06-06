@@ -260,8 +260,10 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
   // Interleaved pairs: [v0][a0][v1][a1]...
   const interleaved = segs.map((_, i) => `[v${i}][a${i}]`).join('')
   filters.push(`${interleaved}concat=n=${n}:v=1:a=1[catv][cata]`)
-  // format=yuv420p strips unknown/reserved color space metadata from mobile videos
-  filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p[scaled]`)
+  // Normalize: force_divisible_by=2 prevents odd-pixel widths that crash libx264,
+  // format=yuv420p strips unknown pixel format metadata,
+  // setsar=1/1 removes non-standard SAR (e.g. 1916:1917) that causes VUI assertion failures
+  filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,setsar=1/1[scaled]`)
 
   const finalVideo = '[scaled]'
   void hasCaps
@@ -291,6 +293,10 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
       '-map', finalAudio,
       '-c:v', 'libx264', '-preset', 'fast', '-crf', crf,
       '-pix_fmt', 'yuv420p',
+      // Override reserved/unknown VUI color metadata — libx264 aborts on reserved values
+      '-colorspace', 'bt709',
+      '-color_primaries', 'bt709',
+      '-color_trc', 'bt709',
       '-c:a', 'aac', '-b:a', '128k',
       '-r', String(plan.fps || 30),
       '-avoid_negative_ts', 'make_zero',
@@ -310,15 +316,17 @@ async function runFfmpeg(args, jobId) {
     await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 })
     log('info', 'FFmpeg finished', jobId)
   } catch (err) {
+    const signal = err.signal || 'none'
+    const code   = err.code ?? 'unknown'
+    log('error', `FFmpeg exit code=${code} signal=${signal}`, jobId)
     const stderr = err.stderr || err.message || ''
     const lines  = stderr.split('\n').map(l => l.trim()).filter(Boolean)
-    // Log each of the last 20 lines as a SEPARATE entry so Railway UI doesn't truncate them
     lines.slice(-20).forEach((line, i) => {
-      log('error', `stderr[${i}] ${line.slice(0, 120)}`, jobId)
+      log('error', `stderr[${i}] ${line.slice(0, 200)}`, jobId)
     })
     const errorLine = [...lines].reverse().find(l =>
       /Error|Invalid|No such|failed|Cannot|Conversion|moov|codec/i.test(l)
-    ) || lines[lines.length - 1] || 'unknown'
+    ) || `exit=${code} signal=${signal}`
     throw new Error(`FFmpeg failed: ${errorLine}`)
   }
 }
