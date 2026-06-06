@@ -755,6 +755,19 @@ export default function EditStudioV2() {
   const [sourceType,    setSourceType]    = useState('video')   // primary visual for assemble-ad
   const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
   const [heygenJobs,    setHeygenJobs]    = useState({})         // { [conceptId]: { status, videoId, videoUrl, error } }
+
+  // ── Batch music selection (shared across all 5 ads) ───────────────────────
+  const [batchMusicTracks,   setBatchMusicTracks]   = useState([])
+  const [batchMusicTrackId,  setBatchMusicTrackId]  = useState(null)
+  const [batchMusicLoading,  setBatchMusicLoading]  = useState(false)
+  const [batchMusicPlaying,  setBatchMusicPlaying]  = useState(null)
+  const batchAudioRef = useRef(null)
+
+  // ── Global HeyGen avatar (shared for "Generate 5 Avatar Ads") ────────────
+  const [globalAvatarId,  setGlobalAvatarId]  = useState(null)
+  const [globalVoiceId,   setGlobalVoiceId]   = useState(null)
+  const avatarPollRef = useRef(null)
+
   const imageInputRef = useRef(null)
 
   const toggleInput = (key) => {
@@ -1207,7 +1220,7 @@ export default function EditStudioV2() {
       const res = await fetch('/api/edit-studio/auto-render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id }),
+        body: JSON.stringify({ projectId: project.id, musicTrackId: batchMusicTrackId || null }),
       })
       const data = await res.json()
       if (!res.ok || data.status === 'error') throw new Error(data.message || 'Failed to queue renders')
@@ -1218,7 +1231,7 @@ export default function EditStudioV2() {
       setError(err.message)
       setScreen('concepts')
     }
-  }, [project])
+  }, [project, batchMusicTrackId])
 
   // Brand chip — load active brand from API + localStorage
   useEffect(() => {
@@ -1265,6 +1278,124 @@ export default function EditStudioV2() {
 
     return () => clearInterval(interval)
   }, [renderPolling, renderJobs])
+
+  // ── Load batch music tracks when concepts screen appears ─────────────────
+  useEffect(() => {
+    if (screen !== 'concepts' || batchMusicTracks.length > 0 || batchMusicLoading) return
+    setBatchMusicLoading(true)
+    fetch('/api/music-studio/recommend', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: 'tiktok', goal: 'ad', mood: 'energetic' }),
+    }).then(r => r.json()).then(d => {
+      if (d.recommendedTracks?.length) setBatchMusicTracks(d.recommendedTracks)
+    }).catch(() => {}).finally(() => setBatchMusicLoading(false))
+  }, [screen, batchMusicTracks.length, batchMusicLoading])
+
+  // ── Avatar → shared (called from HeyGenPanel when avatar is ready) ────────
+  const handleAvatarReady = useCallback((avatarId, voiceId) => {
+    setGlobalAvatarId(avatarId)
+    setGlobalVoiceId(voiceId)
+  }, [])
+
+  // ── Generate 5 Avatar Ads: HeyGen batch → compose → Railway ──────────────
+  const handleGenerateAllAvatarAds = useCallback(async () => {
+    if (!project?.id || !globalAvatarId || !globalVoiceId || !adConcepts.length) return
+
+    // Cancel any previous avatar polling
+    if (avatarPollRef.current) clearTimeout(avatarPollRef.current)
+
+    // Seed render jobs with initial state
+    setRenderJobs(adConcepts.map(c => ({
+      adId:               c.id,
+      adType:             c.ad_type || c.type,
+      status:             'heygen-generating',
+      label:              c.title || c.logline || '',
+      voiceoverGenerated: true,
+      captionsGenerated:  false,
+      jobId:              null,
+      exportUrl:          null,
+      isAvatarAd:         true,
+    })))
+    setScreen('rendering')
+    setRenderPolling(false)
+
+    // Launch all 5 HeyGen jobs in parallel
+    const heygenResults = await Promise.allSettled(
+      adConcepts.map(async (concept) => {
+        const scriptObj  = concept.script_30s || {}
+        const scriptText = [scriptObj.hook, scriptObj.body, scriptObj.cta].filter(Boolean).join(' ')
+        if (!scriptText) throw new Error('No script')
+        const res  = await fetch('/api/heygen/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarId: globalAvatarId, voiceId: globalVoiceId, script: scriptText, aspectRatio: '9:16' }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.status === 'error') throw new Error(data.message)
+        return { conceptId: concept.id, heygenVideoId: data.videoId }
+      })
+    )
+
+    // Build pending map: { conceptId → heygenVideoId }
+    const pending = {}
+    heygenResults.forEach((r, i) => {
+      const conceptId = adConcepts[i]?.id
+      if (!conceptId) return
+      if (r.status === 'fulfilled' && r.value?.heygenVideoId) {
+        pending[conceptId] = r.value.heygenVideoId
+      } else {
+        setRenderJobs(prev => prev.map(j =>
+          j.adId === conceptId ? { ...j, status: 'failed', error: r.reason?.message || 'HeyGen submit failed' } : j
+        ))
+      }
+    })
+
+    // Capture these for the polling closure
+    const capturedProject        = project
+    const capturedMusicTrackId   = batchMusicTrackId
+
+    // Recursive poller — checks HeyGen status; submits to Railway when each clip is ready
+    const poll = async () => {
+      const pendingEntries = Object.entries(pending)
+      if (!pendingEntries.length) {
+        setRenderPolling(true)  // hand off to existing Railway polling loop
+        return
+      }
+      for (const [conceptId, videoId] of pendingEntries) {
+        try {
+          const res  = await fetch(`/api/heygen/status?video_id=${videoId}`)
+          const data = await res.json()
+          if (data.videoStatus === 'completed' && data.videoUrl) {
+            delete pending[conceptId]
+            const composeRes  = await fetch('/api/edit-studio/jarvis-compose', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId:               capturedProject.id,
+                conceptId,
+                productVideoStoragePath: capturedProject.storagePath || null,
+                productVideoBucket:      capturedProject.bucket || 'edit-studio-assets',
+                productVideoPublicUrl:   capturedProject.publicUrl || null,
+                heygenHookUrl:           data.videoUrl,
+                musicTrackId:            capturedMusicTrackId || undefined,
+              }),
+            })
+            const composeData = await composeRes.json()
+            setRenderJobs(prev => prev.map(j =>
+              j.adId === conceptId
+                ? { ...j, status: composeData.jobId ? 'queued' : 'failed', jobId: composeData.jobId || null, error: composeData.jobId ? null : composeData.message }
+                : j
+            ))
+          } else if (data.videoStatus === 'failed') {
+            delete pending[conceptId]
+            setRenderJobs(prev => prev.map(j =>
+              j.adId === conceptId ? { ...j, status: 'failed', error: 'HeyGen render failed' } : j
+            ))
+          }
+        } catch { /* keep polling */ }
+      }
+      avatarPollRef.current = setTimeout(poll, 7000)
+    }
+    avatarPollRef.current = setTimeout(poll, 7000)
+  }, [project, globalAvatarId, globalVoiceId, adConcepts, batchMusicTrackId])
 
   // ── Auto-batch-score when concepts screen loads ───────────────────────────
 
@@ -1974,7 +2105,7 @@ export default function EditStudioV2() {
                         imageSource={imageSource}
                         onBuildAd={(voiceUrl, opts) => handleBuildFinalAd(concept, voiceUrl, opts)}
                       />
-                      <HeyGenPanel concept={concept} project={project} />
+                      <HeyGenPanel concept={concept} project={project} onAvatarReady={handleAvatarReady} />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                       <QualityPanel
                         adId={concept.id}
@@ -2008,6 +2139,61 @@ export default function EditStudioV2() {
               )
             })()}
 
+            {/* ── Batch music selector ── */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+                Background Music {batchMusicLoading ? '· Loading…' : ''}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div
+                  onClick={() => { if (batchAudioRef.current) { batchAudioRef.current.pause(); batchAudioRef.current = null; setBatchMusicPlaying(null) } setBatchMusicTrackId(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', border: batchMusicTrackId === null ? '1px solid #c8a84b44' : '1px solid #1a1a1a', background: batchMusicTrackId === null ? '#1a1408' : '#0d0d0d' }}
+                >
+                  <span style={{ fontSize: 13 }}>🔇</span>
+                  <span style={{ fontSize: 11, color: batchMusicTrackId === null ? '#c8a84b' : '#666' }}>No music</span>
+                </div>
+                {batchMusicTracks.slice(0, 4).map(track => (
+                  <div key={track.id}
+                    onClick={() => { if (batchAudioRef.current) { batchAudioRef.current.pause(); batchAudioRef.current = null; setBatchMusicPlaying(null) } setBatchMusicTrackId(track.id) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', border: batchMusicTrackId === track.id ? '1px solid #c8a84b44' : '1px solid #1a1a1a', background: batchMusicTrackId === track.id ? '#1a1408' : '#0d0d0d' }}
+                  >
+                    <button type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (batchMusicPlaying === track.id) { batchAudioRef.current?.pause(); batchAudioRef.current = null; setBatchMusicPlaying(null); return }
+                        if (batchAudioRef.current) { batchAudioRef.current.pause(); batchAudioRef.current = null }
+                        const url = track.preview_url || track.file_url
+                        if (!url) return
+                        const a = new Audio(url); a.play().catch(() => {}); a.onended = () => { setBatchMusicPlaying(null); batchAudioRef.current = null }
+                        batchAudioRef.current = a; setBatchMusicPlaying(track.id)
+                      }}
+                      style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid #333', background: '#1a1a1a', color: '#c8a84b', fontSize: 9, cursor: 'pointer', flexShrink: 0 }}
+                    >{batchMusicPlaying === track.id ? '■' : '▶'}</button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: batchMusicTrackId === track.id ? '#c8a84b' : '#ede9e1', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.title}</div>
+                      <div style={{ fontSize: 9, color: '#555' }}>{track.mood || track.genre || ''}</div>
+                    </div>
+                    {batchMusicTrackId === track.id && <span style={{ fontSize: 9, color: '#c8a84b' }}>✓</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Generate 5 Avatar Ads (only when avatar is set up) ── */}
+            {globalAvatarId && (
+              <div style={{ marginBottom: 10 }}>
+                <button
+                  type="button"
+                  className={styles.generateAllAdsBtn}
+                  onClick={handleGenerateAllAvatarAds}
+                  style={{ background: '#1a1408', color: '#c8a84b', border: '1px solid #c8a84b' }}
+                >
+                  ✦ Generate 5 Avatar Ads
+                </button>
+                <p className={styles.generateAllAdsHint}>Your face · HeyGen hook + product video · Railway render</p>
+              </div>
+            )}
+
             <button
               type="button"
               className={styles.generateAllAdsBtn}
@@ -2016,7 +2202,7 @@ export default function EditStudioV2() {
               ⚡ Generate 5 Finished Ads
             </button>
             <p className={styles.generateAllAdsHint}>
-              {scoringBatch ? 'Scoring ad quality...' : 'Voiceover · Captions · Render · Download'}
+              {scoringBatch ? 'Scoring ad quality...' : `Voiceover · Captions · Render · Download${batchMusicTrackId ? ' · With Music' : ''}`}
             </p>
           </div>
         </div>
@@ -2061,6 +2247,8 @@ export default function EditStudioV2() {
                       <p className={styles.renderJobStatus}>
                         {isComplete ? 'Ready to download' :
                          isFailed   ? (job.error || 'Render failed') :
+                         job.status === 'heygen-generating' ? 'Generating avatar clip…' :
+                         job.status === 'heygen-ready'      ? 'Avatar ready, composing…' :
                          isActive   ? 'Rendering...' :
                          job.jobId  ? 'Queued' : 'Preparing...'}
                       </p>

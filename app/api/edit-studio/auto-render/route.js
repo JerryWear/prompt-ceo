@@ -216,7 +216,7 @@ const AD_TYPE_CAPTION_ASS_STYLE = {
   tiktok_hook:        'bold',
 }
 
-function buildV2RenderPlan(ad, project) {
+function buildV2RenderPlan(ad, project, musicTrackId = null) {
   const resolution   = PLATFORM_RESOLUTION[ad.ad_type] || '1080x1920'
   const duration     = ad.selected_duration === '15s' ? 15 : ad.selected_duration === '60s' ? 60 : 30
   const captionStyle = AD_TYPE_CAPTION_ASS_STYLE[ad.ad_type] || 'bold'
@@ -248,8 +248,9 @@ function buildV2RenderPlan(ad, project) {
       resolution,
     },
 
-    // No music for v2 initial render — keep clean for testing
-    overlays: { captionsEnabled: true, musicEnabled: false },
+    // Music
+    music: musicTrackId ? { trackId: musicTrackId, volume: 0.25, fadeIn: 1.0, fadeOut: 2.0 } : null,
+    overlays: { captionsEnabled: true, musicEnabled: !!musicTrackId },
 
     // Output
     resolution,
@@ -268,7 +269,7 @@ function buildV2RenderPlan(ad, project) {
 
 // ─── Per-ad processor ─────────────────────────────────────────────────────────
 
-async function processAd(ad, project, supabaseAdmin, log) {
+async function processAd(ad, project, supabaseAdmin, log, musicTrackId = null) {
   const result = {
     adId:               ad.id,
     adType:             ad.ad_type,
@@ -354,7 +355,7 @@ async function processAd(ad, project, supabaseAdmin, log) {
     }
 
     // ── Step 3: Build v2 render plan ────────────────────────────────────────
-    const renderPlan = buildV2RenderPlan(ad, project)
+    const renderPlan = buildV2RenderPlan(ad, project, musicTrackId)
     result.renderPlan = renderPlan
 
     // ── Step 4: Create render job row ───────────────────────────────────────
@@ -397,7 +398,7 @@ export async function POST(req) {
 
   try {
     const body = await req.json()
-    const { projectId } = body
+    const { projectId, musicTrackId = null } = body
 
     // ── Validate input ────────────────────────────────────────────────────────
     if (!projectId) {
@@ -465,7 +466,7 @@ export async function POST(req) {
 
     // ── Process all ads — failures on individual ads do not block others ──────
     const settled = await Promise.allSettled(
-      ads.map(ad => processAd(ad, project, supabaseAdmin, log))
+      ads.map(ad => processAd(ad, project, supabaseAdmin, log, musicTrackId))
     )
 
     const jobs = settled.map(outcome => {

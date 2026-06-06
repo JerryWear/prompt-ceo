@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-export default function HeyGenPanel({ concept, project, styles }) {
+export default function HeyGenPanel({ concept, project, onAvatarReady, styles }) {
   // ── API key ──────────────────────────────────────────────────────────────────
   const [keyStatus, setKeyStatus] = useState('loading')
   const [keyInput,  setKeyInput]  = useState('')
@@ -95,6 +95,13 @@ export default function HeyGenPanel({ concept, project, styles }) {
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
   useEffect(() => () => { if (composeRef.current) clearInterval(composeRef.current) }, [])
+
+  // Notify parent whenever a valid avatar + voice pair is ready
+  useEffect(() => {
+    if (!onAvatarReady || !selectedVoice?.voice_id) return
+    if (usingPhotoAvatar && photoAvatarId) onAvatarReady(photoAvatarId, selectedVoice.voice_id)
+    else if (!usingPhotoAvatar && selectedAvatar?.avatar_id) onAvatarReady(selectedAvatar.avatar_id, selectedVoice.voice_id)
+  }, [usingPhotoAvatar, photoAvatarId, selectedAvatar, selectedVoice, onAvatarReady])
 
   // ── Compose: submit to Railway and poll for result ────────────────────────────
   const handleCompose = useCallback(async () => {
@@ -203,6 +210,7 @@ export default function HeyGenPanel({ concept, project, styles }) {
 
       setPhotoAvatarId(avatarData.avatarId)
       setUsingPhotoAvatar(true)
+      if (onAvatarReady && selectedVoice?.voice_id) onAvatarReady(avatarData.avatarId, selectedVoice.voice_id)
     } catch (err) {
       setPhotoAvatarError(err.message)
       setPhotoPreview(null)
