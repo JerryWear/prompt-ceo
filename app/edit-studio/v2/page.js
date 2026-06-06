@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import styles from './page.module.css'
 import { useJarvisContext } from '../../components/JarvisRail/JarvisContext'
+import HeyGenPanel from './HeyGenPanel'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -753,6 +754,7 @@ export default function EditStudioV2() {
   const [imageSource,   setImageSource]   = useState(null)   // public URL of uploaded image — available after pipeline runs
   const [sourceType,    setSourceType]    = useState('video')   // primary visual for assemble-ad
   const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
+  const [heygenJobs,    setHeygenJobs]    = useState({})         // { [conceptId]: { status, videoId, videoUrl, error } }
   const imageInputRef = useRef(null)
 
   const toggleInput = (key) => {
@@ -1971,6 +1973,11 @@ export default function EditStudioV2() {
                         assembleState={assembleJobs[concept.id]}
                         imageSource={imageSource}
                         onBuildAd={(voiceUrl, opts) => handleBuildFinalAd(concept, voiceUrl, opts)}
+                      />
+                      <HeyGenPanel
+                        concept={concept}
+                        imageSource={imageSource}
+                        styles={styles}
                       />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                       <QualityPanel
