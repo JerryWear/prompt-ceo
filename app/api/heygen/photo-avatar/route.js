@@ -4,6 +4,12 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
 export const maxDuration = 30
+export const runtime = 'nodejs'
+
+// GET — diagnostic: confirms route is alive
+export async function GET() {
+  return NextResponse.json({ status: 'alive', route: '/api/heygen/photo-avatar' })
+}
 
 async function getUser() {
   const cookieStore = await cookies()
