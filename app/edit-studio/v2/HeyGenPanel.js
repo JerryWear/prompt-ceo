@@ -137,6 +137,7 @@ export default function HeyGenPanel({ concept, imageSource, styles }) {
       setUsingPhotoAvatar(true)
     } catch (err) {
       setPhotoAvatarError(err.message)
+      return err  // caller can check this to decide on fallback
     } finally {
       setPhotoAvatarLoading(false)
     }
@@ -149,9 +150,11 @@ export default function HeyGenPanel({ concept, imageSource, styles }) {
     createPhotoAvatar(file)
   }
 
-  const handleUseMyPhoto = () => {
+  const handleUseMyPhoto = async () => {
     if (imageSource) {
-      createPhotoAvatar(imageSource)
+      const err = await createPhotoAvatar(imageSource)
+      // If the URL path failed, fall back to file picker
+      if (err) fileInputRef.current?.click()
     } else {
       fileInputRef.current?.click()
     }
