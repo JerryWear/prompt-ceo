@@ -206,9 +206,33 @@ async function resolveMusicSource(musicBed, workDir) {
   }
 }
 
-// ─── FFmpeg args builder (Phase 12: full pipeline — cuts + captions + music) ──
+// ─── Audio stream probe ───────────────────────────────────────────────────────
 
-function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
+async function probeAudioStreams(filePath) {
+  try {
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v', 'error',
+      '-select_streams', 'a',
+      '-show_entries', 'stream=codec_type',
+      '-of', 'csv=p=0',
+      filePath,
+    ])
+    return stdout.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
+// ─── FFmpeg filter_complex builder ────────────────────────────────────────────
+//
+// Concat filter requires INTERLEAVED pairs: [v0][a0][v1][a1]...concat=n=N:v=1:a=1
+// Using [v0][v1][a0][a1] (all video then all audio) causes:
+//   "Media type mismatch: setpts output (video) → concat input pad 1 (audio)"
+//
+// When source has no audio stream, anullsrc generates silence per segment so
+// the concat filter always receives a valid audio pad for every video pad.
+
+function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourceAudio = true) {
   const segs = (plan.segments || []).filter(s => (s.duration ?? (s.end - s.start)) > 0)
   if (!segs.length) throw new Error('Render plan has no segments with duration > 0')
 
@@ -221,24 +245,25 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
   if (hasMusic) inputs.push('-i', musicPath)
 
   const filters = []
-  const vParts  = []
-  const aParts  = []
 
   segs.forEach((seg, i) => {
     filters.push(`[0:v]trim=start=${seg.start}:end=${seg.end},setpts=PTS-STARTPTS[v${i}]`)
-    filters.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[a${i}]`)
-    vParts.push(`[v${i}]`)
-    aParts.push(`[a${i}]`)
+    if (hasSourceAudio) {
+      filters.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[a${i}]`)
+    } else {
+      const dur = seg.duration ?? (seg.end - seg.start)
+      filters.push(`anullsrc=channel_layout=stereo:sample_rate=44100,atrim=duration=${dur},asetpts=PTS-STARTPTS[a${i}]`)
+    }
   })
 
   const n = segs.length
-  filters.push(`${vParts.join('')}${aParts.join('')}concat=n=${n}:v=1:a=1[catv][cata]`)
+  // Interleaved pairs: [v0][a0][v1][a1]...
+  const interleaved = segs.map((_, i) => `[v${i}][a${i}]`).join('')
+  filters.push(`${interleaved}concat=n=${n}:v=1:a=1[catv][cata]`)
   filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[scaled]`)
 
-  // TODO Phase 12B: re-enable captions once libass fonts are confirmed on server
-  // Disabled for Phase 10A stability — subtitles filter crashes without proper fonts
   const finalVideo = '[scaled]'
-  void hasCaps // suppress unused warning
+  void hasCaps
 
   let finalAudio = '[cata]'
   if (hasMusic) {
@@ -255,10 +280,12 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
     finalAudio = '[mixeda]'
   }
 
+  const filterComplex = filters.join(';')
+
   return {
     args: [
       ...inputs,
-      '-filter_complex', filters.join(';'),
+      '-filter_complex', filterComplex,
       '-map', finalVideo,
       '-map', finalAudio,
       '-c:v', 'libx264', '-preset', 'fast', '-crf', crf,
@@ -268,6 +295,7 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath) {
     ],
     captionsRendered: hasCaps,
     musicRendered:    hasMusic,
+    filterComplex,
   }
 }
 
@@ -462,7 +490,10 @@ async function processJob(admin, job) {
     }
 
     // 4. Build + run FFmpeg (full pipeline)
-    const { args, captionsRendered, musicRendered } = buildArgs(plan, inputPath, captionPath, musicPath, outputPath)
+    const hasSourceAudio = await probeAudioStreams(inputPath)
+    if (!hasSourceAudio) log('warn', 'Source video has no audio stream — using anullsrc silence', jobId)
+    const { args, captionsRendered, musicRendered, filterComplex } = buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourceAudio)
+    log('info', 'FFmpeg filter_complex', jobId, { filterComplex })
     await runFfmpeg(args, jobId)
 
     // 5. Verify output
