@@ -105,21 +105,38 @@ export default function HeyGenPanel({ concept, styles }) {
     finally { setKeySaving(false) }
   }
 
-  // ── Photo upload via file picker ─────────────────────────────────────────────
+  // ── Compress image to ≤200KB base64 via canvas, then POST as JSON ────────────
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    e.target.value = ''  // reset so same file can be picked again
+    e.target.value = ''
 
     setPhotoPreview(URL.createObjectURL(file))
     setPhotoAvatarLoading(true)
     setPhotoAvatarError(null)
 
     try {
-      const form = new FormData()
-      form.append('file', file)
+      // Resize to max 512×512 and compress to JPEG so the JSON body stays small
+      const imageBase64 = await new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          const MAX = 512
+          const scale  = Math.min(1, MAX / Math.max(img.width, img.height))
+          const canvas = document.createElement('canvas')
+          canvas.width  = Math.round(img.width  * scale)
+          canvas.height = Math.round(img.height * scale)
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/jpeg', 0.85))
+        }
+        img.onerror = reject
+        img.src = URL.createObjectURL(file)
+      })
 
-      const res  = await fetch('/api/heygen/photo-avatar', { method: 'POST', body: form })
+      const res  = await fetch('/api/heygen/photo-avatar', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ imageBase64, mimeType: 'image/jpeg' }),
+      })
       const data = await res.json()
       if (!res.ok || data.status === 'error') throw new Error(data.message)
       setPhotoAvatarId(data.avatarId)
