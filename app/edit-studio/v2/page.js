@@ -847,7 +847,9 @@ export default function EditStudioV2() {
         activeJobs.map(async j => {
           const res = await fetch(`/api/edit-studio/render-status?jobId=${j.jobId}`)
           const data = await res.json()
-          return { jobId: j.jobId, status: data.status, exportUrl: data.export_url }
+          // API returns { status:'success', jobStatus:'completed'|..., exportUrl:'...' }
+          // data.status is always 'success'; actual job status is in data.jobStatus
+          return { jobId: j.jobId, status: data.jobStatus, exportUrl: data.exportUrl, error: data.errorMessage }
         })
       )
 
