@@ -189,11 +189,12 @@ function enforceRules(raw) {
     'conversion_potential', 'brand_product_relevance',
   ]
 
-  const scores = dimensionKeys.map(k => Number(dims[k]?.score) || 0)
+  const clamp  = v => Math.min(10, Math.max(0, Number(v) || 0))
+  const scores = dimensionKeys.map(k => clamp(dims[k]?.score))
   const avg    = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
   const overall = Math.round(avg * 10) / 10
 
-  const fixTargets = dimensionKeys.filter(k => (Number(dims[k]?.score) || 0) < 6)
+  const fixTargets = dimensionKeys.filter(k => clamp(dims[k]?.score) < 6)
 
   return {
     dimensions:      dims,
