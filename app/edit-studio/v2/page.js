@@ -596,6 +596,9 @@ export default function EditStudioV2() {
   const [scoringBatch,  setScoringBatch]  = useState(false)
   const [fixLoading,    setFixLoading]    = useState({})   // { [adId_dimension]: bool }
   const [fixes,         setFixes]         = useState({})   // { [adId_dimension]: fixObject }
+  const [activeBrand,   setActiveBrand]   = useState(null)
+  const [brandDropOpen, setBrandDropOpen] = useState(false)
+  const [brandProfiles, setBrandProfiles] = useState([])
 
   // ── Pipeline ─────────────────────────────────────────────────────────────────
 
@@ -814,6 +817,21 @@ export default function EditStudioV2() {
     }
   }, [project])
 
+  // Brand chip — load active brand from API + localStorage
+  useEffect(() => {
+    fetch('/api/brand-profiles').then(r => r.json()).then(brands => {
+      if (!Array.isArray(brands) || brands.length === 0) return
+      setBrandProfiles(brands)
+      try {
+        const savedId = localStorage.getItem('promptceo_active_brand_id')
+        const saved   = savedId ? brands.find(b => b.id === savedId) : null
+        setActiveBrand(saved || brands[0])
+      } catch {
+        setActiveBrand(brands[0])
+      }
+    }).catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!renderPolling || !renderJobs.length) return
 
@@ -906,48 +924,89 @@ export default function EditStudioV2() {
         WebkitBackdropFilter: 'blur(12px)',
         padding: '0 28px',
         display: 'flex', alignItems: 'center',
-        height: 52, gap: 24, flexShrink: 0,
+        height: 52, gap: 4, flexShrink: 0,
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}>
-        {/* Wordmark */}
-        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0 }}>
+        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
           PromptCEO
         </a>
-
-        {/* Nav links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {[
-            { label: 'Dashboard',   href: '/dashboard' },
-            { label: 'Studio',      href: '/prompt-engine-v3' },
-            { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio' },
-            { label: 'Edit Studio', href: '/edit-studio/v2', active: true },
-            { label: 'Brands',      href: '/brands' },
-          ].map(({ label, href, active }) => (
-            <a
-              key={label}
-              href={href}
-              style={{
-                fontSize: 12, fontWeight: active ? 600 : 400,
-                color: active ? '#ede9e1' : '#6e6a66',
-                textDecoration: 'none',
-                padding: '5px 10px', borderRadius: 6,
-                background: active ? '#161616' : 'transparent',
-              }}
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-
+        {[
+          { label: 'Home',        href: '/dashboard',                       active: false },
+          { label: 'Studio',      href: '/prompt-engine-v3?view=studio',    active: false },
+          { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio', active: false },
+          { label: 'Edit Studio', href: '/edit-studio/v2',                  active: true  },
+          { label: 'Brands',      href: '/brands',                          active: false },
+        ].map(({ label, href, active }) => (
+          <a key={label} href={href} style={{
+            fontSize: 12, fontWeight: active ? 600 : 400,
+            color: active ? '#ede9e1' : '#6e6a66',
+            textDecoration: 'none', padding: '5px 10px', borderRadius: 6,
+            background: active ? '#161616' : 'transparent',
+            borderLeft: `2px solid ${active ? '#c8a84b' : 'transparent'}`,
+          }}>
+            {label}
+          </a>
+        ))}
         <div style={{ flex: 1 }} />
 
-        {/* Account */}
-        <a href="/account" style={{
-          fontSize: 11, color: '#6e6a66',
-          textDecoration: 'none',
-          border: '1px solid #1a1a1a',
-          borderRadius: 6, padding: '4px 12px',
-        }}>
+        {/* Brand chip */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setBrandDropOpen(p => !p)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6,
+              border: `1px solid ${activeBrand ? '#c8a84b44' : '#1a1a1a'}`,
+              background: activeBrand ? '#1a1408' : '#0d0d0d',
+              cursor: 'pointer', fontSize: 11,
+              color: activeBrand ? '#c8a84b' : '#6e6a66', fontWeight: 600,
+            }}
+          >
+            <span style={{ fontSize: 10 }}>◈</span>
+            <span>{activeBrand?.name || 'No Brand'}</span>
+            <span style={{ fontSize: 8, opacity: 0.5 }}>{brandDropOpen ? '▲' : '▾'}</span>
+          </button>
+          {brandDropOpen && (
+            <>
+              <div onClick={() => setBrandDropOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }} />
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                background: '#111111', border: '1px solid #1a1a1a',
+                borderRadius: 8, minWidth: 200, zIndex: 200,
+                overflow: 'hidden', boxShadow: '0 12px 40px #00000099',
+              }}>
+                <div style={{ padding: '6px 14px 4px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#6e6a66', textTransform: 'uppercase' }}>Active Brand</div>
+                {brandProfiles.length === 0 && (
+                  <div style={{ padding: '10px 14px', fontSize: 11, color: '#6e6a66' }}>No brands yet — create one in Ad Studio.</div>
+                )}
+                {brandProfiles.map((b, i) => (
+                  <div
+                    key={b.id}
+                    onClick={() => {
+                      setActiveBrand(b)
+                      setBrandDropOpen(false)
+                      try { localStorage.setItem('promptceo_active_brand_id', b.id) } catch {}
+                    }}
+                    style={{
+                      padding: '9px 14px', fontSize: 12,
+                      color: b.id === activeBrand?.id ? '#c8a84b' : '#ede9e1',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                      borderTop: i > 0 ? '1px solid #1a1a1a' : 'none',
+                      background: b.id === activeBrand?.id ? '#1a1408' : 'transparent',
+                    }}
+                  >
+                    <span style={{ width: 12, fontSize: 9, color: '#c8a84b' }}>{b.id === activeBrand?.id ? '✓' : ''}</span>
+                    <div>
+                      <div>{b.name}</div>
+                      {b.target_audience && <div style={{ fontSize: 10, color: '#6e6a66', marginTop: 1 }}>{b.target_audience.slice(0, 42)}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <a href="/account" style={{ fontSize: 11, color: '#6e6a66', textDecoration: 'none', border: '1px solid #1a1a1a', borderRadius: 6, padding: '4px 12px', marginLeft: 8 }}>
           Account
         </a>
       </div>
