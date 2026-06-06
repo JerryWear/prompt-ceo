@@ -347,6 +347,94 @@ function ScriptTabs({ concept }) {
   )
 }
 
+const DIMENSION_LABELS = {
+  hook_strength:           'Hook',
+  clarity:                 'Clarity',
+  offer_strength:          'Offer',
+  cta_strength:            'CTA',
+  platform_fit:            'Platform Fit',
+  voiceover_fit:           'Voice Fit',
+  caption_fit:             'Caption Fit',
+  conversion_potential:    'Conversion',
+  brand_product_relevance: 'Brand Relevance',
+}
+
+const FIXABLE_DIMENSIONS = ['hook_strength', 'cta_strength', 'clarity', 'offer_strength', 'brand_product_relevance']
+
+function QualityPanel({ adId, scores, fixes, fixLoading, onFix }) {
+  if (!scores) return null
+
+  const { dimensions, strengths, weaknesses } = scores
+
+  return (
+    <div className={styles.qualityPanel} onClick={e => e.stopPropagation()}>
+      <p className={styles.qualityPanelTitle}>Quality Analysis</p>
+
+      {/* 9-dimension score grid */}
+      <div className={styles.qualityGrid}>
+        {Object.entries(dimensions || {}).map(([key, dim]) => {
+          const score   = dim?.score ?? 0
+          const isWeak  = score < 6
+          const fixKey  = `${adId}_${key}`
+          const canFix  = FIXABLE_DIMENSIONS.includes(key)
+          const isFixed = !!fixes[fixKey]
+          const loading = !!fixLoading[fixKey]
+
+          return (
+            <div key={key} className={`${styles.qualityDim} ${isWeak ? styles.qualityDimWeak : ''}`}>
+              <div className={styles.qualityDimHeader}>
+                <span className={styles.qualityDimLabel}>{DIMENSION_LABELS[key] || key}</span>
+                <span className={`${styles.qualityDimScore} ${isWeak ? styles.qualityDimScoreWeak : ''}`}>
+                  {score}/10
+                </span>
+              </div>
+              <p className={styles.qualityDimReason}>{dim?.reason}</p>
+              {isWeak && canFix && !isFixed && (
+                <button
+                  type="button"
+                  className={styles.fixBtn}
+                  disabled={loading}
+                  onClick={e => onFix(adId, key, e)}
+                >
+                  {loading ? 'Fixing...' : 'Fix with AI →'}
+                </button>
+              )}
+              {isFixed && fixes[fixKey] && (
+                <div className={styles.fixResult}>
+                  <span className={styles.fixResultLabel}>AI Fix:</span>
+                  <p className={styles.fixResultText}>
+                    {fixes[fixKey].fix?.fix || fixes[fixKey].fix?.hook_fix || fixes[fixKey].fix?.options?.[0]}
+                  </p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Strengths */}
+      {strengths?.length > 0 && (
+        <div className={styles.qualitySection}>
+          <p className={styles.qualitySectionTitle}>Strengths</p>
+          <ul className={styles.qualityList}>
+            {strengths.map((s, i) => <li key={i} className={styles.qualityStrength}>{s}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Weaknesses */}
+      {weaknesses?.length > 0 && (
+        <div className={styles.qualitySection}>
+          <p className={styles.qualitySectionTitle}>Weaknesses</p>
+          <ul className={styles.qualityList}>
+            {weaknesses.map((w, i) => <li key={i} className={styles.qualityWeakness}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function fmtTimestamp(secs) {
   if (secs == null) return '?'
   const m = Math.floor(secs / 60)
@@ -402,6 +490,10 @@ export default function EditStudioV2() {
   const [dragActive,  setDragActive]  = useState(false)
   const [renderJobs,    setRenderJobs]    = useState([]) // array of job objects from auto-render response
   const [renderPolling, setRenderPolling] = useState(false)
+  const [batchScores,   setBatchScores]   = useState({})  // { [adId]: scoresObject }
+  const [scoringBatch,  setScoringBatch]  = useState(false)
+  const [fixLoading,    setFixLoading]    = useState({})   // { [adId_dimension]: bool }
+  const [fixes,         setFixes]         = useState({})   // { [adId_dimension]: fixObject }
 
   // ── Pipeline ─────────────────────────────────────────────────────────────────
 
@@ -544,6 +636,10 @@ export default function EditStudioV2() {
     setActiveConcept(null)
     setRenderJobs([])
     setRenderPolling(false)
+    setBatchScores({})
+    setScoringBatch(false)
+    setFixLoading({})
+    setFixes({})
   }, [])
 
   const handleCreateStrategy = useCallback(async () => {
@@ -645,6 +741,51 @@ export default function EditStudioV2() {
     return () => clearInterval(interval)
   }, [renderPolling, renderJobs])
 
+  // ── Auto-batch-score when concepts screen loads ───────────────────────────
+
+  useEffect(() => {
+    if (screen !== 'concepts' || !project?.id || !adConcepts.length || scoringBatch) return
+    const hasAnyScore = adConcepts.some(c => c.id && batchScores[c.id])
+    if (hasAnyScore) return  // already scored
+
+    setScoringBatch(true)
+    fetch('/api/edit-studio/quality-score-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: project.id }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.scores) {
+          const map = {}
+          data.scores.forEach(s => { if (s.adId) map[s.adId] = s })
+          setBatchScores(map)
+        }
+      })
+      .catch(() => {}) // silent fail — scoring is enhancement, not blocker
+      .finally(() => setScoringBatch(false))
+  }, [screen, project, adConcepts, scoringBatch, batchScores])
+
+  // ── Fix-with-AI handler ───────────────────────────────────────────────────
+
+  const handleFixAd = useCallback(async (adId, dimension, e) => {
+    e.stopPropagation()
+    const key = `${adId}_${dimension}`
+    setFixLoading(prev => ({ ...prev, [key]: true }))
+    try {
+      const res = await fetch('/api/edit-studio/fix-ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adId, dimension }),
+      })
+      const data = await res.json()
+      if (data.ok && data.fix) {
+        setFixes(prev => ({ ...prev, [key]: data }))
+      }
+    } catch {}
+    setFixLoading(prev => ({ ...prev, [key]: false }))
+  }, [])
+
   // ── Step indicator logic ──────────────────────────────────────────────────
 
   const activeStep = activeStepIndex(statusMsg)
@@ -653,6 +794,61 @@ export default function EditStudioV2() {
 
   return (
     <div className={styles.page}>
+
+      {/* ── PromptCEO top bar ─────────────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        borderBottom: '1px solid #1a1a1a',
+        background: 'rgba(10,10,10,0.94)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        padding: '0 28px',
+        display: 'flex', alignItems: 'center',
+        height: 52, gap: 24, flexShrink: 0,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}>
+        {/* Wordmark */}
+        <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: '#c8a84b', textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0 }}>
+          PromptCEO
+        </a>
+
+        {/* Nav links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {[
+            { label: 'Dashboard',   href: '/dashboard' },
+            { label: 'Studio',      href: '/prompt-engine-v3' },
+            { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio' },
+            { label: 'Edit Studio', href: '/edit-studio/v2', active: true },
+            { label: 'Brands',      href: '/dashboard' },
+          ].map(({ label, href, active }) => (
+            <a
+              key={label}
+              href={href}
+              style={{
+                fontSize: 12, fontWeight: active ? 600 : 400,
+                color: active ? '#ede9e1' : '#6e6a66',
+                textDecoration: 'none',
+                padding: '5px 10px', borderRadius: 6,
+                background: active ? '#161616' : 'transparent',
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Account */}
+        <a href="/account" style={{
+          fontSize: 11, color: '#6e6a66',
+          textDecoration: 'none',
+          border: '1px solid #1a1a1a',
+          borderRadius: 6, padding: '4px 12px',
+        }}>
+          Account
+        </a>
+      </div>
 
       {/* ── Upload screen ─────────────────────────────────────────────────── */}
       {screen === 'upload' && (
@@ -1071,6 +1267,15 @@ export default function EditStudioV2() {
                     <p className={styles.conceptHookLine}>{concept.hook_text}</p>
                     <p className={styles.conceptObjective}>{concept.objective}</p>
                     <span className={styles.expandToggle}>{isActive ? 'Collapse ↑' : 'View Scripts ↓'}</span>
+                    {/* Quality badge — shows when score is available */}
+                    {batchScores[concept.id] && (
+                      <span className={`${styles.qualityGrade} ${styles[`grade${batchScores[concept.id].grade}`]}`}>
+                        {batchScores[concept.id].grade} {batchScores[concept.id].overall_score}
+                      </span>
+                    )}
+                    {scoringBatch && !batchScores[concept.id] && (
+                      <span className={styles.scoringIndicator}>scoring...</span>
+                    )}
                   </div>
 
                   {/* Expanded body */}
@@ -1087,6 +1292,13 @@ export default function EditStudioV2() {
                       </div>
                       <VoicePanel concept={concept} projectId={project?.id} />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
+                      <QualityPanel
+                        adId={concept.id}
+                        scores={batchScores[concept.id]}
+                        fixes={fixes}
+                        fixLoading={fixLoading}
+                        onFix={handleFixAd}
+                      />
                     </div>
                   )}
                 </div>
@@ -1095,6 +1307,23 @@ export default function EditStudioV2() {
           </div>
 
           <div className={styles.conceptsActions}>
+            {/* Quality summary bar when scoring is done */}
+            {!scoringBatch && Object.keys(batchScores).length > 0 && (() => {
+              const scored    = Object.values(batchScores)
+              const avg       = scored.reduce((s, x) => s + (x.overall_score || 0), 0) / scored.length
+              const hasFgrade = scored.some(x => x.grade === 'F')
+              const lowQuality = avg < 6 || hasFgrade
+              return (
+                <div className={`${styles.qualitySummary} ${lowQuality ? styles.qualitySummaryWarn : styles.qualitySummaryGood}`}>
+                  <span>{lowQuality ? '⚠' : '✓'}</span>
+                  <span>
+                    Avg quality: {avg.toFixed(1)}/10
+                    {hasFgrade ? ' — one or more ads scored F. Consider fixing before rendering.' : avg < 7 ? ' — some ads could be improved.' : ' — ready to render.'}
+                  </span>
+                </div>
+              )
+            })()}
+
             <button
               type="button"
               className={styles.generateAllAdsBtn}
@@ -1103,7 +1332,7 @@ export default function EditStudioV2() {
               ⚡ Generate 5 Finished Ads
             </button>
             <p className={styles.generateAllAdsHint}>
-              Voiceover · Captions · Render · Download
+              {scoringBatch ? 'Scoring ad quality...' : 'Voiceover · Captions · Render · Download'}
             </p>
           </div>
         </div>
