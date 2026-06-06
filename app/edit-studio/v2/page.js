@@ -676,6 +676,25 @@ export default function EditStudioV2() {
     })
   }, [screen, project, statusMsg, adConcepts.length, activeBrand, strategy, setStudioContext])
 
+  // ── Merge two understanding objects into one richer profile ──────────────
+  const mergeUnderstandings = (a, b) => ({
+    detected_products:       [...new Set([...(a.detected_products || []), ...(b.detected_products || [])])],
+    business_type:           a.business_type           || b.business_type,
+    business_description:    a.business_description    || b.business_description,
+    key_messages:            [...new Set([...(a.key_messages || []), ...(b.key_messages || [])])].slice(0, 6),
+    recommended_positioning: a.recommended_positioning || b.recommended_positioning,
+    positioning_reason:      a.positioning_reason      || b.positioning_reason,
+    recommended_ad_types:    [...new Set([...(a.recommended_ad_types || []), ...(b.recommended_ad_types || [])])],
+    visual_style:            b.visual_style             || a.visual_style,
+    target_audience:         a.target_audience          || b.target_audience,
+    key_benefit:             a.key_benefit              || b.key_benefit,
+    screens_detected:        a.screens_detected         || [],
+    key_moments:             a.key_moments              || [],
+    strong_moments:          a.strong_moments           || [],
+    weak_moments:            a.weak_moments             || [],
+    estimated_duration:      a.estimated_duration       || 30,
+  })
+
   // ── Pipeline ─────────────────────────────────────────────────────────────────
 
   const handleFileSelect = useCallback(async (file) => {
@@ -817,25 +836,6 @@ export default function EditStudioV2() {
     setFixLoading({})
     setFixes({})
   }, [])
-
-  // ── Merge two understanding objects into one richer profile ──────────────
-  const mergeUnderstandings = (a, b) => ({
-    detected_products:       [...new Set([...(a.detected_products || []), ...(b.detected_products || [])])],
-    business_type:           a.business_type           || b.business_type,
-    business_description:    a.business_description    || b.business_description,
-    key_messages:            [...new Set([...(a.key_messages || []), ...(b.key_messages || [])])].slice(0, 6),
-    recommended_positioning: a.recommended_positioning || b.recommended_positioning,
-    positioning_reason:      a.positioning_reason      || b.positioning_reason,
-    recommended_ad_types:    [...new Set([...(a.recommended_ad_types || []), ...(b.recommended_ad_types || [])])],
-    visual_style:            b.visual_style             || a.visual_style,   // prefer image visual style
-    target_audience:         a.target_audience          || b.target_audience,
-    key_benefit:             a.key_benefit              || b.key_benefit,
-    screens_detected:        a.screens_detected         || [],
-    key_moments:             a.key_moments              || [],
-    strong_moments:          a.strong_moments           || [],
-    weak_moments:            a.weak_moments             || [],
-    estimated_duration:      a.estimated_duration       || 30,
-  })
 
   // ── Image pipeline ────────────────────────────────────────────────────────
   const handleImageSelect = useCallback(async (file) => {
