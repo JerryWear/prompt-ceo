@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway-schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile.worker"
+    "dockerfilePath": "workers/Dockerfile"
   },
   "deploy": {
-    "startCommand": "node scripts/render-worker.mjs",
+    "startCommand": "node edit-render-worker.mjs",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
