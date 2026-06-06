@@ -12709,6 +12709,7 @@ export default function PromptCEOPage() {
   const [brandProfilesLoaded, setBrandProfilesLoaded] = useState(false)
   const [activeBrandProfile,  setActiveBrandProfile]  = useState(null)
   const [brandProfileDrop,    setBrandProfileDrop]    = useState(false)
+  const [platformBrandDropOpen, setPlatformBrandDropOpen] = useState(false)
   const [brandModalOpen,      setBrandModalOpen]      = useState(false)
   const [brandModalName,      setBrandModalName]      = useState('')
   const [brandModalVoice,     setBrandModalVoice]     = useState('')
@@ -15558,6 +15559,90 @@ export default function PromptCEOPage() {
         fontSize: 12, overflow: 'hidden',
       }}>
 
+        {/* ── PromptCEO Platform Nav ───────────────────────── */}
+        <div style={{
+          flexShrink: 0, height: 52,
+          background: `${C.void}ee`, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: `1px solid ${C.hairline}`,
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 4, zIndex: 110,
+        }}>
+          <a href="/dashboard" style={{ fontSize: 11, fontWeight: 800, letterSpacing: 3.5, color: C.gold, textTransform: 'uppercase', textDecoration: 'none', flexShrink: 0, marginRight: 12 }}>
+            PromptCEO
+          </a>
+          {[
+            { label: 'Home',        href: '/dashboard',                       active: false },
+            { label: 'Studio',      href: '/prompt-engine-v3',                active: s.view !== 'ad_studio' },
+            { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio', active: s.view === 'ad_studio' },
+            { label: 'Edit Studio', href: '/edit-studio/v2',                  active: false },
+            { label: 'Brands',      href: '/brands',                          active: false },
+          ].map(({ label, href, active }) => (
+            <a key={label} href={href} style={{
+              fontSize: 12, fontWeight: active ? 600 : 400,
+              color: active ? C.primary : C.ghost,
+              textDecoration: 'none', padding: '5px 10px', borderRadius: 6,
+              background: active ? C.raised : 'transparent',
+              borderLeft: `2px solid ${active ? C.gold : 'transparent'}`,
+              transition: 'color 0.15s',
+            }}>{label}</a>
+          ))}
+          <div style={{ flex: 1 }} />
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setPlatformBrandDropOpen(p => !p)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6,
+                border: `1px solid ${activeBrandProfile ? C.gold + '44' : C.hairline}`,
+                background: activeBrandProfile ? '#1a1408' : C.raised,
+                cursor: 'pointer', fontSize: 11,
+                color: activeBrandProfile ? C.gold : C.ghost, fontWeight: 600, fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 10 }}>◈</span>
+              <span>{activeBrandProfile?.name || 'No Brand'}</span>
+              <span style={{ fontSize: 8, opacity: 0.5 }}>{platformBrandDropOpen ? '▲' : '▾'}</span>
+            </button>
+            {platformBrandDropOpen && (
+              <>
+                <div onClick={() => setPlatformBrandDropOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }} />
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                  background: C.overlay, border: `1px solid ${C.hairline}`,
+                  borderRadius: 8, minWidth: 200, zIndex: 200,
+                  overflow: 'hidden', boxShadow: '0 12px 40px #00000099',
+                }}>
+                  <div style={{ padding: '6px 14px 4px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.ghost, textTransform: 'uppercase' }}>Active Brand</div>
+                  {brandProfiles.length === 0 && (
+                    <div style={{ padding: '10px 14px', fontSize: 11, color: C.ghost }}>No brands yet.</div>
+                  )}
+                  {brandProfiles.map((b, i) => (
+                    <div
+                      key={b.id}
+                      onClick={() => { setActiveBrandProfile(b); setPlatformBrandDropOpen(false); try { localStorage.setItem('promptceo_active_brand_id', b.id) } catch {} }}
+                      style={{
+                        padding: '9px 14px', fontSize: 12,
+                        color: b.id === activeBrandProfile?.id ? C.gold : C.primary,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                        borderTop: i > 0 ? `1px solid ${C.hairline}` : 'none',
+                        background: b.id === activeBrandProfile?.id ? '#1a1408' : 'transparent',
+                      }}
+                    >
+                      <span style={{ width: 12, fontSize: 9, color: C.gold }}>{b.id === activeBrandProfile?.id ? '✓' : ''}</span>
+                      <div>
+                        <div>{b.name}</div>
+                        {b.target_audience && <div style={{ fontSize: 10, color: C.ghost, marginTop: 1 }}>{b.target_audience.slice(0, 42)}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <a href="/account" style={{ fontSize: 11, color: C.ghost, textDecoration: 'none', border: `1px solid ${C.hairline}`, borderRadius: 6, padding: '4px 12px', marginLeft: 8 }}>
+            Account
+          </a>
+        </div>
+
         {/* ── TOP BAR ─────────────────────────────────────── */}
         <div style={{
           flexShrink: 0, height: 48,
@@ -15690,7 +15775,7 @@ export default function PromptCEOPage() {
                   borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
                   background: s.view === 'ai_director' ? '#0e0c08' : 'transparent',
                   color: s.view === 'ai_director' ? C.gold : '#5a5650', transition: 'all 0.15s',
-                }}>✦ Home</button>
+                }}>✦ Brain</button>
 
                 {/* ─ CAMPAIGNS ▼ ─ */}
                 <div style={{ position: 'relative', height: 48, display: 'flex', alignItems: 'center' }}>
