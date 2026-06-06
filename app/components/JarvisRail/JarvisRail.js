@@ -11,11 +11,16 @@ const SUGGESTIONS = [
   'What ad angle would work for my audience?',
 ]
 
+// Pages that have their own built-in AI chat — hide Jarvis FAB there
+const HIDDEN_ON = [
+  '/ad-system',
+  '/prompt-engine',
+  '/prompt-v2',
+]
+
 const STUDIO_MAP = {
-  '/ad-system':    'ad-studio',
   '/edit-studio':  'edit-studio',
   '/music-studio': 'music-studio',
-  '/prompt-engine': 'prompt-studio',
 }
 
 function detectStudio(pathname) {
@@ -33,6 +38,9 @@ export default function JarvisRail({ studioContext = {} }) {
   const pathname = usePathname()
   const router   = useRouter()
   const studio   = detectStudio(pathname)
+
+  const isHidden = HIDDEN_ON.some(p => pathname.startsWith(p))
+  if (isHidden) return null
 
   const [open,     setOpen]     = useState(false)
   const [input,    setInput]    = useState('')
