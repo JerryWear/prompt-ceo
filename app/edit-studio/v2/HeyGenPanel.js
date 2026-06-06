@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-export default function HeyGenPanel({ concept, styles }) {
+export default function HeyGenPanel({ concept, project, styles }) {
   // ── API key ──────────────────────────────────────────────────────────────────
   const [keyStatus, setKeyStatus] = useState('loading')
   const [keyInput,  setKeyInput]  = useState('')
@@ -34,6 +34,13 @@ export default function HeyGenPanel({ concept, styles }) {
   const [videoUrl,    setVideoUrl]    = useState(null)
   const [genError,    setGenError]    = useState(null)
   const pollRef = useRef(null)
+
+  // ── Composition state ─────────────────────────────────────────────────────────
+  const [composeJobId,     setComposeJobId]     = useState(null)
+  const [composeStatus,    setComposeStatus]     = useState('idle')  // 'idle'|'submitting'|'queued'|'processing'|'completed'|'failed'
+  const [composeExportUrl, setComposeExportUrl]  = useState(null)
+  const [composeError,     setComposeError]      = useState(null)
+  const composeRef = useRef(null)
 
   const scriptObj      = concept[`script_${selectedDuration}`] || {}
   const scriptText     = [scriptObj.hook, scriptObj.body, scriptObj.cta].filter(Boolean).join(' ')
@@ -87,6 +94,57 @@ export default function HeyGenPanel({ concept, styles }) {
   }, [])
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+  useEffect(() => () => { if (composeRef.current) clearInterval(composeRef.current) }, [])
+
+  // ── Compose: submit to Railway and poll for result ────────────────────────────
+  const handleCompose = useCallback(async () => {
+    if (!videoUrl || !project?.id) return
+    setComposeStatus('submitting')
+    setComposeError(null)
+    setComposeExportUrl(null)
+
+    try {
+      const res = await fetch('/api/edit-studio/jarvis-compose', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId:               project.id,
+          conceptId:               concept.id,
+          productVideoStoragePath: project.storagePath || null,
+          productVideoBucket:      project.bucket || 'edit-studio-assets',
+          productVideoPublicUrl:   project.publicUrl || null,
+          heygenHookUrl:           videoUrl,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.status === 'error') throw new Error(data.message || 'Failed to submit composition job')
+      setComposeJobId(data.jobId)
+      setComposeStatus('queued')
+
+      // Poll Railway job status every 8 seconds
+      if (composeRef.current) clearInterval(composeRef.current)
+      composeRef.current = setInterval(async () => {
+        try {
+          const sRes = await fetch(`/api/edit-studio/jarvis-status?jobId=${data.jobId}`)
+          const sData = await sRes.json()
+          if (sData.jobStatus === 'completed') {
+            clearInterval(composeRef.current)
+            setComposeStatus('completed')
+            setComposeExportUrl(sData.exportUrl)
+          } else if (sData.jobStatus === 'failed') {
+            clearInterval(composeRef.current)
+            setComposeStatus('failed')
+            setComposeError(sData.error || 'Render failed')
+          } else if (sData.jobStatus === 'processing') {
+            setComposeStatus('processing')
+          }
+        } catch { /* keep polling */ }
+      }, 8000)
+
+    } catch (err) {
+      setComposeStatus('failed')
+      setComposeError(err.message)
+    }
+  }, [videoUrl, project, concept.id])
 
   // ── Save key ─────────────────────────────────────────────────────────────────
   const handleSaveKey = async (e) => {
@@ -199,22 +257,89 @@ export default function HeyGenPanel({ concept, styles }) {
   }
 
   if (videoStatus === 'completed' && videoUrl) {
+    const hasProductVideo = !!(project?.storagePath || project?.publicUrl)
+
     return (
       <div style={panel}>
         <span style={label}>AI Avatar Ad · Ready</span>
         <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600, marginBottom: 10 }}>✓ Rendered by HeyGen</div>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video src={videoUrl} controls style={{ width: '100%', borderRadius: 8, maxHeight: 320, background: '#000' }} />
+        <video src={videoUrl} controls style={{ width: '100%', borderRadius: 8, maxHeight: 280, background: '#000' }} />
+
+        {/* Download avatar-only */}
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <a href={videoUrl} download target="_blank" rel="noopener noreferrer"
-            style={{ flex: 1, display: 'block', textAlign: 'center', padding: '10px 0', borderRadius: 7, fontSize: 12, fontWeight: 700, border: '1px solid #4caf5066', background: '#0a1a0a', color: '#4caf50', textDecoration: 'none' }}>
-            ↓ Download Ad
+            style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px 0', borderRadius: 7, fontSize: 11, fontWeight: 700, border: '1px solid #4caf5066', background: '#0a1a0a', color: '#4caf50', textDecoration: 'none' }}>
+            ↓ Avatar clip only
           </a>
-          <button type="button" onClick={() => { setVideoStatus('idle'); setVideoId(null); setVideoUrl(null) }}
-            style={{ padding: '10px 14px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px solid #2a2a2a', background: '#111', color: '#888' }}>
+          <button type="button" onClick={() => { setVideoStatus('idle'); setVideoId(null); setVideoUrl(null); setComposeStatus('idle'); setComposeJobId(null); setComposeExportUrl(null) }}
+            style={{ padding: '9px 14px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px solid #2a2a2a', background: '#111', color: '#888' }}>
             Re-generate
           </button>
         </div>
+
+        {/* ── Jarvis Compose: avatar hook + product video ── */}
+        {hasProductVideo && (
+          <div style={{ marginTop: 14, borderTop: '1px solid #1a1a1a', paddingTop: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
+              Compose Full Ad
+            </div>
+
+            {composeStatus === 'idle' && (
+              <>
+                <div style={{ fontSize: 11, color: '#555', lineHeight: 1.5, marginBottom: 10 }}>
+                  Combine your avatar hook with the product video footage. Jarvis will render the final ad via the Railway worker.
+                </div>
+                <button type="button" onClick={handleCompose}
+                  style={{ width: '100%', padding: '11px 0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b' }}>
+                  ✦ Compose with Product Video
+                </button>
+              </>
+            )}
+
+            {(composeStatus === 'submitting') && (
+              <div style={{ fontSize: 11, color: '#888', padding: '8px 0' }}>Submitting to Jarvis…</div>
+            )}
+
+            {(composeStatus === 'queued' || composeStatus === 'processing') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #c8a84b44', borderTopColor: '#c8a84b', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 11, color: '#c8a84b', fontWeight: 600 }}>
+                    {composeStatus === 'processing' ? 'Railway worker rendering…' : 'Queued — Railway worker starting…'}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#444', marginTop: 2 }}>
+                    Avatar hook + product video → FFmpeg compose → MP4
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {composeStatus === 'completed' && composeExportUrl && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600 }}>✓ Full ad rendered</div>
+                <a href={composeExportUrl} download target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'block', textAlign: 'center', padding: '11px 0', borderRadius: 7, fontSize: 12, fontWeight: 700, border: '1px solid #4caf5066', background: '#0a1a0a', color: '#4caf50', textDecoration: 'none' }}>
+                  ↓ Download Full Ad
+                </a>
+                <button type="button" onClick={() => { setComposeStatus('idle'); setComposeJobId(null); setComposeExportUrl(null) }}
+                  style={{ padding: '8px 0', borderRadius: 7, fontSize: 10, cursor: 'pointer', border: '1px solid #1a1a1a', background: 'none', color: '#555' }}>
+                  Re-compose
+                </button>
+              </div>
+            )}
+
+            {composeStatus === 'failed' && (
+              <div>
+                <div style={{ fontSize: 11, color: '#e05050', marginBottom: 8 }}>{composeError || 'Render failed'}</div>
+                <button type="button" onClick={() => { setComposeStatus('idle'); setComposeError(null) }}
+                  style={{ padding: '8px 14px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1px solid #2a2a2a', background: '#111', color: '#888' }}>
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     )
   }
