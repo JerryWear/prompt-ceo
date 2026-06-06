@@ -293,6 +293,7 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
       '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '128k',
       '-r', String(plan.fps || 30),
+      '-avoid_negative_ts', 'make_zero',
       '-movflags', '+faststart', '-y', outputPath,
     ],
     captionsRendered: hasCaps,
@@ -310,13 +311,15 @@ async function runFfmpeg(args, jobId) {
     log('info', 'FFmpeg finished', jobId)
   } catch (err) {
     const stderr = err.stderr || err.message || ''
-    // Extract the actual error lines (lines containing 'Error', 'Invalid', 'No such', 'failed')
-    const errorLines = stderr.split('\n').filter(l => /Error|Invalid|No such|failed|Cannot/i.test(l))
-    const detail = errorLines.length > 0
-      ? errorLines.slice(-5).join(' | ')   // last 5 error lines
-      : stderr.slice(-800)                  // fallback: last 800 chars
-    log('error', 'FFmpeg stderr (last 800)', jobId, { stderr: stderr.slice(-800) })
-    throw new Error(`FFmpeg failed: ${detail}`)
+    const lines  = stderr.split('\n').map(l => l.trim()).filter(Boolean)
+    // Log each of the last 20 lines as a SEPARATE entry so Railway UI doesn't truncate them
+    lines.slice(-20).forEach((line, i) => {
+      log('error', `stderr[${i}] ${line.slice(0, 120)}`, jobId)
+    })
+    const errorLine = [...lines].reverse().find(l =>
+      /Error|Invalid|No such|failed|Cannot|Conversion|moov|codec/i.test(l)
+    ) || lines[lines.length - 1] || 'unknown'
+    throw new Error(`FFmpeg failed: ${errorLine}`)
   }
 }
 
