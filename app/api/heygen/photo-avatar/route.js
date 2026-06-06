@@ -89,7 +89,7 @@ export async function POST(req) {
     const uploadForm = new FormData()
     uploadForm.append('file', new Blob([buffer], { type: mimeType }), 'avatar.jpg')
 
-    const uploadRes  = await fetch('https://api.heygen.com/v1/photo_avatar/photo/upload', {
+    const uploadRes  = await fetch('https://api.heygen.com/v2/photo_avatar/photo/upload', {
       method: 'POST',
       headers: { 'X-Api-Key': apiKey },
       body:    uploadForm,
