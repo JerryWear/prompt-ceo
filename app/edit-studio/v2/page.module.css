@@ -17,8 +17,24 @@
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 52px);
-  padding: 40px 24px;
+  padding: 48px 24px 64px;
   gap: 0;
+}
+
+.backLink {
+  font-size: 12px;
+  color: #6e6a66;
+  text-decoration: none;
+  margin-bottom: 28px;
+  align-self: flex-start;
+  /* keep it left-aligned relative to the max-width content column */
+  width: 100%;
+  max-width: 520px;
+  display: block;
+}
+
+.backLink:hover {
+  color: #9e9a96;
 }
 
 .headline {
@@ -32,11 +48,12 @@
 }
 
 .subline {
-  font-size: 17px;
+  font-size: 15px;
   color: #888;
   text-align: center;
-  margin: 0 0 48px;
-  line-height: 1.5;
+  margin: 0 0 4px;
+  line-height: 1.6;
+  max-width: 520px;
 }
 
 .dropZone {

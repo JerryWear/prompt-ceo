@@ -476,6 +476,108 @@ function activeStepIndex(statusMsg) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ─── Recent projects panel (upload screen only) ───────────────────────────────
+
+function fmtAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 2)   return 'just now'
+  if (m < 60)  return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24)  return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
+}
+
+const STATUS_LABEL = {
+  draft:           'Draft',
+  uploaded:        'Uploaded',
+  transcribed:     'Transcribed',
+  analyzed:        'Analyzed',
+  concepts_ready:  'Concepts ready',
+  rendering:       'Rendering',
+  complete:        'Complete',
+}
+
+function RecentProjects({ onContinue }) {
+  const [projects, setProjects] = useState([])
+  const [loaded, setLoaded]     = useState(false)
+
+  useEffect(() => {
+    fetch('/api/edit-studio/projects')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.projects?.length) setProjects(d.projects); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  if (!loaded || projects.length === 0) return null
+
+  return (
+    <div style={{ width: '100%', maxWidth: 520, marginTop: 40 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#6e6a66', marginBottom: 12 }}>
+        Recent Projects
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {projects.slice(0, 4).map(p => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onContinue(p.id)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderRadius: 8,
+              border: '1px solid #1a1a1a', background: '#0d0d0d',
+              cursor: 'pointer', textAlign: 'left', gap: 12,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: '#ede9e1', fontWeight: 500, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {p.product || p.title || 'Untitled'}
+              </div>
+              <div style={{ fontSize: 11, color: '#6e6a66' }}>
+                {STATUS_LABEL[p.status] || p.status} · {fmtAgo(p.created_at)}
+              </div>
+            </div>
+            <span style={{ fontSize: 11, color: '#6e6a66', flexShrink: 0 }}>Continue →</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Pipeline steps overview ──────────────────────────────────────────────────
+
+const PIPELINE_STEPS = [
+  { icon: '↑', label: 'Upload'     },
+  { icon: '◎', label: 'Understand' },
+  { icon: '✦', label: 'Strategy'   },
+  { icon: '▣', label: '5 Ads'      },
+  { icon: '♪', label: 'Voice'      },
+  { icon: '▤', label: 'Captions'   },
+  { icon: '★', label: 'Quality'    },
+  { icon: '▶', label: 'Render'     },
+]
+
+function PipelineSteps() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 32, marginBottom: 8 }}>
+      {PIPELINE_STEPS.map((step, i) => (
+        <div key={step.label} style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, color: '#4a4a4a' }}>{step.icon}</span>
+            <span style={{ fontSize: 10, color: '#4a4a4a', letterSpacing: 0.5 }}>{step.label}</span>
+          </div>
+          {i < PIPELINE_STEPS.length - 1 && (
+            <span style={{ fontSize: 9, color: '#2a2a2a', margin: '0 6px', marginBottom: 12 }}>—</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function EditStudioV2() {
   const fileInputRef = useRef(null)
 
@@ -819,7 +921,7 @@ export default function EditStudioV2() {
             { label: 'Studio',      href: '/prompt-engine-v3' },
             { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio' },
             { label: 'Edit Studio', href: '/edit-studio/v2', active: true },
-            { label: 'Brands',      href: '/dashboard' },
+            { label: 'Brands',      href: '/brands' },
           ].map(({ label, href, active }) => (
             <a
               key={label}
@@ -853,8 +955,20 @@ export default function EditStudioV2() {
       {/* ── Upload screen ─────────────────────────────────────────────────── */}
       {screen === 'upload' && (
         <div className={styles.uploadScreen}>
+
+          {/* Back to Dashboard */}
+          <a href="/dashboard" className={styles.backLink}>
+            ← Dashboard
+          </a>
+
           <h1 className={styles.headline}>Turn one video into five ads.</h1>
-          <p className={styles.subline}>Upload your raw footage. AI does the rest.</p>
+          <p className={styles.subline}>
+            Upload raw footage. PromptCEO understands your product, writes 5 ad scripts,
+            generates voiceovers, adds captions, scores quality, and renders finished ads.
+          </p>
+
+          {/* Pipeline overview */}
+          <PipelineSteps />
 
           <div
             className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
@@ -866,10 +980,11 @@ export default function EditStudioV2() {
             tabIndex={0}
             aria-label="Drop video file or click to browse"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
+            style={{ marginTop: 24 }}
           >
             <span className={styles.dropZoneIcon} aria-hidden="true">&#x2B06;</span>
             <span className={styles.dropZoneLabel}>Drop your video here</span>
-            <span className={styles.dropZoneHint}>MP4, MOV, WebM</span>
+            <span className={styles.dropZoneHint}>MP4, MOV, WebM · screen recordings work best</span>
           </div>
 
           <div className={styles.orRow}>
@@ -904,6 +1019,10 @@ export default function EditStudioV2() {
               </button>
             </div>
           )}
+
+          {/* Recent projects */}
+          <RecentProjects onContinue={(id) => window.location.href = `/edit-studio?project=${id}`} />
+
         </div>
       )}
 
