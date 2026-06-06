@@ -125,18 +125,11 @@ export default function HeyGenPanel({ concept, imageSource, styles }) {
     if (!imageSource) return
     setPhotoAvatarLoading(true); setPhotoAvatarError(null)
     try {
-      // Fetch image and convert to base64 data URL
-      const imgRes  = await fetch(imageSource)
-      const blob    = await imgRes.blob()
-      const dataUrl = await new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result)
-        reader.readAsDataURL(blob)
-      })
+      // Pass URL to server — server fetches the image (avoids browser body-size / CORS issues)
       const res  = await fetch('/api/heygen/photo-avatar', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ imageDataUrl: dataUrl, name: 'My Photo Avatar' }),
+        body:    JSON.stringify({ imageUrl: imageSource, name: 'My Photo Avatar' }),
       })
       const data = await res.json()
       if (!res.ok || data.status === 'error') throw new Error(data.message)

@@ -17,7 +17,8 @@ async function getHeyGenKey(userId) {
   return data?.heygen_api_key || null
 }
 
-// POST — create an instant photo avatar from a base64 image URL
+// POST — create an instant photo avatar from an image URL (server fetches it)
+// Body: { imageUrl: string, name?: string }
 export async function POST(req) {
   try {
     const user = await getUser()
@@ -25,14 +26,17 @@ export async function POST(req) {
     const apiKey = await getHeyGenKey(user.id)
     if (!apiKey) return NextResponse.json({ status: 'error', message: 'No HeyGen API key connected' }, { status: 400 })
 
-    const { imageDataUrl, name = 'My Photo Avatar' } = await req.json()
-    if (!imageDataUrl?.trim()) return NextResponse.json({ status: 'error', message: 'imageDataUrl required' }, { status: 400 })
+    const { imageUrl, name = 'My Photo Avatar' } = await req.json()
+    if (!imageUrl?.trim()) return NextResponse.json({ status: 'error', message: 'imageUrl required' }, { status: 400 })
+
+    // Fetch the image server-side (avoids browser CORS / body-size issues)
+    const imgRes = await fetch(imageUrl)
+    if (!imgRes.ok) return NextResponse.json({ status: 'error', message: `Could not fetch image: ${imgRes.status}` }, { status: 400 })
+
+    const buffer   = Buffer.from(await imgRes.arrayBuffer())
+    const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
 
     // Step 1: Upload the photo to HeyGen
-    const base64Data = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl
-    const mimeType   = imageDataUrl.includes('data:') ? imageDataUrl.split(';')[0].split(':')[1] : 'image/jpeg'
-    const buffer     = Buffer.from(base64Data, 'base64')
-
     const formData = new FormData()
     const blob = new Blob([buffer], { type: mimeType })
     formData.append('file', blob, 'avatar.jpg')
