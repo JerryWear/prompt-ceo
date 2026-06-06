@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 const C = {
   void:     '#020202', deep:    '#050505', base:      '#080808',
   surface:  '#0d0d0d', raised:  '#111111', border:    '#1a1a1a',
-  subtle:   '#222222', primary: '#ede9e1', secondary: '#ccc8c2',
-  muted:    '#9e9a96', ghost:   '#6e6a66',
+  subtle:   '#222222', primary: '#FFFFFF', secondary: '#D0D0D0',
+  muted:    '#A0A0A0', ghost:   '#888888',
   gold:     '#c8a84b', goldDim: '#1a1408', goldGlow:  'rgba(200,168,75,0.12)',
   blue:     '#4a8ab4', violet:  '#9b6fd4', green:     '#4a9a6a',
 }

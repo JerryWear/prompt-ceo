@@ -146,10 +146,10 @@ const C = {
   hairline: '#1a1a1a',
   subtle:   '#222222',
   mid:      '#2a2a2a',
-  primary:  '#e8e4dc',
-  secondary:'#ccc8c2',
-  muted:    '#9e9a96',
-  ghost:    '#6e6a66',
+  primary:  '#FFFFFF',
+  secondary:'#D0D0D0',
+  muted:    '#A0A0A0',
+  ghost:    '#888888',
   gold:     '#c8a84b',
   goldDim:  '#7a6428',
   goldGlow: '#c8a84b22',
@@ -5047,7 +5047,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             <div style={{ borderRadius: 6, border: `1px solid ${top.featured ? '#c8a84b44' : '#1a1a1a'}`, background: top.featured ? '#0f0d04' : '#0a0a0a', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ fontSize: 18, flexShrink: 0 }}>🎵</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: '#4a4845', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Your campaign sounds like</div>
+                <div style={{ fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }}>Your campaign sounds like</div>
                 <div style={{ fontSize: 12, fontWeight: 800, color: top.featured ? '#c8a84b' : '#e8e4dc', marginBottom: 2 }}>
                   {top.title}
                   {top.featured && <span style={{ marginLeft: 6, fontSize: 8, fontWeight: 800, color: '#000', background: '#c8a84b', borderRadius: 3, padding: '1px 5px' }}>FEATURED</span>}
@@ -15774,7 +15774,7 @@ export default function PromptCEOPage() {
                   border: 'none', borderRight: `1px solid ${C.hairline}`,
                   borderBottom: `2px solid ${s.view === 'ai_director' ? C.gold : 'transparent'}`,
                   background: s.view === 'ai_director' ? '#0e0c08' : 'transparent',
-                  color: s.view === 'ai_director' ? C.gold : '#5a5650', transition: 'all 0.15s',
+                  color: s.view === 'ai_director' ? C.gold : C.ghost, transition: 'all 0.15s',
                 }}>✦ Brain</button>
 
                 {/* ─ CAMPAIGNS ▼ ─ */}
@@ -15784,7 +15784,7 @@ export default function PromptCEOPage() {
                     border: 'none', borderRight: `1px solid ${C.hairline}`,
                     borderBottom: `2px solid ${inCampaigns ? C.gold : 'transparent'}`,
                     background: inCampaigns ? '#0e0c08' : 'transparent',
-                    color: inCampaigns ? C.gold : navOpenGroup === 'campaigns' ? C.primary : '#5a5650',
+                    color: inCampaigns ? C.gold : navOpenGroup === 'campaigns' ? C.primary : C.ghost,
                     transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     Campaigns
@@ -15818,7 +15818,7 @@ export default function PromptCEOPage() {
                     border: 'none', borderRight: `1px solid ${C.hairline}`,
                     borderBottom: `2px solid ${inStudio ? C.primary : 'transparent'}`,
                     background: inStudio ? C.raised : 'transparent',
-                    color: inStudio ? C.primary : navOpenGroup === 'studio' ? C.primary : '#5a5650',
+                    color: inStudio ? C.primary : navOpenGroup === 'studio' ? C.primary : C.ghost,
                     transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     Studio

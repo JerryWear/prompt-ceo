@@ -515,7 +515,7 @@ function RecentProjects({ onContinue }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 520, marginTop: 40 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#6e6a66', marginBottom: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#888888', marginBottom: 12 }}>
         Recent Projects
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -535,11 +535,11 @@ function RecentProjects({ onContinue }) {
               <div style={{ fontSize: 13, color: '#ede9e1', fontWeight: 500, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {p.product || p.title || 'Untitled'}
               </div>
-              <div style={{ fontSize: 11, color: '#6e6a66' }}>
+              <div style={{ fontSize: 11, color: '#888888' }}>
                 {STATUS_LABEL[p.status] || p.status} · {fmtAgo(p.created_at)}
               </div>
             </div>
-            <span style={{ fontSize: 11, color: '#6e6a66', flexShrink: 0 }}>Continue →</span>
+            <span style={{ fontSize: 11, color: '#888888', flexShrink: 0 }}>Continue →</span>
           </button>
         ))}
       </div>
@@ -566,8 +566,8 @@ function PipelineSteps() {
       {PIPELINE_OVERVIEW.map((step, i) => (
         <div key={step.label} style={{ display: 'flex', alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 10, color: '#4a4a4a' }}>{step.icon}</span>
-            <span style={{ fontSize: 10, color: '#4a4a4a', letterSpacing: 0.5 }}>{step.label}</span>
+            <span style={{ fontSize: 10, color: '#888888' }}>{step.icon}</span>
+            <span style={{ fontSize: 10, color: '#888888', letterSpacing: 0.5 }}>{step.label}</span>
           </div>
           {i < PIPELINE_OVERVIEW.length - 1 && (
             <span style={{ fontSize: 9, color: '#2a2a2a', margin: '0 6px', marginBottom: 12 }}>—</span>
@@ -939,7 +939,7 @@ export default function EditStudioV2() {
         ].map(({ label, href, active }) => (
           <a key={label} href={href} style={{
             fontSize: 12, fontWeight: active ? 600 : 400,
-            color: active ? '#ede9e1' : '#6e6a66',
+            color: active ? '#FFFFFF' : '#888888',
             textDecoration: 'none', padding: '5px 10px', borderRadius: 6,
             background: active ? '#161616' : 'transparent',
             borderLeft: `2px solid ${active ? '#c8a84b' : 'transparent'}`,
@@ -958,7 +958,7 @@ export default function EditStudioV2() {
               border: `1px solid ${activeBrand ? '#c8a84b44' : '#1a1a1a'}`,
               background: activeBrand ? '#1a1408' : '#0d0d0d',
               cursor: 'pointer', fontSize: 11,
-              color: activeBrand ? '#c8a84b' : '#6e6a66', fontWeight: 600,
+              color: activeBrand ? '#c8a84b' : '#888888', fontWeight: 600,
             }}
           >
             <span style={{ fontSize: 10 }}>◈</span>
@@ -974,9 +974,9 @@ export default function EditStudioV2() {
                 borderRadius: 8, minWidth: 200, zIndex: 200,
                 overflow: 'hidden', boxShadow: '0 12px 40px #00000099',
               }}>
-                <div style={{ padding: '6px 14px 4px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#6e6a66', textTransform: 'uppercase' }}>Active Brand</div>
+                <div style={{ padding: '6px 14px 4px', fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#888888', textTransform: 'uppercase' }}>Active Brand</div>
                 {brandProfiles.length === 0 && (
-                  <div style={{ padding: '10px 14px', fontSize: 11, color: '#6e6a66' }}>No brands yet — create one in Ad Studio.</div>
+                  <div style={{ padding: '10px 14px', fontSize: 11, color: '#888888' }}>No brands yet — create one in Ad Studio.</div>
                 )}
                 {brandProfiles.map((b, i) => (
                   <div
@@ -997,7 +997,7 @@ export default function EditStudioV2() {
                     <span style={{ width: 12, fontSize: 9, color: '#c8a84b' }}>{b.id === activeBrand?.id ? '✓' : ''}</span>
                     <div>
                       <div>{b.name}</div>
-                      {b.target_audience && <div style={{ fontSize: 10, color: '#6e6a66', marginTop: 1 }}>{b.target_audience.slice(0, 42)}</div>}
+                      {b.target_audience && <div style={{ fontSize: 10, color: '#888888', marginTop: 1 }}>{b.target_audience.slice(0, 42)}</div>}
                     </div>
                   </div>
                 ))}
@@ -1006,7 +1006,7 @@ export default function EditStudioV2() {
           )}
         </div>
 
-        <a href="/account" style={{ fontSize: 11, color: '#6e6a66', textDecoration: 'none', border: '1px solid #1a1a1a', borderRadius: 6, padding: '4px 12px', marginLeft: 8 }}>
+        <a href="/account" style={{ fontSize: 11, color: '#888888', textDecoration: 'none', border: '1px solid #1a1a1a', borderRadius: 6, padding: '4px 12px', marginLeft: 8 }}>
           Account
         </a>
       </div>
