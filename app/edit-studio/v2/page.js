@@ -1974,11 +1974,7 @@ export default function EditStudioV2() {
                         imageSource={imageSource}
                         onBuildAd={(voiceUrl, opts) => handleBuildFinalAd(concept, voiceUrl, opts)}
                       />
-                      <HeyGenPanel
-                        concept={concept}
-                        imageSource={imageSource}
-                        styles={styles}
-                      />
+                      <HeyGenPanel concept={concept} />
                       <CaptionPanel concept={concept} projectId={project?.id} selectedDuration="30s" />
                       <QualityPanel
                         adId={concept.id}
