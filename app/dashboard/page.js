@@ -27,17 +27,19 @@ const C = {
 }
 
 const STUDIOS = [
-  { icon: '◧', label: 'Studio',      sub: 'Cinematic images & worlds',    path: '/prompt-engine-v3', query: 'studio',    color: C.blue,    glow: C.blueGlow },
-  { icon: '▣', label: 'Ad Studio',   sub: 'Hooks, copy & campaigns',       path: '/prompt-engine-v3', query: 'ad_studio', color: '#c87a4a', glow: 'rgba(200,122,74,0.10)' },
-  { icon: '✂', label: 'Edit Studio', sub: 'Turn footage into finished ads', path: '/edit-studio/v2',   query: null,        color: C.violet,  glow: 'rgba(155,111,212,0.10)' },
+  { icon: '◧', label: 'Studio',        sub: 'Cinematic images & worlds',       path: '/prompt-engine-v3', query: 'studio',    color: C.blue,    glow: C.blueGlow },
+  { icon: '▣', label: 'Ad Studio',     sub: 'Hooks, copy & campaigns',         path: '/prompt-engine-v3', query: 'ad_studio', color: '#c87a4a', glow: 'rgba(200,122,74,0.10)' },
+  { icon: '✂', label: 'Edit Studio',   sub: 'Turn footage into finished ads',   path: '/edit-studio/v2',   query: null,        color: C.violet,  glow: 'rgba(155,111,212,0.10)' },
+  { icon: '✦', label: 'Jarvis Studio', sub: 'URL to ad. Automatically.',        path: '/jarvis-studio',    query: null,        color: C.gold,    glow: C.goldGlow },
 ]
 
 const NAV = [
-  { label: 'Home',        href: '/dashboard',                       active: true },
-  { label: 'Studio',      href: '/prompt-engine-v3?view=studio',    active: false },
-  { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio', active: false },
-  { label: 'Edit Studio', href: '/edit-studio/v2',                  active: false },
-  { label: 'Brands',      href: '/brands',                          active: false },
+  { label: 'Home',           href: '/dashboard',                       active: true },
+  { label: 'Studio',         href: '/prompt-engine-v3?view=studio',    active: false },
+  { label: 'Ad Studio',      href: '/prompt-engine-v3?view=ad_studio', active: false },
+  { label: 'Edit Studio',    href: '/edit-studio/v2',                  active: false },
+  { label: 'Jarvis Studio',  href: '/jarvis-studio',                   active: false },
+  { label: 'Brands',         href: '/brands',                          active: false },
 ]
 
 function greeting() {
@@ -364,7 +366,7 @@ export default function Dashboard() {
         </div>
 
         {/* STUDIO SHORTCUTS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 36, animation: 'fadeUp 0.4s ease 0.17s both' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 36, animation: 'fadeUp 0.4s ease 0.17s both' }}>
           {STUDIOS.map(s => (
             <div
               key={s.label}
