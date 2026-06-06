@@ -649,7 +649,8 @@ export default function EditStudioV2() {
   // ── Multi-input state ─────────────────────────────────────────────────────
   const [activeInputs,  setActiveInputs]  = useState(new Set(['video']))  // any combo of 'video','image','prompt'
   const [promptText,    setPromptText]    = useState('')
-  const [pendingImage,  setPendingImage]  = useState(null)   // { file, base64, publicUrl } — image staged but not yet analyzed
+  const [pendingVideo,  setPendingVideo]  = useState(null)   // { file } — video staged when multi-input mode
+  const [pendingImage,  setPendingImage]  = useState(null)   // { file, base64, mimeType } — image staged
   const [sourceType,    setSourceType]    = useState('video')   // primary visual for assemble-ad
   const [assembleJobs,  setAssembleJobs]  = useState({})        // { [conceptId]: { status, publicUrl } }
   const imageInputRef = useRef(null)
@@ -785,6 +786,7 @@ export default function EditStudioV2() {
 
       setUnderstanding(merged)
       setPendingImage(null)
+      setPendingVideo(null)
       setScreen('results')
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -794,19 +796,34 @@ export default function EditStudioV2() {
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
+  // When multiple inputs are active, stage the video instead of firing the pipeline
+  // immediately. The user clicks "Analyze & Build Ads" when all inputs are ready.
+  const receiveVideo = useCallback((file) => {
+    if (!file || !file.type.startsWith('video/')) {
+      setError('Please select a video file (MP4, MOV, or WebM).')
+      return
+    }
+    if (activeInputs.size > 1) {
+      // Multi-input mode: stage, don't fire
+      setPendingVideo({ file })
+    } else {
+      // Video-only: fire immediately as before
+      handleFileSelect(file)
+    }
+  }, [activeInputs, handleFileSelect])
+
   const handleInputChange = useCallback((e) => {
     const file = e.target.files?.[0]
-    if (file) handleFileSelect(file)
-    // Reset so same file can be re-selected after an error
+    if (file) receiveVideo(file)
     e.target.value = ''
-  }, [handleFileSelect])
+  }, [receiveVideo])
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     setDragActive(false)
     const file = e.dataTransfer.files?.[0]
-    if (file) handleFileSelect(file)
-  }, [handleFileSelect])
+    if (file) receiveVideo(file)
+  }, [receiveVideo])
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault()
@@ -958,6 +975,15 @@ export default function EditStudioV2() {
       setScreen('upload')
     }
   }, [promptText, pendingImage, mergeUnderstandings])
+
+  // ── Multi-input submit: fires pipeline with all staged inputs ────────────
+  const handleMultiSubmit = useCallback(() => {
+    if (pendingVideo) {
+      // Video is the primary input — handleFileSelect reads pendingImage + promptText from closure
+      handleFileSelect(pendingVideo.file)
+      setPendingVideo(null)
+    }
+  }, [pendingVideo, handleFileSelect])
 
   // ── Assemble final ad from script + voice + source ────────────────────────
   const handleBuildFinalAd = useCallback(async (concept, voiceUrl) => {
@@ -1306,14 +1332,25 @@ export default function EditStudioV2() {
             <div style={{ width: '100%', maxWidth: 520, marginTop: 16 }}>
               {activeInputs.size > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: '#888888', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Video</div>}
               <div
-                className={`${styles.dropZone} ${dragActive ? styles.dragActive : ''}`}
+                className={`${styles.dropZone} ${pendingVideo ? styles.dragActive : dragActive ? styles.dragActive : ''}`}
                 onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
-                onClick={handleDropZoneClick} role="button" tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropZoneClick() }}
+                onClick={pendingVideo ? undefined : handleDropZoneClick} role="button" tabIndex={0}
+                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !pendingVideo) handleDropZoneClick() }}
+                style={{ cursor: pendingVideo ? 'default' : 'pointer' }}
               >
-                <span className={styles.dropZoneIcon}>&#x2B06;</span>
-                <span className={styles.dropZoneLabel}>Drop your video here</span>
-                <span className={styles.dropZoneHint}>MP4, MOV, WebM · product demos, walkthroughs, footage</span>
+                {pendingVideo ? (
+                  <>
+                    <span className={styles.dropZoneIcon} style={{ color: '#4caf50' }}>✓</span>
+                    <span className={styles.dropZoneLabel} style={{ color: '#4caf50' }}>Video ready</span>
+                    <span className={styles.dropZoneHint}>{pendingVideo.file.name} · {(pendingVideo.file.size / 1024 / 1024).toFixed(1)} MB</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.dropZoneIcon}>&#x2B06;</span>
+                    <span className={styles.dropZoneLabel}>Drop your video here</span>
+                    <span className={styles.dropZoneHint}>MP4, MOV, WebM · product demos, walkthroughs, footage</span>
+                  </>
+                )}
               </div>
               <input ref={fileInputRef} type="file" accept="video/*" className={styles.fileInput} onChange={handleInputChange} tabIndex={-1} aria-hidden="true" />
             </div>
@@ -1373,20 +1410,30 @@ export default function EditStudioV2() {
             </div>
           )}
 
-          {/* ── Submit button for prompt-only or image+prompt ────────── */}
-          {!activeInputs.has('video') && (
+          {/* ── Submit button ─────────────────────────────────────────
+               • Video-only: hidden (pipeline auto-fires on drop)
+               • Multi-input with video: shown when video is staged
+               • No-video (image/prompt): shown always, enabled when ≥1 input ready  */}
+          {(activeInputs.has('video') ? (activeInputs.size > 1 && pendingVideo) : true) && (
             <button
-              onClick={handlePromptSubmit}
-              disabled={activeInputs.has('prompt') ? !promptText.trim() : !pendingImage}
+              onClick={activeInputs.has('video') ? handleMultiSubmit : handlePromptSubmit}
+              disabled={activeInputs.has('video')
+                ? !pendingVideo  // multi+video: need video staged
+                : activeInputs.has('prompt') ? !promptText.trim() : !pendingImage  // no-video: need prompt or image
+              }
               style={{
-                width: '100%', maxWidth: 520, marginTop: 12,
-                padding: '13px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                width: '100%', maxWidth: 520, marginTop: 16,
+                padding: '14px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
                 cursor: 'pointer',
                 border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b',
-                opacity: (activeInputs.has('prompt') ? !promptText.trim() : !pendingImage) ? 0.4 : 1,
+                opacity: (activeInputs.has('video') ? !pendingVideo : activeInputs.has('prompt') ? !promptText.trim() : !pendingImage) ? 0.4 : 1,
+                transition: 'opacity 0.15s',
               }}
             >
               ✦ Analyze &amp; Build Ads
+              {pendingVideo && pendingImage && ' · Video + Image'}
+              {pendingVideo && activeInputs.has('prompt') && promptText.trim() && !pendingImage && ' · Video + Description'}
+              {pendingVideo && pendingImage && activeInputs.has('prompt') && promptText.trim() && ' + Description'}
             </button>
           )}
 
