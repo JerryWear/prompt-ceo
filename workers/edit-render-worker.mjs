@@ -260,7 +260,8 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
   // Interleaved pairs: [v0][a0][v1][a1]...
   const interleaved = segs.map((_, i) => `[v${i}][a${i}]`).join('')
   filters.push(`${interleaved}concat=n=${n}:v=1:a=1[catv][cata]`)
-  filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black[scaled]`)
+  // format=yuv420p strips unknown/reserved color space metadata from mobile videos
+  filters.push(`[catv]scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p[scaled]`)
 
   const finalVideo = '[scaled]'
   void hasCaps
@@ -289,6 +290,7 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, hasSourc
       '-map', finalVideo,
       '-map', finalAudio,
       '-c:v', 'libx264', '-preset', 'fast', '-crf', crf,
+      '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '128k',
       '-r', String(plan.fps || 30),
       '-movflags', '+faststart', '-y', outputPath,
@@ -307,7 +309,13 @@ async function runFfmpeg(args, jobId) {
     await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 })
     log('info', 'FFmpeg finished', jobId)
   } catch (err) {
-    const detail = (err.stderr || err.message || '').slice(-600)
+    const stderr = err.stderr || err.message || ''
+    // Extract the actual error lines (lines containing 'Error', 'Invalid', 'No such', 'failed')
+    const errorLines = stderr.split('\n').filter(l => /Error|Invalid|No such|failed|Cannot/i.test(l))
+    const detail = errorLines.length > 0
+      ? errorLines.slice(-5).join(' | ')   // last 5 error lines
+      : stderr.slice(-800)                  // fallback: last 800 chars
+    log('error', 'FFmpeg stderr (last 800)', jobId, { stderr: stderr.slice(-800) })
     throw new Error(`FFmpeg failed: ${detail}`)
   }
 }
