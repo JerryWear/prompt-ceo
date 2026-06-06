@@ -549,7 +549,7 @@ function RecentProjects({ onContinue }) {
 
 // ─── Pipeline steps overview ──────────────────────────────────────────────────
 
-const PIPELINE_STEPS = [
+const PIPELINE_OVERVIEW = [
   { icon: '↑', label: 'Upload'     },
   { icon: '◎', label: 'Understand' },
   { icon: '✦', label: 'Strategy'   },
@@ -563,13 +563,13 @@ const PIPELINE_STEPS = [
 function PipelineSteps() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 32, marginBottom: 8 }}>
-      {PIPELINE_STEPS.map((step, i) => (
+      {PIPELINE_OVERVIEW.map((step, i) => (
         <div key={step.label} style={{ display: 'flex', alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: 10, color: '#4a4a4a' }}>{step.icon}</span>
             <span style={{ fontSize: 10, color: '#4a4a4a', letterSpacing: 0.5 }}>{step.label}</span>
           </div>
-          {i < PIPELINE_STEPS.length - 1 && (
+          {i < PIPELINE_OVERVIEW.length - 1 && (
             <span style={{ fontSize: 9, color: '#2a2a2a', margin: '0 6px', marginBottom: 12 }}>—</span>
           )}
         </div>
