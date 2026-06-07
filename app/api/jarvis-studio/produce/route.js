@@ -205,13 +205,31 @@ export async function POST(req) {
         }
         try {
           const previewUrl = scenePreviews[scene.id] || null
+
+          // Runway only accepts exactly 5 or 10 seconds
+          const duration = (scene.duration || 5) >= 8 ? 10 : 5
+
+          const promptText = (scene.visual_direction || scene.dalle_prompt || '').trim() || 'Cinematic scene'
+
           const runwayBody = {
             model: 'gen4_turbo',
-            promptText: scene.visual_direction || scene.dalle_prompt,
+            promptText,
             ratio: '720:1280',
-            duration: Math.min(Math.max(scene.duration || 5, 5), 10),
+            duration,
           }
-          if (previewUrl) runwayBody.promptImage = previewUrl
+
+          // image_to_video requires promptImage — skip gracefully if no storyboard preview exists
+          if (!previewUrl) {
+            sceneJobs.push({
+              sceneId: scene.id, generator: 'runway',
+              status: 'error',
+              error: 'No storyboard preview image — generate storyboard first, then produce',
+              taskId: null, videoUrl: null,
+            })
+            continue
+          }
+
+          runwayBody.promptImage = previewUrl
 
           const runRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
             method: 'POST',
@@ -223,11 +241,12 @@ export async function POST(req) {
             body: JSON.stringify(runwayBody),
           })
           const runData = await runRes.json()
+          console.log('[Runway] response:', JSON.stringify(runData).slice(0, 500))
           const taskId = runData?.id
           if (taskId) {
             sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'generating', taskId, videoUrl: null })
           } else {
-            const errMsg = runData?.error?.message || runData?.message || JSON.stringify(runData).slice(0, 200)
+            const errMsg = (typeof runData?.error === 'string' ? runData.error : runData?.error?.message) || runData?.message || JSON.stringify(runData).slice(0, 300)
             sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'error', error: `Runway: ${errMsg}`, taskId: null, videoUrl: null })
           }
         } catch (e) {
