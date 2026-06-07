@@ -13,52 +13,157 @@ async function makeSupabase() {
   )
 }
 
-// Build contradiction patterns for an asset type.
-// When an asset WAS uploaded, any string matching these patterns is a contradiction.
-const CONTRADICTION_PATTERNS = {
-  video:   [/lack of.*video/i, /no.*video.*upload/i, /video.*not.*upload/i, /without.*video/i, /missing.*video/i, /video.*missing/i, /no video/i, /no.*product video/i, /video.*not.*provid/i, /\bno uploaded video\b/i],
-  founder: [/lack of.*founder/i, /no.*founder.*image/i, /founder.*not.*upload/i, /missing.*founder/i, /no.*headshot/i, /no.*founder photo/i],
-  product: [/lack of.*product image/i, /no.*product.*image.*upload/i, /missing.*product image/i],
+// ---------------------------------------------------------------------------
+// assetManifest — built entirely from deterministic application state.
+// GPT never sees a question mark about what was uploaded. It sees facts.
+// ---------------------------------------------------------------------------
+function buildAssetManifest(assets, understanding, promptText) {
+  return {
+    website: {
+      present: !!(assets?.websiteUrl),
+      url: assets?.websiteUrl || null,
+      scraped: !!(understanding?.brand?.name && assets?.websiteUrl),
+      brandExtracted: understanding?.brand || null,
+    },
+    founderImage: {
+      present: !!(assets?.founderImageUrl),
+      url: assets?.founderImageUrl || null,
+      analysis: understanding?.founder?.visualDescription || null,
+      cameraPresence: understanding?.founder?.cameraPresence || null,
+      suggestedRole: understanding?.founder?.suggestedRole || null,
+    },
+    productImages: {
+      present: !!(assets?.productImageUrls?.length),
+      count: assets?.productImageUrls?.length || 0,
+      descriptions: understanding?.products?.descriptions || [],
+      designLanguage: understanding?.products?.designLanguage || null,
+      keyVisuals: understanding?.products?.keyVisuals || null,
+    },
+    productVideo: {
+      present: !!(assets?.videoUrls?.length),
+      url: assets?.videoUrls?.[0] || null,
+      transcriptAvailable: !!(understanding?.video?.transcript),
+      transcript: understanding?.video?.transcript || null,
+      analysis: understanding?.video?.analysis || null,
+    },
+    music: {
+      present: !!(assets?.musicUrl || assets?.musicTrackId),
+      trackId: assets?.musicTrackId || null,
+    },
+    prompt: {
+      present: !!(promptText?.trim()),
+      text: promptText?.trim() || null,
+    },
+  }
 }
 
-// Scan a single string for contradiction patterns given the asset manifest.
-function isContradiction(str, hasVideo, hasFounder, hasProduct) {
-  if (!str) return false
-  if (hasVideo   && CONTRADICTION_PATTERNS.video.some(p   => p.test(str))) return true
-  if (hasFounder && CONTRADICTION_PATTERNS.founder.some(p => p.test(str))) return true
-  if (hasProduct && CONTRADICTION_PATTERNS.product.some(p => p.test(str))) return true
+// ---------------------------------------------------------------------------
+// missingUploadedAssets — computed by code, never by GPT.
+// It is the inverse of what is present in the manifest.
+// ---------------------------------------------------------------------------
+const UPLOADABLE = [
+  {
+    key: 'founderImage',
+    label: 'Founder image',
+    impact: 'Enables HeyGen avatar generation and founder-led ad scenes',
+  },
+  {
+    key: 'productImages',
+    label: 'Product images',
+    impact: 'Enables product-focused visual scenes with DALL-E and Runway visual reference',
+  },
+  {
+    key: 'productVideo',
+    label: 'Product video',
+    impact: 'Enables video-based reasoning, transcript analysis, and repurposing existing footage into ad clips',
+  },
+  {
+    key: 'website',
+    label: 'Website URL',
+    impact: 'Enables deep brand analysis from live website copy, headlines, and positioning',
+  },
+  {
+    key: 'music',
+    label: 'Music track',
+    impact: 'Enables custom music aligned with brand tone instead of AI-selected track',
+  },
+]
+
+function computeMissingUploaded(manifest) {
+  return UPLOADABLE
+    .filter(item => !manifest[item.key]?.present)
+    .map(item => ({ asset: item.label, impact: item.impact }))
+}
+
+// ---------------------------------------------------------------------------
+// Server-side contradiction scan — last-resort safety net.
+// Runs AFTER GPT. Removes any string in any array that contradicts the manifest.
+// ---------------------------------------------------------------------------
+const CONTRADICTION_RULES = [
+  {
+    field: 'productVideo',
+    patterns: [
+      /\black of.*video\b/i, /\bno.*video.*upload/i, /\bvideo.*not.*upload/i,
+      /\bwithout.*video\b/i, /\bmissing.*video\b/i, /\bvideo.*missing\b/i,
+      /\bno video\b/i, /\bno.*product video\b/i, /\babsence of.*video\b/i,
+      /\bvideo.*not.*provid/i, /\bno uploaded video\b/i, /\bno footage\b/i,
+    ],
+  },
+  {
+    field: 'website',
+    patterns: [
+      /\black of.*website\b/i, /\bno.*website\b/i, /\bwithout.*website\b/i,
+      /\bmissing.*website\b/i, /\bwebsite.*missing\b/i, /\babsence of.*website\b/i,
+      /\bno.*url\b/i, /\bwebsite.*not.*provid/i, /\bno web.*presence\b/i,
+    ],
+  },
+  {
+    field: 'founderImage',
+    patterns: [
+      /\black of.*founder\b/i, /\bno.*founder.*image\b/i, /\bfounder.*not.*upload/i,
+      /\bmissing.*founder\b/i, /\bno.*headshot\b/i, /\bno.*founder photo\b/i,
+    ],
+  },
+  {
+    field: 'productImages',
+    patterns: [
+      /\black of.*product image\b/i, /\bno.*product.*image.*upload/i,
+      /\bmissing.*product image\b/i, /\bno product screenshot\b/i,
+    ],
+  },
+]
+
+function scanForContradictions(str, manifest) {
+  if (!str || typeof str !== 'string') return false
+  for (const rule of CONTRADICTION_RULES) {
+    if (!manifest[rule.field]?.present) continue // asset not present → GPT may mention its absence
+    if (rule.patterns.some(p => p.test(str))) return true // asset IS present but GPT claims it isn't
+  }
   return false
 }
 
-// Remove contradictory items from an array of strings.
-function cleanArray(arr, hasVideo, hasFounder, hasProduct) {
-  if (!Array.isArray(arr)) return arr
-  return arr.filter(item => {
-    const str = typeof item === 'string' ? item : (item?.asset || item?.action || item?.text || '')
-    return !isContradiction(str, hasVideo, hasFounder, hasProduct)
-  })
-}
-
-// Recursively sanitize every string value in the assessment object.
-function sanitizeAssessment(obj, hasVideo, hasFounder, hasProduct) {
-  if (!obj || typeof obj !== 'object') return obj
-  if (Array.isArray(obj)) return cleanArray(obj, hasVideo, hasFounder, hasProduct)
+function sanitize(value, manifest) {
+  if (!value || typeof value !== 'object') return value
+  if (Array.isArray(value)) {
+    return value.filter(item => {
+      const str = typeof item === 'string'
+        ? item
+        : (item?.asset || item?.action || item?.text || item?.concern || item?.observation || '')
+      return !scanForContradictions(str, manifest)
+    })
+  }
   const out = {}
-  for (const [k, v] of Object.entries(obj)) {
-    if (Array.isArray(v)) {
-      out[k] = cleanArray(v, hasVideo, hasFounder, hasProduct)
-    } else if (v && typeof v === 'object') {
-      out[k] = sanitizeAssessment(v, hasVideo, hasFounder, hasProduct)
-    } else {
-      out[k] = v
-    }
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = Array.isArray(v) ? sanitize(v, manifest) : (v && typeof v === 'object') ? sanitize(v, manifest) : v
   }
   return out
 }
 
+// ---------------------------------------------------------------------------
 // POST /api/jarvis-studio/assess
 // Body: { understanding, assets, prompt?, intent? }
-// Returns: { assessment }
+// Returns: { assessment, assetManifest, missingUploadedAssets }
+// ---------------------------------------------------------------------------
 export async function POST(req) {
   try {
     const supabase = await makeSupabase()
@@ -68,154 +173,146 @@ export async function POST(req) {
     const { understanding, assets, prompt, intent } = await req.json()
     if (!understanding) return NextResponse.json({ error: 'understanding required' }, { status: 400 })
 
-    // Ground-truth asset manifest — built from actual uploaded state, not GPT inference
-    const hasFounder  = !!(assets?.founderImageUrl  || understanding?.founder?.present)
-    const hasProduct  = !!(assets?.productImageUrls?.length || understanding?.products?.count > 0)
-    const hasVideo    = !!(assets?.videoUrls?.length || understanding?.video?.present)
-    const hasWebsite  = !!(assets?.websiteUrl)
-    const hasPrompt   = !!(prompt?.trim())
-    const hasTranscript = !!(understanding?.video?.transcript)
+    // Build manifest and missing list from deterministic state — never from GPT
+    const manifest = buildAssetManifest(assets, understanding, prompt)
+    const missingUploadedAssets = computeMissingUploaded(manifest)
 
-    // This manifest is injected at the TOP of the system prompt as inviolable fact
-    const assetManifest = `INVIOLABLE ASSET MANIFEST — READ THIS FIRST:
-The following assets WERE uploaded and analyzed. No section of your assessment may contradict this.
-- Website URL: ${hasWebsite  ? `YES (${assets.websiteUrl})` : 'NOT PROVIDED'}
-- Founder image: ${hasFounder ? 'YES — analyzed by vision model' : 'NOT PROVIDED'}
-- Product images: ${hasProduct ? `YES — ${assets?.productImageUrls?.length || understanding?.products?.count || 0} image(s) analyzed` : 'NOT PROVIDED'}
-- Product video: ${hasVideo   ? `YES — uploaded and ${hasTranscript ? 'transcribed by Whisper (real audio content available)' : 'present (no audio transcript)'}` : 'NOT PROVIDED'}
-- Stated direction: ${hasPrompt ? `YES — "${prompt}"` : 'NONE'}
+    // Build a plain-English asset summary for GPT — facts only, no ambiguity
+    const factBlock = `
+WHAT EXISTS (FACTS — DO NOT CONTRADICT THESE):
+${manifest.website.present         ? `✓ Website URL: ${manifest.website.url} — crawled and brand data extracted` : '✗ Website: not provided'}
+${manifest.founderImage.present    ? `✓ Founder image: uploaded and analyzed by vision model` : '✗ Founder image: not provided'}
+${manifest.productImages.present   ? `✓ Product images: ${manifest.productImages.count} image(s) uploaded and analyzed` : '✗ Product images: not provided'}
+${manifest.productVideo.present    ? `✓ Product video: uploaded${manifest.productVideo.transcriptAvailable ? ', Whisper transcript available' : ', no audio transcript'}` : '✗ Product video: not provided'}
+${manifest.music.present           ? `✓ Music track: provided` : '✗ Music: not provided'}
+${manifest.prompt.present          ? `✓ Creative direction: "${manifest.prompt.text}"` : '✗ No creative direction stated'}
 
-HARD RULES derived from this manifest:
-${hasVideo   ? '- Video WAS uploaded. NEVER say "lack of video", "no video", "video not uploaded", "missing video". Reason FROM the video, not about its absence.' : ''}
-${hasFounder ? '- Founder image WAS uploaded. NEVER say founder image is missing.' : ''}
-${hasProduct ? '- Product images WERE uploaded. NEVER say product images are missing.' : ''}
-${hasWebsite ? '- Website WAS crawled. NEVER say website is missing.' : ''}
+YOUR JOB: Analyze what IS present. Do not decide what exists.
+You may critique the QUALITY of present assets. You may NOT say any present asset is absent or missing.
+Example allowed: "The video does not show a clear CTA." (quality concern about a present asset)
+Example forbidden: "There is no video." (existence claim contradicting the facts above)
+`.trim()
 
-missingUploadedAssets may only contain assets NOT in the manifest above.`
+    // Build the analysis context from the manifest — only present assets get a section
+    const analysisContext = []
 
-    const systemPrompt = `You are Jarvis — a senior Creative Director, Marketing Strategist, and Competitive Intelligence Analyst with 20 years building direct-response ad campaigns.
+    if (manifest.website.present && manifest.website.brandExtracted) {
+      const b = manifest.website.brandExtracted
+      analysisContext.push(`WEBSITE ANALYSIS:
+Product: ${b.productDescription}
+Value proposition: ${b.valueProposition}
+Target audience: ${b.targetAudience}
+Tone: ${b.toneOfVoice}
+Pain points: ${(b.painPoints || []).join('; ')}
+Key messages: ${(b.keyMessages || []).join('; ')}
+Visual style: ${b.visualStyle}
+Competitive advantage: ${b.competitiveAdvantage}`)
+    }
 
-${assetManifest}
+    if (manifest.founderImage.present) {
+      analysisContext.push(`FOUNDER IMAGE ANALYSIS:
+Visual description: ${manifest.founderImage.analysis}
+Camera presence: ${manifest.founderImage.cameraPresence}
+Suggested role: ${manifest.founderImage.suggestedRole}`)
+    }
 
-Your task: write a full strategic assessment from actual observed evidence. Every conclusion must trace to something you observed.
+    if (manifest.productImages.present) {
+      analysisContext.push(`PRODUCT IMAGE ANALYSIS (${manifest.productImages.count} images):
+Descriptions: ${(manifest.productImages.descriptions || []).join(' | ')}
+Design language: ${manifest.productImages.designLanguage}
+Key visuals: ${manifest.productImages.keyVisuals}`)
+    }
 
-EVIDENCE-FIRST RULE:
+    if (manifest.productVideo.present) {
+      if (manifest.productVideo.transcriptAvailable) {
+        analysisContext.push(`PRODUCT VIDEO — WHISPER TRANSCRIPT (real spoken content):
+"${manifest.productVideo.transcript}"`)
+      } else {
+        analysisContext.push(`PRODUCT VIDEO — uploaded, no audio transcript available.
+Video analysis from context: ${manifest.productVideo.analysis || 'Reason from brand context.'}`)
+      }
+    }
+
+    if (manifest.prompt.present) {
+      analysisContext.push(`CREATIVE DIRECTION: "${manifest.prompt.text}"`)
+    }
+
+    const systemPrompt = `You are Jarvis — a senior Creative Director, Marketing Strategist, and Competitive Intelligence Analyst with 20 years building direct-response campaigns.
+
+${factBlock}
+
+EVIDENCE-FIRST RULE — every conclusion must cite what you observed:
 - Wrong: "Your founder builds trust."
-- Right: "The uploaded founder image shows a professional in a structured environment — this supports authority-based positioning with a sophisticated buyer."
-- Wrong: "Your messaging could be clearer."
-- Right: "The crawled homepage opens with the word 'AI' before explaining what problem is solved — this delays comprehension for a first-time visitor."
+- Right: "The founder image shows a professional in a structured environment, which supports authority-based positioning."
 - Wrong: "The product looks premium."
-- Right: "The uploaded screenshot shows a dark dashboard with gold UI accents and dense data tables — this signals enterprise-grade positioning."
-
-VIDEO EVIDENCE RULE:
-${hasVideo && hasTranscript
-  ? `A Whisper transcript from the video is provided. Analyze it directly. Quote specific phrases. Identify what the presenter says about the product, what features are demonstrated, what proof points are established. This is real content — reason from it.`
-  : hasVideo
-  ? `A video was uploaded. No audio transcript was available. Reason from the visual brand context and what a typical product demo in this category demonstrates. Do NOT say the video is missing. Do NOT say there is a lack of video.`
-  : `No video was uploaded.`
-}
+- Right: "The uploaded screenshot shows a dark dashboard with gold UI accents, signaling enterprise-grade positioning."
 
 COMPETITIVE INTELLIGENCE RULE:
-Prioritize DIRECT product competitors — companies doing the exact same job for the exact same buyer. Name real companies. For AI ad/creative tools: Creatify, Arcads, AdCreative.ai, Pencil, HeyGen, Synthesia are more relevant competitors than Canva, Adobe, or Visme. Only include broad tools if genuinely closest to this product.
+Identify DIRECT product competitors first — companies doing the exact same job for the same buyer.
+For AI ad/creative tools: Creatify, Arcads, AdCreative.ai, Pencil, HeyGen, Synthesia are direct competitors.
+Canva, Adobe, Visme are NOT direct competitors unless this product is a design tool.
 
-VOICE:
-- Direct. Specific. Opinionated. Never vague.
-- Make judgments, not observations. Disagree when something is wrong.
-- NEVER use: revolutionize, game-changer, cutting-edge, innovative, seamless, future of, groundbreaking, world-class, disruptive, transformative, leverage, synergy, empower, holistic.
-- Write as if speaking directly to the founder.
+VOICE: Direct. Specific. Opinionated. No generic marketing language.
+NEVER use: revolutionize, game-changer, cutting-edge, innovative, seamless, future of, groundbreaking, world-class, disruptive, transformative, leverage, synergy, empower.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the system computes this):
 {
   "evidenceUsed": {
-    ${hasWebsite    ? '"website": "specific headlines, positioning language, copy observed",' : ''}
-    ${hasFounder    ? '"founderImage": "specific observations — appearance, setting, authority signals, presentation style",' : ''}
-    ${hasProduct    ? '"productImages": "specific observations — UI design, features visible, design language, quality signals",' : ''}
-    ${hasVideo      ? `"video": "${hasTranscript ? 'From Whisper transcript: specific content, phrases spoken, features mentioned, proof points stated' : 'Video uploaded, no transcript: what the brand context suggests the video demonstrates'}",` : ''}
-    ${hasPrompt     ? '"prompt": "what you inferred from the stated direction",' : ''}
-    "summary": "one sentence on the overall strength of this asset set for ad production"
+    ${manifest.website.present      ? '"website": "specific headlines and copy observed from the crawled site",' : ''}
+    ${manifest.founderImage.present ? '"founderImage": "specific observations from the image — appearance, setting, authority signals",' : ''}
+    ${manifest.productImages.present? '"productImages": "specific observations — UI, features visible, design language",' : ''}
+    ${manifest.productVideo.present ? `"video": "${manifest.productVideo.transcriptAvailable ? 'From Whisper transcript: specific content, features spoken, proof points stated' : 'Video uploaded, no transcript: contextual reasoning from brand'}", ` : ''}
+    ${manifest.prompt.present       ? '"prompt": "what you inferred from the stated direction",' : ''}
+    "summary": "one sentence on asset set strength for ad production"
   },
-  ${hasVideo ? `"videoAnalysis": {
-    "whatIObserved": [
-      "${hasTranscript ? 'specific thing from transcript — spoken content, feature mentioned, or proof point stated' : 'specific thing inferred from brand context about what this video demonstrates'}",
-      "specific observation",
-      "specific observation",
-      "specific observation"
-    ],
-    "strongestProofPoints": [
-      "specific moment or statement that proves the product works",
-      "specific moment or statement"
-    ],
-    "strongestAdMoments": [
-      "specific moment that would work cut into an ad — be precise",
-      "specific moment"
-    ],
-    "visualOpportunities": [
-      "specific visual that should become an ad scene",
-      "specific visual"
-    ],
-    "whatConcernsMe": [
-      "weak or confusing moment, missed opportunity in the video content"
-    ]
+  ${manifest.productVideo.present ? `"videoAnalysis": {
+    "whatIObserved": ["specific observation from transcript/context", "specific observation", "specific observation", "specific observation"],
+    "strongestProofPoints": ["specific proof point from video content", "specific proof point"],
+    "strongestAdMoments": ["specific moment that would work in an ad", "specific moment"],
+    "visualOpportunities": ["specific visual that should become an ad scene", "specific visual"],
+    "whatConcernsMe": ["quality concern about the video content — NOT existence concerns"]
   },` : ''}
   "whatIUnderstand": {
-    "whatTheyDo": "plain language — no jargon",
-    "whoTheyServe": "specific audience",
-    "whatStandsOut": "most notable thing about this business"
+    "whatTheyDo": "plain language, no jargon",
+    "whoTheyServe": "specific audience, not generic descriptors",
+    "whatStandsOut": "most notable or surprising thing about this business"
   },
-  "whatILike": [
-    "specific positive citing evidence — name what you saw",
-    "specific positive citing evidence",
-    "specific positive citing evidence"
-  ],
-  "whatConcernsMe": [
-    "specific concern citing evidence — name what you saw",
-    "specific concern citing evidence"
-  ],
-  "whatIWouldChange": [
-    "specific recommendation citing evidence",
-    "specific recommendation citing evidence",
-    "specific recommendation citing evidence"
-  ],
-  "whatYoureGettingWrong": [
-    "direct judgment citing evidence",
-    "direct judgment citing evidence",
-    "direct judgment citing evidence"
-  ],
+  "whatILike": ["positive with evidence — cite what you observed", "positive with evidence", "positive with evidence"],
+  "whatConcernsMe": ["concern with evidence — cite what you saw, quality of PRESENT assets only", "concern with evidence"],
+  "whatIWouldChange": ["recommendation with reasoning and evidence", "recommendation", "recommendation"],
+  "whatYoureGettingWrong": ["direct judgment citing evidence", "direct judgment", "direct judgment"],
   "whatIWouldTestFirst": {
     "testA": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
     "testB": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
     "testC": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
     "jarvispick": "A",
-    "whyThisWins": "2-3 sentences — specific argument for the chosen test"
+    "whyThisWins": "2-3 sentences — specific argument citing evidence"
   },
-  "missingUploadedAssets": [
-    { "asset": "ONLY assets NOT in the manifest — never list video/founder/product if they were uploaded", "impact": "what this prevents" }
-  ],
   "missingMarketingAssets": [
-    { "asset": "asset the business lacks publicly — unrelated to what was uploaded", "impact": "what this limits" },
-    { "asset": "specific asset", "impact": "specific limitation" },
-    { "asset": "specific asset", "impact": "specific limitation" }
+    { "asset": "something the business PUBLICLY lacks — unrelated to what was uploaded to Jarvis", "impact": "specific limitation in marketing" },
+    { "asset": "public marketing gap", "impact": "specific limitation" },
+    { "asset": "public marketing gap", "impact": "specific limitation" }
   ],
   "ifThisWereMyCompany": {
     "focus": "single most important strategic focus",
     "thirtyDayActions": [
       { "action": "specific — not generic", "why": "specific reason this matters now" },
-      { "action": "specific — not generic", "why": "specific reason this matters now" },
-      { "action": "specific — not generic", "why": "specific reason this matters now" },
-      { "action": "specific — not generic", "why": "specific reason this matters now" },
-      { "action": "specific — not generic", "why": "specific reason this matters now" }
+      { "action": "specific", "why": "specific reason" },
+      { "action": "specific", "why": "specific reason" },
+      { "action": "specific", "why": "specific reason" },
+      { "action": "specific", "why": "specific reason" }
     ]
   },
-  "founderOpportunity": ${hasFounder ? `{
+  "founderOpportunity": ${manifest.founderImage.present ? `{
     "howToUse": "specific role — cite what you observed in the image",
     "trustOpportunities": "cite what you saw that builds trust",
-    "authorityOpportunities": "cite what you observed that establishes authority",
+    "authorityOpportunities": "cite what establishes authority",
     "personalStory": "angle based on what you observed"
   }` : 'null'},
-  "productOpportunity": ${hasProduct || hasVideo ? `{
+  "productOpportunity": ${(manifest.productImages.present || manifest.productVideo.present) ? `{
     "whatStandsOut": "specific features — cite what you saw",
     "whatToEmphasize": "what should be front and center — cite evidence",
-    "visualMoments": "2-3 specific scenes from the assets that would work in ads"
+    "visualMoments": "2-3 specific scenes from the assets that work in ads"
   }` : 'null'},
   "competitiveIntelligence": {
     "competitors": [
@@ -225,31 +322,16 @@ Return ONLY valid JSON:
     ],
     "whyWeWin": ["specific advantage over named competitor", "specific advantage", "specific advantage"],
     "whyWeLose": ["specific weakness vs named competitor", "specific weakness"],
-    "whatWeMustImprove": ["recommendation naming a competitor", "recommendation naming a competitor", "recommendation naming a competitor"],
+    "whatWeMustImprove": ["recommendation naming a competitor", "recommendation", "recommendation"],
     "opportunityGap": "2-3 sentences on what direct competitors are not doing that this brand should do first"
   },
   "myRecommendedCampaign": {
     "headline": "bold statement — max 12 words",
-    "argument": "2-4 sentences first person — specific position, specific reasoning",
+    "argument": "2-4 sentences first person — specific position, cite evidence",
     "angle": "specific angle to lead with",
     "why": "why this beats the obvious alternatives"
   }
 }`
-
-    const userContent = `Brand analysis from understand route:
-${JSON.stringify(understanding, null, 2)}
-
-${understanding?.video?.transcript ? `VIDEO TRANSCRIPT (real Whisper audio from uploaded video):\n"${understanding.video.transcript}"` : ''}
-
-Uploaded asset manifest (same as in system prompt — use this as ground truth):
-- Website: ${hasWebsite ? assets.websiteUrl : 'NOT PROVIDED'}
-- Founder image: ${hasFounder ? 'YES' : 'NOT PROVIDED'}
-- Product images: ${hasProduct ? `YES (${assets?.productImageUrls?.length || 0})` : 'NOT PROVIDED'}
-- Video: ${hasVideo ? 'YES — DO NOT list as missing anywhere in your assessment' : 'NOT PROVIDED'}
-- Prompt: ${hasPrompt ? `"${prompt}"` : 'NONE'}
-${intent ? `- Ad type: ${intent.replace(/_/g, ' ')}` : ''}
-
-Write the full assessment. Every conclusion must cite evidence. Make judgments. Name direct competitors first.`
 
     const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -258,7 +340,7 @@ Write the full assessment. Every conclusion must cite evidence. Make judgments. 
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userContent },
+          { role: 'user',   content: `Here is the brand analysis context:\n\n${analysisContext.join('\n\n')}\n\nWrite the full strategic assessment. Cite evidence. Make judgments. Name direct competitors first.` },
         ],
         max_tokens: 4000,
         temperature: 0.75,
@@ -276,24 +358,14 @@ Write the full assessment. Every conclusion must cite evidence. Make judgments. 
       return NextResponse.json({ error: 'Failed to parse assessment' }, { status: 500 })
     }
 
-    // Deep sanitize: recursively remove any string in any field that contradicts the asset manifest.
-    // This is a deterministic safety net — runs after GPT regardless of what was generated.
-    assessment = sanitizeAssessment(assessment, hasVideo, hasFounder, hasProduct)
+    // Ensure GPT didn't sneak a missingUploadedAssets into its response — we own this field
+    delete assessment.missingUploadedAssets
 
-    // Additional structured filter for missingUploadedAssets
-    if (Array.isArray(assessment.missingUploadedAssets)) {
-      const blocklist = []
-      if (hasFounder) blocklist.push('founder', 'headshot', 'portrait', 'face', 'photo of founder')
-      if (hasProduct) blocklist.push('product image', 'product screenshot', 'product photo', 'screenshot')
-      if (hasVideo)   blocklist.push('video', 'footage', 'demo video', 'demo footage', 'recording', 'clip', 'screen recording', 'walkthrough', 'product video', 'brand video')
-      if (hasWebsite) blocklist.push('website', 'url', 'website link')
-      assessment.missingUploadedAssets = assessment.missingUploadedAssets.filter(item => {
-        const lower = (item?.asset || '').toLowerCase()
-        return !blocklist.some(kw => lower.includes(kw))
-      })
-    }
+    // Last-resort contradiction scan across all remaining GPT-generated text
+    assessment = sanitize(assessment, manifest)
 
-    return NextResponse.json({ assessment })
+    // Return assessment + manifest + code-computed missing list as separate fields
+    return NextResponse.json({ assessment, assetManifest: manifest, missingUploadedAssets })
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })

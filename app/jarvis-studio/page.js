@@ -66,10 +66,12 @@ export default function JarvisStudio() {
   const [statusItems, setStatusItems] = useState([])
 
   // ── Data state ───────────────────────────────────────────────────────────
-  const [uploadedAssets,  setUploadedAssets]  = useState(null)
-  const [understanding,   setUnderstanding]   = useState(null)
-  const [assessment,      setAssessment]      = useState(null)
-  const [creativeBrief,   setCreativeBrief]   = useState(null)
+  const [uploadedAssets,      setUploadedAssets]      = useState(null)
+  const [understanding,       setUnderstanding]       = useState(null)
+  const [assetManifest,       setAssetManifest]       = useState(null)
+  const [missingUploaded,     setMissingUploaded]     = useState([])
+  const [assessment,          setAssessment]          = useState(null)
+  const [creativeBrief,       setCreativeBrief]       = useState(null)
   const [storyboard,      setStoryboard]      = useState(null)
   const [previews,        setPreviews]        = useState({})
   const [previewsDone,    setPreviewsDone]    = useState(false)
@@ -147,7 +149,8 @@ export default function JarvisStudio() {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
     if (pollRef.current)  clearInterval(pollRef.current)
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
-    setUploadedAssets(null); setUnderstanding(null); setAssessment(null); setCreativeBrief(null)
+    setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
+    setAssessment(null); setCreativeBrief(null)
     setStoryboard(null); setPreviews({}); setPreviewsDone(false)
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
   }, [])
@@ -236,6 +239,8 @@ export default function JarvisStudio() {
       if (!aData.assessment) throw new Error(aData.error || 'Assessment failed')
       addStatus('assess', 'Assessment ready', 'done')
       setAssessment(aData.assessment)
+      setAssetManifest(aData.assetManifest || null)
+      setMissingUploaded(aData.missingUploadedAssets || [])
       setPhase('assessment')
 
     } catch (err) {
@@ -665,25 +670,29 @@ export default function JarvisStudio() {
             </div>
           </div>
 
-          {/* Assets Detected — computed from actual uploaded state, not GPT */}
-          {uploadedAssets && (() => {
-            const detected = [
-              { label:'Website URL',       present:!!(websiteUrl.trim()), key:'website' },
-              { label:'Founder Image',     present:!!(founderFile), key:'founder' },
-              { label:'Product Images',    present:!!(productFiles.length), key:'product', count:productFiles.length },
-              { label:'Product Video',     present:!!(videoFiles.length), key:'video' },
-              { label:'Music Track',       present:!!(uploadedAssets.musicUrl || uploadedAssets.musicTrackId || musicFile), key:'music' },
-              { label:'Creative Direction',present:!!(prompt?.trim()), key:'prompt' },
+          {/* Asset Manifest — source of truth used by Jarvis, returned from the route */}
+          {assetManifest && (() => {
+            const rows = [
+              { label:'Website URL',        present: assetManifest.website?.present,       detail: assetManifest.website?.scraped ? 'crawled' : null },
+              { label:'Founder Image',      present: assetManifest.founderImage?.present,  detail: null },
+              { label:'Product Images',     present: assetManifest.productImages?.present, detail: assetManifest.productImages?.count > 0 ? `${assetManifest.productImages.count} image${assetManifest.productImages.count > 1 ? 's' : ''}` : null },
+              { label:'Product Video',      present: assetManifest.productVideo?.present,  detail: assetManifest.productVideo?.transcriptAvailable ? 'transcribed' : assetManifest.productVideo?.present ? 'no transcript' : null },
+              { label:'Music Track',        present: assetManifest.music?.present,         detail: null },
+              { label:'Creative Direction', present: assetManifest.prompt?.present,        detail: null },
             ]
             return (
               <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'14px 18px', marginBottom:10 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Assets Detected</div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase' }}>Asset Manifest Used by Jarvis</div>
+                  <div style={{ fontSize:9, color:C.dim, background:C.raised, padding:'1px 6px', borderRadius:3 }}>source of truth</div>
+                </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-                  {detected.map(({ label, present, count }) => (
+                  {rows.map(({ label, present, detail }) => (
                     <div key={label} style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <span style={{ fontSize:11, color: present ? C.green : C.dim, flexShrink:0 }}>{present ? '✓' : '✗'}</span>
                       <span style={{ fontSize:12, color: present ? C.secondary : C.ghost }}>
-                        {label}{count > 1 ? ` (${count})` : ''}
+                        {label}
+                        {detail && <span style={{ fontSize:10, color:C.ghost, marginLeft:4 }}>· {detail}</span>}
                       </span>
                     </div>
                   ))}
@@ -911,13 +920,13 @@ export default function JarvisStudio() {
             </div>
           )}
 
-          {/* Missing Uploaded Assets */}
-          {assessment.missingUploadedAssets?.length > 0 && (
+          {/* Missing Uploaded Assets — computed by code from assetManifest, never from GPT */}
+          {missingUploaded?.length > 0 && (
             <div style={{ borderRadius:10, border:`1px solid ${C.red}22`, background:C.redBg, padding:'16px 18px', marginBottom:10 }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.red}88`, textTransform:'uppercase', marginBottom:4 }}>Missing Uploaded Assets</div>
               <div style={{ fontSize:11, color:C.ghost, marginBottom:10 }}>Assets you did not upload to Jarvis for this session.</div>
-              {assessment.missingUploadedAssets.map((item, i) => (
-                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingUploadedAssets.length - 1 ? `1px solid #2a0808` : 'none' }}>
+              {missingUploaded.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < missingUploaded.length - 1 ? `1px solid #2a0808` : 'none' }}>
                   <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:'#200000', color:`${C.red}66`, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>Not uploaded</span>
                   <div>
                     <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{item.asset}</div>
