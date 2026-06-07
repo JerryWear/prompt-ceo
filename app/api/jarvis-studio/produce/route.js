@@ -239,7 +239,14 @@ export async function POST(req) {
           // Runway only accepts exactly 5 or 10 seconds
           const duration = (scene.duration || 5) >= 8 ? 10 : 5
 
-          const promptText = (scene.visual_direction || scene.dalle_prompt || '').trim() || 'Cinematic scene'
+          // Strip people/testimonial references from promptText — Runway content moderation
+          // rejects prompts mentioning real individuals, testimonials, faces, etc.
+          const rawPrompt = (scene.visual_direction || scene.dalle_prompt || '').trim()
+          const promptText = (rawPrompt
+            .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|creator|professional|user|customer|client|testimonial|satisfied|smil\w*|candid|interview|talking|speaking)\b/gi, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+          ) || `Cinematic ${scene.label || 'scene'} visual, dark moody aesthetic`
 
           const runwayBody = {
             model: 'gen4_turbo',

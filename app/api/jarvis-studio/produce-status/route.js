@@ -193,9 +193,11 @@ export async function POST(req) {
             const videoUrl = data?.output?.[0] || null
             updatedSceneJobs[i] = { ...job, status: 'complete', videoUrl }
           } else if (taskStatus === 'FAILED' || taskStatus === 'CANCELLED') {
-            updatedSceneJobs[i] = { ...job, status: 'error', error: `Runway ${taskStatus}` }
+            const reason = data?.failure_code || data?.failure || data?.error?.message || taskStatus
+            console.error('[produce-status] Runway task failed:', job.taskId, reason, JSON.stringify(data).slice(0, 300))
+            updatedSceneJobs[i] = { ...job, status: 'error', error: `Runway: ${reason}` }
           }
-        } catch {}
+        } catch (e) { console.error('[produce-status] Runway poll error:', e.message) }
       }
     }
 
