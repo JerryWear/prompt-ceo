@@ -45,22 +45,26 @@ export async function POST(req) {
     const heygenScenes = concept.scenes.filter(s => s.generator === 'heygen' && s.script)
     const runwayScenes = concept.scenes.filter(s => s.generator === 'runway')
 
-    let avatarId   = null
+    let avatarId     = null
     let avatarStatus = 'not_needed'
+    let avatarError  = null
 
-    // Create HeyGen photo avatar if founder image provided
-    if (heygenScenes.length > 0 && assets?.founderStoragePath) {
+    // ── HeyGen: Create photo avatar ──────────────────────────────────────────
+    if (heygenScenes.length > 0) {
       if (!heygenKey) {
         avatarStatus = 'no_key'
+      } else if (!assets?.founderStoragePath) {
+        avatarStatus = 'no_founder_image'
       } else {
         try {
           const { data: signedData } = await admin.storage
             .from(assets.founderBucket || 'edit-studio-exports')
-            .createSignedUrl(assets.founderStoragePath, 3600)
+            .createSignedUrl(assets.founderStoragePath, 7200) // 2-hour window
 
           const signedUrl = signedData?.signedUrl
-          if (!signedUrl) throw new Error('Could not create signed URL for founder image')
+          if (!signedUrl) throw new Error('Could not generate signed URL for founder image')
 
+          // Try v3 photo avatar creation
           const avatarRes = await fetch('https://api.heygen.com/v3/avatars', {
             method: 'POST',
             headers: { 'X-Api-Key': heygenKey, 'Content-Type': 'application/json' },
@@ -70,70 +74,130 @@ export async function POST(req) {
               file: { type: 'url', url: signedUrl },
             }),
           })
+
           const avatarData = await avatarRes.json()
-          avatarId = avatarData?.data?.avatar_item?.id || avatarData?.data?.id
+
+          // Handle multiple possible response shapes
+          avatarId =
+            avatarData?.data?.avatar_item?.id ||
+            avatarData?.data?.id ||
+            avatarData?.data?.avatar_id ||
+            null
+
           if (avatarId) {
-            avatarStatus = avatarData?.data?.avatar_item?.status === 'processing' ? 'processing' : 'ready'
+            const rawStatus = (
+              avatarData?.data?.avatar_item?.status ||
+              avatarData?.data?.status ||
+              'processing'
+            ).toLowerCase()
+
+            if (rawStatus === 'processing' || rawStatus === 'pending' || rawStatus === 'queued' || rawStatus === 'training') {
+              avatarStatus = 'processing'
+            } else {
+              avatarStatus = 'ready'
+            }
           } else {
-            console.error('HeyGen avatar: no ID returned', JSON.stringify(avatarData).slice(0, 300))
+            const errDetail = avatarData?.error?.message || avatarData?.message || JSON.stringify(avatarData).slice(0, 200)
+            console.error('HeyGen avatar creation: no ID returned.', errDetail)
             avatarStatus = 'error'
+            avatarError = `HeyGen avatar creation failed: ${errDetail}`
           }
         } catch (e) {
           console.error('HeyGen avatar creation error:', e.message)
           avatarStatus = 'error'
+          avatarError = e.message
         }
       }
-    } else if (heygenScenes.length > 0) {
-      avatarStatus = 'no_founder_image'
     }
 
-    // Get HeyGen voice
+    // ── HeyGen: Get voice ID ─────────────────────────────────────────────────
     let voiceId = null
     if (heygenKey && heygenScenes.length > 0) {
       try {
         const voiceRes = await fetch('https://api.heygen.com/v2/voices', {
           headers: { 'X-Api-Key': heygenKey },
         })
-        const voiceData = await voiceRes.json()
-        const voices = (voiceData?.data?.voices || []).filter(v => v.language === 'English' || v.locale?.startsWith('en'))
-        voiceId = voices[0]?.voice_id || null
+        if (voiceRes.ok) {
+          const voiceData = await voiceRes.json()
+          const voices = (voiceData?.data?.voices || []).filter(
+            v => v.language === 'English' || v.locale?.startsWith('en') || v.language_code?.startsWith('en')
+          )
+          voiceId = voices[0]?.voice_id || null
+        }
       } catch {}
+      // voiceId remains null if fetch fails — video generation will still attempt without it
     }
 
-    // Start scene jobs
+    // ── Build scene jobs ─────────────────────────────────────────────────────
     const sceneJobs = []
 
     for (const scene of concept.scenes) {
       if (scene.generator === 'heygen') {
-        if (!heygenKey || !avatarId || avatarStatus === 'error') {
-          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: avatarStatus === 'processing' ? 'awaiting_avatar' : 'skipped', videoId: null, videoUrl: null })
+        // No key or no founder image → skip gracefully
+        if (!heygenKey || avatarStatus === 'no_key' || avatarStatus === 'no_founder_image') {
+          sceneJobs.push({
+            sceneId: scene.id, generator: 'heygen',
+            status: 'skipped_no_key', script: scene.script || '',
+            videoId: null, videoUrl: null,
+          })
           continue
         }
+
+        // Avatar creation failed → error
+        if (avatarStatus === 'error' || !avatarId) {
+          sceneJobs.push({
+            sceneId: scene.id, generator: 'heygen',
+            status: 'error', script: scene.script || '',
+            error: avatarError || 'Avatar creation failed',
+            videoId: null, videoUrl: null,
+          })
+          continue
+        }
+
+        // Avatar still processing → queue for later
         if (avatarStatus === 'processing') {
-          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'awaiting_avatar', script: scene.script || '', videoId: null, videoUrl: null })
+          sceneJobs.push({
+            sceneId: scene.id, generator: 'heygen',
+            status: 'awaiting_avatar', script: scene.script || '',
+            videoId: null, videoUrl: null,
+          })
           continue
         }
-        // Avatar ready — start video generation
+
+        // Avatar ready → start generation immediately
         try {
+          const genBody = {
+            video_inputs: [{
+              character: { type: 'avatar', avatar_id: avatarId, avatar_style: 'normal' },
+              voice: {
+                type: 'text',
+                input_text: scene.script || 'Hello.',
+                speed: 1.0,
+              },
+              background: { type: 'color', value: '#0a0a0a' },
+            }],
+            dimension: { width: 1080, height: 1920 },
+            test: false,
+          }
+          if (voiceId) genBody.video_inputs[0].voice.voice_id = voiceId
+
           const genRes = await fetch('https://api.heygen.com/v2/video/generate', {
             method: 'POST',
             headers: { 'X-Api-Key': heygenKey, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              video_inputs: [{
-                character: { type: 'avatar', avatar_id: avatarId, avatar_style: 'normal' },
-                voice: { type: 'text', input_text: scene.script, voice_id: voiceId, speed: 1.0 },
-                background: { type: 'color', value: '#0a0a0a' },
-              }],
-              dimension: { width: 1080, height: 1920 },
-              test: false,
-            }),
+            body: JSON.stringify(genBody),
           })
           const genData = await genRes.json()
           const videoId = genData?.data?.video_id
-          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: videoId ? 'generating' : 'error', videoId: videoId || null, videoUrl: null })
+          if (videoId) {
+            sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'generating', script: scene.script || '', videoId, videoUrl: null })
+          } else {
+            const errMsg = genData?.error?.message || genData?.message || JSON.stringify(genData).slice(0, 200)
+            sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'error', script: scene.script || '', error: `HeyGen generate: ${errMsg}`, videoId: null, videoUrl: null })
+          }
         } catch (e) {
-          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'error', videoId: null, videoUrl: null, error: e.message })
+          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'error', script: scene.script || '', error: e.message, videoId: null, videoUrl: null })
         }
+
       } else if (scene.generator === 'runway') {
         if (!runwayKey) {
           sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'skipped_no_key', taskId: null, videoUrl: null })
@@ -160,14 +224,19 @@ export async function POST(req) {
           })
           const runData = await runRes.json()
           const taskId = runData?.id
-          sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: taskId ? 'generating' : 'error', taskId: taskId || null, videoUrl: null })
+          if (taskId) {
+            sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'generating', taskId, videoUrl: null })
+          } else {
+            const errMsg = runData?.error?.message || runData?.message || JSON.stringify(runData).slice(0, 200)
+            sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'error', error: `Runway: ${errMsg}`, taskId: null, videoUrl: null })
+          }
         } catch (e) {
-          sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'error', taskId: null, videoUrl: null, error: e.message })
+          sceneJobs.push({ sceneId: scene.id, generator: 'runway', status: 'error', error: e.message, taskId: null, videoUrl: null })
         }
       }
     }
 
-    // Resolve music URL from library track if needed
+    // ── Resolve music URL ────────────────────────────────────────────────────
     let resolvedMusicUrl = musicUrl || null
     if (musicTrackId && !resolvedMusicUrl) {
       const { data: track } = await admin.from('music_tracks').select('preview_url').eq('id', musicTrackId).single()
@@ -179,13 +248,14 @@ export async function POST(req) {
       conceptTitle: concept.title,
       avatarId,
       avatarStatus,
+      avatarError:  avatarError || null,
       voiceId,
       heygenKey:    heygenKey ? 'present' : 'missing',
       runwayKey:    runwayKey ? 'present' : 'missing',
       sceneJobs,
       musicUrl:     resolvedMusicUrl,
-      assemblyJobId:  null,
-      assemblyStatus: null,
+      pollCount:    0,
+      startedAt:    Date.now(),
     }
 
     return NextResponse.json({ status: 'success', jobs })

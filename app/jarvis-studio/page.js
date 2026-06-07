@@ -217,6 +217,10 @@ export default function JarvisStudio() {
     setAssessment(null); setCreativeBrief(null)
     setStoryboard(null); setPreviews({}); setPreviewsDone(false)
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
+    // Also clear founder/product/video inputs
+    setFounderFile(null); setFounderBlobUrl(null)
+    setProductFiles([]); setVideoFiles([])
+    setWebsiteUrl(''); setPrompt('')
   }, [])
 
   const hasAnyInput = !!(websiteUrl.trim() || founderFile || productFiles.length || videoFiles.length || prompt.trim())
@@ -434,12 +438,11 @@ export default function JarvisStudio() {
           })
           const pData = await pRes.json()
           if (pData.jobs) { currentJobs = pData.jobs; setProductionJobs(pData.jobs) }
-          if (pData.overallStatus === 'complete') {
+          if (pData.overallStatus === 'complete' || pData.overallStatus === 'partial') {
             clearInterval(pollRef.current); setFinalAd(pData.finalAd); setPhase('complete')
           } else if (pData.overallStatus === 'failed') {
             clearInterval(pollRef.current)
-            setError(pData.error || 'Production failed. Check your HeyGen / Runway integration.')
-            setPhase('storyboard')
+            setPhase('failed')
           }
         } catch {}
       }, 8000)
@@ -449,6 +452,11 @@ export default function JarvisStudio() {
       setPhase('storyboard')
     }
   }, [previews, uploadedAssets])
+
+  const handleCancelProduction = useCallback(() => {
+    if (pollRef.current) clearInterval(pollRef.current)
+    setPhase('storyboard')
+  }, [])
 
   // ── Render ────────────────────────────────────────────────────────────────
   const previewCount = Object.keys(previews).length
@@ -1360,10 +1368,16 @@ export default function JarvisStudio() {
       {/* ── PRODUCING ─────────────────────────────────────────────────────────── */}
       {phase === 'producing' && selectedConcept && (
         <div style={{ maxWidth:580, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .35s ease both' }}>
-          <div style={{ marginBottom:22 }}>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ Producing</div>
-            <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>{selectedConcept.title}</div>
-            <div style={{ fontSize:12, color:C.ghost }}>{selectedConcept.logline}</div>
+          <div style={{ marginBottom:22, display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+            <div>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ Producing</div>
+              <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>{selectedConcept.title}</div>
+              <div style={{ fontSize:12, color:C.ghost }}>{selectedConcept.logline}</div>
+            </div>
+            <button onClick={handleCancelProduction}
+              style={{ padding:'7px 14px', borderRadius:7, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:11, flexShrink:0, marginTop:22 }}>
+              Cancel
+            </button>
           </div>
 
           {productionJobs?.heygenKey === 'missing' && (
@@ -1378,20 +1392,32 @@ export default function JarvisStudio() {
               <a href="/account" style={{ color:C.teal, textDecoration:'underline' }}>Connect in Settings</a>
             </div>
           )}
+          {productionJobs?.avatarError && (
+            <div style={{ padding:'11px 14px', borderRadius:8, background:C.redBg, border:`1px solid ${C.red}33`, marginBottom:14, fontSize:12, color:'#e08080' }}>
+              ⚠ {productionJobs.avatarError}
+            </div>
+          )}
 
           <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom:22 }}>
             {selectedConcept.scenes.map(scene => {
               const job    = productionJobs?.sceneJobs?.find(j => j.sceneId === scene.id)
               const status = job?.status || 'queued'
-              const dotColor = status === 'complete' ? C.green : ['generating', 'awaiting_avatar', 'starting', 'avatar_ready_needs_start'].includes(status) ? C.gold : C.dim
+              const isActive = ['generating', 'awaiting_avatar', 'starting', 'avatar_ready_needs_start'].includes(status)
+              const dotColor = status === 'complete' ? C.green : status === 'error' ? C.red : isActive ? C.gold : C.dim
               const statusLabel = {
-                queued: 'Queued', generating: 'Generating...', awaiting_avatar: 'Waiting for avatar...',
-                complete: 'Done ✓', error: 'Error', skipped: 'Skipped', skipped_no_key: 'No API key',
-                avatar_ready_needs_start: 'Starting...', starting: 'Starting...',
+                queued:                   'Queued',
+                generating:               'Generating...',
+                awaiting_avatar:          `Waiting for avatar${productionJobs?.pollCount > 5 ? ` (${productionJobs.pollCount} polls)` : '...'}`,
+                complete:                 'Done ✓',
+                error:                    job?.error ? `Error: ${job.error.slice(0, 60)}` : 'Error',
+                skipped:                  'Skipped',
+                skipped_no_key:           'No API key',
+                avatar_ready_needs_start: 'Starting...',
+                starting:                 'Starting...',
               }[status] || status
               return (
-                <div key={scene.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, background:C.surface, border:`1px solid ${C.border}` }}>
-                  <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background:dotColor, animation:['generating','awaiting_avatar'].includes(status) ? 'pulse .9s infinite' : 'none' }} />
+                <div key={scene.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, background:C.surface, border:`1px solid ${status === 'error' ? `${C.red}33` : C.border}` }}>
+                  <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background:dotColor, animation: isActive ? 'pulse .9s infinite' : 'none' }} />
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:12, fontWeight:600, color:C.secondary }}>{scene.label}</div>
                     <div style={{ fontSize:10, color:C.ghost, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1402,52 +1428,115 @@ export default function JarvisStudio() {
                     <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, fontWeight:700, background:scene.generator === 'heygen' ? C.goldBg : C.tealBg, color:scene.generator === 'heygen' ? C.gold : C.teal }}>
                       {scene.generator === 'heygen' ? 'HeyGen' : 'Runway'}
                     </span>
-                    <span style={{ fontSize:10, color:status === 'complete' ? C.green : C.ghost }}>{statusLabel}</span>
+                    <span style={{ fontSize:10, color: status === 'complete' ? C.green : status === 'error' ? C.red : C.ghost, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {statusLabel}
+                    </span>
                   </div>
                 </div>
               )
             })}
           </div>
 
-          {productionJobs?.assemblyStatus && !['complete', null, undefined].includes(productionJobs.assemblyStatus) && (
-            <div style={{ padding:'10px 14px', borderRadius:8, background:C.goldBg, border:`1px solid ${C.goldBorder}`, marginBottom:14, fontSize:12, color:C.gold }}>
-              <span style={{ display:'inline-block', animation:'pulse 1s infinite', marginRight:6 }}>●</span>
-              Assembling final MP4...
+          {productionJobs?.pollCount > 0 && (
+            <div style={{ fontSize:11, color:C.dim, textAlign:'center', marginBottom:14 }}>
+              {productionJobs.pollCount < 45
+                ? `Checking status... poll ${productionJobs.pollCount} of 45 max`
+                : 'Timeout reached — resolving stuck scenes'}
             </div>
           )}
 
           <div style={{ fontSize:12, color:C.dim, textAlign:'center', lineHeight:1.7 }}>
-            This typically takes 4–10 minutes. You can leave and return.
+            Avatar creation takes 3–8 minutes. If this hangs, use Cancel and try a Runway-only concept.
+          </div>
+        </div>
+      )}
+
+      {/* ── FAILED ────────────────────────────────────────────────────────────── */}
+      {phase === 'failed' && selectedConcept && (
+        <div style={{ maxWidth:560, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .35s ease both' }}>
+          <div style={{ textAlign:'center', marginBottom:24 }}>
+            <div style={{ width:44, height:44, borderRadius:'50%', background:C.redBg, border:`1px solid ${C.red}44`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>✕</div>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.red}88`, textTransform:'uppercase', marginBottom:8 }}>Production Failed</div>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>{selectedConcept.title}</div>
+            <div style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>All scenes either errored or were skipped. No clips were produced.</div>
+          </div>
+
+          {/* Show what failed and why */}
+          {productionJobs?.sceneJobs?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'14px 16px', marginBottom:18 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Scene Diagnostics</div>
+              {productionJobs.sceneJobs.map((job, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:8, paddingBottom:8, borderBottom: i < productionJobs.sceneJobs.length - 1 ? `1px solid ${C.divide}` : 'none' }}>
+                  <span style={{ fontSize:10, color: job.status === 'error' ? C.red : C.dim, flexShrink:0 }}>{job.status === 'error' ? '✕' : '—'}</span>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:12, color:C.secondary }}>{job.sceneId} · {job.generator}</div>
+                    <div style={{ fontSize:11, color:C.ghost }}>{job.error || job.status}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {productionJobs?.avatarError && (
+            <div style={{ padding:'11px 14px', borderRadius:8, background:C.redBg, border:`1px solid ${C.red}33`, marginBottom:18, fontSize:12, color:'#e08080' }}>
+              Avatar error: {productionJobs.avatarError}
+            </div>
+          )}
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setPhase('storyboard')}
+              style={{ flex:1, padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.secondary, cursor:'pointer', fontSize:12 }}>
+              ← Try Another Concept
+            </button>
+            <button onClick={resetAll}
+              style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
+              New Project
+            </button>
           </div>
         </div>
       )}
 
       {/* ── COMPLETE ──────────────────────────────────────────────────────────── */}
       {phase === 'complete' && (
-        <div style={{ maxWidth:600, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .4s ease both' }}>
+        <div style={{ maxWidth:640, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .4s ease both' }}>
           <div style={{ textAlign:'center', marginBottom:24 }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:C.greenBg, border:`1px solid ${C.green}44`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>✓</div>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:C.green, textTransform:'uppercase', marginBottom:8 }}>Ad Ready</div>
+            <div style={{ width:44, height:44, borderRadius:'50%', background:finalAd?.partial ? '#0a0700' : C.greenBg, border:`1px solid ${finalAd?.partial ? `${C.gold}44` : `${C.green}44`}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>
+              {finalAd?.partial ? '⚡' : '✓'}
+            </div>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color: finalAd?.partial ? C.gold : C.green, textTransform:'uppercase', marginBottom:8 }}>
+              {finalAd?.partial ? 'Partial Complete' : 'Clips Ready'}
+            </div>
             <div style={{ fontSize:22, fontWeight:800 }}>{selectedConcept?.title}</div>
+            {finalAd?.partial && (
+              <div style={{ fontSize:12, color:C.muted, marginTop:6 }}>
+                {finalAd.sceneCount} of {finalAd.totalScenes} scenes produced — download what's ready
+              </div>
+            )}
           </div>
 
-          {finalAd?.exportUrl && (
-            <div style={{ marginBottom:18, borderRadius:10, overflow:'hidden', border:`1px solid ${C.border}` }}>
-              <video src={finalAd.exportUrl} controls playsInline style={{ width:'100%', display:'block', background:'#000', maxHeight:480 }} />
+          {/* Show each completed clip individually */}
+          {finalAd?.clips?.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
+              {finalAd.clips.map((clip, i) => (
+                <div key={i} style={{ borderRadius:10, overflow:'hidden', border:`1px solid ${C.border}`, background:C.surface }}>
+                  <video src={clip.videoUrl} controls playsInline style={{ width:'100%', display:'block', background:'#000', maxHeight:420 }} />
+                  <div style={{ padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:11, color:C.ghost }}>Scene {i + 1}{clip.sceneId ? ` — ${clip.sceneId}` : ''}</span>
+                    <a href={clip.videoUrl} download target="_blank" rel="noopener noreferrer"
+                      style={{ padding:'6px 14px', borderRadius:6, background:C.gold, color:'#000', textDecoration:'none', fontSize:11, fontWeight:800 }}>
+                      Download
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
           <div style={{ display:'flex', gap:10, marginBottom:18 }}>
-            {finalAd?.exportUrl && (
-              <a href={finalAd.exportUrl} download target="_blank" rel="noopener noreferrer"
-                style={{ flex:1, padding:'13px 20px', borderRadius:8, background:C.gold, color:'#000', textDecoration:'none', fontSize:13, fontWeight:800, textAlign:'center', textTransform:'uppercase', letterSpacing:1.5 }}>
-                Download MP4
-              </a>
-            )}
-            <button onClick={() => setPhase('storyboard')} style={{ padding:'13px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
-              Other Concepts
+            <button onClick={() => setPhase('storyboard')} style={{ flex:1, padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.secondary, cursor:'pointer', fontSize:12 }}>
+              ← Other Concepts
             </button>
-            <button onClick={resetAll} style={{ padding:'13px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
+            <button onClick={resetAll} style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
               New Project
             </button>
           </div>
@@ -1468,8 +1557,9 @@ export default function JarvisStudio() {
             <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:8 }}>Production Summary</div>
               <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
-                <div style={{ fontSize:12, color:C.muted }}>{finalAd.sceneCount} scenes assembled</div>
-                {finalAd.musicUsed && <div style={{ fontSize:12, color:C.muted }}>Music: included</div>}
+                <div style={{ fontSize:12, color:C.muted }}>{finalAd.sceneCount} scene{finalAd.sceneCount !== 1 ? 's' : ''} completed</div>
+                {finalAd.partial && <div style={{ fontSize:12, color:C.gold }}>{finalAd.totalScenes - finalAd.sceneCount} scenes errored</div>}
+                {finalAd.musicUsed && <div style={{ fontSize:12, color:C.muted }}>Music: selected (not mixed)</div>}
               </div>
             </div>
           )}
