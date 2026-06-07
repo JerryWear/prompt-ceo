@@ -388,33 +388,48 @@ export default function JarvisStudio() {
       // Generate previews ONE CONCEPT AT A TIME to avoid flooding DALL-E with 15+ parallel calls.
       // Promise.all across all concepts causes rate-limit failures and silent 0/25 hangs.
       let failCount = 0
+      let firstDalleError = ''
+      let totalLoaded = 0
       for (const concept of sData.storyboard.concepts) {
         try {
-          const pRes  = await fetch('/api/jarvis-studio/preview-scenes', {
+          const pRes = await fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scenes: concept.scenes.map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, label: s.label })) }),
+            body: JSON.stringify({ scenes: concept.scenes.map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label })) }),
           })
           if (!pRes.ok) { failCount++; continue }
           const pData = await pRes.json()
           if (pData.previews) {
-            setPreviews(prev => {
-              const next = { ...prev }
-              pData.previews.forEach(p => { if (p.imageUrl) next[p.id] = p.imageUrl })
-              return next
-            })
+            const loaded = pData.previews.filter(p => p.imageUrl)
+            totalLoaded += loaded.length
+            if (loaded.length === 0) {
+              // All images in this concept failed — surface the actual DALL-E error
+              failCount++
+              if (!firstDalleError) {
+                firstDalleError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
+              }
+            } else {
+              setPreviews(prev => {
+                const next = { ...prev }
+                loaded.forEach(p => { next[p.id] = p.imageUrl })
+                return next
+              })
+            }
           } else {
             failCount++
+            if (!firstDalleError) firstDalleError = pData.error || 'No previews returned'
           }
-        } catch {
+        } catch (e) {
           failCount++
+          if (!firstDalleError) firstDalleError = e.message
         }
       }
 
-      if (failCount > 0 && failCount === sData.storyboard.concepts.length) {
-        setPreviewError('Preview images could not load — you can still produce any concept.')
+      const totalScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.length, 0)
+      if (failCount > 0 && totalLoaded === 0) {
+        setPreviewError(`Preview images failed to generate. ${firstDalleError ? `Error: ${firstDalleError.slice(0, 120)}` : 'You can still produce — images will be regenerated automatically.'}`)
       } else if (failCount > 0) {
-        setPreviewError(`${failCount} concept(s) had preview errors — affected scenes show as blank.`)
+        setPreviewError(`${totalLoaded}/${totalScenes} previews loaded. You can still produce affected concepts.`)
       }
       setPreviewsDone(true)
 
@@ -1359,7 +1374,7 @@ export default function JarvisStudio() {
                     {' '}Generating previews ({previewCount}/{storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)})
                   </span>
                 )}
-                {storyboard && previewsDone && !previewError && <span style={{ marginLeft:10, color:C.green }}>✓ Previews ready</span>}
+                {storyboard && previewsDone && !previewError && <span style={{ marginLeft:10, color:C.green }}>✓ {Object.keys(previews).length} previews loaded</span>}
                 {storyboard && previewsDone && previewError && <span style={{ marginLeft:10, color:C.gold }}>⚠ {previewError}</span>}
               </div>
             </div>
