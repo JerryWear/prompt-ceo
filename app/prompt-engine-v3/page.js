@@ -15590,10 +15590,12 @@ export default function PromptCEOPage() {
           </a>
           {[
             { label: 'Home',        href: '/dashboard',                       active: false },
-            { label: 'Studio',      href: '/prompt-engine-v3',                active: s.view !== 'ad_studio' },
-            { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio', active: s.view === 'ad_studio' },
-            { label: 'Edit Studio', href: '/edit-studio/v2',                  active: false },
-            { label: 'Brands',      href: '/brands',                          active: false },
+            { label: 'Studio',         href: '/prompt-engine-v3',                active: s.view !== 'ad_studio' },
+            { label: 'Ad Studio',     href: '/prompt-engine-v3?view=ad_studio', active: s.view === 'ad_studio' },
+            { label: 'Edit Studio',   href: '/edit-studio/v2',                  active: false },
+            { label: 'Jarvis Studio', href: '/jarvis-studio',                   active: false },
+            { label: 'Avatar Studio', href: '/avatar-studio',                   active: false },
+            { label: 'Brands',        href: '/brands',                          active: false },
           ].map(({ label, href, active }) => (
             <a key={label} href={href} style={{
               fontSize: 12, fontWeight: active ? 600 : 400,

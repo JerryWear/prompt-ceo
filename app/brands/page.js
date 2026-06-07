@@ -13,11 +13,13 @@ const C = {
 }
 
 const NAV = [
-  { label: 'Home',        href: '/dashboard',                       active: false },
-  { label: 'Studio',      href: '/prompt-engine-v3?view=studio',    active: false },
-  { label: 'Ad Studio',   href: '/prompt-engine-v3?view=ad_studio', active: false },
-  { label: 'Edit Studio', href: '/edit-studio/v2',                  active: false },
-  { label: 'Brands',      href: '/brands',                          active: true  },
+  { label: 'Home',          href: '/dashboard',                       active: false },
+  { label: 'Studio',        href: '/prompt-engine-v3?view=studio',    active: false },
+  { label: 'Ad Studio',     href: '/prompt-engine-v3?view=ad_studio', active: false },
+  { label: 'Edit Studio',   href: '/edit-studio/v2',                  active: false },
+  { label: 'Jarvis Studio', href: '/jarvis-studio',                   active: false },
+  { label: 'Avatar Studio', href: '/avatar-studio',                   active: false },
+  { label: 'Brands',        href: '/brands',                          active: true  },
 ]
 
 function fmtDate(s) {
