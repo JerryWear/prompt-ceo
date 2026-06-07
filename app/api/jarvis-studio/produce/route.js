@@ -55,10 +55,10 @@ export async function POST(req) {
         for (const s of missing) {
           if (!xaiKey) { console.error('[produce] XAI_API_KEY not configured — skipping fallback'); break }
           try {
-            const raw = (s.visual_direction || s.dalle_prompt || '').slice(0, 200)
-              .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|model|creator|professional|user|customer|client|brand|apple|google|meta|nike|[\w]+\.com)\b/gi, '')
+            const raw = (s.dalle_prompt || s.visual_direction || '').slice(0, 400)
+              .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview)\b/gi, '')
               .replace(/\s{2,}/g, ' ').trim()
-            const prompt = `Cinematic vertical advertisement frame, ${s.label || 'scene'} concept. ${raw ? raw + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos.`
+            const prompt = `${raw || `Cinematic vertical advertisement frame, ${s.label || 'scene'}`}. No people, no faces, no logos, vertical 9:16 format.`
             const r = await fetch('https://api.x.ai/v1/images/generations', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
@@ -239,14 +239,14 @@ export async function POST(req) {
           // Runway only accepts exactly 5 or 10 seconds
           const duration = (scene.duration || 5) >= 8 ? 10 : 5
 
-          // Strip people/testimonial references from promptText — Runway content moderation
-          // rejects prompts mentioning real individuals, testimonials, faces, etc.
+          // Strip people/face words from promptText — Runway content moderation rejects them.
+          // Keep all brand/product/environment context — that's what makes the video relevant.
           const rawPrompt = (scene.visual_direction || scene.dalle_prompt || '').trim()
           const promptText = (rawPrompt
-            .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|creator|professional|user|customer|client|testimonial|satisfied|smil\w*|candid|interview|talking|speaking)\b/gi, '')
+            .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head)\b/gi, '')
             .replace(/\s{2,}/g, ' ')
             .trim()
-          ) || `Cinematic ${scene.label || 'scene'} visual, dark moody aesthetic`
+          ) || `Cinematic ${scene.label || 'scene'} visual`
 
           const runwayBody = {
             model: 'gen4_turbo',

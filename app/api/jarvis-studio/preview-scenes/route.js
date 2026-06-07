@@ -18,15 +18,17 @@ async function makeSupabase() {
 // We replace it with a safe abstract prompt that still captures the scene mood.
 function buildSafePrompt(scene) {
   const label = (scene.label || 'Scene').toLowerCase()
-  const direction = (scene.visual_direction || scene.dalle_prompt || '').slice(0, 200)
+  // dalle_prompt is more image-generation-ready than visual_direction — prefer it
+  const direction = (scene.dalle_prompt || scene.visual_direction || '').slice(0, 400)
 
-  // Extract mood/vibe words, strip people/brand references
+  // Strip only explicit people/face/person words — keep all brand/product context
   const safe = direction
-    .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|model|creator|professional|user|customer|client|brand|apple|google|meta|nike|[\w]+\.com)\b/gi, '')
+    .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head|looking at camera)\b/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  return `Cinematic vertical advertisement frame, ${label} scene concept. ${safe ? safe + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos, photorealistic product aesthetic.`
+  // Use the brand-specific content from the storyboard prompt — never replace it with generic text
+  return `${safe || `Cinematic vertical advertisement frame, ${label} scene`}. No people, no faces, no logos, vertical 9:16 format.`
 }
 
 async function generatePreviewImage(scene) {

@@ -73,11 +73,18 @@ Rules:
 - "generator": "heygen" = founder speaks to camera. ONLY use heygen if hasFounder is true (${hasFounder})
 - "generator": "runway" = AI-generated video. Use for all visual/cinematic scenes
 - assetAssignment tells Runway/HeyGen which uploaded asset to reference
-- DALL-E prompts: photorealistic, vertical 9:16, cinematic, ultra-detailed, shot on RED, 8K
 - Scripts: punchy, specific to THIS brand — never generic. Sound like a real person, not an ad
 - Scene durations must sum to exactly total_duration
 - First scene = hook. Last scene = CTA.
-- Return ONLY valid JSON.`,
+- Return ONLY valid JSON.
+
+CRITICAL — RUNWAY SCENES (visual_direction and dalle_prompt):
+Runway AI CANNOT generate realistic human faces. For all runway scenes:
+- NEVER describe people, faces, smiling clients, testimonials showing humans, or "person using product"
+- INSTEAD: describe what THIS SPECIFIC PRODUCT looks like in action, what its world feels like, what it PRODUCES — based entirely on the product description and brief above
+- Your visual directions must be specific to THIS brand — not generic tech imagery. Use the product name, its actual features, its real outputs, its brand aesthetic as described
+- If the scene is a testimonial: show the OUTCOME or RESULT this product creates for its users (what success looks like for THEM) — in the product's own visual language
+- The dalle_prompt is used to generate a preview image. Make it brand-specific and people-free.`,
           },
           {
             role: 'user',
