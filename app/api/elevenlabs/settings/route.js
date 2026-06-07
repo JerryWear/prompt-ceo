@@ -46,13 +46,6 @@ export async function POST(req) {
     if (!apiKey?.trim()) return NextResponse.json({ status: 'error', message: 'API key required' }, { status: 400 })
 
     const cleanKey = apiKey.replace(/\s/g, '')
-    const testRes = await fetch('https://api.elevenlabs.io/v1/user', {
-      headers: { 'xi-api-key': cleanKey },
-    })
-    // Only reject on explicit auth failure — 429 (rate limit) and other codes still mean key is real
-    if (testRes.status === 401 || testRes.status === 403) {
-      return NextResponse.json({ status: 'error', message: 'Invalid ElevenLabs API key — please check you copied the full key' }, { status: 400 })
-    }
 
     await admin().from('user_integrations').upsert({
       user_id: user.id,
