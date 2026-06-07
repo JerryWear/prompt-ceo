@@ -60,14 +60,41 @@ export async function POST(req) {
       } catch {}
     }
 
+    // 1b. If avatar is in a terminal failure state, drain any awaiting_avatar scenes to error
+    if (['error', 'no_founder_image', 'no_key'].includes(updatedJobs.avatarStatus)) {
+      for (let i = 0; i < updatedSceneJobs.length; i++) {
+        const job = updatedSceneJobs[i]
+        if (job.generator === 'heygen' && (job.status === 'awaiting_avatar' || job.status === 'avatar_ready_needs_start')) {
+          updatedSceneJobs[i] = { ...job, status: 'error', error: `Avatar ${updatedJobs.avatarStatus}` }
+        }
+      }
+    }
+
     // 2. If avatar just became ready, start any queued heygen jobs
     if (updatedJobs.avatarStatus === 'ready' && jobs.avatarId && heygenKey) {
       for (let i = 0; i < updatedSceneJobs.length; i++) {
         const job = updatedSceneJobs[i]
-        if (job.generator === 'heygen' && job.status === 'awaiting_avatar') {
-          // We don't have the script here — return to frontend to re-call produce for these scenes
-          // For now mark as 'starting' — the frontend should re-call produce with remaining scenes
-          updatedSceneJobs[i] = { ...job, status: 'avatar_ready_needs_start' }
+        if (job.generator === 'heygen' && (job.status === 'awaiting_avatar' || job.status === 'avatar_ready_needs_start')) {
+          try {
+            const genRes = await fetch('https://api.heygen.com/v2/video/generate', {
+              method: 'POST',
+              headers: { 'X-Api-Key': heygenKey, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                video_inputs: [{
+                  character: { type: 'avatar', avatar_id: jobs.avatarId, avatar_style: 'normal' },
+                  voice: { type: 'text', input_text: job.script || '', voice_id: jobs.voiceId, speed: 1.0 },
+                  background: { type: 'color', value: '#0a0a0a' },
+                }],
+                dimension: { width: 1080, height: 1920 },
+                test: false,
+              }),
+            })
+            const genData = await genRes.json()
+            const videoId = genData?.data?.video_id
+            updatedSceneJobs[i] = { ...job, status: videoId ? 'generating' : 'error', videoId: videoId || null }
+          } catch (e) {
+            updatedSceneJobs[i] = { ...job, status: 'error', error: e.message }
+          }
         }
       }
     }

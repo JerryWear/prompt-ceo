@@ -51,32 +51,37 @@ export async function POST(req) {
     // Create HeyGen photo avatar if founder image provided
     if (heygenScenes.length > 0 && assets?.founderStoragePath) {
       if (!heygenKey) {
-        return NextResponse.json({ error: 'HeyGen API key not connected. Go to Account Settings to add it.' }, { status: 400 })
-      }
-      try {
-        // Create signed URL for founder image
-        const { data: signedData } = await admin.storage
-          .from(assets.founderBucket || 'edit-studio-exports')
-          .createSignedUrl(assets.founderStoragePath, 3600)
+        avatarStatus = 'no_key'
+      } else {
+        try {
+          const { data: signedData } = await admin.storage
+            .from(assets.founderBucket || 'edit-studio-exports')
+            .createSignedUrl(assets.founderStoragePath, 3600)
 
-        const signedUrl = signedData?.signedUrl
-        if (!signedUrl) throw new Error('Could not create signed URL for founder image')
+          const signedUrl = signedData?.signedUrl
+          if (!signedUrl) throw new Error('Could not create signed URL for founder image')
 
-        const avatarRes = await fetch('https://api.heygen.com/v3/avatars', {
-          method: 'POST',
-          headers: { 'X-Api-Key': heygenKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'photo',
-            name: `jarvis_${concept.id}_${Date.now()}`,
-            file: { type: 'url', url: signedUrl },
-          }),
-        })
-        const avatarData = await avatarRes.json()
-        avatarId = avatarData?.data?.avatar_item?.id || avatarData?.data?.id
-        avatarStatus = avatarData?.data?.avatar_item?.status === 'processing' ? 'processing' : 'ready'
-      } catch (e) {
-        console.error('HeyGen avatar creation error:', e.message)
-        avatarStatus = 'error'
+          const avatarRes = await fetch('https://api.heygen.com/v3/avatars', {
+            method: 'POST',
+            headers: { 'X-Api-Key': heygenKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'photo',
+              name: `jarvis_${concept.id}_${Date.now()}`,
+              file: { type: 'url', url: signedUrl },
+            }),
+          })
+          const avatarData = await avatarRes.json()
+          avatarId = avatarData?.data?.avatar_item?.id || avatarData?.data?.id
+          if (avatarId) {
+            avatarStatus = avatarData?.data?.avatar_item?.status === 'processing' ? 'processing' : 'ready'
+          } else {
+            console.error('HeyGen avatar: no ID returned', JSON.stringify(avatarData).slice(0, 300))
+            avatarStatus = 'error'
+          }
+        } catch (e) {
+          console.error('HeyGen avatar creation error:', e.message)
+          avatarStatus = 'error'
+        }
       }
     } else if (heygenScenes.length > 0) {
       avatarStatus = 'no_founder_image'
@@ -105,7 +110,7 @@ export async function POST(req) {
           continue
         }
         if (avatarStatus === 'processing') {
-          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'awaiting_avatar', videoId: null, videoUrl: null })
+          sceneJobs.push({ sceneId: scene.id, generator: 'heygen', status: 'awaiting_avatar', script: scene.script || '', videoId: null, videoUrl: null })
           continue
         }
         // Avatar ready — start video generation
