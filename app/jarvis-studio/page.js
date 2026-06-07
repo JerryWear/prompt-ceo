@@ -33,6 +33,69 @@ async function uploadAsset(file) {
   return { publicUrl: data.publicUrl, storagePath: data.storagePath, bucket: data.bucket }
 }
 
+// Extracts 5 representative frames from a video file using the Canvas API.
+// Works in the browser — no server-side FFmpeg required.
+async function extractVideoFrames(videoFile) {
+  return new Promise((resolve) => {
+    const video      = document.createElement('video')
+    const canvas     = document.createElement('canvas')
+    const ctx        = canvas.getContext('2d')
+    const url        = URL.createObjectURL(videoFile)
+    const frames     = []
+    const PERCENTS   = [0.1, 0.25, 0.5, 0.75, 0.9]
+    let   index      = 0
+    let   settled    = false
+
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      URL.revokeObjectURL(url)
+      video.src = ''
+      resolve(result)
+    }
+
+    const timer = setTimeout(() => finish(frames), 25000)
+
+    video.preload   = 'metadata'
+    video.muted     = true
+
+    video.onloadedmetadata = () => {
+      const MAX_W = 1280
+      const ratio = video.videoWidth / (video.videoHeight || 1)
+      if (video.videoWidth > MAX_W) {
+        canvas.width  = MAX_W
+        canvas.height = Math.round(MAX_W / ratio)
+      } else {
+        canvas.width  = video.videoWidth  || 1280
+        canvas.height = video.videoHeight || 720
+      }
+
+      const seekNext = () => {
+        if (index >= PERCENTS.length) { clearTimeout(timer); finish(frames); return }
+        video.currentTime = video.duration * PERCENTS[index]
+      }
+
+      video.onseeked = () => {
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+          canvas.toBlob((blob) => {
+            if (blob) frames.push({ blob, label: `${Math.round(PERCENTS[index] * 100)}pct` })
+            index++
+            seekNext()
+          }, 'image/jpeg', 0.82)
+        } catch { index++; seekNext() }
+      }
+
+      video.onerror = () => { clearTimeout(timer); finish(frames) }
+      seekNext()
+    }
+
+    video.onerror = () => { clearTimeout(timer); finish([]) }
+    video.src = url
+    video.load()
+  })
+}
+
 export default function JarvisStudio() {
   const router   = useRouter()
   const supabase = createClient()
@@ -204,6 +267,28 @@ export default function JarvisStudio() {
       }
       setUploadedAssets(assets)
 
+      // Extract video frames client-side for visual analysis (no FFmpeg required)
+      const videoFrameUrls = []
+      if (videoFiles.length > 0) {
+        addStatus('frames', 'Extracting video frames for visual analysis', 'active')
+        try {
+          const frames = await extractVideoFrames(videoFiles[0].file)
+          if (frames.length > 0) {
+            const frameResults = await Promise.allSettled(
+              frames.map(({ blob, label }) =>
+                uploadAsset(new File([blob], `frame_${label}.jpg`, { type: 'image/jpeg' }))
+              )
+            )
+            frameResults.forEach(r => {
+              if (r.status === 'fulfilled' && r.value?.publicUrl) videoFrameUrls.push(r.value.publicUrl)
+            })
+          }
+          addStatus('frames', videoFrameUrls.length > 0 ? `${videoFrameUrls.length} frames extracted` : 'Frame extraction skipped', 'done')
+        } catch {
+          addStatus('frames', 'Frame extraction skipped', 'done')
+        }
+      }
+
       if (websiteUrl.trim())    addStatus('url',     'Crawling website',         'active')
       if (founderAsset)         addStatus('founder', 'Analyzing founder image',  'active')
       if (productAssets.length) addStatus('product', 'Analyzing product images', 'active')
@@ -218,6 +303,7 @@ export default function JarvisStudio() {
           founderImageUrl:  assets.founderImageUrl,
           productImageUrls: assets.productImageUrls,
           videoUrl:         assets.videoUrls[0] || null,
+          videoFrameUrls,
           prompt:           prompt.trim() || null,
           intent:           activeIntent,
         }),

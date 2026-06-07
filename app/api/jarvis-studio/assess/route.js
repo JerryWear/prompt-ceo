@@ -19,10 +19,12 @@ async function makeSupabase() {
 // ---------------------------------------------------------------------------
 function buildAssetManifest(assets, understanding, promptText) {
   // Video is present if: upload succeeded (videoUrls has entries) OR user had
-  // a video file selected (videoProvided flag) OR understand route marked it present
+  // a video file selected (videoProvided flag) OR frames were analyzed
+  // OR understand route marked it present
   const videoPresent = !!(
     assets?.videoUrls?.length ||
     assets?.videoProvided ||
+    understanding?.video?.framesAnalyzed ||
     understanding?.video?.present
   )
 
@@ -51,8 +53,10 @@ function buildAssetManifest(assets, understanding, promptText) {
       present: videoPresent,
       url: assets?.videoUrls?.[0] || null,
       transcriptAvailable: !!(understanding?.video?.transcript),
+      framesAnalyzed: !!(understanding?.video?.framesAnalyzed),
       transcript: understanding?.video?.transcript || null,
       analysis: understanding?.video?.analysis || null,
+      visualAnalysis: understanding?.video?.visualAnalysis || null,
     },
     music: {
       present: !!(assets?.musicUrl || assets?.musicTrackId),
@@ -191,7 +195,7 @@ WHAT EXISTS (FACTS — DO NOT CONTRADICT THESE):
 ${manifest.website.present         ? `✓ Website URL: ${manifest.website.url} — crawled and brand data extracted` : '✗ Website: not provided'}
 ${manifest.founderImage.present    ? `✓ Founder image: uploaded and analyzed by vision model` : '✗ Founder image: not provided'}
 ${manifest.productImages.present   ? `✓ Product images: ${manifest.productImages.count} image(s) uploaded and analyzed` : '✗ Product images: not provided'}
-${manifest.productVideo.present    ? `✓ Product video: uploaded${manifest.productVideo.transcriptAvailable ? ', Whisper transcript available' : ', no audio transcript'}` : '✗ Product video: not provided'}
+${manifest.productVideo.present    ? `✓ Product video: uploaded${manifest.productVideo.transcriptAvailable ? ', Whisper audio transcript available' : ', no audio transcript'}${manifest.productVideo.framesAnalyzed ? ', visual frames analyzed by GPT-4o Vision' : ''}` : '✗ Product video: not provided'}
 ${manifest.music.present           ? `✓ Music track: provided` : '✗ Music: not provided'}
 ${manifest.prompt.present          ? `✓ Creative direction: "${manifest.prompt.text}"` : '✗ No creative direction stated'}
 
@@ -232,13 +236,28 @@ Key visuals: ${manifest.productImages.keyVisuals}`)
     }
 
     if (manifest.productVideo.present) {
+      const videoParts = []
       if (manifest.productVideo.transcriptAvailable) {
-        analysisContext.push(`PRODUCT VIDEO — WHISPER TRANSCRIPT (real spoken content):
-"${manifest.productVideo.transcript}"`)
+        videoParts.push(`AUDIO TRANSCRIPT (Whisper — real spoken content):\n"${manifest.productVideo.transcript}"`)
       } else {
-        analysisContext.push(`PRODUCT VIDEO — uploaded, no audio transcript available.
-Video analysis from context: ${manifest.productVideo.analysis || 'Reason from brand context.'}`)
+        videoParts.push(`Audio transcript: not available (silent or no narration)`)
       }
+      if (manifest.productVideo.framesAnalyzed && manifest.productVideo.visualAnalysis) {
+        const va = manifest.productVideo.visualAnalysis
+        videoParts.push(`VISUAL FRAME ANALYSIS (GPT-4o Vision — 5 frames captured across the video):
+Observed screens/sections: ${(va.observedScreens || []).join(', ') || 'none identified'}
+Detected features: ${(va.detectedFeatures || []).join(', ') || 'none identified'}
+Visible text: ${(va.visibleText || []).join(', ') || 'none identified'}
+Workflow summary: ${va.workflowSummary || 'not identified'}
+Strongest moments: ${(va.strongestMoments || []).join(' | ') || 'none identified'}
+Ad opportunities from frames: ${(va.adOpportunities || []).join(' | ') || 'none identified'}`)
+      } else if (!manifest.productVideo.framesAnalyzed) {
+        videoParts.push(`Visual frame analysis: not performed`)
+        if (manifest.productVideo.analysis) {
+          videoParts.push(`Context-based video inference: ${manifest.productVideo.analysis}`)
+        }
+      }
+      analysisContext.push(`PRODUCT VIDEO:\n${videoParts.join('\n\n')}`)
     }
 
     if (manifest.prompt.present) {
@@ -269,15 +288,15 @@ Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the sys
     ${manifest.website.present      ? '"website": "specific headlines and copy observed from the crawled site",' : ''}
     ${manifest.founderImage.present ? '"founderImage": "specific observations from the image — appearance, setting, authority signals",' : ''}
     ${manifest.productImages.present? '"productImages": "specific observations — UI, features visible, design language",' : ''}
-    ${manifest.productVideo.present ? `"video": "${manifest.productVideo.transcriptAvailable ? 'From Whisper transcript: specific content, features spoken, proof points stated' : 'Video uploaded, no transcript: contextual reasoning from brand'}", ` : ''}
+    ${manifest.productVideo.present ? `"video": "${manifest.productVideo.framesAnalyzed ? 'From visual frames: list the specific screens, UI elements, and features you saw — be literal. ' : ''}${manifest.productVideo.transcriptAvailable ? 'From Whisper transcript: specific content, features spoken, proof points stated.' : 'Video uploaded, no transcript: contextual reasoning from brand.'}",` : ''}
     ${manifest.prompt.present       ? '"prompt": "what you inferred from the stated direction",' : ''}
     "summary": "one sentence on asset set strength for ad production"
   },
   ${manifest.productVideo.present ? `"videoAnalysis": {
-    "whatIObserved": ["specific observation from transcript/context", "specific observation", "specific observation", "specific observation"],
-    "strongestProofPoints": ["specific proof point from video content", "specific proof point"],
-    "strongestAdMoments": ["specific moment that would work in an ad", "specific moment"],
-    "visualOpportunities": ["specific visual that should become an ad scene", "specific visual"],
+    "whatIObserved": [${manifest.productVideo.framesAnalyzed ? '"specific screen or feature I saw in the frames — be literal"' : '"specific observation from transcript or context"'}, "specific observation", "specific observation", "specific observation"],
+    "strongestProofPoints": ["specific proof point — cite audio transcript or visual frame", "specific proof point"],
+    "strongestAdMoments": [${manifest.productVideo.framesAnalyzed ? '"frame at X position showed Y — this becomes an ad scene because..."' : '"moment that would work in an ad"'}, "specific moment"],
+    "visualOpportunities": [${manifest.productVideo.framesAnalyzed ? '"I saw [specific screen] — this should become an ad scene showing [specific benefit]"' : '"specific visual that should become an ad scene"'}, "specific visual"],
     "whatConcernsMe": ["quality concern about the video content — NOT existence concerns"]
   },` : ''}
   "whatIUnderstand": {

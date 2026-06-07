@@ -55,7 +55,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, prompt, intent } = await req.json()
+    const { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, videoFrameUrls = [], prompt, intent } = await req.json()
 
     // 1. Scrape website + transcribe video in parallel
     const [webContent, videoTranscript] = await Promise.all([
@@ -97,14 +97,29 @@ export async function POST(req) {
       if (videoTranscript) {
         userContent.push({
           type: 'text',
-          text: `VIDEO — WHISPER TRANSCRIPT (actual spoken content from the uploaded video):\n"${videoTranscript.slice(0, 3000)}"\n\nBased on this transcript: identify the product being demonstrated, key features mentioned, the tone and style of presentation, and what proof points are established. This is real content from the video.`,
+          text: `VIDEO — WHISPER AUDIO TRANSCRIPT (spoken content captured from the uploaded video):\n"${videoTranscript.slice(0, 3000)}"\n\nBased on this transcript: identify the product being demonstrated, key features mentioned, the tone and style of presentation, and what proof points are established. This is real audio content from the video.`,
         })
       } else {
         userContent.push({
           type: 'text',
-          text: `VIDEO UPLOADED: A product/brand video was uploaded. Transcription was not available (file may be too large or contain no audio). Set video.present = true. Reason about the video based on brand context — what a founder-led product demo for this category typically demonstrates.`,
+          text: `VIDEO UPLOADED: A product/brand video was uploaded. Audio transcription was not available (file may be silent, too large, or contain no narration — this is normal for screen recordings and product demos). Set video.present = true.`,
         })
       }
+    }
+
+    if (videoFrameUrls.length > 0) {
+      userContent.push({
+        type: 'text',
+        text: `VIDEO FRAMES — VISUAL ANALYSIS (${videoFrameUrls.length} frames extracted at evenly-spaced intervals from the uploaded video). Study each frame carefully and identify UI elements, text, screens, workflows, people, products, and any visual content that reveals what this video demonstrates:`,
+      })
+      const LABELS = ['10%', '25%', '50%', '75%', '90%']
+      videoFrameUrls.slice(0, 5).forEach((url, i) => {
+        userContent.push({ type: 'image_url', image_url: { url, detail: 'high' } })
+        userContent.push({
+          type: 'text',
+          text: `Frame at ${LABELS[i] || `position ${i + 1}`}: List EVERY specific thing you see — UI screens, navigation elements, text on screen, product features, menus, workflows, people, settings. Be literal and precise.`,
+        })
+      })
     }
 
     if (prompt) {
@@ -114,7 +129,7 @@ export async function POST(req) {
       userContent.push({ type: 'text', text: `DESIRED AD TYPE: ${intent.replace(/_/g, ' ')}` })
     }
 
-    const hasContent = webContent || founderImageUrl || productImageUrls.length || videoUrl || prompt
+    const hasContent = webContent || founderImageUrl || productImageUrls.length || videoUrl || videoFrameUrls.length || prompt
     if (!hasContent) return NextResponse.json({ error: 'At least one input is required' }, { status: 400 })
 
     userContent.push({
@@ -148,9 +163,18 @@ export async function POST(req) {
     "keyVisuals": "what stands out visually that could anchor an ad"
   },
   "video": {
-    "present": ${!!videoUrl},
+    "present": ${!!(videoUrl || videoFrameUrls.length > 0)},
     "transcriptAvailable": ${!!videoTranscript},
-    "analysis": "${videoTranscript ? 'Based on Whisper transcript' : 'No transcript — reasoning from context'}: describe what this video shows, what it demonstrates, and how it could be used in ads"
+    "framesAnalyzed": ${videoFrameUrls.length > 0},
+    "analysis": "Combine audio transcript and visual frames to describe what this video shows, what it demonstrates, and how it could be used in ads",
+    "visualAnalysis": ${videoFrameUrls.length > 0 ? `{
+      "observedScreens": ["list every distinct screen, section, UI panel, or workflow step you saw across all frames — name them specifically"],
+      "detectedFeatures": ["specific product features, buttons, menu items, or capabilities visible"],
+      "visibleText": ["key text strings, headings, labels, or copy visible in frames"],
+      "workflowSummary": "one precise sentence describing the workflow or story shown across frames",
+      "strongestMoments": ["describe the most visually compelling or distinctive frames and why"],
+      "adOpportunities": ["specific visual moments from the frames that would make powerful ad scenes"]
+    }` : 'null'}
   },
   "adReadiness": {
     "strongestAsset": "founder | product | website | video | prompt",
@@ -174,7 +198,7 @@ export async function POST(req) {
         ],
         temperature: 0.2,
         response_format: { type: 'json_object' },
-        max_tokens: 2000,
+        max_tokens: 2500,
       }),
     })
 
@@ -189,12 +213,16 @@ export async function POST(req) {
     }
 
     // Force ground-truth fields — GPT cannot override what we know was provided
-    if (founderImageUrl)          understanding.founder = { ...understanding.founder, present: true }
-    if (videoUrl)                 understanding.video   = { ...understanding.video,   present: true, transcriptAvailable: !!videoTranscript }
-    if (productImageUrls.length)  understanding.products = { ...understanding.products, count: Math.max(understanding.products?.count || 0, productImageUrls.length) }
+    if (founderImageUrl)                          understanding.founder = { ...understanding.founder, present: true }
+    if (videoUrl || videoFrameUrls.length > 0)    understanding.video   = { ...understanding.video,   present: true, transcriptAvailable: !!videoTranscript, framesAnalyzed: videoFrameUrls.length > 0 }
+    if (productImageUrls.length)  understanding.products = { ...understanding.products,  count: Math.max(understanding.products?.count || 0, productImageUrls.length) }
 
-    // Attach transcript for the assess route to use
-    if (videoTranscript) understanding.video.transcript = videoTranscript.slice(0, 2000)
+    // Attach transcript and visual analysis for the assess route to use
+    if (videoTranscript)            understanding.video.transcript     = videoTranscript.slice(0, 2000)
+    if (videoFrameUrls.length > 0 && understanding.video.visualAnalysis === null) {
+      // GPT returned null despite frames being sent — force an empty object so assess knows frames were attempted
+      understanding.video.visualAnalysis = { observedScreens: [], detectedFeatures: [], visibleText: [], workflowSummary: 'Visual analysis incomplete', strongestMoments: [], adOpportunities: [] }
+    }
 
     return NextResponse.json({ status: 'success', understanding })
 
