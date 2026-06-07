@@ -244,13 +244,32 @@ Key visuals: ${manifest.productImages.keyVisuals}`)
       }
       if (manifest.productVideo.framesAnalyzed && manifest.productVideo.visualAnalysis) {
         const va = manifest.productVideo.visualAnalysis
-        videoParts.push(`VISUAL FRAME ANALYSIS (GPT-4o Vision — 5 frames captured across the video):
-Observed screens/sections: ${(va.observedScreens || []).join(', ') || 'none identified'}
-Detected features: ${(va.detectedFeatures || []).join(', ') || 'none identified'}
+
+        const frameList = (va.frames || []).map(f =>
+          `  [${f.position}] ${f.label} [${f.confidence}]: ${(f.elements || []).join(', ')}`
+        ).join('\n')
+
+        const screenList = (va.observedScreens || []).map(s =>
+          typeof s === 'string' ? s : `${s.name} (${s.confidence}, frame ${s.seenAt})`
+        ).join(' | ') || 'none identified'
+
+        const featureList = (va.detectedFeatures || []).map(f =>
+          typeof f === 'string' ? f : `${f.name} (${f.confidence}, frame ${f.seenAt})`
+        ).join(' | ') || 'none identified'
+
+        const oppList = (va.adOpportunities || []).map(o =>
+          typeof o === 'string' ? o : `Frame ${o.frame}: ${o.opportunity}`
+        ).join(' | ') || 'none identified'
+
+        videoParts.push(`VISUAL FRAME ANALYSIS (GPT-4o Vision — ${va.frames?.length || 5} frames):
+Per-frame breakdown:
+${frameList || '  (no frame data)'}
+
+Observed screens (with confidence): ${screenList}
+Detected features (with confidence): ${featureList}
 Visible text: ${(va.visibleText || []).join(', ') || 'none identified'}
-Workflow summary: ${va.workflowSummary || 'not identified'}
-Strongest moments: ${(va.strongestMoments || []).join(' | ') || 'none identified'}
-Ad opportunities from frames: ${(va.adOpportunities || []).join(' | ') || 'none identified'}`)
+Workflow: ${va.workflowSummary || 'not identified'}
+Ad opportunities: ${oppList}`)
       } else if (!manifest.productVideo.framesAnalyzed) {
         videoParts.push(`Visual frame analysis: not performed`)
         if (manifest.productVideo.analysis) {
@@ -264,7 +283,7 @@ Ad opportunities from frames: ${(va.adOpportunities || []).join(' | ') || 'none 
       analysisContext.push(`CREATIVE DIRECTION: "${manifest.prompt.text}"`)
     }
 
-    const systemPrompt = `You are Jarvis — a senior Creative Director, Marketing Strategist, and Competitive Intelligence Analyst with 20 years building direct-response campaigns.
+    const systemPrompt = `You are Jarvis — a senior Creative Director, Marketing Strategist, and Competitive Intelligence Analyst with 20 years building direct-response campaigns. You form strong opinions, challenge bad assumptions, and tell founders what they do not want to hear when it matters.
 
 ${factBlock}
 
@@ -272,14 +291,28 @@ EVIDENCE-FIRST RULE — every conclusion must cite what you observed:
 - Wrong: "Your founder builds trust."
 - Right: "The founder image shows a professional in a structured environment, which supports authority-based positioning."
 - Wrong: "The product looks premium."
-- Right: "The uploaded screenshot shows a dark dashboard with gold UI accents, signaling enterprise-grade positioning."
+- Right: "The uploaded screenshot at frame 50% shows a dark dashboard with gold UI accents, signaling enterprise-grade positioning."
+- Wrong: "The video likely shows..."
+- Right: "At frame 25%, I observed [specific element]. This tells me [specific conclusion]."
+
+CONFIDENCE RULE — when frame evidence exists, use it. When you are inferring, say so:
+- High Confidence: you directly observed it in a frame or transcript
+- Medium Confidence: you are inferring from surrounding context
+- Low Confidence: you are speculating — label it as such
+
+OPINION RULE — Jarvis has opinions. Strong, specific, defensible ones:
+- Challenge the obvious: "I would not lead with AI. Everyone leads with AI. Your pricing comparison is the real differentiator."
+- Name wrong priorities: "You are emphasizing [X] when [Y] is demonstrably stronger."
+- Rank explicitly: "This feature is more valuable than you are treating it."
+- Push back on conventional wisdom: "Most founders in this space make this mistake. I believe customers care more about [X] than [Y]."
+- Forbidden hedge language in whatYoureGettingWrong: "may", "might", "could", "perhaps", "potentially", "possibly", "seems to", "appears to". Replace every hedge with a direct judgment.
 
 COMPETITIVE INTELLIGENCE RULE:
 Identify DIRECT product competitors first — companies doing the exact same job for the same buyer.
 For AI ad/creative tools: Creatify, Arcads, AdCreative.ai, Pencil, HeyGen, Synthesia are direct competitors.
 Canva, Adobe, Visme are NOT direct competitors unless this product is a design tool.
 
-VOICE: Direct. Specific. Opinionated. No generic marketing language.
+VOICE: Direct. Specific. Opinionated. First-person where natural.
 NEVER use: revolutionize, game-changer, cutting-edge, innovative, seamless, future of, groundbreaking, world-class, disruptive, transformative, leverage, synergy, empower.
 
 Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the system computes this):
@@ -288,16 +321,24 @@ Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the sys
     ${manifest.website.present      ? '"website": "specific headlines and copy observed from the crawled site",' : ''}
     ${manifest.founderImage.present ? '"founderImage": "specific observations from the image — appearance, setting, authority signals",' : ''}
     ${manifest.productImages.present? '"productImages": "specific observations — UI, features visible, design language",' : ''}
-    ${manifest.productVideo.present ? `"video": "${manifest.productVideo.framesAnalyzed ? 'From visual frames: list the specific screens, UI elements, and features you saw — be literal. ' : ''}${manifest.productVideo.transcriptAvailable ? 'From Whisper transcript: specific content, features spoken, proof points stated.' : 'Video uploaded, no transcript: contextual reasoning from brand.'}",` : ''}
+    ${manifest.productVideo.present ? `"video": "${manifest.productVideo.framesAnalyzed ? 'From visual frames: cite each frame by position and name exactly what you saw there. ' : ''}${manifest.productVideo.transcriptAvailable ? 'From Whisper transcript: cite specific spoken content, features named, proof points stated.' : 'Video uploaded, no transcript.'}",` : ''}
     ${manifest.prompt.present       ? '"prompt": "what you inferred from the stated direction",' : ''}
     "summary": "one sentence on asset set strength for ad production"
   },
   ${manifest.productVideo.present ? `"videoAnalysis": {
-    "whatIObserved": [${manifest.productVideo.framesAnalyzed ? '"specific screen or feature I saw in the frames — be literal"' : '"specific observation from transcript or context"'}, "specific observation", "specific observation", "specific observation"],
-    "strongestProofPoints": ["specific proof point — cite audio transcript or visual frame", "specific proof point"],
-    "strongestAdMoments": [${manifest.productVideo.framesAnalyzed ? '"frame at X position showed Y — this becomes an ad scene because..."' : '"moment that would work in an ad"'}, "specific moment"],
-    "visualOpportunities": [${manifest.productVideo.framesAnalyzed ? '"I saw [specific screen] — this should become an ad scene showing [specific benefit]"' : '"specific visual that should become an ad scene"'}, "specific visual"],
-    "whatConcernsMe": ["quality concern about the video content — NOT existence concerns"]
+    ${manifest.productVideo.framesAnalyzed ? `"frameEvidence": [
+      { "position": "10%", "label": "use exact label from frame analysis", "keyObservation": "what this frame tells me about the product or brand" },
+      { "position": "25%", "label": "exact label", "keyObservation": "what I concluded" },
+      { "position": "50%", "label": "exact label", "keyObservation": "what I concluded" },
+      { "position": "75%", "label": "exact label", "keyObservation": "what I concluded" },
+      { "position": "90%", "label": "exact label", "keyObservation": "what I concluded" }
+    ],` : ''}
+    "strongestProofMoment": { "frame": "${manifest.productVideo.framesAnalyzed ? 'cite exact position e.g. 50%' : 'from transcript/context'}", "label": "what this shows", "observation": "exactly what I observed — be literal", "whyItWorks": "why this specific moment proves the product works" },
+    "strongestConversionMoment": { "frame": "${manifest.productVideo.framesAnalyzed ? 'cite exact position' : 'from transcript/context'}", "label": "what this shows", "observation": "exactly what I observed", "whyItWorks": "why a prospect seeing this would convert" },
+    "strongestTrustMoment": { "frame": "${manifest.productVideo.framesAnalyzed ? 'cite exact position' : 'from transcript/context'}", "label": "what this shows", "observation": "exactly what I observed", "whyItWorks": "why this builds credibility with a skeptical buyer" },
+    "strongestSocialAdMoment": { "frame": "${manifest.productVideo.framesAnalyzed ? 'cite exact position' : 'from transcript/context'}", "label": "what this shows", "observation": "exactly what I observed", "whyItWorks": "why this stops the scroll on Instagram or TikTok" },
+    "strongestLandingPageMoment": { "frame": "${manifest.productVideo.framesAnalyzed ? 'cite exact position' : 'from transcript/context'}", "label": "what this shows", "observation": "exactly what I observed", "whyItWorks": "why this should be on the hero section of the landing page" },
+    "whatConcernsMe": ["quality concern about the video content — cite which frame or transcript segment — NOT existence concerns"]
   },` : ''}
   "whatIUnderstand": {
     "whatTheyDo": "plain language, no jargon",
@@ -352,6 +393,11 @@ Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the sys
     "whatWeMustImprove": ["recommendation naming a competitor", "recommendation", "recommendation"],
     "opportunityGap": "2-3 sentences on what direct competitors are not doing that this brand should do first"
   },
+  "prioritizedOpportunities": [
+    { "rank": 1, "opportunity": "short name — 2-4 words", "evidence": "specific evidence from assets — cite frame position or transcript segment", "immediateAction": "the single most important thing to do with this opportunity right now" },
+    { "rank": 2, "opportunity": "short name", "evidence": "specific evidence", "immediateAction": "most important action" },
+    { "rank": 3, "opportunity": "short name", "evidence": "specific evidence", "immediateAction": "most important action" }
+  ],
   "myRecommendedCampaign": {
     "headline": "bold statement — max 12 words",
     "argument": "2-4 sentences first person — specific position, cite evidence",

@@ -765,7 +765,7 @@ export default function JarvisStudio() {
               { label:'Website URL',        present: assetManifest.website?.present,       detail: assetManifest.website?.scraped ? 'crawled' : null },
               { label:'Founder Image',      present: assetManifest.founderImage?.present,  detail: null },
               { label:'Product Images',     present: assetManifest.productImages?.present, detail: assetManifest.productImages?.count > 0 ? `${assetManifest.productImages.count} image${assetManifest.productImages.count > 1 ? 's' : ''}` : null },
-              { label:'Product Video',      present: assetManifest.productVideo?.present,  detail: assetManifest.productVideo?.transcriptAvailable ? 'transcribed' : assetManifest.productVideo?.present ? 'no transcript' : null },
+              { label:'Product Video',      present: assetManifest.productVideo?.present,  detail: assetManifest.productVideo?.framesAnalyzed ? 'frames analyzed' : assetManifest.productVideo?.transcriptAvailable ? 'transcribed' : assetManifest.productVideo?.present ? 'no transcript' : null },
               { label:'Music Track',        present: assetManifest.music?.present,         detail: null },
               { label:'Creative Direction', present: assetManifest.prompt?.present,        detail: null },
             ]
@@ -819,48 +819,68 @@ export default function JarvisStudio() {
             <div style={{ borderRadius:10, border:`1px solid ${C.purple}33`, background:C.purpleBg, padding:'16px 18px', marginBottom:10 }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.purple}99`, textTransform:'uppercase', marginBottom:14 }}>Video Analysis</div>
 
-              {assessment.videoAnalysis.whatIObserved?.length > 0 && (
-                <div style={{ marginBottom:14 }}>
-                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.purple}66`, textTransform:'uppercase', marginBottom:8 }}>What I Observed</div>
-                  {assessment.videoAnalysis.whatIObserved.map((item, i) => (
-                    <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
-                      <span style={{ color:C.purple, fontSize:9, marginTop:3, flexShrink:0 }}>▸</span>
-                      <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
-                    </div>
-                  ))}
+              {/* Frame Evidence strip */}
+              {assessment.videoAnalysis.frameEvidence?.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.purple}66`, textTransform:'uppercase', marginBottom:8 }}>Frame Evidence</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:5 }}>
+                    {assessment.videoAnalysis.frameEvidence.map((frame, i) => (
+                      <div key={i} style={{ padding:'8px 9px', borderRadius:6, background:`${C.purple}0e`, border:`1px solid ${C.purple}22` }}>
+                        <div style={{ fontSize:9, color:`${C.purple}55`, marginBottom:3, fontVariantNumeric:'tabular-nums' }}>{frame.position}</div>
+                        <div style={{ fontSize:11, fontWeight:700, color:C.secondary, lineHeight:1.3 }}>{frame.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                {assessment.videoAnalysis.strongestProofPoints?.length > 0 && (
-                  <div>
-                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.green}66`, textTransform:'uppercase', marginBottom:8 }}>Strongest Proof Points</div>
-                    {assessment.videoAnalysis.strongestProofPoints.map((item, i) => (
-                      <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
-                        <span style={{ color:C.green, fontSize:9, marginTop:3, flexShrink:0 }}>✓</span>
-                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+              {/* 5 Moment Categories */}
+              {(() => {
+                const moments = [
+                  { key:'strongestProofMoment',      label:'Proof Moment',       color:C.green },
+                  { key:'strongestConversionMoment', label:'Conversion Moment',  color:C.gold },
+                  { key:'strongestTrustMoment',      label:'Trust Moment',       color:C.teal },
+                  { key:'strongestSocialAdMoment',   label:'Social Ad Moment',   color:C.purple },
+                ].filter(({ key }) => assessment.videoAnalysis[key])
+                const landing = assessment.videoAnalysis.strongestLandingPageMoment
+                if (!moments.length && !landing) return null
+                return (
+                  <>
+                    {moments.length > 0 && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                        {moments.map(({ key, label, color }) => {
+                          const m = assessment.videoAnalysis[key]
+                          return (
+                            <div key={key} style={{ padding:'10px 12px', borderRadius:8, background:`${color}09`, border:`1px solid ${color}22` }}>
+                              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${color}77`, textTransform:'uppercase', marginBottom:3 }}>{label}</div>
+                              {m.frame && <div style={{ fontSize:9, color:`${color}44`, marginBottom:4 }}>Frame {m.frame}{m.label ? ` — ${m.label}` : ''}</div>}
+                              <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{m.observation}</div>
+                              <div style={{ fontSize:10, color:C.muted, fontStyle:'italic', lineHeight:1.4 }}>{m.whyItWorks}</div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    ))}
-                  </div>
-                )}
-                {assessment.videoAnalysis.strongestAdMoments?.length > 0 && (
-                  <div>
-                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:8 }}>Strongest Ad Moments</div>
-                    {assessment.videoAnalysis.strongestAdMoments.map((item, i) => (
-                      <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
-                        <span style={{ color:C.gold, fontSize:9, marginTop:3, flexShrink:0 }}>✦</span>
-                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+                    )}
+                    {landing && (
+                      <div style={{ padding:'10px 12px', borderRadius:8, background:`${C.secondary}07`, border:`1px solid ${C.border}`, marginBottom:8 }}>
+                        <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:3 }}>Landing Page Moment</div>
+                        {landing.frame && <div style={{ fontSize:9, color:C.dim, marginBottom:4 }}>Frame {landing.frame}{landing.label ? ` — ${landing.label}` : ''}</div>}
+                        <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{landing.observation}</div>
+                        <div style={{ fontSize:10, color:C.muted, fontStyle:'italic' }}>{landing.whyItWorks}</div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    )}
+                  </>
+                )
+              })()}
 
-              {assessment.videoAnalysis.visualOpportunities?.length > 0 && (
-                <div style={{ marginTop:12 }}>
-                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}66`, textTransform:'uppercase', marginBottom:8 }}>Visual Opportunities</div>
-                  {assessment.videoAnalysis.visualOpportunities.map((item, i) => (
-                    <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:4 }}>→ {item}</div>
+              {assessment.videoAnalysis.whatConcernsMe?.length > 0 && (
+                <div style={{ marginTop:4 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:6 }}>Quality Concerns</div>
+                  {assessment.videoAnalysis.whatConcernsMe.map((item, i) => (
+                    <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
+                      <span style={{ color:C.gold, fontSize:9, marginTop:3, flexShrink:0 }}>⚠</span>
+                      <span style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{item}</span>
+                    </div>
                   ))}
                 </div>
               )}
@@ -958,6 +978,23 @@ export default function JarvisStudio() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Prioritized Opportunities */}
+          {assessment.prioritizedOpportunities?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.gold}33`, background:C.goldBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:12 }}>Prioritized Opportunities</div>
+              {assessment.prioritizedOpportunities.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom: i < assessment.prioritizedOpportunities.length - 1 ? 12 : 0, paddingBottom: i < assessment.prioritizedOpportunities.length - 1 ? 12 : 0, borderBottom: i < assessment.prioritizedOpportunities.length - 1 ? `1px solid ${C.goldBorder}` : 'none' }}>
+                  <div style={{ fontSize:18, fontWeight:900, color:`${C.gold}55`, minWidth:20, flexShrink:0, lineHeight:1 }}>#{item.rank}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.gold, marginBottom:4 }}>{item.opportunity}</div>
+                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6, marginBottom:5 }}>{item.evidence}</div>
+                    <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>→ {item.immediateAction}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

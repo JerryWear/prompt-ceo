@@ -117,7 +117,7 @@ export async function POST(req) {
         userContent.push({ type: 'image_url', image_url: { url, detail: 'high' } })
         userContent.push({
           type: 'text',
-          text: `Frame at ${LABELS[i] || `position ${i + 1}`}: List EVERY specific thing you see — UI screens, navigation elements, text on screen, product features, menus, workflows, people, settings. Be literal and precise.`,
+          text: `Frame at ${LABELS[i] || `position ${i + 1}`}: Do three things: (1) Give this frame a 2-4 word title (e.g. "Dashboard Overview", "Pricing Comparison", "Campaign Builder"). (2) Rate confidence — High: clearly visible; Medium: reasonably inferable; Low: you are guessing. (3) List every specific element you can see — name UI screens by their actual labels, navigation items, text strings visible, product features, buttons, menus, workflows, people, settings. If you cannot clearly see something, do not include it at High confidence.`,
         })
       })
     }
@@ -168,12 +168,24 @@ export async function POST(req) {
     "framesAnalyzed": ${videoFrameUrls.length > 0},
     "analysis": "Combine audio transcript and visual frames to describe what this video shows, what it demonstrates, and how it could be used in ads",
     "visualAnalysis": ${videoFrameUrls.length > 0 ? `{
-      "observedScreens": ["list every distinct screen, section, UI panel, or workflow step you saw across all frames — name them specifically"],
-      "detectedFeatures": ["specific product features, buttons, menu items, or capabilities visible"],
-      "visibleText": ["key text strings, headings, labels, or copy visible in frames"],
+      "frames": [
+        { "position": "10%", "label": "2-4 word title for this frame", "confidence": "High | Medium | Low", "elements": ["specific element you saw", "specific element"] },
+        { "position": "25%", "label": "2-4 word title", "confidence": "High | Medium | Low", "elements": ["element", "element"] },
+        { "position": "50%", "label": "2-4 word title", "confidence": "High | Medium | Low", "elements": ["element", "element"] },
+        { "position": "75%", "label": "2-4 word title", "confidence": "High | Medium | Low", "elements": ["element", "element"] },
+        { "position": "90%", "label": "2-4 word title", "confidence": "High | Medium | Low", "elements": ["element", "element"] }
+      ],
+      "observedScreens": [
+        { "name": "exact screen or section name", "confidence": "High | Medium | Low", "seenAt": "10%" }
+      ],
+      "detectedFeatures": [
+        { "name": "specific feature or capability name", "confidence": "High | Medium | Low", "seenAt": "25%" }
+      ],
+      "visibleText": ["exact text string visible in UI — copy literally"],
       "workflowSummary": "one precise sentence describing the workflow or story shown across frames",
-      "strongestMoments": ["describe the most visually compelling or distinctive frames and why"],
-      "adOpportunities": ["specific visual moments from the frames that would make powerful ad scenes"]
+      "adOpportunities": [
+        { "frame": "50%", "opportunity": "specific visual moment that becomes a specific ad scene" }
+      ]
     }` : 'null'}
   },
   "adReadiness": {
