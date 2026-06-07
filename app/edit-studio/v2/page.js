@@ -936,21 +936,14 @@ export default function EditStudioV2() {
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
-  // When multiple inputs are active, stage the video instead of firing the pipeline
-  // immediately. The user clicks "Analyze & Build Ads" when all inputs are ready.
+  // Always stage the video — user must click the submit button to fire the pipeline.
   const receiveVideo = useCallback((file) => {
     if (!file || !file.type.startsWith('video/')) {
       setError('Please select a video file (MP4, MOV, or WebM).')
       return
     }
-    if (activeInputs.size > 1) {
-      // Multi-input mode: stage, don't fire
-      setPendingVideo({ file })
-    } else {
-      // Video-only: fire immediately as before
-      handleFileSelect(file)
-    }
-  }, [activeInputs, handleFileSelect])
+    setPendingVideo({ file })
+  }, [])
 
   const handleInputChange = useCallback((e) => {
     const file = e.target.files?.[0]
@@ -994,13 +987,12 @@ export default function EditStudioV2() {
     setFixes({})
   }, [])
 
-  // ── Image pipeline ────────────────────────────────────────────────────────
+  // ── Image select — always stage, never auto-fire ─────────────────────────
   const handleImageSelect = useCallback(async (file) => {
     if (!file) return
     if (!file.type.startsWith('image/')) { setError('Please select an image file (JPG, PNG, WebP).'); return }
     setError(null)
 
-    // Convert to base64 immediately so it's ready for analysis
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload  = () => resolve(reader.result)
@@ -1008,13 +1000,13 @@ export default function EditStudioV2() {
       reader.readAsDataURL(file)
     })
 
-    // If video is also active, stage the image — video pipeline will pick it up
-    if (activeInputs.has('video')) {
-      setPendingImage({ file, base64, mimeType: file.type })
-      return
-    }
+    // Always stage — never auto-fire. User must click submit.
+    setPendingImage({ file, base64, mimeType: file.type })
+  }, [])
 
-    // Image-only pipeline
+  // ── Image-only pipeline (runs when only image is staged, no video/prompt) ─
+  const handleImageSubmit = useCallback(async (staged) => {
+    const { file, base64 } = staged
     setStatusMsg('Creating project...')
     setScreen('processing')
     setSourceType('image')
@@ -1048,12 +1040,13 @@ export default function EditStudioV2() {
       if (!understandRes.ok || understandData.status === 'error') throw new Error(understandData.message || 'Image analysis failed')
 
       setUnderstanding(understandData.understanding)
+      setPendingImage(null)
       setScreen('results')
     } catch (err) {
       setError(err.message || 'Something went wrong.')
       setScreen('upload')
     }
-  }, [activeInputs])
+  }, [])
 
   // ── Prompt pipeline ───────────────────────────────────────────────────────
   const handlePromptSubmit = useCallback(async () => {
@@ -1116,14 +1109,20 @@ export default function EditStudioV2() {
     }
   }, [promptText, pendingImage, mergeUnderstandings])
 
-  // ── Multi-input submit: fires pipeline with all staged inputs ────────────
-  const handleMultiSubmit = useCallback(() => {
+  // ── Unified submit — routes to the right pipeline based on what is staged ─
+  const handleSubmit = useCallback(() => {
     if (pendingVideo) {
-      // Video is the primary input — handleFileSelect reads pendingImage + promptText from closure
+      // Video path (picks up pendingImage + promptText from closure)
       handleFileSelect(pendingVideo.file)
       setPendingVideo(null)
+    } else if (pendingImage && !promptText.trim()) {
+      // Image-only path
+      handleImageSubmit(pendingImage)
+    } else {
+      // Prompt path (± image)
+      handlePromptSubmit()
     }
-  }, [pendingVideo, handleFileSelect])
+  }, [pendingVideo, pendingImage, promptText, handleFileSelect, handleImageSubmit, handlePromptSubmit])
 
   // ── Assemble final ad from script + voice + source ────────────────────────
   const handleBuildFinalAd = useCallback(async (concept, voiceUrl, { musicUrl = null, visualMode = 'video' } = {}) => {
@@ -1675,30 +1674,26 @@ export default function EditStudioV2() {
             </div>
           )}
 
-          {/* ── Submit button ─────────────────────────────────────────
-               • Video-only: hidden (pipeline auto-fires on drop)
-               • Multi-input with video: shown when video is staged
-               • No-video (image/prompt): shown always, enabled when ≥1 input ready  */}
-          {(activeInputs.has('video') ? (activeInputs.size > 1 && pendingVideo) : true) && (
+          {/* ── Submit button — shown as soon as any input is staged ──────── */}
+          {(pendingVideo || pendingImage || (activeInputs.has('prompt') && promptText.trim())) && (
             <button
-              onClick={activeInputs.has('video') ? handleMultiSubmit : handlePromptSubmit}
-              disabled={activeInputs.has('video')
-                ? !pendingVideo  // multi+video: need video staged
-                : activeInputs.has('prompt') ? !promptText.trim() : !pendingImage  // no-video: need prompt or image
-              }
+              onClick={handleSubmit}
               style={{
                 width: '100%', maxWidth: 520, marginTop: 16,
                 padding: '14px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
                 cursor: 'pointer',
                 border: '1px solid #c8a84b', background: '#1a1408', color: '#c8a84b',
-                opacity: (activeInputs.has('video') ? !pendingVideo : activeInputs.has('prompt') ? !promptText.trim() : !pendingImage) ? 0.4 : 1,
                 transition: 'opacity 0.15s',
               }}
             >
               ✦ Analyze &amp; Build Ads
-              {pendingVideo && pendingImage && ' · Video + Image'}
-              {pendingVideo && activeInputs.has('prompt') && promptText.trim() && !pendingImage && ' · Video + Description'}
-              {pendingVideo && pendingImage && activeInputs.has('prompt') && promptText.trim() && ' + Description'}
+              {pendingVideo && pendingImage && activeInputs.has('prompt') && promptText.trim() && ' · Video + Image + Description'}
+              {pendingVideo && pendingImage && !(activeInputs.has('prompt') && promptText.trim()) && ' · Video + Image'}
+              {pendingVideo && !pendingImage && activeInputs.has('prompt') && promptText.trim() && ' · Video + Description'}
+              {pendingVideo && !pendingImage && !(activeInputs.has('prompt') && promptText.trim()) && ' · Video'}
+              {!pendingVideo && pendingImage && activeInputs.has('prompt') && promptText.trim() && ' · Image + Description'}
+              {!pendingVideo && pendingImage && !(activeInputs.has('prompt') && promptText.trim()) && ' · Image'}
+              {!pendingVideo && !pendingImage && activeInputs.has('prompt') && promptText.trim() && ' · Description'}
             </button>
           )}
 
