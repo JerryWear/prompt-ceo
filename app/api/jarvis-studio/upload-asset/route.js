@@ -52,7 +52,7 @@ export async function POST(req) {
       .from('edit-studio-exports')
       .getPublicUrl(path)
 
-    return NextResponse.json({ status: 'success', publicUrl })
+    return NextResponse.json({ status: 'success', publicUrl, storagePath: path, bucket: 'edit-studio-exports' })
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })

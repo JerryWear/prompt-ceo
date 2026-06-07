@@ -729,7 +729,9 @@ export default function EditStudioV2() {
 
   const [screen,      setScreen]      = useState('upload')  // 'upload' | 'processing' | 'results' | 'strategy-loading' | 'strategy' | 'concepts-loading' | 'concepts'
   const [project,     setProject]     = useState(null)      // { id, storagePath, bucket, publicUrl }
-  const [understanding, setUnderstanding] = useState(null)
+  const [understanding,         setUnderstanding]         = useState(null)
+  const [understandingFallback, setUnderstandingFallback] = useState(false)
+  const [showRawJson,           setShowRawJson]           = useState(false)
   const [strategy,    setStrategy]    = useState(null)      // { strategy, ad_concepts, primary_concept }
   const [adConcepts,  setAdConcepts]  = useState([])        // array of 5 concept objects
   const [activeConcept, setActiveConcept] = useState(null)  // index of expanded concept card
@@ -925,6 +927,7 @@ export default function EditStudioV2() {
       }
 
       setUnderstanding(merged)
+      setUnderstandingFallback(results[0]?.fallback || false)
       setPendingImage(null)
       setPendingVideo(null)
       setScreen('results')
@@ -1040,6 +1043,7 @@ export default function EditStudioV2() {
       if (!understandRes.ok || understandData.status === 'error') throw new Error(understandData.message || 'Image analysis failed')
 
       setUnderstanding(understandData.understanding)
+      setUnderstandingFallback(understandData.fallback || false)
       setPendingImage(null)
       setScreen('results')
     } catch (err) {
@@ -1101,6 +1105,7 @@ export default function EditStudioV2() {
       }
 
       setUnderstanding(merged)
+      setUnderstandingFallback(results[0]?.fallback || false)
       setPendingImage(null)
       setScreen('results')
     } catch (err) {
@@ -1758,6 +1763,17 @@ export default function EditStudioV2() {
             )}
           </div>
 
+          {/* ── Fallback warning ─────────────────────────────────────────────── */}
+          {understandingFallback && (
+            <div style={{
+              marginBottom: 16, padding: '10px 16px', borderRadius: 8,
+              background: '#1a1100', border: '1px solid #c8a84b66',
+              fontSize: 12, color: '#c8a84b', lineHeight: 1.5,
+            }}>
+              ⚠ <strong>Fallback data</strong> — AI analysis failed (likely FFmpeg unavailable on this server). The values below are mock defaults, not from your video.
+            </div>
+          )}
+
           {/* Detected products */}
           {understanding.detected_products?.length > 0 && (
             <div className={styles.resultsCard}>
@@ -1850,6 +1866,31 @@ export default function EditStudioV2() {
               </ul>
             </div>
           )}
+
+          {/* ── Raw JSON debug panel ─────────────────────────────────────────── */}
+          <div style={{ marginTop: 8, marginBottom: 4 }}>
+            <button
+              onClick={() => setShowRawJson(p => !p)}
+              style={{
+                background: 'none', border: '1px solid #222', borderRadius: 6,
+                color: '#555', fontSize: 11, padding: '5px 12px', cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {showRawJson ? '▲ Hide' : '▼ Show'} raw AI output
+            </button>
+            {showRawJson && (
+              <pre style={{
+                marginTop: 10, padding: '14px 16px', borderRadius: 8,
+                background: '#07080a', border: '1px solid #1a1a1a',
+                fontSize: 11, color: '#8a9bb0', lineHeight: 1.55,
+                overflowX: 'auto', maxHeight: 480, overflowY: 'auto',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              }}>
+                {JSON.stringify(understanding, null, 2)}
+              </pre>
+            )}
+          </div>
 
           <div className={styles.ctaRow}>
             <button className={styles.ctaButton} type="button" onClick={handleCreateStrategy}>

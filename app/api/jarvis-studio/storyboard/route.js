@@ -14,7 +14,7 @@ async function makeSupabase() {
 }
 
 // POST /api/jarvis-studio/storyboard
-// Body: { brandContext }
+// Body: { creativeBrief, assets, intent? }
 // Returns: { status, storyboard: { concepts: [...] } }
 export async function POST(req) {
   try {
@@ -22,8 +22,41 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { brandContext } = await req.json()
-    if (!brandContext) return NextResponse.json({ error: 'brandContext required' }, { status: 400 })
+    const { creativeBrief, assets, intent } = await req.json()
+    if (!creativeBrief) return NextResponse.json({ error: 'creativeBrief required' }, { status: 400 })
+
+    const { summary, keyMessages, hook, recommendedStyle, assetPlan } = creativeBrief
+
+    const hasFounder  = !!assets?.founderImageUrl
+    const hasProducts = assets?.productImageUrls?.length > 0
+    const hasVideo    = assets?.videoUrls?.length > 0
+
+    const assetContext = []
+    if (hasFounder)  assetContext.push('FOUNDER IMAGE: Use for HeyGen avatar. Founder speaks directly to camera in heygen scenes.')
+    if (hasProducts) assetContext.push(`PRODUCT IMAGES (${assets.productImageUrls.length}): Use as reference for product visuals. Runway scenes should reflect the actual product design.`)
+    if (hasVideo)    assetContext.push('VIDEO FOOTAGE: Reference footage available. Some runway scenes can instruct Runway to recreate or match the visual style.')
+    if (!assetContext.length) assetContext.push('NO VISUAL ASSETS: All scenes will be fully AI-generated. No founder clips.')
+
+    const conceptDirections = []
+    if (intent === 'founder_ad' || intent === 'ugc') {
+      conceptDirections.push('Concept 1: Founder leads — opens with heygen hook, intercut runway visuals')
+      conceptDirections.push('Concept 2: Founder problem/solution — heygen problem statement, runway solution visuals, heygen CTA')
+      conceptDirections.push('Concept 3: Day in the life — all runway lifestyle, no founder')
+      conceptDirections.push('Concept 4: Social proof — founder gives testimonial format, runway shows results')
+      conceptDirections.push('Concept 5: Direct response — founder speaks full ad, minimal runway cuts')
+    } else if (intent === 'cinematic' || intent === 'product_demo') {
+      conceptDirections.push('Concept 1: Pure visual — all runway cinematic, no founder')
+      conceptDirections.push('Concept 2: Product hero — all runway product-focused closeups and demos')
+      conceptDirections.push('Concept 3: Before/after — runway contrast, founder closes if available')
+      conceptDirections.push('Concept 4: Lifestyle integration — runway shows product in aspirational context')
+      conceptDirections.push('Concept 5: Pattern interrupt — dramatic runway opener, founder CTA if available')
+    } else {
+      conceptDirections.push('Concept 1: Problem/Solution — opens with founder speaking (heygen hook), runway visuals for solution')
+      conceptDirections.push('Concept 2: Pure visual storytelling — all runway, no heygen')
+      conceptDirections.push('Concept 3: Social proof/testimonial — runway visuals, founder closes the ad (heygen CTA)')
+      conceptDirections.push('Concept 4: Pattern interrupt — dramatic runway opener, no heygen unless founder available')
+      conceptDirections.push('Concept 5: Transformation/aspirational — founder opens and closes (heygen), runway shows transformation')
+    }
 
     const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -33,53 +66,48 @@ export async function POST(req) {
         messages: [
           {
             role: 'system',
-            content: `You are a world-class creative director at a premium AI creative agency. You generate storyboards for viral short-form ads (Instagram Reels, TikTok).
-
-Your storyboards are cinematic, specific, and psychologically engineered to convert. You create ads that feel real, not like ads.
+            content: `You are a world-class creative director at a premium AI ad agency. You generate precise storyboards for vertical short-form ads (9:16, 30 seconds, Instagram Reels / TikTok).
 
 Rules:
-- Every concept must have a distinct angle — not variations of the same theme
-- Scenes with "generator": "heygen" are for the founder/spokesperson speaking to camera
-- Scenes with "generator": "runway" are AI-generated video clips (no person talking)
-- DALL-E prompts must be photorealistic, ultra-detailed, vertical 9:16 portrait frame, cinematic lighting
-- DALL-E prompts for heygen scenes should describe the setting/environment (not a placeholder face)
-- Scripts for heygen scenes must be punchy, direct, conversational — not promotional-sounding
-- Scene durations must sum exactly to total_duration
-- First scene is always the hook. Last scene is always the CTA.
+- Every concept must feel completely different — different hook, different emotion, different structure
+- "generator": "heygen" = founder speaks to camera. ONLY use heygen if hasFounder is true (${hasFounder})
+- "generator": "runway" = AI-generated video. Use for all visual/cinematic scenes
+- assetAssignment tells Runway/HeyGen which uploaded asset to reference
+- DALL-E prompts: photorealistic, vertical 9:16, cinematic, ultra-detailed, shot on RED, 8K
+- Scripts: punchy, specific to THIS brand — never generic. Sound like a real person, not an ad
+- Scene durations must sum to exactly total_duration
+- First scene = hook. Last scene = CTA.
 - Return ONLY valid JSON.`,
           },
           {
             role: 'user',
-            content: `Brand Context:
-Brand: ${brandContext.brandName}
-Industry: ${brandContext.industry}
-Product: ${brandContext.productDescription}
-Value Prop: ${brandContext.valueProposition}
-Target Audience: ${brandContext.targetAudience}
-Tone: ${brandContext.toneOfVoice}
-Key Messages: ${(brandContext.keyMessages || []).join(', ')}
-Pain Points: ${(brandContext.painPoints || []).join(', ')}
-Visual Style: ${brandContext.visualStyle}
-Competitive Advantage: ${brandContext.competitiveAdvantage}
-Founder Personality: ${brandContext.founderPersonality || 'not specified'}
+            content: `CREATIVE BRIEF:
+Product: ${summary?.product}
+Audience: ${summary?.audience}
+Problem: ${summary?.problem}
+Solution: ${summary?.solution}
+Key Benefit: ${summary?.keyBenefit}
+Hook: ${hook}
+Style: ${recommendedStyle}
+Key Messages: ${(keyMessages || []).join(' | ')}
 
-Generate 5 distinct ad concepts for ${brandContext.platformFocus || 'instagram_reels'}. Each concept has exactly 5 scenes.
+AVAILABLE ASSETS:
+${assetContext.join('\n')}
 
-Concept directions:
-- Concept 1: Problem/Solution — opens with founder speaking (heygen hook)
-- Concept 2: Pure visual storytelling — all runway, no heygen
-- Concept 3: Social proof/testimonial — founder closes the ad (heygen as last scene)
-- Concept 4: Pattern interrupt / shock opener — all visual, dramatic
-- Concept 5: Transformation/aspirational — founder opens and closes (heygen first + last)
+CONCEPT DIRECTIONS:
+${conceptDirections.join('\n')}
 
-Return this exact JSON structure:
+Generate 5 ad concepts. Each has exactly 5 scenes. Total duration: 30 seconds.
+${!hasFounder ? 'IMPORTANT: No heygen scenes — no founder image provided. All scenes must use generator: "runway".' : ''}
+
+Return this exact JSON:
 {
   "concepts": [
     {
       "id": "concept_1",
-      "title": "Concept title (3-5 words)",
-      "logline": "One-sentence hook capturing this ad's angle",
-      "angle": "problem_solution | testimonial | day_in_life | pattern_interrupt | aspirational",
+      "title": "Concept title (3-5 words, evocative)",
+      "logline": "Single punchy line capturing this ad's core idea",
+      "angle": "problem_solution | testimonial | day_in_life | pattern_interrupt | aspirational | direct_response",
       "platform": "instagram_reels",
       "total_duration": 30,
       "scenes": [
@@ -87,13 +115,18 @@ Return this exact JSON structure:
           "id": "s1_1",
           "index": 0,
           "label": "Hook",
-          "type": "founder | product | lifestyle | pain_point | cta",
-          "generator": "heygen | runway",
+          "type": "founder | product | lifestyle | pain_point | cta | transformation",
+          "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
           "duration": 5,
-          "script": "exact words founder speaks — heygen only, null for runway",
-          "visual_direction": "cinematographer-level scene description (1-2 sentences)",
-          "dalle_prompt": "Ultra-detailed DALL-E 3 prompt. Photorealistic. Vertical 9:16 portrait frame. [specific environment/setting]. [specific action/composition]. Cinematic lighting. Shot on RED camera. 8K. Professional photography.",
-          "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead"
+          "script": "Exact words founder speaks (heygen only). null for runway scenes.",
+          "visual_direction": "Precise cinematographer-level scene description. What is happening, how it is framed, what emotion it creates.",
+          "dalle_prompt": "Ultra-detailed DALL-E 3 prompt. Photorealistic. Vertical 9:16 portrait frame. [specific setting]. [specific action/composition]. [specific lighting]. Shot on RED camera. 8K. Cinematic color grade.",
+          "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
+          "assetAssignment": {
+            "sourceType": "heygen | runway | product_image | video_footage | generated",
+            "sourceIndex": null,
+            "note": "brief note on how this asset feeds this scene"
+          }
         }
       ]
     }
@@ -103,7 +136,7 @@ Return this exact JSON structure:
         ],
         temperature: 0.85,
         response_format: { type: 'json_object' },
-        max_tokens: 4500,
+        max_tokens: 5000,
       }),
     })
 
@@ -115,6 +148,18 @@ Return this exact JSON structure:
       storyboard = JSON.parse(gptData.choices[0].message.content)
     } catch {
       return NextResponse.json({ error: 'Failed to parse storyboard' }, { status: 500 })
+    }
+
+    // Enforce: if no founder, strip any heygen scenes
+    if (!hasFounder && storyboard?.concepts) {
+      storyboard.concepts.forEach(concept => {
+        concept.scenes?.forEach(scene => {
+          if (scene.generator === 'heygen') {
+            scene.generator = 'runway'
+            scene.script = null
+          }
+        })
+      })
     }
 
     return NextResponse.json({ status: 'success', storyboard })
