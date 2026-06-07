@@ -177,10 +177,13 @@ export default function JarvisRail() {
     if (!action) return
     if (action.type === 'navigate' && action.studio) {
       const studioRoutes = {
-        'ad-studio':      '/ad-system',
+        'ad-studio':      '/prompt-engine-v3?view=ad_studio',
         'edit-studio':    '/edit-studio/v2',
         'music-studio':   '/music-studio',
         'prompt-studio':  '/prompt-engine-v3',
+        'jarvis-studio':  '/jarvis-studio',
+        'avatar-studio':  '/avatar-studio',
+        'home':           '/dashboard',
       }
       const path = studioRoutes[action.studio]
       if (path) { setOpen(false); router.push(path) }

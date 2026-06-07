@@ -40,7 +40,7 @@ YOUR TONE:
 ACTION FORMAT:
 When directing the user somewhere, append this after your text — ONE action block per response:
 \`\`\`action
-{"type": "navigate", "studio": "ad-studio|edit-studio|music-studio|prompt-studio|home", "label": "Open Ad Studio"}
+{"type": "navigate", "studio": "ad-studio|edit-studio|music-studio|prompt-studio|jarvis-studio|avatar-studio|home", "label": "Open Jarvis Studio"}
 \`\`\`
 
 ORCHESTRATION FORMAT:
