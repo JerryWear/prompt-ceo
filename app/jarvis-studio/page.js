@@ -68,6 +68,7 @@ export default function JarvisStudio() {
   // ── Data state ───────────────────────────────────────────────────────────
   const [uploadedAssets,  setUploadedAssets]  = useState(null)
   const [understanding,   setUnderstanding]   = useState(null)
+  const [assessment,      setAssessment]      = useState(null)
   const [creativeBrief,   setCreativeBrief]   = useState(null)
   const [storyboard,      setStoryboard]      = useState(null)
   const [previews,        setPreviews]        = useState({})
@@ -146,7 +147,7 @@ export default function JarvisStudio() {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
     if (pollRef.current)  clearInterval(pollRef.current)
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
-    setUploadedAssets(null); setUnderstanding(null); setCreativeBrief(null)
+    setUploadedAssets(null); setUnderstanding(null); setAssessment(null); setCreativeBrief(null)
     setStoryboard(null); setPreviews({}); setPreviewsDone(false)
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
   }, [])
@@ -225,23 +226,43 @@ export default function JarvisStudio() {
       addStatus('ai', 'Brand understood', 'done')
       setUnderstanding(uData.understanding)
 
-      addStatus('brief', 'Building creative brief', 'active')
-      const bRes  = await fetch('/api/jarvis-studio/creative-brief', {
+      addStatus('assess', 'Jarvis is forming an opinion...', 'active')
+      const aRes  = await fetch('/api/jarvis-studio/assess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ understanding: uData.understanding, assets, intent: activeIntent, prompt: prompt.trim() || null }),
+        body: JSON.stringify({ understanding: uData.understanding, assets, prompt: prompt.trim() || null, intent: activeIntent }),
       })
-      const bData = await bRes.json()
-      if (!bData.brief) throw new Error(bData.error || 'Brief generation failed')
-      addStatus('brief', 'Creative brief ready', 'done')
-      setCreativeBrief(bData.brief)
-      setPhase('brief')
+      const aData = await aRes.json()
+      if (!aData.assessment) throw new Error(aData.error || 'Assessment failed')
+      addStatus('assess', 'Assessment ready', 'done')
+      setAssessment(aData.assessment)
+      setPhase('assessment')
 
     } catch (err) {
       setError(err.message || 'Something went wrong')
       setPhase('input')
     }
   }, [intent, websiteUrl, prompt, founderFile, productFiles, videoFiles, musicMode, musicFile, musicTrackId, addStatus])
+
+  const handleBuildBrief = useCallback(async () => {
+    setPhase('analyzing')
+    setStatusItems([{ id: 'brief', label: 'Building creative brief...', status: 'active' }])
+    setError('')
+    try {
+      const bRes  = await fetch('/api/jarvis-studio/creative-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ understanding, assets: uploadedAssets, intent, prompt: prompt.trim() || null, assessment }),
+      })
+      const bData = await bRes.json()
+      if (!bData.brief) throw new Error(bData.error || 'Brief generation failed')
+      setCreativeBrief(bData.brief)
+      setPhase('brief')
+    } catch (err) {
+      setError(err.message || 'Brief failed')
+      setPhase('assessment')
+    }
+  }, [understanding, uploadedAssets, intent, prompt, assessment])
 
   const handleApproveBrief = useCallback(async () => {
     setPhase('storyboard')
@@ -627,6 +648,150 @@ export default function JarvisStudio() {
                 {item.status === 'done' && <span style={{ marginLeft:'auto', fontSize:10, color:C.green }}>✓</span>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── ASSESSMENT ───────────────────────────────────────────────────────── */}
+      {phase === 'assessment' && assessment && (
+        <div style={{ maxWidth:740, margin:'0 auto', padding:'32px 20px 80px', animation:'fadeUp .4s ease both' }}>
+          <div style={{ marginBottom:28 }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ Jarvis Assessment</div>
+            <div style={{ fontSize:26, fontWeight:800, letterSpacing:-.3, marginBottom:6 }}>
+              {understanding?.brand?.name || 'Your Brand'}
+            </div>
+            <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>
+              {assessment.whatIUnderstand?.whatTheyDo}
+            </div>
+          </div>
+
+          {/* What I Understand */}
+          <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
+            <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:12 }}>What I Understand</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {[
+                { label:'Who they serve', value:assessment.whatIUnderstand?.whoTheyServe },
+                { label:'What stands out', value:assessment.whatIUnderstand?.whatStandsOut },
+              ].filter(i => i.value).map(({ label, value }) => (
+                <div key={label}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
+                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* What I Like */}
+          {assessment.whatILike?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.green}22`, background:C.greenBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.green}88`, textTransform:'uppercase', marginBottom:10 }}>What I Like</div>
+              {assessment.whatILike.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
+                  <span style={{ color:C.green, fontSize:10, marginTop:3, flexShrink:0 }}>✓</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* What Concerns Me */}
+          {assessment.whatConcernsMe?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid #c8a84b33`, background:'#0a0800', padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:10 }}>What Concerns Me</div>
+              {assessment.whatConcernsMe.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
+                  <span style={{ color:C.gold, fontSize:10, marginTop:3, flexShrink:0 }}>⚠</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* What I Would Change */}
+          {assessment.whatIWouldChange?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.teal}22`, background:C.tealBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.teal}88`, textTransform:'uppercase', marginBottom:10 }}>What I Would Change</div>
+              {assessment.whatIWouldChange.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
+                  <span style={{ color:C.teal, fontSize:10, marginTop:3, flexShrink:0 }}>→</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Founder Opportunity */}
+          {assessment.founderOpportunity && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.goldBorder}`, background:C.goldBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:12 }}>Founder Opportunity</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {[
+                  { label:'How to use', value:assessment.founderOpportunity.howToUse },
+                  { label:'Trust angle', value:assessment.founderOpportunity.trustOpportunities },
+                  { label:'Authority', value:assessment.founderOpportunity.authorityOpportunities },
+                  { label:'Personal story', value:assessment.founderOpportunity.personalStory },
+                ].filter(i => i.value).map(({ label, value }) => (
+                  <div key={label}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
+                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Product Opportunity */}
+          {assessment.productOpportunity && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.teal}22`, background:C.tealBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.teal}88`, textTransform:'uppercase', marginBottom:12 }}>Product Opportunity</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {[
+                  { label:'What stands out', value:assessment.productOpportunity.whatStandsOut },
+                  { label:'What to emphasize', value:assessment.productOpportunity.whatToEmphasize },
+                  { label:'Visual moments', value:assessment.productOpportunity.visualMoments },
+                ].filter(i => i.value).map(({ label, value }) => (
+                  <div key={label}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
+                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* My Recommended Campaign */}
+          {assessment.myRecommendedCampaign && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.gold}55`, background:`linear-gradient(135deg, #0c0900, #050400)`, padding:'20px 20px', marginBottom:22 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:10 }}>My Recommended Campaign</div>
+              <div style={{ fontSize:17, fontWeight:800, color:C.gold, marginBottom:12, lineHeight:1.3 }}>
+                {assessment.myRecommendedCampaign.headline}
+              </div>
+              <div style={{ fontSize:13, color:C.secondary, lineHeight:1.75, fontStyle:'italic', marginBottom:12, borderLeft:`2px solid ${C.gold}44`, paddingLeft:14 }}>
+                "{assessment.myRecommendedCampaign.argument}"
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {[
+                  { label:'Lead angle', value:assessment.myRecommendedCampaign.angle },
+                  { label:'Why this beats the alternatives', value:assessment.myRecommendedCampaign.why },
+                ].filter(i => i.value).map(({ label, value }) => (
+                  <div key={label}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}55`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
+                    <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setPhase('input')}
+              style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
+              Edit Inputs
+            </button>
+            <button onClick={handleBuildBrief}
+              style={{ flex:1, padding:'12px 24px', borderRadius:8, border:'none', background:C.gold, color:'#000', cursor:'pointer', fontSize:13, fontWeight:800, textTransform:'uppercase', letterSpacing:1.5 }}>
+              Build My Campaign →
+            </button>
           </div>
         </div>
       )}

@@ -22,7 +22,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { understanding, assets, intent, prompt } = await req.json()
+    const { understanding, assets, intent, prompt, assessment } = await req.json()
     if (!understanding) return NextResponse.json({ error: 'understanding required' }, { status: 400 })
 
     const { brand, founder, products, video, adReadiness } = understanding
@@ -34,6 +34,14 @@ export async function POST(req) {
     if (assets?.musicUrl || assets?.musicTrackId) assetInventory.push('Music track')
 
     const briefPrompt = `You are a creative director building a pre-production brief for an AI-generated ad campaign.
+${assessment ? `
+JARVIS STRATEGIC ASSESSMENT (use this to sharpen the brief):
+- What stands out: ${assessment.whatIUnderstand?.whatStandsOut || ''}
+- Strengths: ${(assessment.whatILike || []).join('; ')}
+- Concerns: ${(assessment.whatConcernsMe || []).join('; ')}
+- Recommended angle: ${assessment.myRecommendedCampaign?.angle || ''}
+- Campaign argument: ${assessment.myRecommendedCampaign?.argument || ''}
+` : ''}
 
 BRAND UNDERSTANDING:
 - Brand: ${brand?.name}
