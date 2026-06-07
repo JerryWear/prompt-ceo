@@ -22,33 +22,34 @@ function makeAdmin() {
 // Returns 'processing' | 'ready' | 'error' | 'unknown'
 async function checkHeygenAvatarStatus(avatarId, heygenKey) {
   const endpoints = [
-    `https://api.heygen.com/v1/avatar.get?avatar_id=${avatarId}`,
-    `https://api.heygen.com/v2/avatar/${avatarId}`,
     `https://api.heygen.com/v3/photo_avatar/${avatarId}`,
+    `https://api.heygen.com/v2/avatar/${avatarId}`,
+    `https://api.heygen.com/v1/avatar.get?avatar_id=${avatarId}`,
   ]
 
   for (const endpoint of endpoints) {
     try {
-      const res = await fetch(endpoint, {
-        headers: { 'X-Api-Key': heygenKey },
-      })
-      if (!res.ok) continue
+      const res = await fetch(endpoint, { headers: { 'X-Api-Key': heygenKey } })
       const data = await res.json()
-      // Try multiple response shapes
+      console.log('[heygen-status] endpoint:', endpoint, 'http:', res.status, 'body:', JSON.stringify(data).slice(0, 300))
+      if (!res.ok) continue
+
+      // Try every known HeyGen response shape
       const status =
         data?.data?.status ||
         data?.data?.avatar_item?.status ||
+        data?.data?.avatar?.status ||
+        data?.data?.photo_avatar?.status ||
         data?.status ||
         null
 
       if (!status) continue
 
       const s = status.toLowerCase()
-      if (s === 'processing' || s === 'pending' || s === 'queued' || s === 'training') return 'processing'
+      if (s === 'processing' || s === 'pending' || s === 'queued' || s === 'training' || s === 'in_progress') return 'processing'
       if (s === 'failed' || s === 'error' || s === 'deleted') return 'error'
-      // Any other value (completed, ready, active, available, done, success) → ready
       return 'ready'
-    } catch {}
+    } catch (e) { console.error('[heygen-status] error on', endpoint, e.message) }
   }
 
   return 'unknown'
@@ -81,8 +82,9 @@ export async function POST(req) {
     const updatedJobs = { ...jobs, pollCount: (jobs.pollCount || 0) + 1 }
     const updatedSceneJobs = [...(jobs.sceneJobs || [])]
 
-    // TIMEOUT: after 45 polls (~6 minutes), drain all stuck avatar jobs to error
-    const AVATAR_POLL_TIMEOUT = 45
+    // TIMEOUT: after 90 polls (~12 minutes), drain all stuck avatar jobs to error.
+    // HeyGen photo avatar training takes 5-15 min on their servers.
+    const AVATAR_POLL_TIMEOUT = 90
     const timedOut = updatedJobs.pollCount > AVATAR_POLL_TIMEOUT
 
     // 1. Check avatar status if still processing

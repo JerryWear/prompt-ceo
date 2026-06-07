@@ -1512,7 +1512,7 @@ export default function JarvisStudio() {
           )}
 
           <div style={{ fontSize:12, color:C.dim, textAlign:'center', lineHeight:1.7 }}>
-            Avatar creation takes 3–8 minutes. If this hangs, use Cancel and try a Runway-only concept.
+            HeyGen avatar creation takes 5–15 minutes. System will wait up to 12 minutes. If it still hangs, cancel and try a Runway-only concept.
           </div>
         </div>
       )}
