@@ -48,11 +48,13 @@ export async function POST(req) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const { data: { publicUrl } } = admin.storage
+    const { data: signedData, error: signError } = await admin.storage
       .from('edit-studio-exports')
-      .getPublicUrl(path)
+      .createSignedUrl(path, 86400) // 24 hours
 
-    return NextResponse.json({ status: 'success', publicUrl, storagePath: path, bucket: 'edit-studio-exports' })
+    if (signError) return NextResponse.json({ error: signError.message }, { status: 500 })
+
+    return NextResponse.json({ status: 'success', publicUrl: signedData.signedUrl, storagePath: path, bucket: 'edit-studio-exports' })
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
