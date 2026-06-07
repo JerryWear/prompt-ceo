@@ -139,6 +139,7 @@ export default function JarvisStudio() {
   const [storyboard,      setStoryboard]      = useState(null)
   const [previews,        setPreviews]        = useState({})
   const [previewsDone,    setPreviewsDone]    = useState(false)
+  const [previewError,    setPreviewError]    = useState('')
   const [selectedConcept, setSelectedConcept] = useState(null)
   const [productionJobs,  setProductionJobs]  = useState(null)
   const [finalAd,         setFinalAd]         = useState(null)
@@ -215,7 +216,7 @@ export default function JarvisStudio() {
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
     setAssessment(null); setCreativeBrief(null)
-    setStoryboard(null); setPreviews({}); setPreviewsDone(false)
+    setStoryboard(null); setPreviews({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
     // Also clear founder/product/video inputs
     setFounderFile(null); setFounderBlobUrl(null)
@@ -313,6 +314,7 @@ export default function JarvisStudio() {
           intent:           activeIntent,
         }),
       })
+      if (!uRes.ok) throw new Error(`Brand analysis failed (${uRes.status})`)
       const uData = await uRes.json()
       if (!uData.understanding) throw new Error(uData.error || 'Brand analysis failed')
 
@@ -329,6 +331,7 @@ export default function JarvisStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ understanding: uData.understanding, assets, prompt: prompt.trim() || null, intent: activeIntent }),
       })
+      if (!aRes.ok) throw new Error(`Assessment failed (${aRes.status})`)
       const aData = await aRes.json()
       if (!aData.assessment) throw new Error(aData.error || 'Assessment failed')
       addStatus('assess', 'Assessment ready', 'done')
@@ -353,6 +356,7 @@ export default function JarvisStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ understanding, assets: uploadedAssets, intent, prompt: prompt.trim() || null, assessment }),
       })
+      if (!bRes.ok) throw new Error(`Brief generation failed (${bRes.status})`)
       const bData = await bRes.json()
       if (!bData.brief) throw new Error(bData.error || 'Brief generation failed')
       setCreativeBrief(bData.brief)
@@ -368,6 +372,7 @@ export default function JarvisStudio() {
     setStoryboard(null)
     setPreviews({})
     setPreviewsDone(false)
+    setPreviewError('')
 
     try {
       const sRes  = await fetch('/api/jarvis-studio/storyboard', {
@@ -375,17 +380,22 @@ export default function JarvisStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent }),
       })
+      if (!sRes.ok) throw new Error(`Storyboard failed (${sRes.status})`)
       const sData = await sRes.json()
       if (!sData.storyboard?.concepts?.length) throw new Error(sData.error || 'Storyboard failed')
       setStoryboard(sData.storyboard)
 
-      await Promise.all(sData.storyboard.concepts.map(async concept => {
+      // Generate previews ONE CONCEPT AT A TIME to avoid flooding DALL-E with 15+ parallel calls.
+      // Promise.all across all concepts causes rate-limit failures and silent 0/25 hangs.
+      let failCount = 0
+      for (const concept of sData.storyboard.concepts) {
         try {
           const pRes  = await fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ scenes: concept.scenes.map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, label: s.label })) }),
           })
+          if (!pRes.ok) { failCount++; continue }
           const pData = await pRes.json()
           if (pData.previews) {
             setPreviews(prev => {
@@ -393,13 +403,24 @@ export default function JarvisStudio() {
               pData.previews.forEach(p => { if (p.imageUrl) next[p.id] = p.imageUrl })
               return next
             })
+          } else {
+            failCount++
           }
-        } catch {}
-      }))
+        } catch {
+          failCount++
+        }
+      }
+
+      if (failCount > 0 && failCount === sData.storyboard.concepts.length) {
+        setPreviewError('Preview images could not load — you can still produce any concept.')
+      } else if (failCount > 0) {
+        setPreviewError(`${failCount} concept(s) had preview errors — affected scenes show as blank.`)
+      }
       setPreviewsDone(true)
 
     } catch (err) {
       setError(err.message || 'Storyboard generation failed')
+      setPhase('brief')
     }
   }, [creativeBrief, uploadedAssets, intent])
 
@@ -423,11 +444,13 @@ export default function JarvisStudio() {
           musicUrl:     uploadedAssets?.musicUrl     || null,
         }),
       })
+      if (!res.ok) throw new Error(`Production request failed (${res.status}) — try again`)
       const data = await res.json()
       if (!data.jobs) throw new Error(data.error || 'Production failed to start')
       setProductionJobs(data.jobs)
 
-      let currentJobs = data.jobs
+      let currentJobs  = data.jobs
+      let pollFailures = 0
       if (pollRef.current) clearInterval(pollRef.current)
       pollRef.current = setInterval(async () => {
         try {
@@ -436,15 +459,31 @@ export default function JarvisStudio() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ jobs: currentJobs }),
           })
+          if (!pRes.ok) {
+            pollFailures++
+            if (pollFailures >= 5) {
+              clearInterval(pollRef.current)
+              setError('Lost connection during production — production may still be running. Refresh to check.')
+              setPhase('storyboard')
+            }
+            return
+          }
+          pollFailures = 0
           const pData = await pRes.json()
           if (pData.jobs) { currentJobs = pData.jobs; setProductionJobs(pData.jobs) }
           if (pData.overallStatus === 'complete' || pData.overallStatus === 'partial') {
             clearInterval(pollRef.current); setFinalAd(pData.finalAd); setPhase('complete')
           } else if (pData.overallStatus === 'failed') {
-            clearInterval(pollRef.current)
-            setPhase('failed')
+            clearInterval(pollRef.current); setPhase('failed')
           }
-        } catch {}
+        } catch {
+          pollFailures++
+          if (pollFailures >= 5) {
+            clearInterval(pollRef.current)
+            setError('Network error during production — check your connection and try again.')
+            setPhase('storyboard')
+          }
+        }
       }, 8000)
 
     } catch (err) {
@@ -1320,15 +1359,25 @@ export default function JarvisStudio() {
                     {' '}Generating previews ({previewCount}/{storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)})
                   </span>
                 )}
-                {storyboard && previewsDone && <span style={{ marginLeft:10, color:C.green }}>✓ All previews ready</span>}
+                {storyboard && previewsDone && !previewError && <span style={{ marginLeft:10, color:C.green }}>✓ Previews ready</span>}
+                {storyboard && previewsDone && previewError && <span style={{ marginLeft:10, color:C.gold }}>⚠ {previewError}</span>}
               </div>
             </div>
           </div>
 
-          {!storyboard && (
+          {!storyboard && !error && (
             <div style={{ textAlign:'center', padding:'60px 0', color:C.ghost }}>
               <div style={{ width:32, height:32, border:`2px solid ${C.border}`, borderTopColor:C.gold, borderRadius:'50%', animation:'spin .8s linear infinite', margin:'0 auto 14px' }} />
-              <div style={{ fontSize:13 }}>Designing 5 ad concepts...</div>
+              <div style={{ fontSize:13 }}>Designing ad concepts...</div>
+            </div>
+          )}
+          {!storyboard && error && (
+            <div style={{ textAlign:'center', padding:'40px 0' }}>
+              <div style={{ fontSize:13, color:C.red, marginBottom:14 }}>{error}</div>
+              <button onClick={() => { setError(''); setPhase('brief') }}
+                style={{ padding:'8px 18px', borderRadius:7, border:`1px solid ${C.border}`, background:'transparent', color:C.secondary, cursor:'pointer', fontSize:12 }}>
+                ← Back to Brief
+              </button>
             </div>
           )}
 
