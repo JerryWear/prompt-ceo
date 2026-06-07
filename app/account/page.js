@@ -665,6 +665,140 @@ function AffiliateLink({ router, email }) {
   )
 }
 
+function ApiKeyRow({ label, logo, endpoint, helpUrl, helpLabel }) {
+  const [status,  setStatus]  = useState('loading') // loading | connected | disconnected
+  const [masked,  setMasked]  = useState('')
+  const [input,   setInput]   = useState('')
+  const [saving,  setSaving]  = useState(false)
+  const [removing,setRemoving]= useState(false)
+  const [error,   setError]   = useState('')
+  const [show,    setShow]    = useState(false)
+
+  useEffect(() => {
+    fetch(endpoint)
+      .then(r => r.json())
+      .then(d => {
+        if (d.hasKey) { setStatus('connected'); setMasked(d.masked) }
+        else setStatus('disconnected')
+      })
+      .catch(() => setStatus('disconnected'))
+  }, [endpoint])
+
+  const handleSave = async () => {
+    if (!input.trim()) return
+    setSaving(true); setError('')
+    try {
+      const res  = await fetch(endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: input.trim() }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        setStatus('connected'); setMasked(data.masked); setInput(''); setShow(false)
+      } else {
+        setError(data.message || 'Failed to save key')
+      }
+    } catch { setError('Network error') }
+    finally { setSaving(false) }
+  }
+
+  const handleRemove = async () => {
+    setRemoving(true); setError('')
+    try {
+      await fetch(endpoint, { method: 'DELETE' })
+      setStatus('disconnected'); setMasked(''); setInput('')
+    } catch { setError('Network error') }
+    finally { setRemoving(false) }
+  }
+
+  const isConnected = status === 'connected'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10, padding:'16px 0', borderBottom:`1px solid ${C.hairline}` }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:13, fontWeight:700, color:C.primary }}>{label}</span>
+          {status === 'loading' && <span style={{ fontSize:11, color:C.muted }}>Checking…</span>}
+          {isConnected && (
+            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:999, background:C.greenGlow, border:`1px solid ${C.greenDim}`, color:C.green }}>
+              Connected
+            </span>
+          )}
+          {status === 'disconnected' && (
+            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:999, background:'#180808', border:`1px solid #5a2020`, color:'#c07070' }}>
+              Not connected
+            </span>
+          )}
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          {helpUrl && (
+            <a href={helpUrl} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize:11, color:C.muted, textDecoration:'underline' }}>
+              {helpLabel || 'Get API key →'}
+            </a>
+          )}
+          {isConnected ? (
+            <button onClick={handleRemove} disabled={removing}
+              style={{ padding:'5px 12px', borderRadius:5, fontSize:11, fontWeight:700, cursor:'pointer', border:`1px solid ${C.hairline}`, background:'none', color:C.muted }}>
+              {removing ? '…' : 'Remove'}
+            </button>
+          ) : (
+            <button onClick={() => setShow(s => !s)}
+              style={{ padding:'5px 12px', borderRadius:5, fontSize:11, fontWeight:700, cursor:'pointer', border:`1px solid ${C.gold}`, background:C.goldGlow, color:C.gold }}>
+              {show ? 'Cancel' : 'Connect'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {isConnected && masked && (
+        <div style={{ fontSize:11, color:C.muted, fontFamily:'monospace' }}>{masked}</div>
+      )}
+
+      {show && !isConnected && (
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <input
+            type="password" value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            placeholder="Paste your API key here"
+            style={{ flex:1, minWidth:220, padding:'8px 12px', borderRadius:6, border:`1px solid ${C.hairline}`, background:C.deep, color:C.primary, fontSize:13, fontFamily:'monospace', outline:'none' }}
+          />
+          <button onClick={handleSave} disabled={saving || !input.trim()}
+            style={{ padding:'8px 16px', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer', border:'none', background:saving ? C.muted : C.gold, color:'#000', opacity: !input.trim() ? 0.5 : 1 }}>
+            {saving ? 'Validating…' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {error && <div style={{ fontSize:12, color:'#c07070' }}>{error}</div>}
+    </div>
+  )
+}
+
+function ApiIntegrations() {
+  return (
+    <div style={{ borderRadius:10, border:`1px solid ${C.hairline}`, background:C.surface, padding:'20px 24px' }}>
+      <div style={{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:C.muted, marginBottom:4 }}>API Integrations</div>
+      <div style={{ fontSize:12, color:C.muted, marginBottom:16, lineHeight:1.6 }}>
+        Connect your own API keys to unlock Jarvis Studio production. HeyGen generates founder avatar clips. Runway generates cinematic visual scenes.
+      </div>
+
+      <ApiKeyRow
+        label="HeyGen"
+        endpoint="/api/heygen/settings"
+        helpUrl="https://app.heygen.com/settings?nav=API"
+        helpLabel="Get HeyGen key →"
+      />
+      <ApiKeyRow
+        label="Runway"
+        endpoint="/api/runway/settings"
+        helpUrl="https://app.runwayml.com/account/api-keys"
+        helpLabel="Get Runway key →"
+      />
+    </div>
+  )
+}
+
 export default function AccountPage() {
   const router  = useRouter()
   const supabase = createClient()
@@ -1009,6 +1143,9 @@ export default function AccountPage() {
             </button>
           </div>
         )}
+
+        {/* API Integrations */}
+        <ApiIntegrations />
 
         {/* Quick links */}
         <div style={{ borderRadius: 10, border: `1px solid ${C.hairline}`, background: C.surface, padding: '20px 24px' }}>
