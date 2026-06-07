@@ -36,6 +36,7 @@ async function uploadAsset(file) {
 // Extracts 5 representative frames from a video file using the Canvas API.
 // Works in the browser — no server-side FFmpeg required.
 async function extractVideoFrames(videoFile) {
+  if (typeof document === 'undefined') return []
   return new Promise((resolve) => {
     const video      = document.createElement('video')
     const canvas     = document.createElement('canvas')
@@ -835,43 +836,39 @@ export default function JarvisStudio() {
               )}
 
               {/* 5 Moment Categories */}
-              {(() => {
-                const moments = [
-                  { key:'strongestProofMoment',      label:'Proof Moment',       color:C.green },
-                  { key:'strongestConversionMoment', label:'Conversion Moment',  color:C.gold },
-                  { key:'strongestTrustMoment',      label:'Trust Moment',       color:C.teal },
-                  { key:'strongestSocialAdMoment',   label:'Social Ad Moment',   color:C.purple },
-                ].filter(({ key }) => assessment.videoAnalysis[key])
-                const landing = assessment.videoAnalysis.strongestLandingPageMoment
-                if (!moments.length && !landing) return null
-                return (
-                  <>
-                    {moments.length > 0 && (
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                        {moments.map(({ key, label, color }) => {
-                          const m = assessment.videoAnalysis[key]
-                          return (
-                            <div key={key} style={{ padding:'10px 12px', borderRadius:8, background:`${color}09`, border:`1px solid ${color}22` }}>
-                              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${color}77`, textTransform:'uppercase', marginBottom:3 }}>{label}</div>
-                              {m.frame && <div style={{ fontSize:9, color:`${color}44`, marginBottom:4 }}>Frame {m.frame}{m.label ? ` — ${m.label}` : ''}</div>}
-                              <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{m.observation}</div>
-                              <div style={{ fontSize:10, color:C.muted, fontStyle:'italic', lineHeight:1.4 }}>{m.whyItWorks}</div>
-                            </div>
-                          )
-                        })}
+              {[
+                { key:'strongestProofMoment',      label:'Proof Moment',      color:C.green },
+                { key:'strongestConversionMoment', label:'Conversion Moment', color:C.gold },
+                { key:'strongestTrustMoment',      label:'Trust Moment',      color:C.teal },
+                { key:'strongestSocialAdMoment',   label:'Social Ad Moment',  color:C.purple },
+              ].filter(({ key }) => assessment.videoAnalysis[key] && typeof assessment.videoAnalysis[key] === 'object').length > 0 && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                  {[
+                    { key:'strongestProofMoment',      label:'Proof Moment',      color:C.green },
+                    { key:'strongestConversionMoment', label:'Conversion Moment', color:C.gold },
+                    { key:'strongestTrustMoment',      label:'Trust Moment',      color:C.teal },
+                    { key:'strongestSocialAdMoment',   label:'Social Ad Moment',  color:C.purple },
+                  ].filter(({ key }) => assessment.videoAnalysis[key] && typeof assessment.videoAnalysis[key] === 'object').map(({ key, label, color }) => {
+                    const m = assessment.videoAnalysis[key]
+                    return (
+                      <div key={key} style={{ padding:'10px 12px', borderRadius:8, background:`${color}09`, border:`1px solid ${color}22` }}>
+                        <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${color}77`, textTransform:'uppercase', marginBottom:3 }}>{label}</div>
+                        {m.frame && <div style={{ fontSize:9, color:`${color}44`, marginBottom:4 }}>Frame {m.frame}{m.label ? ` — ${m.label}` : ''}</div>}
+                        <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{m.observation}</div>
+                        <div style={{ fontSize:10, color:C.muted, fontStyle:'italic', lineHeight:1.4 }}>{m.whyItWorks}</div>
                       </div>
-                    )}
-                    {landing && (
-                      <div style={{ padding:'10px 12px', borderRadius:8, background:`${C.secondary}07`, border:`1px solid ${C.border}`, marginBottom:8 }}>
-                        <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:3 }}>Landing Page Moment</div>
-                        {landing.frame && <div style={{ fontSize:9, color:C.dim, marginBottom:4 }}>Frame {landing.frame}{landing.label ? ` — ${landing.label}` : ''}</div>}
-                        <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{landing.observation}</div>
-                        <div style={{ fontSize:10, color:C.muted, fontStyle:'italic' }}>{landing.whyItWorks}</div>
-                      </div>
-                    )}
-                  </>
-                )
-              })()}
+                    )
+                  })}
+                </div>
+              )}
+              {assessment.videoAnalysis.strongestLandingPageMoment && typeof assessment.videoAnalysis.strongestLandingPageMoment === 'object' && (
+                <div style={{ padding:'10px 12px', borderRadius:8, background:`${C.secondary}07`, border:`1px solid ${C.border}`, marginBottom:8 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:3 }}>Landing Page Moment</div>
+                  {assessment.videoAnalysis.strongestLandingPageMoment.frame && <div style={{ fontSize:9, color:C.dim, marginBottom:4 }}>Frame {assessment.videoAnalysis.strongestLandingPageMoment.frame}{assessment.videoAnalysis.strongestLandingPageMoment.label ? ` — ${assessment.videoAnalysis.strongestLandingPageMoment.label}` : ''}</div>}
+                  <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{assessment.videoAnalysis.strongestLandingPageMoment.observation}</div>
+                  <div style={{ fontSize:10, color:C.muted, fontStyle:'italic' }}>{assessment.videoAnalysis.strongestLandingPageMoment.whyItWorks}</div>
+                </div>
+              )}
 
               {assessment.videoAnalysis.whatConcernsMe?.length > 0 && (
                 <div style={{ marginTop:4 }}>
