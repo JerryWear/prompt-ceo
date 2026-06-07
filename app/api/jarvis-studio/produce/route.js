@@ -51,23 +51,25 @@ export async function POST(req) {
     if (runwayKey && runwayScenes.length > 0) {
       const missing = runwayScenes.filter(s => !scenePreviews[s.id])
       if (missing.length > 0) {
+        const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
         for (const s of missing) {
+          if (!xaiKey) { console.error('[produce] XAI_API_KEY not configured — skipping fallback'); break }
           try {
             const raw = (s.visual_direction || s.dalle_prompt || '').slice(0, 200)
               .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|model|creator|professional|user|customer|client|brand|apple|google|meta|nike|[\w]+\.com)\b/gi, '')
               .replace(/\s{2,}/g, ' ').trim()
-            const prompt = `Cinematic vertical advertisement frame, ${s.label || 'scene'} concept. ${raw ? raw + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos, photorealistic.`
-            const r = await fetch('https://api.openai.com/v1/images/generations', {
+            const prompt = `Cinematic vertical advertisement frame, ${s.label || 'scene'} concept. ${raw ? raw + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos.`
+            const r = await fetch('https://api.x.ai/v1/images/generations', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-              body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
+              body: JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
             })
             const d = await r.json()
-            if (!r.ok) { console.error('[produce] DALL-E fallback error:', d?.error?.message); continue }
-            const url = d?.data?.[0]?.url
-            if (url) { scenePreviews[s.id] = url; console.log('[produce] DALL-E fallback OK for', s.id) }
+            if (!r.ok) { console.error('[produce] xAI fallback error:', d?.error?.message); continue }
+            const url = d?.data?.[0]?.url || d?.images?.[0]?.url || d?.url
+            if (url) { scenePreviews[s.id] = url; console.log('[produce] xAI fallback OK for', s.id) }
           } catch (e) {
-            console.error('[produce] DALL-E fallback failed for scene', s.id, e.message)
+            console.error('[produce] xAI fallback failed for scene', s.id, e.message)
           }
         }
       }

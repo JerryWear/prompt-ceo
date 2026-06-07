@@ -29,24 +29,26 @@ function buildSafePrompt(scene) {
   return `Cinematic vertical advertisement frame, ${label} scene concept. ${safe ? safe + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos, photorealistic product aesthetic.`
 }
 
-async function generateDalleImage(scene) {
+async function generatePreviewImage(scene) {
   const prompt = buildSafePrompt(scene)
+  const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
+  if (!xaiKey) throw new Error('XAI_API_KEY not configured')
 
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
+  const res = await fetch('https://api.x.ai/v1/images/generations', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
+    body: JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
   })
   const data = await res.json()
 
   if (!res.ok) {
-    const errMsg = data.error?.message || `DALL-E ${res.status}`
-    console.error('[preview-scenes] DALL-E error:', errMsg, '| prompt:', prompt.slice(0, 100))
+    const errMsg = data.error?.message || `xAI ${res.status}`
+    console.error('[preview-scenes] xAI error:', errMsg, '| prompt:', prompt.slice(0, 100))
     throw new Error(errMsg)
   }
 
-  const url = data.data?.[0]?.url
-  if (!url) throw new Error('DALL-E returned no URL')
+  const url = data.data?.[0]?.url || data.images?.[0]?.url || data.url
+  if (!url) throw new Error('xAI returned no URL')
   return url
 }
 
@@ -59,8 +61,8 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 })
+    if (!process.env.XAI_API_KEY) {
+      return NextResponse.json({ error: 'XAI_API_KEY not configured' }, { status: 500 })
     }
 
     const { scenes } = await req.json()
@@ -73,7 +75,7 @@ export async function POST(req) {
     const previews = []
     for (const scene of scenes) {
       try {
-        const imageUrl = await generateDalleImage(scene)
+        const imageUrl = await generatePreviewImage(scene)
         previews.push({ id: scene.id, imageUrl })
       } catch (e) {
         console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
