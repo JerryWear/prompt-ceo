@@ -716,6 +716,59 @@ export default function JarvisStudio() {
             ) : null
           })()}
 
+          {/* Video Analysis */}
+          {assessment.videoAnalysis && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.purple}33`, background:C.purpleBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.purple}99`, textTransform:'uppercase', marginBottom:14 }}>Video Analysis</div>
+
+              {assessment.videoAnalysis.whatIObserved?.length > 0 && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.purple}66`, textTransform:'uppercase', marginBottom:8 }}>What I Observed</div>
+                  {assessment.videoAnalysis.whatIObserved.map((item, i) => (
+                    <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
+                      <span style={{ color:C.purple, fontSize:9, marginTop:3, flexShrink:0 }}>▸</span>
+                      <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {assessment.videoAnalysis.strongestProofPoints?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.green}66`, textTransform:'uppercase', marginBottom:8 }}>Strongest Proof Points</div>
+                    {assessment.videoAnalysis.strongestProofPoints.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
+                        <span style={{ color:C.green, fontSize:9, marginTop:3, flexShrink:0 }}>✓</span>
+                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {assessment.videoAnalysis.strongestAdMoments?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:8 }}>Strongest Ad Moments</div>
+                    {assessment.videoAnalysis.strongestAdMoments.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
+                        <span style={{ color:C.gold, fontSize:9, marginTop:3, flexShrink:0 }}>✦</span>
+                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {assessment.videoAnalysis.visualOpportunities?.length > 0 && (
+                <div style={{ marginTop:12 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}66`, textTransform:'uppercase', marginBottom:8 }}>Visual Opportunities</div>
+                  {assessment.videoAnalysis.visualOpportunities.map((item, i) => (
+                    <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:4 }}>→ {item}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* What I Understand */}
           <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
             <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:12 }}>What I Understand</div>
