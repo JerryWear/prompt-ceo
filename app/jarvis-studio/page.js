@@ -1424,7 +1424,8 @@ export default function JarvisStudio() {
                   </div>
                   <div style={{ display:'flex', gap:9, padding:'11px 18px 14px', overflowX:'auto' }}>
                     {concept.scenes.map(scene => (
-                      <SceneThumb key={scene.id} scene={scene} imageUrl={previews[scene.id]} />
+                      <SceneThumb key={scene.id} scene={scene}
+                        imageUrl={previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)} />
                     ))}
                   </div>
                 </div>
