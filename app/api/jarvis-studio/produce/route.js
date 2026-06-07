@@ -45,6 +45,30 @@ export async function POST(req) {
     const heygenScenes = concept.scenes.filter(s => s.generator === 'heygen' && s.script)
     const runwayScenes = concept.scenes.filter(s => s.generator === 'runway')
 
+    // ── Pre-generate DALL-E images for Runway scenes missing storyboard previews ──
+    // Storyboard previews may not have loaded — generate fresh ones in parallel now
+    // so Runway always has a valid promptImage (DALL-E URLs are valid for ~1hr after generation)
+    if (runwayKey && runwayScenes.length > 0) {
+      const missing = runwayScenes.filter(s => !scenePreviews[s.id])
+      if (missing.length > 0) {
+        await Promise.all(missing.map(async s => {
+          try {
+            const prompt = s.dalle_prompt || s.visual_direction || `${s.label} cinematic shot, vertical format`
+            const r = await fetch('https://api.openai.com/v1/images/generations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+              body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
+            })
+            const d = await r.json()
+            const url = d?.data?.[0]?.url
+            if (url) scenePreviews[s.id] = url
+          } catch (e) {
+            console.error('[produce] DALL-E fallback failed for scene', s.id, e.message)
+          }
+        }))
+      }
+    }
+
     let avatarId     = null
     let avatarStatus = 'not_needed'
     let avatarError  = null
