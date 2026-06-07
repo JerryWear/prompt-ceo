@@ -385,53 +385,56 @@ export default function JarvisStudio() {
       if (!sData.storyboard?.concepts?.length) throw new Error(sData.error || 'Storyboard failed')
       setStoryboard(sData.storyboard)
 
-      // Generate previews ONE CONCEPT AT A TIME to avoid flooding DALL-E with 15+ parallel calls.
-      // Promise.all across all concepts causes rate-limit failures and silent 0/25 hangs.
-      let failCount = 0
-      let firstDalleError = ''
+      // Run all 5 concept preview calls IN PARALLEL — xAI has generous rate limits unlike DALL-E.
+      // Each API call generates that concept's Runway scenes sequentially inside the server function.
+      // Wall time = slowest concept (~60s) instead of 5 × 60s = 5 minutes sequential.
+      // ALL Runway scenes get a preview image so Runway has an image for every scene it produces.
       let totalLoaded = 0
-      for (const concept of sData.storyboard.concepts) {
-        try {
-          const pRes = await fetch('/api/jarvis-studio/preview-scenes', {
+      let firstError = ''
+
+      const conceptResults = await Promise.allSettled(
+        sData.storyboard.concepts.map(concept => {
+          const runwayScenes = concept.scenes
+            .filter(s => s.generator === 'runway')
+            .map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label }))
+          if (runwayScenes.length === 0) return Promise.resolve({ previews: [] })
+          return fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // Only send up to 2 Runway scenes per concept — HeyGen (Avatar) scenes need no preview.
-            // Limiting to 2 keeps total DALL-E calls to ≤10 across 5 concepts (~2 min total).
-            body: JSON.stringify({ scenes: concept.scenes.filter(s => s.generator === 'runway').slice(0, 2).map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label })) }),
-          })
-          if (!pRes.ok) { failCount++; continue }
-          const pData = await pRes.json()
-          if (pData.previews) {
-            const loaded = pData.previews.filter(p => p.imageUrl)
-            totalLoaded += loaded.length
-            if (loaded.length === 0) {
-              // All images in this concept failed — surface the actual DALL-E error
-              failCount++
-              if (!firstDalleError) {
-                firstDalleError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
-              }
-            } else {
-              setPreviews(prev => {
-                const next = { ...prev }
-                loaded.forEach(p => { next[p.id] = p.imageUrl })
-                return next
-              })
-            }
-          } else {
-            failCount++
-            if (!firstDalleError) firstDalleError = pData.error || 'No previews returned'
+            body: JSON.stringify({ scenes: runwayScenes }),
+          }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) }))
+        })
+      )
+
+      for (const result of conceptResults) {
+        if (result.status === 'rejected') {
+          if (!firstError) firstError = result.reason?.message || 'Preview fetch failed'
+          continue
+        }
+        const pData = result.value
+        if (pData.previews) {
+          const loaded = pData.previews.filter(p => p.imageUrl)
+          totalLoaded += loaded.length
+          if (loaded.length === 0 && !firstError) {
+            firstError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
           }
-        } catch (e) {
-          failCount++
-          if (!firstDalleError) firstDalleError = e.message
+          if (loaded.length > 0) {
+            setPreviews(prev => {
+              const next = { ...prev }
+              loaded.forEach(p => { next[p.id] = p.imageUrl })
+              return next
+            })
+          }
+        } else if (!firstError) {
+          firstError = pData.error || 'No previews returned'
         }
       }
 
-      const totalScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.length, 0)
-      if (failCount > 0 && totalLoaded === 0) {
-        setPreviewError(`Preview images failed to generate. ${firstDalleError ? `Error: ${firstDalleError.slice(0, 120)}` : 'You can still produce — images will be regenerated automatically.'}`)
-      } else if (failCount > 0) {
-        setPreviewError(`${totalLoaded}/${totalScenes} previews loaded. You can still produce affected concepts.`)
+      const totalRunwayScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
+      if (totalLoaded === 0 && firstError) {
+        setPreviewError(`Preview images failed. Error: ${firstError.slice(0, 120)}`)
+      } else if (totalLoaded < totalRunwayScenes) {
+        setPreviewError(`${totalLoaded}/${totalRunwayScenes} previews loaded — some scenes may generate without a preview image.`)
       }
       setPreviewsDone(true)
 
