@@ -13,9 +13,42 @@ async function makeSupabase() {
   )
 }
 
+// Attempt Whisper transcription of a video URL.
+// Returns transcript string or null if it fails (too large, no audio, timeout).
+async function transcribeVideo(videoUrl) {
+  try {
+    const fetchRes = await fetch(videoUrl)
+    if (!fetchRes.ok) return null
+
+    const contentLength = parseInt(fetchRes.headers.get('content-length') || '0', 10)
+    if (contentLength > 24 * 1024 * 1024) return null // skip if >24MB (Whisper limit is 25MB)
+
+    const buffer = await fetchRes.arrayBuffer()
+    if (buffer.byteLength > 24 * 1024 * 1024) return null
+
+    const blob = new Blob([buffer], { type: 'video/mp4' })
+    const fd   = new FormData()
+    fd.append('file', blob, 'video.mp4')
+    fd.append('model', 'whisper-1')
+    fd.append('response_format', 'text')
+
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: fd,
+    })
+    if (!res.ok) return null
+
+    const text = await res.text()
+    return text?.trim() || null
+  } catch {
+    return null
+  }
+}
+
 // POST /api/jarvis-studio/understand
 // Body: { websiteUrl?, founderImageUrl?, productImageUrls?, videoUrl?, prompt?, intent? }
-// Returns: { understanding: { brand, founder, products, video, rawAnalysis } }
+// Returns: { understanding: { brand, founder, products, video, adReadiness } }
 export async function POST(req) {
   try {
     const supabase = await makeSupabase()
@@ -24,25 +57,23 @@ export async function POST(req) {
 
     const { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, prompt, intent } = await req.json()
 
-    // 1. Scrape website if provided
-    let webContent = ''
-    if (websiteUrl) {
-      try {
-        const fcRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.FIRECRAWL_API_KEY}` },
-          body: JSON.stringify({ url: websiteUrl.trim(), formats: ['markdown'], onlyMainContent: true }),
-        })
-        const fcData = await fcRes.json()
-        if (fcData.success && fcData.data?.markdown) {
-          webContent = fcData.data.markdown.slice(0, 8000)
-        }
-      } catch (e) {
-        console.error('Firecrawl error:', e.message)
-      }
-    }
+    // 1. Scrape website + transcribe video in parallel
+    const [webContent, videoTranscript] = await Promise.all([
+      websiteUrl ? (async () => {
+        try {
+          const fcRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.FIRECRAWL_API_KEY}` },
+            body: JSON.stringify({ url: websiteUrl.trim(), formats: ['markdown'], onlyMainContent: true }),
+          })
+          const fcData = await fcRes.json()
+          return (fcData.success && fcData.data?.markdown) ? fcData.data.markdown.slice(0, 8000) : ''
+        } catch { return '' }
+      })() : Promise.resolve(''),
+      videoUrl ? transcribeVideo(videoUrl) : Promise.resolve(null),
+    ])
 
-    // 2. Build GPT-4o Vision message with all assets
+    // 2. Build GPT-4o Vision message
     const userContent = []
 
     if (webContent) {
@@ -58,30 +89,37 @@ export async function POST(req) {
       userContent.push({ type: 'text', text: `PRODUCT IMAGES (${productImageUrls.length} images):` })
       productImageUrls.slice(0, 4).forEach((url, i) => {
         userContent.push({ type: 'image_url', image_url: { url, detail: 'high' } })
-        userContent.push({ type: 'text', text: `Product image ${i + 1}: Describe what you see — product type, packaging, design language, colors, quality signals.` })
+        userContent.push({ type: 'text', text: `Product image ${i + 1}: Describe what you see — product type, UI design, features visible, design language, colors, quality signals.` })
       })
     }
 
     if (videoUrl) {
-      userContent.push({ type: 'text', text: `VIDEO UPLOADED: A product or brand video was provided at ${videoUrl}. Assume it shows the product in use or the founder presenting it.` })
+      if (videoTranscript) {
+        userContent.push({
+          type: 'text',
+          text: `VIDEO — WHISPER TRANSCRIPT (actual spoken content from the uploaded video):\n"${videoTranscript.slice(0, 3000)}"\n\nBased on this transcript: identify the product being demonstrated, key features mentioned, the tone and style of presentation, and what proof points are established. This is real content from the video.`,
+        })
+      } else {
+        userContent.push({
+          type: 'text',
+          text: `VIDEO UPLOADED: A product/brand video was uploaded. Transcription was not available (file may be too large or contain no audio). Set video.present = true. Reason about the video based on brand context — what a founder-led product demo for this category typically demonstrates.`,
+        })
+      }
     }
 
     if (prompt) {
       userContent.push({ type: 'text', text: `CREATIVE DIRECTION FROM USER: ${prompt}` })
     }
-
     if (intent) {
       userContent.push({ type: 'text', text: `DESIRED AD TYPE: ${intent.replace(/_/g, ' ')}` })
     }
 
     const hasContent = webContent || founderImageUrl || productImageUrls.length || videoUrl || prompt
-    if (!hasContent) {
-      return NextResponse.json({ error: 'At least one input is required' }, { status: 400 })
-    }
+    if (!hasContent) return NextResponse.json({ error: 'At least one input is required' }, { status: 400 })
 
     userContent.push({
       type: 'text',
-      text: `Based on everything above, extract deep brand intelligence. Return ONLY this exact JSON:
+      text: `Extract deep brand intelligence from everything above. Return ONLY this exact JSON:
 {
   "brand": {
     "name": "brand name",
@@ -97,24 +135,25 @@ export async function POST(req) {
     "competitiveAdvantage": "what makes this brand genuinely different — be specific"
   },
   "founder": {
-    "present": true,
-    "visualDescription": "appearance, style, energy — or null if no founder image",
+    "present": ${!!founderImageUrl},
+    "visualDescription": "appearance, style, energy — from the actual image",
     "estimatedAge": "age range or null",
-    "cameraPresence": "assessment of how they will come across on camera — or null",
-    "suggestedRole": "what role should they play in ads: spokesperson, authority, relatability — or null"
+    "cameraPresence": "assessment of how they will come across on camera",
+    "suggestedRole": "spokesperson | authority | relatability"
   },
   "products": {
-    "count": 0,
-    "descriptions": ["description per product image"],
+    "count": ${productImageUrls.length},
+    "descriptions": ["description per product image observed"],
     "designLanguage": "visual/design language across products",
     "keyVisuals": "what stands out visually that could anchor an ad"
   },
   "video": {
-    "present": false,
-    "analysis": "what the video likely shows and how it could be used"
+    "present": ${!!videoUrl},
+    "transcriptAvailable": ${!!videoTranscript},
+    "analysis": "${videoTranscript ? 'Based on Whisper transcript' : 'No transcript — reasoning from context'}: describe what this video shows, what it demonstrates, and how it could be used in ads"
   },
   "adReadiness": {
-    "strongestAsset": "founder | product | website | video | prompt — which gives the richest material",
+    "strongestAsset": "founder | product | website | video | prompt",
     "productionApproach": "recommended mix: e.g. HeyGen for founder scenes + Runway for visual scenes",
     "platformFocus": "instagram_reels"
   }
@@ -129,7 +168,7 @@ export async function POST(req) {
         messages: [
           {
             role: 'system',
-            content: 'You are the senior brand intelligence analyst at an elite AI creative agency. Your job is to extract deep, specific, actionable brand intelligence from whatever inputs are provided. Be specific. Never generic. Return only valid JSON with no markdown wrappers.',
+            content: 'You are the senior brand intelligence analyst at an elite AI creative agency. Extract deep, specific, actionable brand intelligence from whatever inputs are provided. Be specific. Never generic. Return only valid JSON.',
           },
           { role: 'user', content: userContent },
         ],
@@ -148,6 +187,14 @@ export async function POST(req) {
     } catch {
       return NextResponse.json({ error: 'Failed to parse brand understanding' }, { status: 500 })
     }
+
+    // Force ground-truth fields — GPT cannot override what we know was provided
+    if (founderImageUrl)          understanding.founder = { ...understanding.founder, present: true }
+    if (videoUrl)                 understanding.video   = { ...understanding.video,   present: true, transcriptAvailable: !!videoTranscript }
+    if (productImageUrls.length)  understanding.products = { ...understanding.products, count: Math.max(understanding.products?.count || 0, productImageUrls.length) }
+
+    // Attach transcript for the assess route to use
+    if (videoTranscript) understanding.video.transcript = videoTranscript.slice(0, 2000)
 
     return NextResponse.json({ status: 'success', understanding })
 

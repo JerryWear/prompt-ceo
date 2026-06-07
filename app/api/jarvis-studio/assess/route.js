@@ -13,19 +13,47 @@ async function makeSupabase() {
   )
 }
 
-// Keywords used to post-process missingUploadedAssets — strip any asset that was actually provided.
-// This is a deterministic safety net so GPT cannot contradict what we know was uploaded.
-function stripProvidedFromMissing(missingList, hasFounder, hasProduct, hasVideo, hasWebsite) {
-  if (!Array.isArray(missingList)) return []
-  const blocklist = []
-  if (hasFounder) blocklist.push('founder', 'headshot', 'portrait', 'face', 'person', 'photo of')
-  if (hasProduct) blocklist.push('product image', 'product screenshot', 'product photo', 'screenshot', 'app screenshot')
-  if (hasVideo)   blocklist.push('video', 'footage', 'demo video', 'demo footage', 'recording', 'clip', 'screen recording', 'walkthrough video', 'product video')
-  if (hasWebsite) blocklist.push('website url', 'website link', 'url', 'website address')
-  return missingList.filter(item => {
-    const lower = (item.asset || '').toLowerCase()
-    return !blocklist.some(kw => lower.includes(kw))
+// Build contradiction patterns for an asset type.
+// When an asset WAS uploaded, any string matching these patterns is a contradiction.
+const CONTRADICTION_PATTERNS = {
+  video:   [/lack of.*video/i, /no.*video.*upload/i, /video.*not.*upload/i, /without.*video/i, /missing.*video/i, /video.*missing/i, /no video/i, /no.*product video/i, /video.*not.*provid/i, /\bno uploaded video\b/i],
+  founder: [/lack of.*founder/i, /no.*founder.*image/i, /founder.*not.*upload/i, /missing.*founder/i, /no.*headshot/i, /no.*founder photo/i],
+  product: [/lack of.*product image/i, /no.*product.*image.*upload/i, /missing.*product image/i],
+}
+
+// Scan a single string for contradiction patterns given the asset manifest.
+function isContradiction(str, hasVideo, hasFounder, hasProduct) {
+  if (!str) return false
+  if (hasVideo   && CONTRADICTION_PATTERNS.video.some(p   => p.test(str))) return true
+  if (hasFounder && CONTRADICTION_PATTERNS.founder.some(p => p.test(str))) return true
+  if (hasProduct && CONTRADICTION_PATTERNS.product.some(p => p.test(str))) return true
+  return false
+}
+
+// Remove contradictory items from an array of strings.
+function cleanArray(arr, hasVideo, hasFounder, hasProduct) {
+  if (!Array.isArray(arr)) return arr
+  return arr.filter(item => {
+    const str = typeof item === 'string' ? item : (item?.asset || item?.action || item?.text || '')
+    return !isContradiction(str, hasVideo, hasFounder, hasProduct)
   })
+}
+
+// Recursively sanitize every string value in the assessment object.
+function sanitizeAssessment(obj, hasVideo, hasFounder, hasProduct) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return cleanArray(obj, hasVideo, hasFounder, hasProduct)
+  const out = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (Array.isArray(v)) {
+      out[k] = cleanArray(v, hasVideo, hasFounder, hasProduct)
+    } else if (v && typeof v === 'object') {
+      out[k] = sanitizeAssessment(v, hasVideo, hasFounder, hasProduct)
+    } else {
+      out[k] = v
+    }
+  }
+  return out
 }
 
 // POST /api/jarvis-studio/assess
@@ -40,178 +68,188 @@ export async function POST(req) {
     const { understanding, assets, prompt, intent } = await req.json()
     if (!understanding) return NextResponse.json({ error: 'understanding required' }, { status: 400 })
 
-    const hasFounder = !!(assets?.founderImageUrl  || understanding?.founder?.present)
-    const hasProduct = !!(assets?.productImageUrls?.length || understanding?.products?.count > 0)
-    const hasVideo   = !!(assets?.videoUrls?.length || understanding?.video?.present)
-    const hasWebsite = !!(assets?.websiteUrl)
-    const hasPrompt  = !!(prompt?.trim())
+    // Ground-truth asset manifest — built from actual uploaded state, not GPT inference
+    const hasFounder  = !!(assets?.founderImageUrl  || understanding?.founder?.present)
+    const hasProduct  = !!(assets?.productImageUrls?.length || understanding?.products?.count > 0)
+    const hasVideo    = !!(assets?.videoUrls?.length || understanding?.video?.present)
+    const hasWebsite  = !!(assets?.websiteUrl)
+    const hasPrompt   = !!(prompt?.trim())
+    const hasTranscript = !!(understanding?.video?.transcript)
+
+    // This manifest is injected at the TOP of the system prompt as inviolable fact
+    const assetManifest = `INVIOLABLE ASSET MANIFEST — READ THIS FIRST:
+The following assets WERE uploaded and analyzed. No section of your assessment may contradict this.
+- Website URL: ${hasWebsite  ? `YES (${assets.websiteUrl})` : 'NOT PROVIDED'}
+- Founder image: ${hasFounder ? 'YES — analyzed by vision model' : 'NOT PROVIDED'}
+- Product images: ${hasProduct ? `YES — ${assets?.productImageUrls?.length || understanding?.products?.count || 0} image(s) analyzed` : 'NOT PROVIDED'}
+- Product video: ${hasVideo   ? `YES — uploaded and ${hasTranscript ? 'transcribed by Whisper (real audio content available)' : 'present (no audio transcript)'}` : 'NOT PROVIDED'}
+- Stated direction: ${hasPrompt ? `YES — "${prompt}"` : 'NONE'}
+
+HARD RULES derived from this manifest:
+${hasVideo   ? '- Video WAS uploaded. NEVER say "lack of video", "no video", "video not uploaded", "missing video". Reason FROM the video, not about its absence.' : ''}
+${hasFounder ? '- Founder image WAS uploaded. NEVER say founder image is missing.' : ''}
+${hasProduct ? '- Product images WERE uploaded. NEVER say product images are missing.' : ''}
+${hasWebsite ? '- Website WAS crawled. NEVER say website is missing.' : ''}
+
+missingUploadedAssets may only contain assets NOT in the manifest above.`
 
     const systemPrompt = `You are Jarvis — a senior Creative Director, Marketing Strategist, and Competitive Intelligence Analyst with 20 years building direct-response ad campaigns.
 
-You have reviewed a brand's uploaded assets, crawled website, and stated direction. You are writing a full strategic assessment before a campaign begins.
+${assetManifest}
 
-CRITICAL RULE — CITE EVIDENCE:
-Every observation must reference what you actually saw or analyzed. Never make general statements.
+Your task: write a full strategic assessment from actual observed evidence. Every conclusion must trace to something you observed.
+
+EVIDENCE-FIRST RULE:
 - Wrong: "Your founder builds trust."
-- Right: "The uploaded founder image presents a professional executive in a clean setting, which supports authority-based positioning."
-- Wrong: "Your product looks premium."
-- Right: "The uploaded screenshot shows a dark dashboard with gold accents and an enterprise-style data layout — this signals premium positioning to a sophisticated buyer."
+- Right: "The uploaded founder image shows a professional in a structured environment — this supports authority-based positioning with a sophisticated buyer."
+- Wrong: "Your messaging could be clearer."
+- Right: "The crawled homepage opens with the word 'AI' before explaining what problem is solved — this delays comprehension for a first-time visitor."
+- Wrong: "The product looks premium."
+- Right: "The uploaded screenshot shows a dark dashboard with gold UI accents and dense data tables — this signals enterprise-grade positioning."
 
-CRITICAL RULE — MISSING UPLOADED ASSETS:
-The user message will list exactly what was uploaded. You MUST NOT list any uploaded asset as a missing uploaded asset.
-If a video was uploaded: do NOT list video, demo video, product video, or footage as missing uploaded assets.
-If a founder image was uploaded: do NOT list founder image, headshot, or photo as missing uploaded assets.
-If product images were uploaded: do NOT list product images or screenshots as missing uploaded assets.
-Missing uploaded assets = only things the user could have uploaded but CHOSE NOT TO.
+VIDEO EVIDENCE RULE:
+${hasVideo && hasTranscript
+  ? `A Whisper transcript from the video is provided. Analyze it directly. Quote specific phrases. Identify what the presenter says about the product, what features are demonstrated, what proof points are established. This is real content — reason from it.`
+  : hasVideo
+  ? `A video was uploaded. No audio transcript was available. Reason from the visual brand context and what a typical product demo in this category demonstrates. Do NOT say the video is missing. Do NOT say there is a lack of video.`
+  : `No video was uploaded.`
+}
 
-CRITICAL RULE — COMPETITIVE INTELLIGENCE:
-Always identify DIRECT product competitors first — companies doing the exact same job for the exact same buyer.
-Prioritize companies that:
-- Compete in the same product category (e.g. for AI ad creation: Creatify, Arcads, AdCreative.ai, Pencil, not Canva or Adobe)
-- Target the same customer type
-- Offer the same core workflow
-Only include broad creative tools (Canva, Adobe, Visme) if they are genuinely the closest competitors to this specific product.
-Name real companies. Be specific about what makes each one a threat.
+COMPETITIVE INTELLIGENCE RULE:
+Prioritize DIRECT product competitors — companies doing the exact same job for the exact same buyer. Name real companies. For AI ad/creative tools: Creatify, Arcads, AdCreative.ai, Pencil, HeyGen, Synthesia are more relevant competitors than Canva, Adobe, or Visme. Only include broad tools if genuinely closest to this product.
 
-Your voice:
+VOICE:
 - Direct. Specific. Opinionated. Never vague.
-- Make JUDGMENTS, not just observations. Disagree when you see something wrong.
-- Challenge weak positioning even if the founder believes in it.
-- NEVER use: revolutionize, game-changer, cutting-edge, innovative, AI-powered, seamless, future of, groundbreaking, world-class, disruptive, transformative, leverage, synergy, empower, holistic
-- Write as if you are sitting across from the founder giving real paid strategic advice.
+- Make judgments, not observations. Disagree when something is wrong.
+- NEVER use: revolutionize, game-changer, cutting-edge, innovative, seamless, future of, groundbreaking, world-class, disruptive, transformative, leverage, synergy, empower, holistic.
+- Write as if speaking directly to the founder.
 
-Return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON:
 {
   "evidenceUsed": {
-    ${hasWebsite  ? '"website": "specific headlines, copy, positioning language observed in the crawled website",' : ''}
-    ${hasFounder  ? '"founderImage": "what you observed — appearance, setting, presentation style, authority signals",' : ''}
-    ${hasProduct  ? '"productImages": "what you observed — UI design, features visible, design language, product quality signals",' : ''}
-    ${hasVideo    ? '"video": "what you observed — content type, screens shown, workflows demonstrated, UI elements visible, production quality",' : ''}
-    ${hasPrompt   ? '"prompt": "what you inferred from the stated direction",' : ''}
+    ${hasWebsite    ? '"website": "specific headlines, positioning language, copy observed",' : ''}
+    ${hasFounder    ? '"founderImage": "specific observations — appearance, setting, authority signals, presentation style",' : ''}
+    ${hasProduct    ? '"productImages": "specific observations — UI design, features visible, design language, quality signals",' : ''}
+    ${hasVideo      ? `"video": "${hasTranscript ? 'From Whisper transcript: specific content, phrases spoken, features mentioned, proof points stated' : 'Video uploaded, no transcript: what the brand context suggests the video demonstrates'}",` : ''}
+    ${hasPrompt     ? '"prompt": "what you inferred from the stated direction",' : ''}
     "summary": "one sentence on the overall strength of this asset set for ad production"
   },
   ${hasVideo ? `"videoAnalysis": {
     "whatIObserved": [
-      "specific thing observed in the video — screen, workflow, UI element, or moment",
-      "specific thing observed in the video",
-      "specific thing observed in the video",
-      "specific thing observed in the video"
+      "${hasTranscript ? 'specific thing from transcript — spoken content, feature mentioned, or proof point stated' : 'specific thing inferred from brand context about what this video demonstrates'}",
+      "specific observation",
+      "specific observation",
+      "specific observation"
     ],
     "strongestProofPoints": [
-      "specific moment or element that proves the product works or delivers value",
-      "specific moment or element that proves the product works or delivers value"
+      "specific moment or statement that proves the product works",
+      "specific moment or statement"
     ],
     "strongestAdMoments": [
-      "specific moment in the video that would work well cut into an ad",
-      "specific moment in the video that would work well cut into an ad"
+      "specific moment that would work cut into an ad — be precise",
+      "specific moment"
     ],
     "visualOpportunities": [
-      "specific visual from the video that should become an ad scene",
-      "specific visual from the video that should become an ad scene"
+      "specific visual that should become an ad scene",
+      "specific visual"
+    ],
+    "whatConcernsMe": [
+      "weak or confusing moment, missed opportunity in the video content"
     ]
   },` : ''}
   "whatIUnderstand": {
-    "whatTheyDo": "what this company does in plain language — no jargon",
-    "whoTheyServe": "specific audience — not 'businesses' or 'marketers'",
-    "whatStandsOut": "the single most notable thing about this business"
+    "whatTheyDo": "plain language — no jargon",
+    "whoTheyServe": "specific audience",
+    "whatStandsOut": "most notable thing about this business"
   },
   "whatILike": [
-    "specific positive with evidence — cite what you saw",
-    "specific positive with evidence — cite what you saw",
-    "specific positive with evidence — cite what you saw"
+    "specific positive citing evidence — name what you saw",
+    "specific positive citing evidence",
+    "specific positive citing evidence"
   ],
   "whatConcernsMe": [
-    "specific concern with evidence — name what you saw that caused this concern",
-    "specific concern with evidence — name what you saw that caused this concern"
+    "specific concern citing evidence — name what you saw",
+    "specific concern citing evidence"
   ],
   "whatIWouldChange": [
-    "specific actionable recommendation with reasoning",
-    "specific actionable recommendation with reasoning",
-    "specific actionable recommendation with reasoning"
+    "specific recommendation citing evidence",
+    "specific recommendation citing evidence",
+    "specific recommendation citing evidence"
   ],
   "whatYoureGettingWrong": [
-    "direct judgment citing evidence — something wrong right now, stated plainly",
+    "direct judgment citing evidence",
     "direct judgment citing evidence",
     "direct judgment citing evidence"
   ],
   "whatIWouldTestFirst": {
-    "testA": { "name": "short test name", "format": "ad format or approach", "hypothesis": "one sentence on why this angle could win" },
-    "testB": { "name": "short test name", "format": "ad format or approach", "hypothesis": "one sentence on why this angle could win" },
-    "testC": { "name": "short test name", "format": "ad format or approach", "hypothesis": "one sentence on why this angle could win" },
+    "testA": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
+    "testB": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
+    "testC": { "name": "short name", "format": "ad format", "hypothesis": "why this could win" },
     "jarvispick": "A",
-    "whyThisWins": "2-3 sentences explaining specifically why the chosen test will outperform the others"
+    "whyThisWins": "2-3 sentences — specific argument for the chosen test"
   },
   "missingUploadedAssets": [
-    { "asset": "asset the user could have uploaded but did not — NEVER list anything already uploaded", "impact": "what this prevents in ad production" }
+    { "asset": "ONLY assets NOT in the manifest — never list video/founder/product if they were uploaded", "impact": "what this prevents" }
   ],
   "missingMarketingAssets": [
-    { "asset": "asset the business appears to lack publicly — independent of what was uploaded", "impact": "what this limits in marketing effectiveness" },
-    { "asset": "specific missing marketing asset", "impact": "specific limitation" },
-    { "asset": "specific missing marketing asset", "impact": "specific limitation" }
+    { "asset": "asset the business lacks publicly — unrelated to what was uploaded", "impact": "what this limits" },
+    { "asset": "specific asset", "impact": "specific limitation" },
+    { "asset": "specific asset", "impact": "specific limitation" }
   ],
   "ifThisWereMyCompany": {
-    "focus": "one sentence on the single most important strategic focus right now",
+    "focus": "single most important strategic focus",
     "thirtyDayActions": [
-      { "action": "specific action — not generic advice", "why": "the specific reason this action matters now" },
-      { "action": "specific action — not generic advice", "why": "the specific reason this action matters now" },
-      { "action": "specific action — not generic advice", "why": "the specific reason this action matters now" },
-      { "action": "specific action — not generic advice", "why": "the specific reason this action matters now" },
-      { "action": "specific action — not generic advice", "why": "the specific reason this action matters now" }
+      { "action": "specific — not generic", "why": "specific reason this matters now" },
+      { "action": "specific — not generic", "why": "specific reason this matters now" },
+      { "action": "specific — not generic", "why": "specific reason this matters now" },
+      { "action": "specific — not generic", "why": "specific reason this matters now" },
+      { "action": "specific — not generic", "why": "specific reason this matters now" }
     ]
   },
   "founderOpportunity": ${hasFounder ? `{
-    "howToUse": "specific role the founder should play — cite what you observed in the image",
-    "trustOpportunities": "what about this founder builds trust — cite what you saw",
-    "authorityOpportunities": "what gives this founder credibility — cite what you observed",
-    "personalStory": "what personal story angle would land — based on what you observed"
+    "howToUse": "specific role — cite what you observed in the image",
+    "trustOpportunities": "cite what you saw that builds trust",
+    "authorityOpportunities": "cite what you observed that establishes authority",
+    "personalStory": "angle based on what you observed"
   }` : 'null'},
   "productOpportunity": ${hasProduct || hasVideo ? `{
-    "whatStandsOut": "specific product features or visuals — cite what you saw",
-    "whatToEmphasize": "what should be front and center — cite what makes this compelling",
-    "visualMoments": "2-3 specific visual moments from the assets that would make great ad scenes"
+    "whatStandsOut": "specific features — cite what you saw",
+    "whatToEmphasize": "what should be front and center — cite evidence",
+    "visualMoments": "2-3 specific scenes from the assets that would work in ads"
   }` : 'null'},
   "competitiveIntelligence": {
     "competitors": [
-      { "name": "direct competitor — same product category, same buyer", "whatTheyDoWell": "specific strength", "knownFor": "what they are known for" },
-      { "name": "direct competitor — same product category, same buyer", "whatTheyDoWell": "specific strength", "knownFor": "what they are known for" },
-      { "name": "direct competitor — same product category, same buyer", "whatTheyDoWell": "specific strength", "knownFor": "what they are known for" }
+      { "name": "direct competitor — same product, same buyer", "whatTheyDoWell": "specific strength", "knownFor": "market reputation" },
+      { "name": "direct competitor", "whatTheyDoWell": "specific strength", "knownFor": "market reputation" },
+      { "name": "direct competitor", "whatTheyDoWell": "specific strength", "knownFor": "market reputation" }
     ],
-    "whyWeWin": [
-      "specific advantage over a named direct competitor",
-      "specific advantage over a named direct competitor",
-      "specific advantage over a named direct competitor"
-    ],
-    "whyWeLose": [
-      "specific area where a named direct competitor is currently stronger",
-      "specific area where a named direct competitor is currently stronger"
-    ],
-    "whatWeMustImprove": [
-      "specific recommendation referencing a competitor by name",
-      "specific recommendation referencing a competitor by name",
-      "specific recommendation referencing a competitor by name"
-    ],
-    "opportunityGap": "2-3 sentences on what direct competitors are NOT doing that this brand should do first — the white space"
+    "whyWeWin": ["specific advantage over named competitor", "specific advantage", "specific advantage"],
+    "whyWeLose": ["specific weakness vs named competitor", "specific weakness"],
+    "whatWeMustImprove": ["recommendation naming a competitor", "recommendation naming a competitor", "recommendation naming a competitor"],
+    "opportunityGap": "2-3 sentences on what direct competitors are not doing that this brand should do first"
   },
   "myRecommendedCampaign": {
-    "headline": "short bold statement of your recommendation — max 12 words",
-    "argument": "2-4 sentences in first person — specific, take a position, explain why this beats other approaches",
-    "angle": "the specific angle to lead with",
-    "why": "why this angle beats the obvious alternatives"
+    "headline": "bold statement — max 12 words",
+    "argument": "2-4 sentences first person — specific position, specific reasoning",
+    "angle": "specific angle to lead with",
+    "why": "why this beats the obvious alternatives"
   }
 }`
 
-    const userContent = `Brand analysis:
+    const userContent = `Brand analysis from understand route:
 ${JSON.stringify(understanding, null, 2)}
 
-WHAT THE USER ACTUALLY UPLOADED (do not list any of these in missingUploadedAssets):
-- Website URL: ${hasWebsite  ? `YES — ${assets.websiteUrl}` : 'NOT PROVIDED'}
-- Founder image: ${hasFounder ? 'YES — analyzed by vision model' : 'NOT UPLOADED'}
-- Product images: ${hasProduct ? `YES — ${assets?.productImageUrls?.length || understanding?.products?.count || 0} image(s) analyzed` : 'NOT UPLOADED'}
-- Video: ${hasVideo ? `YES — ${assets?.videoUrls?.length || 1} video(s) analyzed — DO NOT list video as a missing uploaded asset` : 'NOT UPLOADED'}
-- Stated direction: ${hasPrompt ? `"${prompt}"` : 'NONE PROVIDED'}
-${intent ? `- Requested ad type: ${intent.replace(/_/g, ' ')}` : ''}
+${understanding?.video?.transcript ? `VIDEO TRANSCRIPT (real Whisper audio from uploaded video):\n"${understanding.video.transcript}"` : ''}
 
-Give your full strategic assessment. Cite evidence. Make judgments. Name direct competitors first. Name specific problems. Name specific actions.`
+Uploaded asset manifest (same as in system prompt — use this as ground truth):
+- Website: ${hasWebsite ? assets.websiteUrl : 'NOT PROVIDED'}
+- Founder image: ${hasFounder ? 'YES' : 'NOT PROVIDED'}
+- Product images: ${hasProduct ? `YES (${assets?.productImageUrls?.length || 0})` : 'NOT PROVIDED'}
+- Video: ${hasVideo ? 'YES — DO NOT list as missing anywhere in your assessment' : 'NOT PROVIDED'}
+- Prompt: ${hasPrompt ? `"${prompt}"` : 'NONE'}
+${intent ? `- Ad type: ${intent.replace(/_/g, ' ')}` : ''}
+
+Write the full assessment. Every conclusion must cite evidence. Make judgments. Name direct competitors first.`
 
     const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -238,12 +276,22 @@ Give your full strategic assessment. Cite evidence. Make judgments. Name direct 
       return NextResponse.json({ error: 'Failed to parse assessment' }, { status: 500 })
     }
 
-    // Deterministic post-processing: strip any uploaded asset from missingUploadedAssets
-    // This is a safety net — GPT cannot contradict what we know was provided
-    assessment.missingUploadedAssets = stripProvidedFromMissing(
-      assessment.missingUploadedAssets,
-      hasFounder, hasProduct, hasVideo, hasWebsite
-    )
+    // Deep sanitize: recursively remove any string in any field that contradicts the asset manifest.
+    // This is a deterministic safety net — runs after GPT regardless of what was generated.
+    assessment = sanitizeAssessment(assessment, hasVideo, hasFounder, hasProduct)
+
+    // Additional structured filter for missingUploadedAssets
+    if (Array.isArray(assessment.missingUploadedAssets)) {
+      const blocklist = []
+      if (hasFounder) blocklist.push('founder', 'headshot', 'portrait', 'face', 'photo of founder')
+      if (hasProduct) blocklist.push('product image', 'product screenshot', 'product photo', 'screenshot')
+      if (hasVideo)   blocklist.push('video', 'footage', 'demo video', 'demo footage', 'recording', 'clip', 'screen recording', 'walkthrough', 'product video', 'brand video')
+      if (hasWebsite) blocklist.push('website', 'url', 'website link')
+      assessment.missingUploadedAssets = assessment.missingUploadedAssets.filter(item => {
+        const lower = (item?.asset || '').toLowerCase()
+        return !blocklist.some(kw => lower.includes(kw))
+      })
+    }
 
     return NextResponse.json({ assessment })
 
