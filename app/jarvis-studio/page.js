@@ -395,7 +395,9 @@ export default function JarvisStudio() {
           const pRes = await fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scenes: concept.scenes.map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label })) }),
+            // Only send up to 2 Runway scenes per concept — HeyGen (Avatar) scenes need no preview.
+            // Limiting to 2 keeps total DALL-E calls to ≤10 across 5 concepts (~2 min total).
+            body: JSON.stringify({ scenes: concept.scenes.filter(s => s.generator === 'runway').slice(0, 2).map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label })) }),
           })
           if (!pRes.ok) { failCount++; continue }
           const pData = await pRes.json()

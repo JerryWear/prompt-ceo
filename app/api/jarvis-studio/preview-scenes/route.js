@@ -68,7 +68,8 @@ export async function POST(req) {
       return NextResponse.json({ error: 'scenes array required' }, { status: 400 })
     }
 
-    // Generate one at a time to avoid rate limits (DALL-E 3: 5 RPM on most tiers)
+    // Generate one at a time. Each DALL-E 3 call takes ~10-15s so sequential calls
+    // naturally stay under the 5 RPM rate limit without artificial sleeps.
     const previews = []
     for (const scene of scenes) {
       try {
