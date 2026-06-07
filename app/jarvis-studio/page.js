@@ -665,6 +665,57 @@ export default function JarvisStudio() {
             </div>
           </div>
 
+          {/* Assets Detected — computed from actual uploaded state, not GPT */}
+          {uploadedAssets && (() => {
+            const detected = [
+              { label:'Website URL',       present:!!(websiteUrl.trim()), key:'website' },
+              { label:'Founder Image',     present:!!(uploadedAssets.founderImageUrl), key:'founder' },
+              { label:'Product Images',    present:!!(uploadedAssets.productImageUrls?.length), key:'product', count:uploadedAssets.productImageUrls?.length },
+              { label:'Product Video',     present:!!(uploadedAssets.videoUrls?.length), key:'video' },
+              { label:'Music Track',       present:!!(uploadedAssets.musicUrl || uploadedAssets.musicTrackId), key:'music' },
+              { label:'Creative Direction',present:!!(prompt?.trim()), key:'prompt' },
+            ]
+            return (
+              <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'14px 18px', marginBottom:10 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Assets Detected</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                  {detected.map(({ label, present, count }) => (
+                    <div key={label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, color: present ? C.green : C.dim, flexShrink:0 }}>{present ? '✓' : '✗'}</span>
+                      <span style={{ fontSize:12, color: present ? C.secondary : C.ghost }}>
+                        {label}{count > 1 ? ` (${count})` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Evidence Used */}
+          {assessment.evidenceUsed && (() => {
+            const entries = Object.entries(assessment.evidenceUsed).filter(([k, v]) => v && k !== 'summary')
+            const labels = { website:'Website', founderImage:'Founder Image', productImages:'Product Images', video:'Video', prompt:'Stated Direction' }
+            return entries.length ? (
+              <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'14px 18px', marginBottom:10 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Evidence Used</div>
+                {assessment.evidenceUsed.summary && (
+                  <div style={{ fontSize:12, color:C.muted, marginBottom:10, fontStyle:'italic', borderLeft:`2px solid ${C.gold}44`, paddingLeft:10 }}>
+                    {assessment.evidenceUsed.summary}
+                  </div>
+                )}
+                {entries.map(([key, value]) => (
+                  <div key={key} style={{ marginBottom:8, paddingBottom:8, borderBottom:`1px solid ${C.divide}` }}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:3 }}>
+                      {labels[key] || key}
+                    </div>
+                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null
+          })()}
+
           {/* What I Understand */}
           <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
             <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:12 }}>What I Understand</div>
@@ -807,12 +858,30 @@ export default function JarvisStudio() {
             </div>
           )}
 
-          {/* Missing Assets */}
-          {assessment.missingAssets?.length > 0 && (
+          {/* Missing Uploaded Assets */}
+          {assessment.missingUploadedAssets?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.red}22`, background:C.redBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.red}88`, textTransform:'uppercase', marginBottom:4 }}>Missing Uploaded Assets</div>
+              <div style={{ fontSize:11, color:C.ghost, marginBottom:10 }}>Assets you did not upload to Jarvis for this session.</div>
+              {assessment.missingUploadedAssets.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingUploadedAssets.length - 1 ? `1px solid #2a0808` : 'none' }}>
+                  <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:'#200000', color:`${C.red}66`, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>Not uploaded</span>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{item.asset}</div>
+                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{item.impact}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Missing Marketing Assets */}
+          {assessment.missingMarketingAssets?.length > 0 && (
             <div style={{ borderRadius:10, border:`1px solid #c8a84b22`, background:'#0a0800', padding:'16px 18px', marginBottom:10 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Missing Assets</div>
-              {assessment.missingAssets.map((item, i) => (
-                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingAssets.length - 1 ? `1px solid #1a1500` : 'none' }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:4 }}>Missing Marketing Assets</div>
+              <div style={{ fontSize:11, color:C.ghost, marginBottom:10 }}>Assets the business appears to lack publicly — separate from what you uploaded.</div>
+              {assessment.missingMarketingAssets.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingMarketingAssets.length - 1 ? `1px solid #1a1500` : 'none' }}>
                   <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:'#1a1000', color:`${C.gold}66`, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>Missing</span>
                   <div>
                     <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{item.asset}</div>
