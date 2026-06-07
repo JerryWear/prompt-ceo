@@ -303,9 +303,22 @@ export default function AvatarStudioPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.nav}>
-        <Link href="/dashboard" className={styles.backLink}>← Dashboard</Link>
-        <span className={styles.navTitle}>Avatar Studio</span>
-        <span className={styles.navSub}>Your face. Your voice. Your script.</span>
+        <Link href="/dashboard" className={styles.backLink}>PROMPTCEO</Link>
+        {[
+          { label: 'Studio',        href: '/prompt-engine-v3' },
+          { label: 'Ad Studio',     href: '/prompt-engine-v3?view=ad_studio' },
+          { label: 'Edit Studio',   href: '/edit-studio/v2' },
+          { label: 'Jarvis Studio', href: '/jarvis-studio' },
+          { label: 'Avatar Studio', href: '/avatar-studio' },
+          { label: 'Brands',        href: '/brands' },
+        ].map(({ label, href }) => (
+          <Link key={label} href={href} style={{
+            fontSize: 12, fontWeight: href === '/avatar-studio' ? 600 : 400,
+            color: href === '/avatar-studio' ? '#fff' : '#888',
+            textDecoration: 'none', padding: '4px 8px', borderRadius: 5,
+          }}>{label}</Link>
+        ))}
+        <Link href="/dashboard" style={{ fontSize: 11, color: '#888', textDecoration: 'none', marginLeft: 'auto' }}>Dashboard</Link>
       </nav>
 
       <div className={styles.content}>

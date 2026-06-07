@@ -547,12 +547,20 @@ export default function JarvisStudio() {
         height:50, display:'flex', alignItems:'center', padding:'0 24px', gap:10,
       }}>
         <a href="/dashboard" style={{ fontSize:10, fontWeight:800, letterSpacing:3.5, color:C.gold, textTransform:'uppercase', textDecoration:'none' }}>PromptCEO</a>
-        <span style={{ color:C.dim }}>|</span>
-        <span style={{ fontSize:12, color:C.ghost }}>Jarvis Studio</span>
-        {understanding?.brand?.name && <>
-          <span style={{ color:C.dim }}>—</span>
-          <span style={{ fontSize:12, color:C.secondary, fontWeight:600 }}>{understanding.brand.name}</span>
-        </>}
+        {[
+          { label:'Studio',        href:'/prompt-engine-v3' },
+          { label:'Ad Studio',     href:'/prompt-engine-v3?view=ad_studio' },
+          { label:'Edit Studio',   href:'/edit-studio/v2' },
+          { label:'Jarvis Studio', href:'/jarvis-studio' },
+          { label:'Avatar Studio', href:'/avatar-studio' },
+          { label:'Brands',        href:'/brands' },
+        ].map(({ label, href }) => (
+          <a key={label} href={href} style={{
+            fontSize:12, fontWeight: href === '/jarvis-studio' ? 600 : 400,
+            color: href === '/jarvis-studio' ? C.primary : C.ghost,
+            textDecoration:'none', padding:'4px 8px', borderRadius:5,
+          }}>{label}</a>
+        ))}
         <div style={{ flex:1 }} />
         {phase !== 'input' && (
           <button onClick={resetAll} className="link-btn"
