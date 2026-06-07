@@ -46,26 +46,30 @@ export async function POST(req) {
     const runwayScenes = concept.scenes.filter(s => s.generator === 'runway')
 
     // ── Pre-generate DALL-E images for Runway scenes missing storyboard previews ──
-    // Storyboard previews may not have loaded — generate fresh ones in parallel now
-    // so Runway always has a valid promptImage (DALL-E URLs are valid for ~1hr after generation)
+    // Use safe prompts: strip people/faces/brands so DALL-E 3 content policy passes.
+    // Generate sequentially (not Promise.all) to avoid 5 RPM rate limit.
     if (runwayKey && runwayScenes.length > 0) {
       const missing = runwayScenes.filter(s => !scenePreviews[s.id])
       if (missing.length > 0) {
-        await Promise.all(missing.map(async s => {
+        for (const s of missing) {
           try {
-            const prompt = s.dalle_prompt || s.visual_direction || `${s.label} cinematic shot, vertical format`
+            const raw = (s.visual_direction || s.dalle_prompt || '').slice(0, 200)
+              .replace(/\b(person|people|man|woman|founder|CEO|human|face|portrait|model|creator|professional|user|customer|client|brand|apple|google|meta|nike|[\w]+\.com)\b/gi, '')
+              .replace(/\s{2,}/g, ' ').trim()
+            const prompt = `Cinematic vertical advertisement frame, ${s.label || 'scene'} concept. ${raw ? raw + '.' : ''} Abstract creative visualization, dramatic moody lighting, dark background, high contrast, no people, no faces, no text, no logos, photorealistic.`
             const r = await fetch('https://api.openai.com/v1/images/generations', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
               body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
             })
             const d = await r.json()
+            if (!r.ok) { console.error('[produce] DALL-E fallback error:', d?.error?.message); continue }
             const url = d?.data?.[0]?.url
-            if (url) scenePreviews[s.id] = url
+            if (url) { scenePreviews[s.id] = url; console.log('[produce] DALL-E fallback OK for', s.id) }
           } catch (e) {
             console.error('[produce] DALL-E fallback failed for scene', s.id, e.message)
           }
-        }))
+        }
       }
     }
 
