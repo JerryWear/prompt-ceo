@@ -669,10 +669,10 @@ export default function JarvisStudio() {
           {uploadedAssets && (() => {
             const detected = [
               { label:'Website URL',       present:!!(websiteUrl.trim()), key:'website' },
-              { label:'Founder Image',     present:!!(uploadedAssets.founderImageUrl), key:'founder' },
-              { label:'Product Images',    present:!!(uploadedAssets.productImageUrls?.length), key:'product', count:uploadedAssets.productImageUrls?.length },
-              { label:'Product Video',     present:!!(uploadedAssets.videoUrls?.length), key:'video' },
-              { label:'Music Track',       present:!!(uploadedAssets.musicUrl || uploadedAssets.musicTrackId), key:'music' },
+              { label:'Founder Image',     present:!!(founderFile), key:'founder' },
+              { label:'Product Images',    present:!!(productFiles.length), key:'product', count:productFiles.length },
+              { label:'Product Video',     present:!!(videoFiles.length), key:'video' },
+              { label:'Music Track',       present:!!(uploadedAssets.musicUrl || uploadedAssets.musicTrackId || musicFile), key:'music' },
               { label:'Creative Direction',present:!!(prompt?.trim()), key:'prompt' },
             ]
             return (

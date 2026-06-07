@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 async function makeSupabase() {
   const cookieStore = await cookies()
