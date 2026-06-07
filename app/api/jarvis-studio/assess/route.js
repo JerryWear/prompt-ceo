@@ -18,6 +18,14 @@ async function makeSupabase() {
 // GPT never sees a question mark about what was uploaded. It sees facts.
 // ---------------------------------------------------------------------------
 function buildAssetManifest(assets, understanding, promptText) {
+  // Video is present if: upload succeeded (videoUrls has entries) OR user had
+  // a video file selected (videoProvided flag) OR understand route marked it present
+  const videoPresent = !!(
+    assets?.videoUrls?.length ||
+    assets?.videoProvided ||
+    understanding?.video?.present
+  )
+
   return {
     website: {
       present: !!(assets?.websiteUrl),
@@ -26,21 +34,21 @@ function buildAssetManifest(assets, understanding, promptText) {
       brandExtracted: understanding?.brand || null,
     },
     founderImage: {
-      present: !!(assets?.founderImageUrl),
+      present: !!(assets?.founderImageUrl || understanding?.founder?.present),
       url: assets?.founderImageUrl || null,
       analysis: understanding?.founder?.visualDescription || null,
       cameraPresence: understanding?.founder?.cameraPresence || null,
       suggestedRole: understanding?.founder?.suggestedRole || null,
     },
     productImages: {
-      present: !!(assets?.productImageUrls?.length),
-      count: assets?.productImageUrls?.length || 0,
+      present: !!(assets?.productImageUrls?.length || understanding?.products?.count > 0),
+      count: assets?.productImageUrls?.length || understanding?.products?.count || 0,
       descriptions: understanding?.products?.descriptions || [],
       designLanguage: understanding?.products?.designLanguage || null,
       keyVisuals: understanding?.products?.keyVisuals || null,
     },
     productVideo: {
-      present: !!(assets?.videoUrls?.length),
+      present: videoPresent,
       url: assets?.videoUrls?.[0] || null,
       transcriptAvailable: !!(understanding?.video?.transcript),
       transcript: understanding?.video?.transcript || null,

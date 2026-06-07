@@ -191,11 +191,14 @@ export default function JarvisStudio() {
       addStatus('upload', 'Assets uploaded', 'done')
 
       const assets = {
+        websiteUrl:         websiteUrl.trim() || null,
         founderImageUrl:    founderAsset?.publicUrl    || null,
         founderStoragePath: founderAsset?.storagePath  || null,
         founderBucket:      founderAsset?.bucket       || null,
         productImageUrls:   productAssets.map(a => a.publicUrl),
         videoUrls:          videoAssets.map(a => a.publicUrl),
+        // video fallback: if upload timed out, trust the file the user added
+        videoProvided:      videoFiles.length > 0,
         musicUrl:           musicUploadUrl,
         musicTrackId:       musicMode === 'library' ? musicTrackId : null,
       }
