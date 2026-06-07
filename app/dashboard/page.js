@@ -30,16 +30,18 @@ const STUDIOS = [
   { icon: '◧', label: 'Studio',        sub: 'Cinematic images & worlds',       path: '/prompt-engine-v3', query: 'studio',    color: C.blue,    glow: C.blueGlow },
   { icon: '▣', label: 'Ad Studio',     sub: 'Hooks, copy & campaigns',         path: '/prompt-engine-v3', query: 'ad_studio', color: '#c87a4a', glow: 'rgba(200,122,74,0.10)' },
   { icon: '✂', label: 'Edit Studio',   sub: 'Turn footage into finished ads',   path: '/edit-studio/v2',   query: null,        color: C.violet,  glow: 'rgba(155,111,212,0.10)' },
-  { icon: '✦', label: 'Jarvis Studio', sub: 'URL to ad. Automatically.',        path: '/jarvis-studio',    query: null,        color: C.gold,    glow: C.goldGlow },
+  { icon: '✦', label: 'Jarvis Studio',  sub: 'URL to ad. Automatically.',        path: '/jarvis-studio',    query: null,        color: C.gold,    glow: C.goldGlow },
+  { icon: '◉', label: 'Avatar Studio', sub: 'Your face. Your voice. Your ad.',  path: '/avatar-studio',    query: null,        color: C.green,   glow: 'rgba(74,154,106,0.10)' },
 ]
 
 const NAV = [
-  { label: 'Home',           href: '/dashboard',                       active: true },
-  { label: 'Studio',         href: '/prompt-engine-v3?view=studio',    active: false },
-  { label: 'Ad Studio',      href: '/prompt-engine-v3?view=ad_studio', active: false },
-  { label: 'Edit Studio',    href: '/edit-studio/v2',                  active: false },
-  { label: 'Jarvis Studio',  href: '/jarvis-studio',                   active: false },
-  { label: 'Brands',         href: '/brands',                          active: false },
+  { label: 'Home',            href: '/dashboard',                       active: true },
+  { label: 'Studio',          href: '/prompt-engine-v3?view=studio',    active: false },
+  { label: 'Ad Studio',       href: '/prompt-engine-v3?view=ad_studio', active: false },
+  { label: 'Edit Studio',     href: '/edit-studio/v2',                  active: false },
+  { label: 'Jarvis Studio',   href: '/jarvis-studio',                   active: false },
+  { label: 'Avatar Studio',   href: '/avatar-studio',                   active: false },
+  { label: 'Brands',          href: '/brands',                          active: false },
 ]
 
 function greeting() {

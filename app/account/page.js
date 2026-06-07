@@ -780,7 +780,7 @@ function ApiIntegrations() {
     <div style={{ borderRadius:10, border:`1px solid ${C.hairline}`, background:C.surface, padding:'20px 24px' }}>
       <div style={{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:C.muted, marginBottom:4 }}>API Integrations</div>
       <div style={{ fontSize:12, color:C.muted, marginBottom:16, lineHeight:1.6 }}>
-        Connect your own API keys to unlock Jarvis Studio production. HeyGen generates founder avatar clips. Runway generates cinematic visual scenes.
+        Connect your own API keys to unlock Jarvis Studio and Avatar Studio. HeyGen generates avatar video clips. Runway generates cinematic scenes. ElevenLabs clones your voice for Avatar Studio.
       </div>
 
       <ApiKeyRow
@@ -794,6 +794,12 @@ function ApiIntegrations() {
         endpoint="/api/runway/settings"
         helpUrl="https://app.runwayml.com/account/api-keys"
         helpLabel="Get Runway key →"
+      />
+      <ApiKeyRow
+        label="ElevenLabs"
+        endpoint="/api/elevenlabs/settings"
+        helpUrl="https://elevenlabs.io/app/settings/api-keys"
+        helpLabel="Get ElevenLabs key →"
       />
     </div>
   )
