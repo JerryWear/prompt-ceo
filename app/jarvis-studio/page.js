@@ -940,7 +940,7 @@ export default function JarvisStudio() {
                   {assessment.videoAnalysis.whatConcernsMe.map((item, i) => (
                     <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
                       <span style={{ color:C.gold, fontSize:9, marginTop:3, flexShrink:0 }}>⚠</span>
-                      <span style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{item}</span>
+                      <span style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{safeStr(item)}</span>
                     </div>
                   ))}
                 </div>
@@ -971,7 +971,7 @@ export default function JarvisStudio() {
               {assessment.whatILike.map((item, i) => (
                 <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
                   <span style={{ color:C.green, fontSize:10, marginTop:3, flexShrink:0 }}>✓</span>
-                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(item)}</span>
                 </div>
               ))}
             </div>
@@ -984,7 +984,7 @@ export default function JarvisStudio() {
               {assessment.whatConcernsMe.map((item, i) => (
                 <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
                   <span style={{ color:C.gold, fontSize:10, marginTop:3, flexShrink:0 }}>⚠</span>
-                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(item)}</span>
                 </div>
               ))}
             </div>
@@ -997,7 +997,7 @@ export default function JarvisStudio() {
               {assessment.whatIWouldChange.map((item, i) => (
                 <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
                   <span style={{ color:C.teal, fontSize:10, marginTop:3, flexShrink:0 }}>→</span>
-                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{item}</span>
+                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(item)}</span>
                 </div>
               ))}
             </div>
@@ -1066,7 +1066,7 @@ export default function JarvisStudio() {
               {assessment.whatYoureGettingWrong.map((item, i) => (
                 <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
                   <span style={{ color:C.red, fontSize:11, marginTop:2, flexShrink:0 }}>✕</span>
-                  <span style={{ fontSize:12, color:'#e08080', lineHeight:1.6 }}>{item}</span>
+                  <span style={{ fontSize:12, color:'#e08080', lineHeight:1.6 }}>{safeStr(item)}</span>
                 </div>
               ))}
             </div>
@@ -1194,7 +1194,7 @@ export default function JarvisStudio() {
                     {assessment.competitiveIntelligence.whyWeWin.map((item, i) => (
                       <div key={i} style={{ display:'flex', gap:7, alignItems:'flex-start', marginBottom:5 }}>
                         <span style={{ color:C.green, fontSize:9, marginTop:3, flexShrink:0 }}>✓</span>
-                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{safeStr(item)}</span>
                       </div>
                     ))}
                   </div>
@@ -1205,7 +1205,7 @@ export default function JarvisStudio() {
                     {assessment.competitiveIntelligence.whyWeLose.map((item, i) => (
                       <div key={i} style={{ display:'flex', gap:7, alignItems:'flex-start', marginBottom:5 }}>
                         <span style={{ color:C.red, fontSize:9, marginTop:3, flexShrink:0 }}>✕</span>
-                        <span style={{ fontSize:11, color:'#e08080', lineHeight:1.5 }}>{item}</span>
+                        <span style={{ fontSize:11, color:'#e08080', lineHeight:1.5 }}>{safeStr(item)}</span>
                       </div>
                     ))}
                   </div>
@@ -1217,7 +1217,7 @@ export default function JarvisStudio() {
                 <div style={{ marginBottom:12 }}>
                   <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.dim, textTransform:'uppercase', marginBottom:8 }}>What We Must Improve</div>
                   {assessment.competitiveIntelligence.whatWeMustImprove.map((item, i) => (
-                    <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:5, lineHeight:1.5 }}>→ {item}</div>
+                    <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:5, lineHeight:1.5 }}>→ {safeStr(item)}</div>
                   ))}
                 </div>
               )}
@@ -1339,7 +1339,7 @@ export default function JarvisStudio() {
             <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.teal}22`, background:C.tealBg, marginBottom:20 }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}88`, textTransform:'uppercase', marginBottom:8 }}>Jarvis Will Generate</div>
               {creativeBrief.newContentNeeded.map((item, i) => (
-                <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:4 }}>→ {item}</div>
+                <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:4 }}>→ {safeStr(item)}</div>
               ))}
             </div>
           )}
@@ -1633,6 +1633,15 @@ export default function JarvisStudio() {
       )}
     </div>
   )
+}
+
+// Safe string renderer — GPT sometimes returns objects where strings are expected.
+// React Error #31 ("Objects are not valid as a React child") crashes the page if
+// an array like whatConcernsMe contains {position, label, keyObservation} objects.
+function safeStr(v) {
+  if (typeof v === 'string') return v
+  if (v && typeof v === 'object') return v.observation || v.keyObservation || v.label || v.text || JSON.stringify(v)
+  return String(v ?? '')
 }
 
 // ── Scene thumbnail ───────────────────────────────────────────────────────────
