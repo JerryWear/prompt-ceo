@@ -143,6 +143,9 @@ export default function JarvisStudio() {
   const [selectedConcept, setSelectedConcept] = useState(null)
   const [productionJobs,  setProductionJobs]  = useState(null)
   const [finalAd,         setFinalAd]         = useState(null)
+  const [assembling,      setAssembling]      = useState(false)
+  const [assembledUrl,    setAssembledUrl]    = useState(null)
+  const [assembleError,   setAssembleError]   = useState(null)
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -218,6 +221,7 @@ export default function JarvisStudio() {
     setAssessment(null); setCreativeBrief(null)
     setStoryboard(null); setPreviews({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
+    setAssembling(false); setAssembledUrl(null); setAssembleError(null)
     // Also clear founder/product/video inputs
     setFounderFile(null); setFounderBlobUrl(null)
     setProductFiles([]); setVideoFiles([])
@@ -511,6 +515,37 @@ export default function JarvisStudio() {
       setPhase('storyboard')
     }
   }, [previews, uploadedAssets])
+
+  const handleAssemble = useCallback(async () => {
+    if (!finalAd?.clips?.length) return
+    setAssembling(true)
+    setAssembleError(null)
+    setAssembledUrl(null)
+    try {
+      const res = await fetch('/api/jarvis-studio/assemble', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clips:        finalAd.clips,
+          musicUrl:     productionJobs?.musicUrl || null,
+          conceptId:    selectedConcept?.id,
+          conceptTitle: selectedConcept?.title,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'complete' && data.assembledUrl) {
+        setAssembledUrl(data.assembledUrl)
+      } else if (data.status === 'no_ffmpeg') {
+        setAssembleError('Auto-assembly not available in this environment. Download individual clips above.')
+      } else {
+        setAssembleError(data.error || 'Assembly failed')
+      }
+    } catch (err) {
+      setAssembleError(err.message)
+    } finally {
+      setAssembling(false)
+    }
+  }, [finalAd, productionJobs, selectedConcept])
 
   const handleCancelProduction = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current)
@@ -1607,6 +1642,33 @@ export default function JarvisStudio() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Assembly — stitch all clips into one video ── */}
+          {finalAd?.clips?.length > 1 && (
+            <div style={{ marginBottom:18, padding:'16px', borderRadius:10, border:`1px solid ${C.border}`, background:C.surface }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Final Ad</div>
+              {assembledUrl ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  <video src={assembledUrl} controls playsInline style={{ width:'100%', borderRadius:8, background:'#000' }} />
+                  <a href={assembledUrl} download={`${selectedConcept?.title || 'ad'}.mp4`} target="_blank" rel="noopener noreferrer"
+                    style={{ display:'block', textAlign:'center', padding:'10px 0', borderRadius:7, background:C.gold, color:'#000', textDecoration:'none', fontSize:12, fontWeight:800 }}>
+                    ↓ Download Full Ad (.mp4)
+                  </a>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>
+                    Stitch all {finalAd.clips.length} clips into a single ad video{productionJobs?.musicUrl ? ' with music mixed in' : ''}.
+                  </div>
+                  {assembleError && <div style={{ fontSize:12, color:'#e08080', padding:'8px 12px', borderRadius:6, background:'rgba(200,60,60,0.08)', border:'1px solid rgba(200,60,60,0.2)' }}>{assembleError}</div>}
+                  <button onClick={handleAssemble} disabled={assembling}
+                    style={{ width:'100%', padding:'11px 0', borderRadius:7, background: assembling ? C.raised : C.gold, color: assembling ? C.muted : '#000', border:'none', cursor: assembling ? 'not-allowed' : 'pointer', fontSize:12, fontWeight:800, transition:'opacity .15s' }}>
+                    {assembling ? '⟳ Assembling clips…' : `Assemble ${finalAd.clips.length} Clips into One Ad →`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

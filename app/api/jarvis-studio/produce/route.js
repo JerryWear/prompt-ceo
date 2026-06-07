@@ -18,6 +18,75 @@ function makeAdmin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
+// ─── Prompt Compiler ─────────────────────────────────────────────────────────
+// Takes storyboard scene data and compiles a structured Runway payload.
+// This is the missing translation layer between the rich storyboard and Runway.
+
+const NEGATIVE_PROMPT =
+  'people, faces, hands, fingers, humans, crowd, person, man, woman, ' +
+  'text overlay, watermark, logo, blurry, low quality, distorted, ugly, ' +
+  'deformed, noisy, pixelated, overexposed, underexposed, cartoonish, ' +
+  'anime, illustrated, painting, duplicate, morbid, mutilated'
+
+const MOTION_BY_SCENE_TYPE = {
+  hook:           'dynamic push in, handheld energy, fast-cut rhythm',
+  pain_point:     'slow zoom, heavy atmosphere, desaturated motion',
+  product:        'smooth product reveal, 360-degree orbit, macro focus pull',
+  lifestyle:      'cinematic dolly forward, golden hour drift, naturalistic motion',
+  transformation: 'fast-cut contrast, bright pull, energetic transition',
+  cta:            'slow pull back, confident hold, clean static frame',
+  founder:        'subtle push in, steady and authoritative, minimal motion',
+}
+
+const SHOT_TO_FRAMING = {
+  extreme_close_up: 'extreme macro close-up filling entire frame',
+  close_up:         'tight close-up, shallow depth of field, subject fills frame',
+  medium_close_up:  'medium close-up, subject fills upper two-thirds of frame',
+  medium:           'medium shot, environment visible around subject',
+  wide:             'wide establishing shot, full environmental context',
+  overhead:         'top-down overhead perspective, flat lay composition',
+}
+
+const LIGHTING_BY_STYLE = {
+  luxury:      'soft dramatic side lighting, deep shadows, premium contrast',
+  minimal:     'clean even lighting, bright whites, studio-quality diffusion',
+  cinematic:   'moody directional key light, film-grade color science',
+  natural:     'natural window light, warm ambient fill, golden hour tones',
+  dark:        'low-key dark environment, controlled rim light, deep blacks',
+}
+
+function compileRunwayPayload(scene, previewUrl) {
+  // Strip people/face words — Runway content moderation
+  const basePrompt = (scene.visual_direction || scene.dalle_prompt || '').slice(0, 500)
+  const cleanBase  = basePrompt
+    .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head|looking at camera)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  // Layer: shot framing
+  const shotFraming  = SHOT_TO_FRAMING[scene.shot] || ''
+
+  // Layer: motion direction (use scene type if present, else label as fallback)
+  const sceneType    = (scene.type || scene.label || '').toLowerCase().replace(/\s+/g, '_')
+  const motionGuide  = MOTION_BY_SCENE_TYPE[sceneType] || MOTION_BY_SCENE_TYPE[scene.label?.toLowerCase()] || 'cinematic smooth motion, subtle camera movement'
+
+  // Layer: cinematic quality suffix
+  const qualitySuffix = 'vertical 9:16 frame, cinematic color grade, premium ad quality, 4K sharp'
+
+  // Compile final prompt — ordered from most specific to most general
+  const parts = [cleanBase, shotFraming, motionGuide, qualitySuffix].filter(Boolean)
+  const promptText = parts.join('. ') || `Cinematic ${scene.label || 'scene'} visual`
+
+  return {
+    model:          'gen4_turbo',
+    promptText,
+    negativePrompt: NEGATIVE_PROMPT,
+    promptImage:    previewUrl,
+    ratio:          '720:1280',
+    duration:       (scene.duration || 5) >= 8 ? 10 : 5,
+  }
+}
+
 // POST /api/jarvis-studio/produce
 // Body: { concept, assets, scenePreviews?, musicTrackId?, musicUrl? }
 // Returns: { jobs: { avatarId?, avatarStatus, sceneJobs, musicUrl, conceptId } }
@@ -236,25 +305,6 @@ export async function POST(req) {
         try {
           const previewUrl = scenePreviews[scene.id] || null
 
-          // Runway only accepts exactly 5 or 10 seconds
-          const duration = (scene.duration || 5) >= 8 ? 10 : 5
-
-          // Strip people/face words from promptText — Runway content moderation rejects them.
-          // Keep all brand/product/environment context — that's what makes the video relevant.
-          const rawPrompt = (scene.visual_direction || scene.dalle_prompt || '').trim()
-          const promptText = (rawPrompt
-            .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head)\b/gi, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim()
-          ) || `Cinematic ${scene.label || 'scene'} visual`
-
-          const runwayBody = {
-            model: 'gen4_turbo',
-            promptText,
-            ratio: '720:1280',
-            duration,
-          }
-
           // image_to_video requires promptImage — skip gracefully if no storyboard preview exists
           if (!previewUrl) {
             sceneJobs.push({
@@ -266,7 +316,9 @@ export async function POST(req) {
             continue
           }
 
-          runwayBody.promptImage = previewUrl
+          // Compile full structured Runway payload — shot + motion + framing + negative prompts
+          const runwayBody = compileRunwayPayload(scene, previewUrl)
+          console.log('[produce] Runway compiled prompt for', scene.id, ':', runwayBody.promptText.slice(0, 120))
 
           const runRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
             method: 'POST',
