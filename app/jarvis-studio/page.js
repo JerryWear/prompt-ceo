@@ -759,6 +759,161 @@ export default function JarvisStudio() {
             </div>
           )}
 
+          {/* What You're Getting Wrong */}
+          {assessment.whatYoureGettingWrong?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.red}33`, background:C.redBg, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.red}99`, textTransform:'uppercase', marginBottom:10 }}>What You're Getting Wrong</div>
+              {assessment.whatYoureGettingWrong.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:7 }}>
+                  <span style={{ color:C.red, fontSize:11, marginTop:2, flexShrink:0 }}>✕</span>
+                  <span style={{ fontSize:12, color:'#e08080', lineHeight:1.6 }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* What I Would Test First */}
+          {assessment.whatIWouldTestFirst && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:12 }}>What I Would Test First</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+                {['testA','testB','testC'].map(key => {
+                  const test = assessment.whatIWouldTestFirst[key]
+                  const label = key.replace('test','Test ')
+                  const isPick = assessment.whatIWouldTestFirst.jarvispick === label.replace('Test ','')
+                  if (!test) return null
+                  return (
+                    <div key={key} style={{
+                      padding:'12px 14px', borderRadius:8,
+                      border: isPick ? `1px solid ${C.goldBorder}` : `1px solid ${C.border}`,
+                      background: isPick ? C.goldBg : C.raised,
+                      position:'relative',
+                    }}>
+                      {isPick && <div style={{ position:'absolute', top:8, right:10, fontSize:9, fontWeight:700, color:C.gold, letterSpacing:1 }}>JARVIS PICK</div>}
+                      <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color: isPick ? `${C.gold}88` : C.ghost, textTransform:'uppercase', marginBottom:6 }}>{label}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color: isPick ? C.gold : C.primary, marginBottom:4 }}>{test.name}</div>
+                      <div style={{ fontSize:10, color:C.ghost, marginBottom:6 }}>{test.format}</div>
+                      <div style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{test.hypothesis}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              {assessment.whatIWouldTestFirst.whyThisWins && (
+                <div style={{ padding:'10px 14px', borderRadius:8, background:C.goldBg, border:`1px solid ${C.goldBorder}`, fontSize:12, color:C.secondary, lineHeight:1.6, fontStyle:'italic' }}>
+                  <span style={{ color:`${C.gold}88`, fontSize:9, fontWeight:700, letterSpacing:1, textTransform:'uppercase', display:'block', marginBottom:4 }}>Why this wins</span>
+                  "{assessment.whatIWouldTestFirst.whyThisWins}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Missing Assets */}
+          {assessment.missingAssets?.length > 0 && (
+            <div style={{ borderRadius:10, border:`1px solid #c8a84b22`, background:'#0a0800', padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Missing Assets</div>
+              {assessment.missingAssets.map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingAssets.length - 1 ? `1px solid #1a1500` : 'none' }}>
+                  <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:'#1a1000', color:`${C.gold}66`, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>Missing</span>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{item.asset}</div>
+                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{item.impact}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* If This Were My Company */}
+          {assessment.ifThisWereMyCompany && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>If This Were My Company</div>
+              {assessment.ifThisWereMyCompany.focus && (
+                <div style={{ fontSize:13, fontWeight:700, color:C.primary, marginBottom:14, lineHeight:1.5, borderLeft:`2px solid ${C.gold}55`, paddingLeft:12 }}>
+                  {assessment.ifThisWereMyCompany.focus}
+                </div>
+              )}
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:8 }}>30-Day Actions</div>
+              {(assessment.ifThisWereMyCompany.thirtyDayActions || []).map((item, i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:10 }}>
+                  <div style={{ width:22, height:22, borderRadius:'50%', background:C.raised, border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:10, fontWeight:700, color:C.gold }}>
+                    {i + 1}
+                  </div>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.primary, marginBottom:2 }}>{item.action}</div>
+                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{item.why}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Competitive Intelligence */}
+          {assessment.competitiveIntelligence && (
+            <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'16px 18px', marginBottom:10 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:14 }}>Competitive Intelligence</div>
+
+              {/* Competitor cards */}
+              {assessment.competitiveIntelligence.competitors?.length > 0 && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.dim, textTransform:'uppercase', marginBottom:8 }}>Key Competitors</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {assessment.competitiveIntelligence.competitors.map((c, i) => (
+                      <div key={i} style={{ padding:'10px 13px', borderRadius:8, background:C.raised, border:`1px solid ${C.border}`, minWidth:150, flex:'1 1 150px' }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:C.primary, marginBottom:4 }}>{c.name}</div>
+                        <div style={{ fontSize:11, color:C.muted, lineHeight:1.5, marginBottom:4 }}>{c.knownFor}</div>
+                        {c.whatTheyDoWell && <div style={{ fontSize:10, color:C.ghost, lineHeight:1.4 }}>↑ {c.whatTheyDoWell}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Win/Lose */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                {assessment.competitiveIntelligence.whyWeWin?.length > 0 && (
+                  <div style={{ padding:'12px 14px', borderRadius:8, background:C.greenBg, border:`1px solid ${C.green}22` }}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.green}88`, textTransform:'uppercase', marginBottom:8 }}>Why We Win</div>
+                    {assessment.competitiveIntelligence.whyWeWin.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:7, alignItems:'flex-start', marginBottom:5 }}>
+                        <span style={{ color:C.green, fontSize:9, marginTop:3, flexShrink:0 }}>✓</span>
+                        <span style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {assessment.competitiveIntelligence.whyWeLose?.length > 0 && (
+                  <div style={{ padding:'12px 14px', borderRadius:8, background:C.redBg, border:`1px solid ${C.red}22` }}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.red}88`, textTransform:'uppercase', marginBottom:8 }}>Why We Lose</div>
+                    {assessment.competitiveIntelligence.whyWeLose.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:7, alignItems:'flex-start', marginBottom:5 }}>
+                        <span style={{ color:C.red, fontSize:9, marginTop:3, flexShrink:0 }}>✕</span>
+                        <span style={{ fontSize:11, color:'#e08080', lineHeight:1.5 }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Must Improve */}
+              {assessment.competitiveIntelligence.whatWeMustImprove?.length > 0 && (
+                <div style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.dim, textTransform:'uppercase', marginBottom:8 }}>What We Must Improve</div>
+                  {assessment.competitiveIntelligence.whatWeMustImprove.map((item, i) => (
+                    <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:5, lineHeight:1.5 }}>→ {item}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Opportunity Gap */}
+              {assessment.competitiveIntelligence.opportunityGap && (
+                <div style={{ padding:'12px 14px', borderRadius:8, background:`${C.gold}08`, border:`1px solid ${C.goldBorder}` }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:6 }}>Opportunity Gap</div>
+                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.7 }}>{assessment.competitiveIntelligence.opportunityGap}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* My Recommended Campaign */}
           {assessment.myRecommendedCampaign && (
             <div style={{ borderRadius:10, border:`1px solid ${C.gold}55`, background:`linear-gradient(135deg, #0c0900, #050400)`, padding:'20px 20px', marginBottom:22 }}>
