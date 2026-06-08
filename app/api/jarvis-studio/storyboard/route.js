@@ -58,6 +58,11 @@ export async function POST(req) {
       conceptDirections.push('Concept 5: Transformation/aspirational — founder opens and closes (heygen), runway shows transformation')
     }
 
+    // Extract brand identity for anchor system
+    const productName = (summary?.product || 'this brand').split(/[—.\n]/)[0].trim().slice(0, 60)
+    const keyFeatures  = (keyMessages || []).slice(0, 6).join(' | ')
+    const brandStyle   = recommendedStyle || summary?.solution || ''
+
     const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -68,23 +73,43 @@ export async function POST(req) {
             role: 'system',
             content: `You are a world-class creative director at a premium AI ad agency. You generate precise storyboards for vertical short-form ads (9:16, 30 seconds, Instagram Reels / TikTok).
 
-Rules:
+CORE RULES:
 - Every concept must feel completely different — different hook, different emotion, different structure
 - "generator": "heygen" = founder speaks to camera. ONLY use heygen if hasFounder is true (${hasFounder})
 - "generator": "runway" = AI-generated video. Use for all visual/cinematic scenes
-- assetAssignment tells Runway/HeyGen which uploaded asset to reference
 - Scripts: punchy, specific to THIS brand — never generic. Sound like a real person, not an ad
 - Scene durations must sum to exactly total_duration
 - First scene = hook. Last scene = CTA.
 - Return ONLY valid JSON.
 
-CRITICAL — RUNWAY SCENES (visual_direction and dalle_prompt):
+RUNWAY SCENES — NO PEOPLE:
 Runway AI CANNOT generate realistic human faces. For all runway scenes:
 - NEVER describe people, faces, smiling clients, testimonials showing humans, or "person using product"
-- INSTEAD: describe what THIS SPECIFIC PRODUCT looks like in action, what its world feels like, what it PRODUCES — based entirely on the product description and brief above
-- Your visual directions must be specific to THIS brand — not generic tech imagery. Use the product name, its actual features, its real outputs, its brand aesthetic as described
-- If the scene is a testimonial: show the OUTCOME or RESULT this product creates for its users (what success looks like for THEM) — in the product's own visual language
-- The dalle_prompt is used to generate a preview image. Make it brand-specific and people-free.`,
+- INSTEAD: describe what THIS SPECIFIC PRODUCT looks like in action, what its world feels like, what it PRODUCES
+- The dalle_prompt generates the preview image. Make it brand-specific and people-free.
+
+BRAND ANCHOR SYSTEM (mandatory — this is the most important rule):
+The #1 failure in AI ads is generic imagery that could be for any brand in the category.
+Every runway scene MUST be visually locked to "${productName}" specifically.
+
+Test each scene: "If I removed the brand name, could this be an ad for 10 other products?" → If yes, rewrite it.
+
+Valid brand anchors (use 2–3 per runway scene):
+• The product's actual name or named feature shown in the visual environment (e.g., a specific studio/module name in the scene)
+• A specific workflow step being visualized in concrete detail (not "the process" — the actual named steps)
+• The brand's color palette / visual identity as the dominant aesthetic (use the style description)
+• A real output only this product generates, shown visually with specifics
+• A named screen, interface, or environment unique to this product
+• A measurable result this product achieves, visualized (not "results" — the actual numbers or specifics)
+
+Key features to anchor to: ${keyFeatures || 'see brief above'}
+Visual identity to embody: ${brandStyle || 'premium cinematic'}
+
+REQUIRED FIELDS on every scene (including heygen scenes):
+"brand_anchors": ["specific visual anchor 1", "specific visual anchor 2"],
+"brand_check": "one sentence: how does someone watching only this 5-second clip — with no caption — know this is for ${productName} and not a competitor?"
+
+If brand_check sounds vague or could apply to a competitor → the anchors are too weak → rewrite the scene.`,
           },
           {
             role: 'user',
@@ -126,9 +151,11 @@ Return this exact JSON:
           "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
           "duration": 5,
           "script": "Exact words founder speaks (heygen only). null for runway scenes.",
-          "visual_direction": "Precise cinematographer-level scene description. What is happening, how it is framed, what emotion it creates.",
-          "dalle_prompt": "Ultra-detailed DALL-E 3 prompt. Photorealistic. Vertical 9:16 portrait frame. [specific setting]. [specific action/composition]. [specific lighting]. Shot on RED camera. 8K. Cinematic color grade.",
+          "visual_direction": "Precise cinematographer-level scene description. What is happening, how it is framed, what emotion it creates. Must reference brand-specific anchors.",
+          "dalle_prompt": "Ultra-detailed prompt. Photorealistic. Vertical 9:16 portrait frame. [brand-specific setting/output/interface]. [specific action/composition]. [specific lighting matching brand aesthetic]. Shot on RED camera. 8K. Cinematic color grade. No people. No faces.",
           "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
+          "brand_anchors": ["specific visual detail 1 tying scene to ${productName}", "specific visual detail 2"],
+          "brand_check": "one sentence answer: how does a viewer know this is for ${productName}?",
           "assetAssignment": {
             "sourceType": "heygen | runway | product_image | video_footage | generated",
             "sourceIndex": null,
@@ -143,7 +170,7 @@ Return this exact JSON:
         ],
         temperature: 0.85,
         response_format: { type: 'json_object' },
-        max_tokens: 5000,
+        max_tokens: 6000,
       }),
     })
 

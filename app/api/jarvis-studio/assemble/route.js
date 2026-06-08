@@ -12,6 +12,17 @@ export const maxDuration = 300
 
 const execFileAsync = promisify(_execFile)
 
+// ffmpeg-static bundles a platform-specific binary that works on Vercel (Linux).
+// We fall back to system ffmpeg if the static binary is missing.
+let FFMPEG_BIN = 'ffmpeg'
+try {
+  const staticPath = require('ffmpeg-static')
+  if (staticPath && fs.existsSync(staticPath)) {
+    FFMPEG_BIN = staticPath
+    console.log('[assemble] using ffmpeg-static:', staticPath)
+  }
+} catch { /* ffmpeg-static not installed — use system ffmpeg */ }
+
 async function makeSupabase() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -27,7 +38,7 @@ function makeAdmin() {
 
 async function checkFfmpeg() {
   try {
-    await execFileAsync('ffmpeg', ['-version'], { timeout: 5000 })
+    await execFileAsync(FFMPEG_BIN, ['-version'], { timeout: 5000 })
     return true
   } catch { return false }
 }
@@ -86,12 +97,12 @@ export async function POST(req) {
 
       // Concat video clips, then mix in music at -20dB
       const concatPath = path.join(workDir, 'concat_raw.mp4')
-      await execFileAsync('ffmpeg', [
+      await execFileAsync(FFMPEG_BIN, [
         '-f', 'concat', '-safe', '0', '-i', concatFile,
         '-c', 'copy', concatPath,
       ], { timeout: 180000 })
 
-      await execFileAsync('ffmpeg', [
+      await execFileAsync(FFMPEG_BIN, [
         '-i', concatPath,
         '-i', musicPath,
         '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:weights=1 0.15[a]',
@@ -101,7 +112,7 @@ export async function POST(req) {
       ], { timeout: 180000 })
     } else {
       // Concat video only
-      await execFileAsync('ffmpeg', [
+      await execFileAsync(FFMPEG_BIN, [
         '-f', 'concat', '-safe', '0', '-i', concatFile,
         '-c', 'copy', outputPath,
       ], { timeout: 180000 })

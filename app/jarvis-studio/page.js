@@ -400,12 +400,24 @@ export default function JarvisStudio() {
         sData.storyboard.concepts.map(concept => {
           const runwayScenes = concept.scenes
             .filter(s => s.generator === 'runway')
-            .map(s => ({ id: s.id, dalle_prompt: s.dalle_prompt, visual_direction: s.visual_direction, label: s.label }))
+            .map(s => ({
+              id:               s.id,
+              dalle_prompt:     s.dalle_prompt,
+              visual_direction: s.visual_direction,
+              label:            s.label,
+              brand_anchors:    s.brand_anchors || [],
+              brand_check:      s.brand_check   || '',
+            }))
           if (runwayScenes.length === 0) return Promise.resolve({ previews: [] })
+          const brandContext = {
+            productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
+            keyMessages: creativeBrief?.keyMessages || [],
+            style:       creativeBrief?.recommendedStyle || '',
+          }
           return fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scenes: runwayScenes }),
+            body: JSON.stringify({ scenes: runwayScenes, brandContext }),
           }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) }))
         })
       )

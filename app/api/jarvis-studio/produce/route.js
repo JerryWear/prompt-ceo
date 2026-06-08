@@ -318,7 +318,10 @@ export async function POST(req) {
 
           // Compile full structured Runway payload — shot + motion + framing + negative prompts
           const runwayBody = compileRunwayPayload(scene, previewUrl)
-          console.log('[produce] Runway compiled prompt for', scene.id, ':', runwayBody.promptText.slice(0, 120))
+          // Debug: brand anchors + validation + full compiled prompt
+          if (scene.brand_anchors?.length) console.log('[produce] brand anchors:', scene.brand_anchors.join(' | '))
+          if (scene.brand_check)          console.log('[produce] brand check:  ', scene.brand_check.slice(0, 120))
+          console.log('[produce] compiled prompt  :', runwayBody.promptText.slice(0, 400))
 
           const runRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
             method: 'POST',
