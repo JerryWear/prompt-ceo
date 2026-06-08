@@ -136,6 +136,7 @@ export default function JarvisStudio() {
   const [missingUploaded,     setMissingUploaded]     = useState([])
   const [assessment,          setAssessment]          = useState(null)
   const [creativeBrief,       setCreativeBrief]       = useState(null)
+  const [brandScreenshots,    setBrandScreenshots]    = useState([]) // real product screenshots from capture-brand
   const [storyboard,      setStoryboard]      = useState(null)
   const [previews,        setPreviews]        = useState({})
   const [previewsDone,    setPreviewsDone]    = useState(false)
@@ -218,7 +219,7 @@ export default function JarvisStudio() {
     if (pollRef.current)  clearInterval(pollRef.current)
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
-    setAssessment(null); setCreativeBrief(null)
+    setAssessment(null); setCreativeBrief(null); setBrandScreenshots([])
     setStoryboard(null); setPreviews({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
     setAssembling(false); setAssembledUrl(null); setAssembleError(null)
@@ -299,30 +300,50 @@ export default function JarvisStudio() {
         }
       }
 
-      if (websiteUrl.trim())    addStatus('url',     'Crawling website',         'active')
-      if (founderAsset)         addStatus('founder', 'Analyzing founder image',  'active')
-      if (productAssets.length) addStatus('product', 'Analyzing product images', 'active')
-      if (videoAssets.length)   addStatus('video',   'Analyzing video',          'active')
+      if (websiteUrl.trim())    addStatus('url',        'Crawling website + capturing screenshots', 'active')
+      if (founderAsset)         addStatus('founder',    'Analyzing founder image',  'active')
+      if (productAssets.length) addStatus('product',    'Analyzing product images', 'active')
+      if (videoAssets.length)   addStatus('video',      'Analyzing video',          'active')
       addStatus('ai', 'Building brand understanding', 'active')
 
-      const uRes  = await fetch('/api/jarvis-studio/understand', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          websiteUrl:       websiteUrl.trim() || null,
-          founderImageUrl:  assets.founderImageUrl,
-          productImageUrls: assets.productImageUrls,
-          videoUrl:         assets.videoUrls[0] || null,
-          videoFrameUrls,
-          prompt:           prompt.trim() || null,
-          intent:           activeIntent,
+      // Run understand + screenshot capture in parallel to save time.
+      // capture-brand is best-effort — failures don't block the pipeline.
+      const [uRes, captureResult] = await Promise.all([
+        fetch('/api/jarvis-studio/understand', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            websiteUrl:       websiteUrl.trim() || null,
+            founderImageUrl:  assets.founderImageUrl,
+            productImageUrls: assets.productImageUrls,
+            videoUrl:         assets.videoUrls[0] || null,
+            videoFrameUrls,
+            prompt:           prompt.trim() || null,
+            intent:           activeIntent,
+          }),
         }),
-      })
+        websiteUrl.trim()
+          ? fetch('/api/jarvis-studio/capture-brand', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ url: websiteUrl.trim() }),
+            }).then(r => r.json()).catch(() => null)
+          : Promise.resolve(null),
+      ])
+
       if (!uRes.ok) throw new Error(`Brand analysis failed (${uRes.status})`)
       const uData = await uRes.json()
       if (!uData.understanding) throw new Error(uData.error || 'Brand analysis failed')
 
-      if (websiteUrl.trim())    addStatus('url',     'Website analyzed',    'done')
+      // Store real product screenshots captured from the URL
+      const capturedScreenshots = captureResult?.brandPack?.screenshots || []
+      if (capturedScreenshots.length > 0) {
+        setBrandScreenshots(capturedScreenshots)
+        addStatus('url', `Website analyzed · ${capturedScreenshots.length} screenshot${capturedScreenshots.length > 1 ? 's' : ''} captured`, 'done')
+      } else {
+        if (websiteUrl.trim()) addStatus('url', 'Website analyzed', 'done')
+      }
+
       if (founderAsset)         addStatus('founder', 'Founder analyzed',    'done')
       if (productAssets.length) addStatus('product', 'Products analyzed',   'done')
       if (videoAssets.length)   addStatus('video',   'Video analyzed',      'done')
@@ -379,10 +400,22 @@ export default function JarvisStudio() {
     setPreviewError('')
 
     try {
+      // Combine auto-captured screenshots + user-uploaded product images as brand ground truth.
+      // User-uploaded product images (screenshots of app, UI, etc.) work identically to auto-captured ones.
+      const allBrandScreenshots = [
+        ...brandScreenshots,
+        ...(uploadedAssets?.productImageUrls || []).map((url, i) => ({
+          page: `product_${i + 1}`,
+          url,
+          title: `Product image ${i + 1}`,
+          isUserUploaded: true,
+        })),
+      ]
+
       const sRes  = await fetch('/api/jarvis-studio/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent }),
+        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots }),
       })
       if (!sRes.ok) throw new Error(`Storyboard failed (${sRes.status})`)
       const sData = await sRes.json()
@@ -405,8 +438,9 @@ export default function JarvisStudio() {
               dalle_prompt:     s.dalle_prompt,
               visual_direction: s.visual_direction,
               label:            s.label,
-              brand_anchors:    s.brand_anchors || [],
-              brand_check:      s.brand_check   || '',
+              brand_anchors:    s.brand_anchors  || [],
+              brand_check:      s.brand_check    || '',
+              screenshotUrl:    s.screenshotUrl  || null, // real product screenshot from capture-brand
             }))
           if (runwayScenes.length === 0) return Promise.resolve({ previews: [] })
           const brandContext = {

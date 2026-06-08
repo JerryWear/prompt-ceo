@@ -303,7 +303,14 @@ export async function POST(req) {
           continue
         }
         try {
-          const previewUrl = scenePreviews[scene.id] || null
+          // Product Reality Engine: prefer the real screenshot over an AI-generated preview.
+          // screenshotUrl = actual product screenshot captured by capture-brand route.
+          // scenePreviews[scene.id] = xAI-generated preview image (fallback).
+          const previewUrl = scene.screenshotUrl || scenePreviews[scene.id] || null
+
+          if (scene.screenshotUrl) {
+            console.log('[produce] 📸', scene.id, 'using real product screenshot')
+          }
 
           // image_to_video requires promptImage — skip gracefully if no storyboard preview exists
           if (!previewUrl) {

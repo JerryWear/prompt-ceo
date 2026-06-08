@@ -22,7 +22,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { creativeBrief, assets, intent } = await req.json()
+    const { creativeBrief, assets, intent, brandScreenshots = [] } = await req.json()
     if (!creativeBrief) return NextResponse.json({ error: 'creativeBrief required' }, { status: 400 })
 
     const { summary, keyMessages, hook, recommendedStyle, assetPlan } = creativeBrief
@@ -63,6 +63,30 @@ export async function POST(req) {
     const keyFeatures  = (keyMessages || []).slice(0, 6).join(' | ')
     const brandStyle   = recommendedStyle || summary?.solution || ''
 
+    // Build Product Reality context — real screenshots replace AI-imagined UI
+    const hasRealScreenshots = brandScreenshots.length > 0
+    const screenshotList = brandScreenshots
+      .map((s, i) => `${i + 1}. ${s.page}: ${s.url}`)
+      .join('\n')
+
+    const productRealityBlock = hasRealScreenshots ? `
+PRODUCT REALITY ENGINE — REAL SCREENSHOTS (use these instead of imagining the UI):
+─────────────────────────────────────────────────────────────────────────────────
+The following URLs are actual screenshots of the real product. They are not AI-generated.
+Runway will ANIMATE these real screenshots — making the actual UI come to life.
+
+${screenshotList}
+
+DIRECTIVE for screenplay scenes (type: product, lifestyle, cta, transformation, pain_point):
+→ Set "screenshotUrl" to the most relevant screenshot URL from the list above.
+→ Runway will animate that real screenshot — do NOT hallucinate the UI.
+→ The dalle_prompt should describe camera motion OVER the real UI (push in, slow reveal, orbit).
+→ Do NOT set screenshotUrl on "heygen" (founder speaks) scenes.
+→ If no screenshot fits, set screenshotUrl to null (scene falls back to AI generation).
+
+This is the difference between imagining the product and showing the product.
+For ${productName}: every product scene should use the homepage screenshot unless a more specific one exists.` : ''
+
     const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -87,6 +111,8 @@ Runway AI CANNOT generate realistic human faces. For all runway scenes:
 - NEVER describe people, faces, smiling clients, testimonials showing humans, or "person using product"
 - INSTEAD: describe what THIS SPECIFIC PRODUCT looks like in action, what its world feels like, what it PRODUCES
 - The dalle_prompt generates the preview image. Make it brand-specific and people-free.
+
+${productRealityBlock}
 
 BRAND ANCHOR SYSTEM (mandatory — this is the most important rule):
 The #1 failure in AI ads is generic imagery that could be for any brand in the category.
@@ -156,6 +182,7 @@ Return this exact JSON:
           "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
           "brand_anchors": ["specific visual detail 1 tying scene to ${productName}", "specific visual detail 2"],
           "brand_check": "one sentence answer: how does a viewer know this is for ${productName}?",
+          "screenshotUrl": ${hasRealScreenshots ? `"URL from the PRODUCT REALITY list above (for product/cta/lifestyle/transformation runway scenes), or null"` : 'null'},
           "assetAssignment": {
             "sourceType": "heygen | runway | product_image | video_footage | generated",
             "sourceIndex": null,

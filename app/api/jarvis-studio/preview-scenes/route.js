@@ -133,6 +133,13 @@ export async function POST(req) {
     // Generate sequentially — each xAI call takes ~10-15s, naturally under rate limits.
     const previews = []
     for (const scene of scenes) {
+      // Product Reality Engine: if scene has a real screenshot, use it directly — skip xAI entirely.
+      if (scene.screenshotUrl) {
+        console.log(`[preview] 📸 ${scene.id} real screenshot → skipping xAI: ${scene.screenshotUrl.slice(0, 80)}`)
+        previews.push({ id: scene.id, imageUrl: scene.screenshotUrl, isReal: true })
+        continue
+      }
+
       try {
         const imageUrl = await generatePreviewImage(scene, brandContext)
         const { anchored } = validateAndAnchorPrompt(scene, brandContext)
