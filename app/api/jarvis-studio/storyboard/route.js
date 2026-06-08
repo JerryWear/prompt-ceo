@@ -207,8 +207,10 @@ Return this exact JSON:
     let storyboard
     try {
       storyboard = JSON.parse(gptData.choices[0].message.content)
-    } catch {
-      return NextResponse.json({ error: 'Failed to parse storyboard' }, { status: 500 })
+    } catch (parseErr) {
+      console.error('[storyboard] JSON parse failed:', parseErr.message)
+      console.error('[storyboard] raw GPT output (first 500):', String(gptData.choices?.[0]?.message?.content || '').slice(0, 500))
+      return NextResponse.json({ error: 'Failed to parse storyboard — GPT returned invalid JSON' }, { status: 500 })
     }
 
     // Enforce: if no founder, strip any heygen scenes
