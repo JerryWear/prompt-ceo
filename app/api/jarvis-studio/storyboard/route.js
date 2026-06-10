@@ -87,22 +87,14 @@ DIRECTIVE for screenplay scenes (type: product, lifestyle, cta, transformation, 
 This is the difference between imagining the product and showing the product.
 For ${productName}: every product scene should use the homepage screenshot unless a more specific one exists.` : ''
 
-    const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a world-class creative director at a premium AI ad agency. You generate precise storyboards for vertical short-form ads (9:16, 30 seconds, Instagram Reels / TikTok).
+    // Shared system prompt — same rules applied to every concept call
+    const systemPrompt = `You are a world-class creative director at a premium AI ad agency. You generate precise storyboards for vertical short-form ads (9:16, 30 seconds, Instagram Reels / TikTok).
 
 CORE RULES:
-- Every concept must feel completely different — different hook, different emotion, different structure
 - "generator": "heygen" = founder speaks to camera. ONLY use heygen if hasFounder is true (${hasFounder})
 - "generator": "runway" = AI-generated video. Use for all visual/cinematic scenes
 - Scripts: punchy, specific to THIS brand — never generic. Sound like a real person, not an ad
-- Scene durations must sum to exactly total_duration
+- Scene durations must sum to exactly 30 seconds
 - First scene = hook. Last scene = CTA.
 - Return ONLY valid JSON.
 
@@ -121,25 +113,22 @@ Every runway scene MUST be visually locked to "${productName}" specifically.
 Test each scene: "If I removed the brand name, could this be an ad for 10 other products?" → If yes, rewrite it.
 
 Valid brand anchors (use 2–3 per runway scene):
-• The product's actual name or named feature shown in the visual environment (e.g., a specific studio/module name in the scene)
-• A specific workflow step being visualized in concrete detail (not "the process" — the actual named steps)
-• The brand's color palette / visual identity as the dominant aesthetic (use the style description)
+• The product's actual name or named feature shown in the visual environment
+• A specific workflow step being visualized in concrete detail (the actual named steps)
+• The brand's color palette / visual identity as the dominant aesthetic
 • A real output only this product generates, shown visually with specifics
 • A named screen, interface, or environment unique to this product
-• A measurable result this product achieves, visualized (not "results" — the actual numbers or specifics)
+• A measurable result this product achieves, visualized (not "results" — the actual numbers)
 
 Key features to anchor to: ${keyFeatures || 'see brief above'}
 Visual identity to embody: ${brandStyle || 'premium cinematic'}
 
-REQUIRED FIELDS on every scene (including heygen scenes):
+REQUIRED FIELDS on every scene:
 "brand_anchors": ["specific visual anchor 1", "specific visual anchor 2"],
-"brand_check": "one sentence: how does someone watching only this 5-second clip — with no caption — know this is for ${productName} and not a competitor?"
+"brand_check": "one sentence: how does someone watching only this 5-second clip know this is for ${productName}?"`
 
-If brand_check sounds vague or could apply to a competitor → the anchors are too weak → rewrite the scene.`,
-          },
-          {
-            role: 'user',
-            content: `CREATIVE BRIEF:
+    // Brief context reused across all 5 calls
+    const briefContext = `CREATIVE BRIEF:
 Product: ${summary?.product}
 Audience: ${summary?.audience}
 Problem: ${summary?.problem}
@@ -150,79 +139,111 @@ Style: ${recommendedStyle}
 Key Messages: ${(keyMessages || []).join(' | ')}
 
 AVAILABLE ASSETS:
-${assetContext.join('\n')}
+${assetContext.join('\n')}`
 
-CONCEPT DIRECTIONS:
-${conceptDirections.join('\n')}
+    // Scene JSON template (shared)
+    const sceneTemplate = `{
+  "id": "sN_M",
+  "index": 0,
+  "label": "Hook | Problem | Solution | Transformation | CTA",
+  "type": "founder | product | lifestyle | pain_point | cta | transformation",
+  "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
+  "duration": 5,
+  "script": "Exact words founder speaks (heygen only). null for runway.",
+  "visual_direction": "Cinematographer-level description. Brand-specific anchors required.",
+  "dalle_prompt": "Ultra-detailed. Photorealistic. Vertical 9:16. Brand-specific. No people. No faces. Shot on RED. 8K cinematic.",
+  "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
+  "brand_anchors": ["anchor 1", "anchor 2"],
+  "brand_check": "How a viewer knows this is for ${productName}",
+  "screenshotUrl": ${hasRealScreenshots ? '"URL from PRODUCT REALITY list or null"' : 'null'},
+  "assetAssignment": { "sourceType": "heygen | runway | product_image | video_footage | generated", "sourceIndex": null, "note": "..." }
+}`
 
-Generate 5 ad concepts. Each has exactly 5 scenes. Total duration: 30 seconds.
-${!hasFounder ? 'IMPORTANT: No heygen scenes — no founder image provided. All scenes must use generator: "runway".' : ''}
+    // Generate one concept per call — 5 parallel calls, each focused on a single concept.
+    // This produces reliably complete output vs. one large call where GPT truncates early.
+    async function generateOneConcept(conceptIndex, direction) {
+      const n = conceptIndex + 1
+      const userContent = `${briefContext}
 
-Return this exact JSON:
+YOU ARE GENERATING CONCEPT ${n} OF 5.
+DIRECTION: ${direction}
+${!hasFounder ? 'NO HEYGEN — no founder image. All scenes must use generator: "runway".' : ''}
+
+Generate exactly 5 scenes whose durations sum to 30 seconds. Make this concept feel COMPLETELY DIFFERENT from any other ad for this product.
+
+Return ONLY this JSON (one concept object):
 {
-  "concepts": [
-    {
-      "id": "concept_1",
-      "title": "Concept title (3-5 words, evocative)",
-      "logline": "Single punchy line capturing this ad's core idea",
-      "angle": "problem_solution | testimonial | day_in_life | pattern_interrupt | aspirational | direct_response",
-      "platform": "instagram_reels",
-      "total_duration": 30,
-      "scenes": [
-        {
-          "id": "s1_1",
-          "index": 0,
-          "label": "Hook",
-          "type": "founder | product | lifestyle | pain_point | cta | transformation",
-          "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
-          "duration": 5,
-          "script": "Exact words founder speaks (heygen only). null for runway scenes.",
-          "visual_direction": "Precise cinematographer-level scene description. What is happening, how it is framed, what emotion it creates. Must reference brand-specific anchors.",
-          "dalle_prompt": "Ultra-detailed prompt. Photorealistic. Vertical 9:16 portrait frame. [brand-specific setting/output/interface]. [specific action/composition]. [specific lighting matching brand aesthetic]. Shot on RED camera. 8K. Cinematic color grade. No people. No faces.",
-          "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
-          "brand_anchors": ["specific visual detail 1 tying scene to ${productName}", "specific visual detail 2"],
-          "brand_check": "one sentence answer: how does a viewer know this is for ${productName}?",
-          "screenshotUrl": ${hasRealScreenshots ? `"URL from the PRODUCT REALITY list above (for product/cta/lifestyle/transformation runway scenes), or null"` : 'null'},
-          "assetAssignment": {
-            "sourceType": "heygen | runway | product_image | video_footage | generated",
-            "sourceIndex": null,
-            "note": "brief note on how this asset feeds this scene"
-          }
-        }
-      ]
-    }
-  ]
-}`,
-          },
-        ],
-        temperature: 0.75,
-        response_format: { type: 'json_object' },
-        max_tokens: 16000,
-      }),
-    })
+  "concept": {
+    "id": "concept_${n}",
+    "title": "3-5 evocative words",
+    "logline": "Single punchy line",
+    "angle": "problem_solution | testimonial | day_in_life | pattern_interrupt | aspirational | direct_response",
+    "platform": "instagram_reels",
+    "total_duration": 30,
+    "scenes": [${sceneTemplate}]
+  }
+}`
 
-    const gptData = await gptRes.json()
-    if (!gptRes.ok) return NextResponse.json({ error: gptData.error?.message || 'OpenAI error' }, { status: 500 })
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userContent },
+          ],
+          temperature: 0.75,
+          response_format: { type: 'json_object' },
+          max_tokens: 4000,
+        }),
+      })
 
-    const choice = gptData.choices?.[0]
-    if (choice?.finish_reason === 'length') {
-      console.error('[storyboard] GPT hit max_tokens — response truncated. tokens used:', gptData.usage?.completion_tokens)
-      return NextResponse.json({ error: 'Storyboard too large — GPT response was truncated. Try again.' }, { status: 500 })
-    }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error?.message || `OpenAI error (concept ${n})`)
 
-    let storyboard
-    try {
-      storyboard = JSON.parse(choice.message.content)
-    } catch (parseErr) {
-      console.error('[storyboard] JSON parse failed:', parseErr.message)
-      console.error('[storyboard] finish_reason:', choice?.finish_reason, '| tokens:', gptData.usage?.completion_tokens)
-      console.error('[storyboard] raw GPT output (first 800):', String(choice?.message?.content || '').slice(0, 800))
-      return NextResponse.json({ error: 'Failed to parse storyboard — GPT returned invalid JSON' }, { status: 500 })
+      const choice = data.choices?.[0]
+      if (choice?.finish_reason === 'length') {
+        console.error(`[storyboard] concept ${n} truncated at ${data.usage?.completion_tokens} tokens`)
+        throw new Error(`Concept ${n} was truncated`)
+      }
+
+      let parsed
+      try {
+        parsed = JSON.parse(choice.message.content)
+      } catch {
+        console.error(`[storyboard] concept ${n} JSON parse failed:`, String(choice?.message?.content || '').slice(0, 400))
+        throw new Error(`Concept ${n} returned invalid JSON`)
+      }
+
+      const concept = parsed.concept || parsed.concepts?.[0] || null
+      if (!concept) throw new Error(`Concept ${n} missing from response`)
+      console.log(`[storyboard] ✓ concept ${n}: "${concept.title}" (${concept.scenes?.length} scenes, ${data.usage?.completion_tokens} tokens)`)
+      return concept
     }
 
-    // Enforce: if no founder, strip any heygen scenes
-    if (!hasFounder && storyboard?.concepts) {
-      storyboard.concepts.forEach(concept => {
+    // Run all 5 in parallel
+    const results = await Promise.allSettled(
+      conceptDirections.map((dir, i) => generateOneConcept(i, dir))
+    )
+
+    const concepts = results.map((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[storyboard] concept ${i + 1} failed:`, r.reason?.message)
+        return null
+      }
+      return r.value
+    }).filter(Boolean)
+
+    if (concepts.length === 0) {
+      return NextResponse.json({ error: 'All 5 concept generations failed — check OpenAI logs' }, { status: 500 })
+    }
+
+    console.log(`[storyboard] ${concepts.length}/5 concepts generated successfully`)
+
+    // Enforce: if no founder, strip any heygen scenes that GPT snuck in
+    if (!hasFounder) {
+      concepts.forEach(concept => {
         concept.scenes?.forEach(scene => {
           if (scene.generator === 'heygen') {
             scene.generator = 'runway'
@@ -231,6 +252,8 @@ Return this exact JSON:
         })
       })
     }
+
+    const storyboard = { concepts }
 
     return NextResponse.json({ status: 'success', storyboard })
 
