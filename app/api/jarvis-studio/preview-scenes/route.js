@@ -86,10 +86,22 @@ function buildFinalPrompt(scene, brandContext) {
   return final
 }
 
+// ── SVG scene placeholder — loads instantly, never fails ─────────────────────
+function xmlEsc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+function buildScenePlaceholder(scene) {
+  const accent = { Hook:'#c8a84b', Problem:'#c07070', Solution:'#70c090', Transformation:'#7090c8', CTA:'#c870a8' }[scene.label] || '#555'
+  const label  = xmlEsc((scene.label || 'SCENE').toUpperCase())
+  const cap    = xmlEsc((scene.capability_anchor || scene.type || '').slice(0, 40))
+  const svg    = `<svg xmlns="http://www.w3.org/2000/svg" width="576" height="1024"><rect width="576" height="1024" fill="#0c0c0c"/><rect width="576" height="2" fill="${accent}"/><rect y="1022" width="576" height="2" fill="${accent}" opacity="0.2"/><text x="288" y="490" text-anchor="middle" font-family="system-ui,sans-serif" font-size="30" font-weight="700" fill="${accent}" letter-spacing="4">${label}</text><text x="288" y="532" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#505050">${cap}</text></svg>`
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64')
+}
+
 async function generatePreviewImage(scene, brandContext) {
   const prompt = buildFinalPrompt(scene, brandContext)
 
-  // ── Try xAI first ──────────────────────────────────────────────────────────
+  // ── Try xAI (20s timeout — never hang on a dead API call) ────────────────
   const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
   if (xaiKey) {
     try {
@@ -97,33 +109,24 @@ async function generatePreviewImage(scene, brandContext) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
         body:    JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
+        signal:  AbortSignal.timeout(20000),
       })
       const xaiData = await xaiRes.json()
       if (xaiRes.ok) {
         const url = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
-        if (url) {
-          console.log(`[preview] ✅ xAI returned URL for ${scene.id}`)
-          return url
-        }
-        console.warn(`[preview] xAI 200 but no URL for ${scene.id}: ${JSON.stringify(xaiData).slice(0, 200)}`)
+        if (url) { console.log(`[preview] ✅ xAI: ${scene.id}`); return url }
+        console.warn(`[preview] xAI 200 no URL ${scene.id}: ${JSON.stringify(xaiData).slice(0, 150)}`)
       } else {
-        console.warn(`[preview] xAI ${xaiRes.status} for ${scene.id}: ${xaiData.error?.message || JSON.stringify(xaiData).slice(0, 200)}`)
+        console.warn(`[preview] xAI ${xaiRes.status} ${scene.id}: ${xaiData.error?.message || ''}`)
       }
     } catch (e) {
-      console.warn(`[preview] xAI threw for ${scene.id}: ${e.message}`)
+      console.warn(`[preview] xAI ${scene.id}: ${e.message}`)
     }
-  } else {
-    console.warn('[preview] XAI_API_KEY not set — skipping xAI')
   }
 
-  // ── Pollinations.ai fallback — free FLUX, browser fetches directly ──
-  // Pollinations allows free browser requests but blocks server-side fetches (402).
-  // Return the URL — the browser loads the image async, SceneThumb handles the loading state.
-  const seed        = Math.floor(Math.random() * 999999)
-  const shortPrompt = prompt.slice(0, 350)
-  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(shortPrompt)}?width=576&height=1024&model=flux&seed=${seed}&enhance=true`
-  console.log(`[preview] Pollinations URL for ${scene.id}: seed=${seed}`)
-  return pollinationsUrl
+  // ── SVG placeholder — always works, loads in <1ms ─────────────────────────
+  console.log(`[preview] SVG placeholder: ${scene.id}`)
+  return buildScenePlaceholder(scene)
 }
 
 // POST /api/jarvis-studio/preview-scenes

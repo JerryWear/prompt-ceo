@@ -493,9 +493,10 @@ export default function JarvisStudio() {
       }
 
       const totalRunwayScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
+      const totalHeygenScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'heygen').length, 0)
       if (totalLoaded < totalRunwayScenes) {
-        const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ' — some scenes may generate without a preview image.'
-        setPreviewError(`${totalLoaded}/${totalRunwayScenes} previews loaded${errSuffix}`)
+        const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ''
+        setPreviewError(`${totalLoaded}/${totalRunwayScenes} video scenes previewed${totalHeygenScenes ? `, ${totalHeygenScenes} avatar scenes use your founder photo` : ''}${errSuffix}`)
       }
       setPreviewsDone(true)
 
@@ -1479,7 +1480,7 @@ export default function JarvisStudio() {
                     {' '}Generating previews ({previewCount}/{storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)})
                   </span>
                 )}
-                {storyboard && previewsDone && !previewError && <span style={{ marginLeft:10, color:C.green }}>✓ {Object.keys(previews).length} previews loaded</span>}
+                {storyboard && previewsDone && !previewError && <span style={{ marginLeft:10, color:C.green }}>✓ All {storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)} scenes ready</span>}
                 {storyboard && previewsDone && previewError && <span style={{ marginLeft:10, color:C.gold }}>⚠ {previewError}</span>}
               </div>
             </div>
