@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const maxDuration = 90
+export const maxDuration = 300
 
 async function makeSupabase() {
   const cookieStore = await cookies()
@@ -64,7 +64,7 @@ export async function POST(req) {
           const fcRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.FIRECRAWL_API_KEY}` },
-            body: JSON.stringify({ url: websiteUrl.trim(), formats: ['markdown'], onlyMainContent: true }),
+            body: JSON.stringify({ url: websiteUrl.trim(), formats: ['markdown'], onlyMainContent: true, timeout: 20000 }),
           })
           const fcData = await fcRes.json()
           return (fcData.success && fcData.data?.markdown) ? fcData.data.markdown.slice(0, 8000) : ''

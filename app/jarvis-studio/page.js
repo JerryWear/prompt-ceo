@@ -334,8 +334,8 @@ export default function JarvisStudio() {
           : Promise.resolve(null),
       ])
 
-      if (!uRes.ok) throw new Error(`Brand analysis failed (${uRes.status})`)
-      const uData = await uRes.json()
+      const uData = await uRes.json().catch(() => ({}))
+      if (!uRes.ok) throw new Error(uData.error || `Brand analysis failed (${uRes.status})`)
       if (!uData.understanding) throw new Error(uData.error || 'Brand analysis failed')
 
       // Store real product screenshots captured from the URL
