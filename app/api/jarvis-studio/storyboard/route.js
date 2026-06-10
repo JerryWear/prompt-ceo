@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const maxDuration = 90
+export const maxDuration = 300
 
 async function makeSupabase() {
   const cookieStore = await cookies()
