@@ -1787,9 +1787,9 @@ function safeStr(v) {
 
 // ── Scene thumbnail ───────────────────────────────────────────────────────────
 function SceneThumb({ scene, imageUrl, errorMsg }) {
-  const [imgLoaded, setImgLoaded] = React.useState(false)
-  const [imgError, setImgError]   = React.useState(false)
-  React.useEffect(() => { setImgLoaded(false); setImgError(false) }, [imageUrl])
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError]   = useState(false)
+  useEffect(() => { setImgLoaded(false); setImgError(false) }, [imageUrl])
 
   return (
     <div style={{ flexShrink:0, width:106, display:'flex', flexDirection:'column', gap:6 }}>
