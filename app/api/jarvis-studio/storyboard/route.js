@@ -54,6 +54,23 @@ function computeCompliance(concept, inv) {
     }
   }
 
+  // Penalise capability-invisible scenes
+  const GENERIC_CAPS = /^(show|display|dashboard|interface|screen|software|platform|results|overview|ui)$/i
+  const capScenes = scenes.filter(s => s.capability_anchor && !GENERIC_CAPS.test(s.capability_anchor.trim()))
+  if (capScenes.length < scenes.length) {
+    const missing = scenes.length - capScenes.length
+    const penalty = missing * 5
+    score -= penalty
+    deductions.push(`${missing} scene(s) lack specific capability anchor (-${penalty})`)
+  }
+  // Penalise missing proof_of_capability
+  const proofScenes = scenes.filter(s => s.proof_of_capability && s.proof_of_capability.includes('→'))
+  if (proofScenes.length < scenes.length) {
+    const missing = scenes.length - proofScenes.length
+    score -= missing * 3
+    deductions.push(`${missing} scene(s) missing input→output proof (-${missing * 3})`)
+  }
+
   const final = Math.max(0, Math.min(100, score))
   if (deductions.length) console.log(`[storyboard] compliance ${concept.id}: ${final}/100 — ${deductions.join(', ')}`)
   else console.log(`[storyboard] compliance ${concept.id}: ${final}/100 ✓`)
@@ -209,6 +226,36 @@ Valid anchors (use 2–3 per runway scene):
 Key features: ${keyFeatures || 'see brief above'}
 Visual identity: ${brandStyle || 'premium cinematic'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAPABILITY ANCHOR SYSTEM (mandatory — every scene):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The #1 failure in AI product ads: showing SOFTWARE without showing CAPABILITY.
+A viewer must understand what ${productName} DOES within 10 seconds — even if the logo is removed.
+
+RULE: Every scene must answer "What specific ${productName} capability is being demonstrated?"
+
+BAD — dashboard-driven (shows the software EXISTS):
+✗ "Show the dashboard"
+✗ "Display campaign results screen"
+✗ "Software interface loading"
+✗ "Analytics panel with charts"
+
+GOOD — capability-driven (shows the software WORKS):
+✓ capability: "Brief generation" → proof: "Blank text box → structured 5-part creative brief appears in 3 seconds"
+✓ capability: "Concept generation" → proof: "Brief in → 5 distinct ad concepts with previews materialize instantly"
+✓ capability: "Storyboard creation" → proof: "Concept selected → 25 scene frames with scripts and visuals appear"
+✓ capability: "One-brief to full campaign" → proof: "Single idea typed → complete campaign ready in under 60 seconds"
+✓ capability: "AI Creative Direction" → proof: "PromptCEO writes scripts, directs shots, generates visuals — zero agency needed"
+✓ capability: "Ad production" → proof: "Storyboard approved → Runway + HeyGen clips render and assemble into MP4"
+
+Test for every scene: "After watching only this 5-second clip, does a viewer know ONE SPECIFIC THING ${productName} can do?"
+If NO → capability is invisible → rewrite the scene.
+
+REQUIRED FIELDS on every scene:
+"capability_anchor": "The specific named capability being demonstrated (not 'dashboard' — the ACTUAL action)",
+"proof_of_capability": "[input state] → [transformation] → [output state] — what the viewer watches happen"
+
 source_used values (use the correct ones):
 • "founder_image" — scene built around the uploaded founder photo (heygen scenes)
 • "product_image" — scene references uploaded product images
@@ -247,6 +294,8 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
   "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
   "brand_anchors": ["specific visual anchor 1 tying scene to ${productName}", "anchor 2"],
   "brand_check": "How a viewer knows this is for ${productName} — not a competitor",
+  "capability_anchor": "The specific named ${productName} capability this scene demonstrates — not 'dashboard', the ACTUAL action",
+  "proof_of_capability": "[input state] → [transformation] → [output state] the viewer watches happen",
   "screenshotUrl": ${screenshotUrlField},
   "source_used": ["founder_image | product_image | uploaded_video | website_screenshot | user_prompt | brand_knowledge | jarvis_generated"],
   "assetAssignment": { "sourceType": "heygen | runway | product_image | video_footage | generated", "sourceIndex": null, "note": "Which user asset this scene builds on and why" }
@@ -265,6 +314,11 @@ OBEDIENCE CHECK BEFORE WRITING:
 1. Which user assets from LEVEL 1 above can this concept use?
 2. Does this direction match the user's stated hook/intent?
 3. Only invent where no asset or prompt covers it.
+
+CAPABILITY CHECK BEFORE WRITING:
+For each scene, answer: "What specific ${productName} capability will a viewer understand from this 5-second clip?"
+If the answer is "they'll see a dashboard" → that scene is capability-invisible → rewrite it before writing JSON.
+The 5 scenes of this concept should together demonstrate at least 3 distinct ${productName} capabilities.
 
 Generate exactly 5 scenes. Durations sum to 30 seconds. This concept must feel COMPLETELY DIFFERENT from the other 4 concepts.
 

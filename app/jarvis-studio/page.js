@@ -1795,6 +1795,11 @@ function SceneThumb({ scene, imageUrl }) {
       <div style={{ fontSize:9, color:'#3d3d3d', fontWeight:700, textTransform:'uppercase', letterSpacing:.8, textAlign:'center' }}>
         {scene.label}
       </div>
+      {scene.capability_anchor && (
+        <div style={{ fontSize:8, color:'#2a2a2a', textAlign:'center', lineHeight:1.3, marginTop:2, padding:'0 2px' }}>
+          {scene.capability_anchor}
+        </div>
+      )}
     </div>
   )
 }
