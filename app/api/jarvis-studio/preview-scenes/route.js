@@ -55,7 +55,11 @@ function validateAndAnchorPrompt(scene, brandContext) {
     ? anchors.join(', ')
     : brandContext.keyMessages?.slice(0, 2).join(' | ') || shortName
 
-  const styleHint = brandContext.style ? ` — ${brandContext.style.slice(0, 60)}` : ''
+  const styleHint  = brandContext.visualDNA
+    ? ` — ${brandContext.visualDNA.slice(0, 120)}`
+    : brandContext.style
+      ? ` — ${brandContext.style.slice(0, 60)}`
+      : ''
   const prefix    = `${shortName}${styleHint}: ${anchorText}. `
   const anchored  = `${prefix}${raw}`
 

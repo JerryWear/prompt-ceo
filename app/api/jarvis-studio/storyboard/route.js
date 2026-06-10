@@ -86,7 +86,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { creativeBrief, assets, intent, brandScreenshots = [] } = await req.json()
+    const { creativeBrief, assets, intent, brandScreenshots = [], understanding } = await req.json()
     if (!creativeBrief) return NextResponse.json({ error: 'creativeBrief required' }, { status: 400 })
 
     const { summary, keyMessages, hook, recommendedStyle, assetPlan } = creativeBrief
@@ -102,6 +102,29 @@ export async function POST(req) {
     const productName = (summary?.product || 'this brand').split(/[—.\n]/)[0].trim().slice(0, 60)
     const keyFeatures = (keyMessages || []).slice(0, 6).join(' | ')
     const brandStyle  = recommendedStyle || summary?.solution || ''
+
+    // Build visual DNA block from vision-extracted understanding (if available)
+    let visualDNABlock = ''
+    if (understanding?.brand?.visualStyle || understanding?.products?.designLanguage) {
+      const dnaLines = []
+      if (understanding.brand?.visualStyle)       dnaLines.push(`Visual Style: ${understanding.brand.visualStyle}`)
+      if (understanding.products?.designLanguage) dnaLines.push(`Design Language: ${understanding.products.designLanguage}`)
+      if (understanding.products?.keyVisuals)     dnaLines.push(`Key Visuals: ${understanding.products.keyVisuals}`)
+      if (understanding.products?.descriptions?.length) {
+        dnaLines.push(`Product Appearance: ${understanding.products.descriptions.slice(0, 3).join(' | ')}`)
+      }
+      visualDNABlock = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BRAND VISUAL DNA — GPT-4O VISION ANALYSIS OF USER'S ACTUAL IMAGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${dnaLines.join('\n')}
+
+MANDATORY FOR EVERY dalle_prompt:
+→ Use THESE visual characteristics — not generic "dark UI" or "creative platform"
+→ Incorporate the actual colors, typography, and design language described above
+→ Someone who uses the real product should recognize their app in the preview image
+`
+    }
 
     // ── Level 1: Build explicit asset reference block ────────────────────────
     // GPT sees exactly what exists so it cannot claim ignorance of available assets.
@@ -225,7 +248,7 @@ Valid anchors (use 2–3 per runway scene):
 
 Key features: ${keyFeatures || 'see brief above'}
 Visual identity: ${brandStyle || 'premium cinematic'}
-
+${visualDNABlock}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CAPABILITY ANCHOR SYSTEM (mandatory — every scene):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

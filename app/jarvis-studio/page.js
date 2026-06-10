@@ -415,7 +415,7 @@ export default function JarvisStudio() {
       const sRes  = await fetch('/api/jarvis-studio/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots }),
+        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots, understanding }),
       })
       if (!sRes.ok) throw new Error(`Storyboard failed (${sRes.status})`)
       const sData = await sRes.json()
@@ -447,6 +447,11 @@ export default function JarvisStudio() {
             productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
             keyMessages: creativeBrief?.keyMessages || [],
             style:       creativeBrief?.recommendedStyle || '',
+            visualDNA: understanding ? [
+              understanding.brand?.visualStyle,
+              understanding.products?.designLanguage,
+              understanding.products?.keyVisuals,
+            ].filter(Boolean).join(' | ') : '',
           }
           return fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
