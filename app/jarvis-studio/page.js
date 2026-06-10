@@ -141,6 +141,7 @@ export default function JarvisStudio() {
   const [previews,        setPreviews]        = useState({})
   const [previewsDone,    setPreviewsDone]    = useState(false)
   const [previewError,    setPreviewError]    = useState('')
+  const [previewErrors,   setPreviewErrors]   = useState({})
   const [selectedConcept, setSelectedConcept] = useState(null)
   const [productionJobs,  setProductionJobs]  = useState(null)
   const [finalAd,         setFinalAd]         = useState(null)
@@ -221,7 +222,7 @@ export default function JarvisStudio() {
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
     setAssessment(null); setCreativeBrief(null); setBrandScreenshots([])
-    setStoryboard(null); setPreviews({}); setPreviewsDone(false); setPreviewError('')
+    setStoryboard(null); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
     setAssembling(false); setAssembledUrl(null); setAssembleError(null)
     setUploadedFrameUrls([])
@@ -464,14 +465,22 @@ export default function JarvisStudio() {
             : await r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) })
           if (pData.previews) {
             const loaded = pData.previews.filter(p => p.imageUrl)
+            const failed = pData.previews.filter(p => !p.imageUrl && p.error)
             totalLoaded += loaded.length
-            if (loaded.length === 0 && !firstError) {
-              firstError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
+            if (!firstError) {
+              firstError = failed[0]?.error || (loaded.length === 0 ? (pData.error || 'Image generation failed') : '')
             }
             if (loaded.length > 0) {
               setPreviews(prev => {
                 const next = { ...prev }
                 loaded.forEach(p => { next[p.id] = p.imageUrl })
+                return next
+              })
+            }
+            if (failed.length > 0) {
+              setPreviewErrors(prev => {
+                const next = { ...prev }
+                failed.forEach(p => { next[p.id] = p.error })
                 return next
               })
             }
@@ -484,10 +493,9 @@ export default function JarvisStudio() {
       }
 
       const totalRunwayScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
-      if (totalLoaded === 0 && firstError) {
-        setPreviewError(`Preview images failed. Error: ${firstError.slice(0, 120)}`)
-      } else if (totalLoaded < totalRunwayScenes) {
-        setPreviewError(`${totalLoaded}/${totalRunwayScenes} previews loaded — some scenes may generate without a preview image.`)
+      if (totalLoaded < totalRunwayScenes) {
+        const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ' — some scenes may generate without a preview image.'
+        setPreviewError(`${totalLoaded}/${totalRunwayScenes} previews loaded${errSuffix}`)
       }
       setPreviewsDone(true)
 
@@ -1526,7 +1534,8 @@ export default function JarvisStudio() {
                   <div style={{ display:'flex', gap:9, padding:'11px 18px 14px', overflowX:'auto' }}>
                     {concept.scenes.map(scene => (
                       <SceneThumb key={scene.id} scene={scene}
-                        imageUrl={previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)} />
+                        imageUrl={previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)}
+                        errorMsg={!previews[scene.id] && previewsDone && scene.generator === 'runway' ? previewErrors[scene.id] : null} />
                     ))}
                   </div>
                 </div>
@@ -1777,15 +1786,18 @@ function safeStr(v) {
 }
 
 // ── Scene thumbnail ───────────────────────────────────────────────────────────
-function SceneThumb({ scene, imageUrl }) {
+function SceneThumb({ scene, imageUrl, errorMsg }) {
   return (
     <div style={{ flexShrink:0, width:106, display:'flex', flexDirection:'column', gap:6 }}>
-      <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:'1px solid #1a1a1a' }}>
+      <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:`1px solid ${errorMsg ? '#5a1a1a' : '#1a1a1a'}` }}>
         {imageUrl ? (
           <img src={imageUrl} alt={scene.label} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
         ) : (
-          <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', animation:'shimmer 1.6s ease-in-out infinite' }}>
-            <span style={{ fontSize:16, opacity:.1 }}>◻</span>
+          <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:8, gap:6 }}>
+            {errorMsg
+              ? <span style={{ fontSize:8, color:'#7a2a2a', textAlign:'center', lineHeight:1.4, wordBreak:'break-word' }}>{errorMsg.slice(0, 80)}</span>
+              : <span style={{ fontSize:16, opacity:.1, animation:'shimmer 1.6s ease-in-out infinite' }}>◻</span>
+            }
           </div>
         )}
         <div style={{ position:'absolute', top:4, right:4, fontSize:8, padding:'2px 5px', borderRadius:3, background:'#000000bb', backdropFilter:'blur(4px)', color:scene.generator === 'heygen' ? '#c8a84b' : '#4aaba0', fontWeight:700 }}>
