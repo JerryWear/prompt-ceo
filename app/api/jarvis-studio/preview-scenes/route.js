@@ -101,34 +101,27 @@ async function generatePreviewImage(scene, brandContext) {
       const xaiData = await xaiRes.json()
       if (xaiRes.ok) {
         const url = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
-        if (url) return url
+        if (url) {
+          console.log(`[preview] ✅ xAI returned URL for ${scene.id}`)
+          return url
+        }
+        console.warn(`[preview] xAI 200 but no URL for ${scene.id}: ${JSON.stringify(xaiData).slice(0, 200)}`)
+      } else {
+        console.warn(`[preview] xAI ${xaiRes.status} for ${scene.id}: ${xaiData.error?.message || JSON.stringify(xaiData).slice(0, 200)}`)
       }
-      console.warn(`[preview] xAI failed (${xaiRes.status}): ${xaiData.error?.message || 'no url'} — falling back to DALL-E 3`)
     } catch (e) {
-      console.warn(`[preview] xAI threw: ${e.message} — falling back to DALL-E 3`)
+      console.warn(`[preview] xAI threw for ${scene.id}: ${e.message}`)
     }
+  } else {
+    console.warn('[preview] XAI_API_KEY not set — skipping xAI')
   }
 
-  // ── DALL-E 3 fallback ──────────────────────────────────────────────────────
-  const openaiKey = process.env.OPENAI_API_KEY
-  if (!openaiKey) throw new Error('No image generation API available (xAI failed, no OPENAI_API_KEY)')
-
-  const dalleRes  = await fetch('https://api.openai.com/v1/images/generations', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-    body:    JSON.stringify({
-      model:   'dall-e-3',
-      prompt:  prompt.slice(0, 4000),
-      size:    '1024x1792', // 9:16 portrait
-      quality: 'standard',
-      n:       1,
-    }),
-  })
-  const dalleData = await dalleRes.json()
-  if (!dalleRes.ok) throw new Error(dalleData.error?.message || `DALL-E ${dalleRes.status}`)
-  const dalleUrl = dalleData.data?.[0]?.url
-  if (!dalleUrl) throw new Error('DALL-E 3 returned no URL')
-  return dalleUrl
+  // ── Pollinations.ai fallback — free FLUX model, no API key, no rate limits ──
+  // URL is returned and the browser fetches the image directly (no server-side wait).
+  const seed        = Math.floor(Math.random() * 999999)
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt.slice(0, 1000))}?width=576&height=1024&model=flux&nologo=true&seed=${seed}`
+  console.log(`[preview] Pollinations fallback for ${scene.id}: seed=${seed}`)
+  return pollinationsUrl
 }
 
 // POST /api/jarvis-studio/preview-scenes
