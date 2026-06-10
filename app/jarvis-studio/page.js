@@ -956,7 +956,7 @@ export default function JarvisStudio() {
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Evidence Used</div>
                 {assessment.evidenceUsed.summary && (
                   <div style={{ fontSize:12, color:C.muted, marginBottom:10, fontStyle:'italic', borderLeft:`2px solid ${C.gold}44`, paddingLeft:10 }}>
-                    {assessment.evidenceUsed.summary}
+                    {safeStr(assessment.evidenceUsed.summary)}
                   </div>
                 )}
                 {entries.map(([key, value]) => (
@@ -964,7 +964,7 @@ export default function JarvisStudio() {
                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:3 }}>
                       {labels[key] || key}
                     </div>
-                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6 }}>{value}</div>
+                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6 }}>{safeStr(value)}</div>
                   </div>
                 ))}
               </div>
@@ -1010,8 +1010,8 @@ export default function JarvisStudio() {
                       <div key={key} style={{ padding:'10px 12px', borderRadius:8, background:`${color}09`, border:`1px solid ${color}22` }}>
                         <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${color}77`, textTransform:'uppercase', marginBottom:3 }}>{label}</div>
                         {m.frame && <div style={{ fontSize:9, color:`${color}44`, marginBottom:4 }}>Frame {m.frame}{m.label ? ` — ${m.label}` : ''}</div>}
-                        <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{m.observation}</div>
-                        <div style={{ fontSize:10, color:C.muted, fontStyle:'italic', lineHeight:1.4 }}>{m.whyItWorks}</div>
+                        <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{safeStr(m.observation)}</div>
+                        <div style={{ fontSize:10, color:C.muted, fontStyle:'italic', lineHeight:1.4 }}>{safeStr(m.whyItWorks)}</div>
                       </div>
                     )
                   })}
@@ -1021,8 +1021,8 @@ export default function JarvisStudio() {
                 <div style={{ padding:'10px 12px', borderRadius:8, background:`${C.secondary}07`, border:`1px solid ${C.border}`, marginBottom:8 }}>
                   <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:3 }}>Landing Page Moment</div>
                   {assessment.videoAnalysis.strongestLandingPageMoment.frame && <div style={{ fontSize:9, color:C.dim, marginBottom:4 }}>Frame {assessment.videoAnalysis.strongestLandingPageMoment.frame}{assessment.videoAnalysis.strongestLandingPageMoment.label ? ` — ${assessment.videoAnalysis.strongestLandingPageMoment.label}` : ''}</div>}
-                  <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{assessment.videoAnalysis.strongestLandingPageMoment.observation}</div>
-                  <div style={{ fontSize:10, color:C.muted, fontStyle:'italic' }}>{assessment.videoAnalysis.strongestLandingPageMoment.whyItWorks}</div>
+                  <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5, marginBottom:3 }}>{safeStr(assessment.videoAnalysis.strongestLandingPageMoment.observation)}</div>
+                  <div style={{ fontSize:10, color:C.muted, fontStyle:'italic' }}>{safeStr(assessment.videoAnalysis.strongestLandingPageMoment.whyItWorks)}</div>
                 </div>
               )}
 
@@ -1142,9 +1142,9 @@ export default function JarvisStudio() {
                 <div key={i} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom: i < assessment.prioritizedOpportunities.length - 1 ? 12 : 0, paddingBottom: i < assessment.prioritizedOpportunities.length - 1 ? 12 : 0, borderBottom: i < assessment.prioritizedOpportunities.length - 1 ? `1px solid ${C.goldBorder}` : 'none' }}>
                   <div style={{ fontSize:18, fontWeight:900, color:`${C.gold}55`, minWidth:20, flexShrink:0, lineHeight:1 }}>#{item.rank}</div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:C.gold, marginBottom:4 }}>{item.opportunity}</div>
-                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6, marginBottom:5 }}>{item.evidence}</div>
-                    <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>→ {item.immediateAction}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.gold, marginBottom:4 }}>{safeStr(item.opportunity)}</div>
+                    <div style={{ fontSize:11, color:C.muted, lineHeight:1.6, marginBottom:5 }}>{safeStr(item.evidence)}</div>
+                    <div style={{ fontSize:11, color:C.secondary, lineHeight:1.5 }}>→ {safeStr(item.immediateAction)}</div>
                   </div>
                 </div>
               ))}
@@ -1183,9 +1183,9 @@ export default function JarvisStudio() {
                     }}>
                       {isPick && <div style={{ position:'absolute', top:8, right:10, fontSize:9, fontWeight:700, color:C.gold, letterSpacing:1 }}>JARVIS PICK</div>}
                       <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color: isPick ? `${C.gold}88` : C.ghost, textTransform:'uppercase', marginBottom:6 }}>{label}</div>
-                      <div style={{ fontSize:12, fontWeight:700, color: isPick ? C.gold : C.primary, marginBottom:4 }}>{test.name}</div>
-                      <div style={{ fontSize:10, color:C.ghost, marginBottom:6 }}>{test.format}</div>
-                      <div style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{test.hypothesis}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color: isPick ? C.gold : C.primary, marginBottom:4 }}>{safeStr(test.name)}</div>
+                      <div style={{ fontSize:10, color:C.ghost, marginBottom:6 }}>{safeStr(test.format)}</div>
+                      <div style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>{safeStr(test.hypothesis)}</div>
                     </div>
                   )
                 })}
@@ -1193,7 +1193,7 @@ export default function JarvisStudio() {
               {assessment.whatIWouldTestFirst.whyThisWins && (
                 <div style={{ padding:'10px 14px', borderRadius:8, background:C.goldBg, border:`1px solid ${C.goldBorder}`, fontSize:12, color:C.secondary, lineHeight:1.6, fontStyle:'italic' }}>
                   <span style={{ color:`${C.gold}88`, fontSize:9, fontWeight:700, letterSpacing:1, textTransform:'uppercase', display:'block', marginBottom:4 }}>Why this wins</span>
-                  "{assessment.whatIWouldTestFirst.whyThisWins}"
+                  "{safeStr(assessment.whatIWouldTestFirst.whyThisWins)}"
                 </div>
               )}
             </div>
@@ -1225,8 +1225,8 @@ export default function JarvisStudio() {
                 <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:9, paddingBottom:9, borderBottom: i < assessment.missingMarketingAssets.length - 1 ? `1px solid #1a1500` : 'none' }}>
                   <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:'#1a1000', color:`${C.gold}66`, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>Missing</span>
                   <div>
-                    <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{item.asset}</div>
-                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{item.impact}</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.secondary, marginBottom:2 }}>{safeStr(item.asset)}</div>
+                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{safeStr(item.impact)}</div>
                   </div>
                 </div>
               ))}
@@ -1239,7 +1239,7 @@ export default function JarvisStudio() {
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>If This Were My Company</div>
               {assessment.ifThisWereMyCompany.focus && (
                 <div style={{ fontSize:13, fontWeight:700, color:C.primary, marginBottom:14, lineHeight:1.5, borderLeft:`2px solid ${C.gold}55`, paddingLeft:12 }}>
-                  {assessment.ifThisWereMyCompany.focus}
+                  {safeStr(assessment.ifThisWereMyCompany.focus)}
                 </div>
               )}
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:8 }}>30-Day Actions</div>
@@ -1249,8 +1249,8 @@ export default function JarvisStudio() {
                     {i + 1}
                   </div>
                   <div>
-                    <div style={{ fontSize:12, fontWeight:600, color:C.primary, marginBottom:2 }}>{item.action}</div>
-                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{item.why}</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.primary, marginBottom:2 }}>{safeStr(item.action)}</div>
+                    <div style={{ fontSize:11, color:C.ghost, lineHeight:1.5 }}>{safeStr(item.why)}</div>
                   </div>
                 </div>
               ))}
@@ -1269,9 +1269,9 @@ export default function JarvisStudio() {
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     {assessment.competitiveIntelligence.competitors.map((c, i) => (
                       <div key={i} style={{ padding:'10px 13px', borderRadius:8, background:C.raised, border:`1px solid ${C.border}`, minWidth:150, flex:'1 1 150px' }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:C.primary, marginBottom:4 }}>{c.name}</div>
-                        <div style={{ fontSize:11, color:C.muted, lineHeight:1.5, marginBottom:4 }}>{c.knownFor}</div>
-                        {c.whatTheyDoWell && <div style={{ fontSize:10, color:C.ghost, lineHeight:1.4 }}>↑ {c.whatTheyDoWell}</div>}
+                        <div style={{ fontSize:12, fontWeight:700, color:C.primary, marginBottom:4 }}>{safeStr(c.name)}</div>
+                        <div style={{ fontSize:11, color:C.muted, lineHeight:1.5, marginBottom:4 }}>{safeStr(c.knownFor)}</div>
+                        {c.whatTheyDoWell && <div style={{ fontSize:10, color:C.ghost, lineHeight:1.4 }}>↑ {safeStr(c.whatTheyDoWell)}</div>}
                       </div>
                     ))}
                   </div>
@@ -1318,7 +1318,7 @@ export default function JarvisStudio() {
               {assessment.competitiveIntelligence.opportunityGap && (
                 <div style={{ padding:'12px 14px', borderRadius:8, background:`${C.gold}08`, border:`1px solid ${C.goldBorder}` }}>
                   <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:6 }}>Opportunity Gap</div>
-                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.7 }}>{assessment.competitiveIntelligence.opportunityGap}</div>
+                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.7 }}>{safeStr(assessment.competitiveIntelligence.opportunityGap)}</div>
                 </div>
               )}
             </div>
@@ -1329,10 +1329,10 @@ export default function JarvisStudio() {
             <div style={{ borderRadius:10, border:`1px solid ${C.gold}55`, background:`linear-gradient(135deg, #0c0900, #050400)`, padding:'20px 20px', marginBottom:22 }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:10 }}>My Recommended Campaign</div>
               <div style={{ fontSize:17, fontWeight:800, color:C.gold, marginBottom:12, lineHeight:1.3 }}>
-                {assessment.myRecommendedCampaign.headline}
+                {safeStr(assessment.myRecommendedCampaign.headline)}
               </div>
               <div style={{ fontSize:13, color:C.secondary, lineHeight:1.75, fontStyle:'italic', marginBottom:12, borderLeft:`2px solid ${C.gold}44`, paddingLeft:14 }}>
-                "{assessment.myRecommendedCampaign.argument}"
+                "{safeStr(assessment.myRecommendedCampaign.argument)}"
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 {[
@@ -1341,7 +1341,7 @@ export default function JarvisStudio() {
                 ].filter(i => i.value).map(({ label, value }) => (
                   <div key={label}>
                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}55`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
-                    <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>{value}</div>
+                    <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>{safeStr(value)}</div>
                   </div>
                 ))}
               </div>
