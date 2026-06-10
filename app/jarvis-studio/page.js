@@ -147,6 +147,7 @@ export default function JarvisStudio() {
   const [assembling,      setAssembling]      = useState(false)
   const [assembledUrl,    setAssembledUrl]    = useState(null)
   const [assembleError,   setAssembleError]   = useState(null)
+  const [uploadedFrameUrls, setUploadedFrameUrls] = useState([])
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -223,6 +224,7 @@ export default function JarvisStudio() {
     setStoryboard(null); setPreviews({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
     setAssembling(false); setAssembledUrl(null); setAssembleError(null)
+    setUploadedFrameUrls([])
     // Also clear founder/product/video inputs
     setFounderFile(null); setFounderBlobUrl(null)
     setProductFiles([]); setVideoFiles([])
@@ -294,6 +296,7 @@ export default function JarvisStudio() {
               if (r.status === 'fulfilled' && r.value?.publicUrl) videoFrameUrls.push(r.value.publicUrl)
             })
           }
+          setUploadedFrameUrls([...videoFrameUrls])
           addStatus('frames', videoFrameUrls.length > 0 ? `${videoFrameUrls.length} frames extracted` : 'Frame extraction skipped', 'done')
         } catch {
           addStatus('frames', 'Frame extraction skipped', 'done')
@@ -415,7 +418,7 @@ export default function JarvisStudio() {
       const sRes  = await fetch('/api/jarvis-studio/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots, understanding }),
+        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots, understanding, videoFrameUrls: uploadedFrameUrls }),
       })
       if (!sRes.ok) throw new Error(`Storyboard failed (${sRes.status})`)
       const sData = await sRes.json()

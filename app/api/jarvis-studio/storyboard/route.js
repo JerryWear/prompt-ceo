@@ -86,7 +86,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { creativeBrief, assets, intent, brandScreenshots = [], understanding } = await req.json()
+    const { creativeBrief, assets, intent, brandScreenshots = [], understanding, videoFrameUrls = [] } = await req.json()
     if (!creativeBrief) return NextResponse.json({ error: 'creativeBrief required' }, { status: 400 })
 
     const { summary, keyMessages, hook, recommendedStyle, assetPlan } = creativeBrief
@@ -358,6 +358,41 @@ Return ONLY this JSON (one concept object):
   }
 }`
 
+      // Build vision content — Jarvis sees the actual brand images, not text descriptions of them
+      const visionContent = [{ type: 'text', text: userContent }]
+
+      if (assets?.founderImageUrl) {
+        visionContent.push({ type: 'text', text: 'FOUNDER IMAGE (you can see this person — use their appearance for HeyGen scene direction):' })
+        visionContent.push({ type: 'image_url', image_url: { url: assets.founderImageUrl, detail: 'high' } })
+      }
+      if (assets?.productImageUrls?.length) {
+        visionContent.push({ type: 'text', text: `PRODUCT UI (${assets.productImageUrls.length} images — you can see the actual interface, colors, and design language):` })
+        assets.productImageUrls.slice(0, 3).forEach(url => {
+          visionContent.push({ type: 'image_url', image_url: { url, detail: 'high' } })
+        })
+      }
+      if (brandScreenshots?.length) {
+        visionContent.push({ type: 'text', text: 'WEBSITE SCREENSHOTS (you can see the live product site — extract colors, layout, visual identity):' })
+        brandScreenshots.slice(0, 2).forEach(s => {
+          visionContent.push({ type: 'image_url', image_url: { url: s.url, detail: 'low' } })
+        })
+      }
+      if (videoFrameUrls?.length) {
+        visionContent.push({ type: 'text', text: `VIDEO FRAMES (${videoFrameUrls.length} frames from uploaded video — you can see the footage content):` })
+        videoFrameUrls.slice(0, 3).forEach(url => {
+          visionContent.push({ type: 'image_url', image_url: { url, detail: 'low' } })
+        })
+      }
+
+      const hasImages = visionContent.length > 1
+      if (hasImages) {
+        visionContent.push({
+          type: 'text',
+          text: 'You are now SEEING the actual brand assets above — not a description of them. When writing dalle_prompt fields, describe what you literally observe: the specific interface colors, UI elements, typography, and visual patterns. Do not invent or imagine a style. Describe what you see.',
+        })
+        console.log(`[storyboard] concept ${n} vision: ${visionContent.filter(c => c.type === 'image_url').length} images`)
+      }
+
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -365,7 +400,7 @@ Return ONLY this JSON (one concept object):
           model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userContent },
+            { role: 'user',   content: hasImages ? visionContent : userContent },
           ],
           temperature: 0.75,
           response_format: { type: 'json_object' },
