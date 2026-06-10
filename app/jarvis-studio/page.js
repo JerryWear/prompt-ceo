@@ -234,15 +234,6 @@ export default function JarvisStudio() {
   const hasAnyInput = !!(websiteUrl.trim() || founderFile || productFiles.length || videoFiles.length || prompt.trim())
 
   // ── Main flow ─────────────────────────────────────────────────────────────
-  const handleStart = useCallback(() => {
-    if (!hasAnyInput) { setError('Add at least one input to continue.'); return }
-    setError('')
-    const hasContext = websiteUrl.trim() || prompt.trim()
-    const hasVisual  = founderFile || productFiles.length || videoFiles.length
-    if (hasVisual && !hasContext) { setPhase('intent'); return }
-    startAnalysis(null)
-  }, [hasAnyInput, websiteUrl, prompt, founderFile, productFiles, videoFiles, startAnalysis])
-
   const startAnalysis = useCallback(async (chosenIntent) => {
     const activeIntent = chosenIntent || intent
     setPhase('analyzing')
@@ -373,6 +364,15 @@ export default function JarvisStudio() {
       setPhase('input')
     }
   }, [intent, websiteUrl, prompt, founderFile, productFiles, videoFiles, musicMode, musicFile, musicTrackId, addStatus])
+
+  const handleStart = useCallback(() => {
+    if (!hasAnyInput) { setError('Add at least one input to continue.'); return }
+    setError('')
+    const hasContext = websiteUrl.trim() || prompt.trim()
+    const hasVisual  = founderFile || productFiles.length || videoFiles.length
+    if (hasVisual && !hasContext) { setPhase('intent'); return }
+    startAnalysis(null)
+  }, [hasAnyInput, websiteUrl, prompt, founderFile, productFiles, videoFiles, startAnalysis])
 
   const handleBuildBrief = useCallback(async () => {
     setPhase('analyzing')
