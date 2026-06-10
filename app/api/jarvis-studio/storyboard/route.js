@@ -195,21 +195,28 @@ Return this exact JSON:
 }`,
           },
         ],
-        temperature: 0.85,
+        temperature: 0.75,
         response_format: { type: 'json_object' },
-        max_tokens: 6000,
+        max_tokens: 16000,
       }),
     })
 
     const gptData = await gptRes.json()
     if (!gptRes.ok) return NextResponse.json({ error: gptData.error?.message || 'OpenAI error' }, { status: 500 })
 
+    const choice = gptData.choices?.[0]
+    if (choice?.finish_reason === 'length') {
+      console.error('[storyboard] GPT hit max_tokens — response truncated. tokens used:', gptData.usage?.completion_tokens)
+      return NextResponse.json({ error: 'Storyboard too large — GPT response was truncated. Try again.' }, { status: 500 })
+    }
+
     let storyboard
     try {
-      storyboard = JSON.parse(gptData.choices[0].message.content)
+      storyboard = JSON.parse(choice.message.content)
     } catch (parseErr) {
       console.error('[storyboard] JSON parse failed:', parseErr.message)
-      console.error('[storyboard] raw GPT output (first 500):', String(gptData.choices?.[0]?.message?.content || '').slice(0, 500))
+      console.error('[storyboard] finish_reason:', choice?.finish_reason, '| tokens:', gptData.usage?.completion_tokens)
+      console.error('[storyboard] raw GPT output (first 800):', String(choice?.message?.content || '').slice(0, 800))
       return NextResponse.json({ error: 'Failed to parse storyboard — GPT returned invalid JSON' }, { status: 500 })
     }
 
