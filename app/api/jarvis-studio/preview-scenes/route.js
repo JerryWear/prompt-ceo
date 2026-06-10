@@ -88,25 +88,47 @@ function buildFinalPrompt(scene, brandContext) {
 
 async function generatePreviewImage(scene, brandContext) {
   const prompt = buildFinalPrompt(scene, brandContext)
+
+  // ── Try xAI first ──────────────────────────────────────────────────────────
   const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
-  if (!xaiKey) throw new Error('XAI_API_KEY not configured')
-
-  const res  = await fetch('https://api.x.ai/v1/images/generations', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
-    body:    JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
-  })
-  const data = await res.json()
-
-  if (!res.ok) {
-    const errMsg = data.error?.message || `xAI ${res.status}`
-    console.error('[preview-scenes] xAI error:', errMsg, '| scene:', scene.id)
-    throw new Error(errMsg)
+  if (xaiKey) {
+    try {
+      const xaiRes  = await fetch('https://api.x.ai/v1/images/generations', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
+        body:    JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
+      })
+      const xaiData = await xaiRes.json()
+      if (xaiRes.ok) {
+        const url = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
+        if (url) return url
+      }
+      console.warn(`[preview] xAI failed (${xaiRes.status}): ${xaiData.error?.message || 'no url'} — falling back to DALL-E 3`)
+    } catch (e) {
+      console.warn(`[preview] xAI threw: ${e.message} — falling back to DALL-E 3`)
+    }
   }
 
-  const url = data.data?.[0]?.url || data.images?.[0]?.url || data.url
-  if (!url) throw new Error('xAI returned no URL')
-  return url
+  // ── DALL-E 3 fallback ──────────────────────────────────────────────────────
+  const openaiKey = process.env.OPENAI_API_KEY
+  if (!openaiKey) throw new Error('No image generation API available (xAI failed, no OPENAI_API_KEY)')
+
+  const dalleRes  = await fetch('https://api.openai.com/v1/images/generations', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+    body:    JSON.stringify({
+      model:   'dall-e-3',
+      prompt:  prompt.slice(0, 4000),
+      size:    '1024x1792', // 9:16 portrait
+      quality: 'standard',
+      n:       1,
+    }),
+  })
+  const dalleData = await dalleRes.json()
+  if (!dalleRes.ok) throw new Error(dalleData.error?.message || `DALL-E ${dalleRes.status}`)
+  const dalleUrl = dalleData.data?.[0]?.url
+  if (!dalleUrl) throw new Error('DALL-E 3 returned no URL')
+  return dalleUrl
 }
 
 // POST /api/jarvis-studio/preview-scenes
@@ -120,10 +142,6 @@ export async function POST(req) {
     const supabase = await makeSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-
-    if (!process.env.XAI_API_KEY) {
-      return NextResponse.json({ error: 'XAI_API_KEY not configured' }, { status: 500 })
-    }
 
     const { scenes, brandContext } = await req.json()
     if (!Array.isArray(scenes) || scenes.length === 0) {

@@ -241,7 +241,7 @@ export default function JarvisStudio() {
     const hasVisual  = founderFile || productFiles.length || videoFiles.length
     if (hasVisual && !hasContext) { setPhase('intent'); return }
     startAnalysis(null)
-  }, [hasAnyInput, websiteUrl, prompt, founderFile, productFiles, videoFiles])
+  }, [hasAnyInput, websiteUrl, prompt, founderFile, productFiles, videoFiles, startAnalysis])
 
   const startAnalysis = useCallback(async (chosenIntent) => {
     const activeIntent = chosenIntent || intent
