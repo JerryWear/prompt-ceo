@@ -425,66 +425,61 @@ export default function JarvisStudio() {
       if (!sData.storyboard?.concepts?.length) throw new Error(sData.error || 'Storyboard failed')
       setStoryboard(sData.storyboard)
 
-      // Run all 5 concept preview calls IN PARALLEL — xAI has generous rate limits unlike DALL-E.
-      // Each API call generates that concept's Runway scenes sequentially inside the server function.
-      // Wall time = slowest concept (~60s) instead of 5 × 60s = 5 minutes sequential.
-      // ALL Runway scenes get a preview image so Runway has an image for every scene it produces.
+      // Generate previews sequentially — one concept at a time to stay under DALL-E 3 rate limits.
+      // Previews stream into the UI as each concept completes (~60s per concept).
       let totalLoaded = 0
       let firstError = ''
 
-      const conceptResults = await Promise.allSettled(
-        sData.storyboard.concepts.map(concept => {
-          const runwayScenes = concept.scenes
-            .filter(s => s.generator === 'runway')
-            .map(s => ({
-              id:               s.id,
-              dalle_prompt:     s.dalle_prompt,
-              visual_direction: s.visual_direction,
-              label:            s.label,
-              brand_anchors:    s.brand_anchors  || [],
-              brand_check:      s.brand_check    || '',
-              screenshotUrl:    s.screenshotUrl  || null, // real product screenshot from capture-brand
-            }))
-          if (runwayScenes.length === 0) return Promise.resolve({ previews: [] })
-          const brandContext = {
-            productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
-            keyMessages: creativeBrief?.keyMessages || [],
-            style:       creativeBrief?.recommendedStyle || '',
-            visualDNA: understanding ? [
-              understanding.brand?.visualStyle,
-              understanding.products?.designLanguage,
-              understanding.products?.keyVisuals,
-            ].filter(Boolean).join(' | ') : '',
-          }
-          return fetch('/api/jarvis-studio/preview-scenes', {
+      for (const concept of sData.storyboard.concepts) {
+        const runwayScenes = concept.scenes
+          .filter(s => s.generator === 'runway')
+          .map(s => ({
+            id:               s.id,
+            dalle_prompt:     s.dalle_prompt,
+            visual_direction: s.visual_direction,
+            label:            s.label,
+            brand_anchors:    s.brand_anchors  || [],
+            brand_check:      s.brand_check    || '',
+            screenshotUrl:    s.screenshotUrl  || null,
+          }))
+        if (runwayScenes.length === 0) continue
+        const brandContext = {
+          productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
+          keyMessages: creativeBrief?.keyMessages || [],
+          style:       creativeBrief?.recommendedStyle || '',
+          visualDNA: understanding ? [
+            understanding.brand?.visualStyle,
+            understanding.products?.designLanguage,
+            understanding.products?.keyVisuals,
+          ].filter(Boolean).join(' | ') : '',
+        }
+        try {
+          const r    = await fetch('/api/jarvis-studio/preview-scenes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ scenes: runwayScenes, brandContext }),
-          }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) }))
-        })
-      )
-
-      for (const result of conceptResults) {
-        if (result.status === 'rejected') {
-          if (!firstError) firstError = result.reason?.message || 'Preview fetch failed'
-          continue
-        }
-        const pData = result.value
-        if (pData.previews) {
-          const loaded = pData.previews.filter(p => p.imageUrl)
-          totalLoaded += loaded.length
-          if (loaded.length === 0 && !firstError) {
-            firstError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
+          })
+          const pData = r.ok
+            ? await r.json()
+            : await r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) })
+          if (pData.previews) {
+            const loaded = pData.previews.filter(p => p.imageUrl)
+            totalLoaded += loaded.length
+            if (loaded.length === 0 && !firstError) {
+              firstError = pData.previews.find(p => p.error)?.error || pData.error || 'Image generation failed'
+            }
+            if (loaded.length > 0) {
+              setPreviews(prev => {
+                const next = { ...prev }
+                loaded.forEach(p => { next[p.id] = p.imageUrl })
+                return next
+              })
+            }
+          } else if (!firstError) {
+            firstError = pData.error || 'No previews returned'
           }
-          if (loaded.length > 0) {
-            setPreviews(prev => {
-              const next = { ...prev }
-              loaded.forEach(p => { next[p.id] = p.imageUrl })
-              return next
-            })
-          }
-        } else if (!firstError) {
-          firstError = pData.error || 'No previews returned'
+        } catch (err) {
+          if (!firstError) firstError = err.message || 'Preview fetch failed'
         }
       }
 
