@@ -167,10 +167,10 @@ export default function JarvisStudio() {
     fetch('/api/music-studio/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adContext: { type: 'ad', mood: 'energetic' } }),
+      body: JSON.stringify({ mood: 'energetic', goal: 'ad' }),
     })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.tracks)) setMusicTracks(d.tracks.slice(0, 8)) })
+      .then(d => { if (Array.isArray(d.recommendedTracks)) setMusicTracks(d.recommendedTracks.slice(0, 8)) })
       .catch(() => {})
       .finally(() => setMusicLoading(false))
   }, [musicMode])
