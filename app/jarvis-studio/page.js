@@ -912,7 +912,7 @@ export default function JarvisStudio() {
               {understanding?.brand?.name || 'Your Brand'}
             </div>
             <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>
-              {assessment.whatIUnderstand?.whatTheyDo}
+              {safeStr(assessment.whatIUnderstand?.whatTheyDo)}
             </div>
           </div>
 
@@ -1050,7 +1050,7 @@ export default function JarvisStudio() {
               ].filter(i => i.value).map(({ label, value }) => (
                 <div key={label}>
                   <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
-                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(value)}</div>
                 </div>
               ))}
             </div>
@@ -1108,7 +1108,7 @@ export default function JarvisStudio() {
                 ].filter(i => i.value).map(({ label, value }) => (
                   <div key={label}>
                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
-                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(value)}</div>
                   </div>
                 ))}
               </div>
@@ -1127,7 +1127,7 @@ export default function JarvisStudio() {
                 ].filter(i => i.value).map(({ label, value }) => (
                   <div key={label}>
                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}66`, textTransform:'uppercase', marginBottom:4 }}>{label}</div>
-                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                    <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(value)}</div>
                   </div>
                 ))}
               </div>
