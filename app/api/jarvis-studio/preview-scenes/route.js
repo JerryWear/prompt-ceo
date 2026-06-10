@@ -116,20 +116,14 @@ async function generatePreviewImage(scene, brandContext) {
     console.warn('[preview] XAI_API_KEY not set — skipping xAI')
   }
 
-  // ── Pollinations.ai fallback — free FLUX turbo, no API key, server-side fetch ──
-  // Server fetches the image synchronously so the browser receives a ready data URL.
+  // ── Pollinations.ai fallback — free FLUX, browser fetches directly ──
+  // Pollinations allows free browser requests but blocks server-side fetches (402).
+  // Return the URL — the browser loads the image async, SceneThumb handles the loading state.
   const seed        = Math.floor(Math.random() * 999999)
   const shortPrompt = prompt.slice(0, 350)
-  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(shortPrompt)}?width=576&height=1024&model=turbo&nologo=true&seed=${seed}`
-  console.log(`[preview] Pollinations for ${scene.id}: model=turbo seed=${seed}`)
-
-  const polRes = await fetch(pollinationsUrl, { signal: AbortSignal.timeout(90000) })
-  if (!polRes.ok) throw new Error(`Pollinations ${polRes.status}: image generation failed`)
-  const buf    = await polRes.arrayBuffer()
-  const b64    = Buffer.from(buf).toString('base64')
-  const mime   = polRes.headers.get('content-type') || 'image/jpeg'
-  console.log(`[preview] ✅ Pollinations done for ${scene.id} (${Math.round(buf.byteLength / 1024)}KB)`)
-  return `data:${mime};base64,${b64}`
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(shortPrompt)}?width=576&height=1024&model=flux&seed=${seed}&enhance=true`
+  console.log(`[preview] Pollinations URL for ${scene.id}: seed=${seed}`)
+  return pollinationsUrl
 }
 
 // POST /api/jarvis-studio/preview-scenes

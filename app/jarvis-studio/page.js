@@ -1787,15 +1787,27 @@ function safeStr(v) {
 
 // ── Scene thumbnail ───────────────────────────────────────────────────────────
 function SceneThumb({ scene, imageUrl, errorMsg }) {
+  const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [imgError, setImgError]   = React.useState(false)
+  React.useEffect(() => { setImgLoaded(false); setImgError(false) }, [imageUrl])
+
   return (
     <div style={{ flexShrink:0, width:106, display:'flex', flexDirection:'column', gap:6 }}>
-      <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:`1px solid ${errorMsg ? '#5a1a1a' : '#1a1a1a'}` }}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={scene.label} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+      <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:`1px solid ${(errorMsg || imgError) ? '#5a1a1a' : '#1a1a1a'}` }}>
+        {imageUrl && !imgError ? (
+          <>
+            <img src={imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display: imgLoaded ? 'block' : 'none' }}
+              onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
+            {!imgLoaded && (
+              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, animation:'shimmer 1.6s ease-in-out infinite' }}>
+                <span style={{ fontSize:9, color:'#2a2a2a', textAlign:'center' }}>Generating…</span>
+              </div>
+            )}
+          </>
         ) : (
           <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:8, gap:6 }}>
-            {errorMsg
-              ? <span style={{ fontSize:8, color:'#7a2a2a', textAlign:'center', lineHeight:1.4, wordBreak:'break-word' }}>{errorMsg.slice(0, 80)}</span>
+            {(errorMsg || imgError)
+              ? <span style={{ fontSize:8, color:'#7a2a2a', textAlign:'center', lineHeight:1.4, wordBreak:'break-word' }}>{(errorMsg || 'Image failed').slice(0, 80)}</span>
               : <span style={{ fontSize:16, opacity:.1, animation:'shimmer 1.6s ease-in-out infinite' }}>◻</span>
             }
           </div>
