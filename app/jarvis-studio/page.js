@@ -1503,6 +1503,15 @@ export default function JarvisStudio() {
                           {(concept.angle || '').replace(/_/g, ' ')}
                         </span>
                         <span style={{ fontSize:10, color:C.dim }}>· {concept.total_duration}s</span>
+                        {concept.compliance_score != null && (
+                          <span style={{
+                            fontSize:9, padding:'2px 7px', borderRadius:10, fontWeight:700, letterSpacing:.5,
+                            background: concept.compliance_score >= 80 ? `${C.green}22` : concept.compliance_score >= 60 ? `${C.gold}22` : `${C.red}22`,
+                            color: concept.compliance_score >= 80 ? C.green : concept.compliance_score >= 60 ? C.gold : C.red,
+                          }}>
+                            {concept.compliance_score}/100
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize:12, color:C.muted, fontStyle:'italic' }}>"{concept.logline}"</div>
                     </div>
