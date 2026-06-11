@@ -7,9 +7,18 @@ import { promisify }              from 'util'
 import fs                         from 'fs'
 import path                       from 'path'
 import os                         from 'os'
-import ffmpegPath                 from 'ffmpeg-static'
+import ffmpegStaticPath           from 'ffmpeg-static'
 
 const execFileAsync = promisify(_execFile)
+
+// On Vercel/Linux the binary exists but may not have execute permission — chmod it
+function resolveFfmpegPath() {
+  const p = ffmpegStaticPath
+  if (!p) throw new Error('ffmpeg-static did not return a path')
+  console.log(`[compile-ad] ffmpeg path: ${p}, exists: ${fs.existsSync(p)}`)
+  try { fs.chmodSync(p, 0o755) } catch (e) { console.warn('[compile-ad] chmod skipped:', e.message) }
+  return p
+}
 
 export const maxDuration = 300
 
@@ -126,10 +135,10 @@ export async function POST(req) {
     args.push('-r', '30', '-movflags', '+faststart')
     args.push('-y', outPath)
 
+    const ffmpegBin = resolveFfmpegPath()
     console.log(`[compile-ad] running ffmpeg — ${n} scenes, ~${totalDur.toFixed(0)}s`)
-    console.log(`[compile-ad] ffmpeg binary: ${ffmpegPath}`)
 
-    await execFileAsync(ffmpegPath, args, { timeout: 240_000, maxBuffer: 50 * 1024 * 1024 })
+    await execFileAsync(ffmpegBin, args, { timeout: 240_000, maxBuffer: 50 * 1024 * 1024 })
 
     const sizeMB = (fs.statSync(outPath).size / 1024 / 1024).toFixed(1)
     console.log(`[compile-ad] encoded: ${sizeMB}MB`)

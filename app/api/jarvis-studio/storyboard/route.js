@@ -147,11 +147,10 @@ ${urlLines}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY RULE — REAL > GENERATED:
 These are real screenshots of the client's actual product. A real image is ALWAYS better than an AI-generated interpretation.
-→ For every Solution scene: set screenshotUrl to product_image_0 (or rotate through available images)
-→ For every Transformation scene: set screenshotUrl to one of these URLs
-→ For Hook or Problem scenes that show the product: set screenshotUrl
-→ ONLY set screenshotUrl to null on pure lifestyle/emotion scenes with no product
-→ When screenshotUrl is set, the client sees their REAL product in the ad preview — not a fake
+→ For SOLUTION scenes ONLY: set screenshotUrl to one of the product image URLs above
+→ For Hook / Problem / Transformation / CTA: set screenshotUrl to null — these are HUMAN EMOTION scenes, not product demos
+→ NEVER put a product screenshot on a Transformation scene — it breaks the emotional arc
+→ When screenshotUrl is set, the client sees their REAL product — not a fake
 → source_used must include "product_image"`)
     }
     if (hasVideo) {
@@ -363,8 +362,10 @@ For Solution only:
 → Describe the product interface using actual brand colors and visual patterns
 → Show the TRANSFORMATION happening — input state and output state visible in the frame
 
-No people, no faces in any dalle_prompt. No realistic human portraits.
-Objects, environments, textures, light — these carry emotion without needing faces.
+For Hook / Problem / Transformation / CTA: people and faces ARE allowed — use them to carry emotion.
+→ "A founder alone at a desk late at night, exhausted, staring at a screen" — correct for Hook/Problem
+→ "A confident person presenting results to a client, energy and clarity on their face" — correct for Transformation/CTA
+For Solution: no people — show the product interface only.
 
 Key features: ${keyFeatures || 'see brief above'}
 Visual identity: ${brandStyle || 'premium cinematic'}
