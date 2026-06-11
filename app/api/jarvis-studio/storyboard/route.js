@@ -136,11 +136,20 @@ MANDATORY FOR EVERY dalle_prompt:
 → source_used must include "founder_image"`)
     }
     if (hasProducts) {
-      const urls = (assets.productImageUrls || []).map((u, i) => `  [product_image_${i}] ${u.slice(0, 80)}`).join('\n')
-      assetLines.push(`PRODUCT IMAGES ✓ AVAILABLE (${assets.productImageUrls.length} images)
-${urls}
-→ Reference these in visual_direction and dalle_prompt — describe what you see in them
-→ Set assetAssignment.sourceType: "product_image", sourceIndex: 0/1/2
+      const productUrls = assets.productImageUrls || []
+      const urlLines = productUrls.map((u, i) => `  product_image_${i}: "${u}"`).join('\n')
+      assetLines.push(`PRODUCT IMAGES ✓ AVAILABLE — ${productUrls.length} real screenshot(s) of the actual product
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXACT URLs (copy these verbatim into screenshotUrl):
+${urlLines}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY RULE — REAL > GENERATED:
+These are real screenshots of the client's actual product. A real image is ALWAYS better than an AI-generated interpretation.
+→ For every Solution scene: set screenshotUrl to product_image_0 (or rotate through available images)
+→ For every Transformation scene: set screenshotUrl to one of these URLs
+→ For Hook or Problem scenes that show the product: set screenshotUrl
+→ ONLY set screenshotUrl to null on founder (heygen) scenes or pure lifestyle/emotion scenes with no product
+→ When screenshotUrl is set, the client sees their REAL product in the ad preview — not a fake
 → source_used must include "product_image"`)
     }
     if (hasVideo) {
@@ -150,13 +159,15 @@ ${urls}
 → source_used must include "uploaded_video"`)
     }
     if (hasScreenshots) {
-      const lines = brandScreenshots.map((s, i) => `  [screenshot_${i}] ${s.page}: ${s.url.slice(0, 80)}`).join('\n')
-      assetLines.push(`WEBSITE SCREENSHOTS ✓ AVAILABLE (${brandScreenshots.length} pages)
+      const lines = brandScreenshots.map((s, i) => `  screenshot_${i} (${s.page}): "${s.url.slice(0, 120)}"`).join('\n')
+      assetLines.push(`WEBSITE SCREENSHOTS ✓ AVAILABLE — ${brandScreenshots.length} real page screenshot(s)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXACT URLs (copy verbatim into screenshotUrl when showing the real site serves the scene):
 ${lines}
-→ USE AS BRAND REFERENCE: extract colors, logo style, UI patterns, product visuals
-→ DO NOT blindly animate every screenshot — only use screenshotUrl when showing the real UI serves the story
-→ Inform dalle_prompt with the visual language you extract from these screenshots
-→ source_used must include "website_screenshot" on any scene that references them`)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+→ Extract colors, logo, UI patterns, and design language from these screenshots
+→ Use as screenshotUrl for product-demo scenes where showing the real website is more convincing than a generated image
+→ source_used must include "website_screenshot"`)
     }
     if (!assetLines.length) {
       assetLines.push('NO ASSETS PROVIDED — Jarvis creativity is the only available source (Level 3 fallback).')
@@ -309,8 +320,8 @@ Style: ${recommendedStyle}
 Key Messages: ${(keyMessages || []).join(' | ')}`
 
     // ── Scene template ────────────────────────────────────────────────────────
-    const screenshotUrlField = hasScreenshots
-      ? '"Use a screenshot URL from the WEBSITE SCREENSHOTS list ONLY if showing the real UI serves this specific scene (product demo, CTA), otherwise null"'
+    const screenshotUrlField = (hasProducts || hasScreenshots)
+      ? `"REQUIRED for product/solution/transformation scenes: copy the exact URL from PRODUCT IMAGES or WEBSITE SCREENSHOTS above. null only for pure founder-speech or emotion-only scenes."`
       : 'null'
 
     const sceneTemplate = `{
@@ -455,6 +466,29 @@ Return ONLY this JSON (one concept object):
       // causing the frontend previews dict to overwrite earlier concepts with later ones.
       if (concept.scenes) {
         concept.scenes.forEach((scene, idx) => { scene.id = `c${n}_s${idx + 1}` })
+      }
+
+      // POST-PROCESSING: ensure real product images appear in product-facing scenes.
+      // GPT sometimes writes good descriptions but forgets to paste the screenshotUrl.
+      // We auto-assign here so the client always sees their real product in the preview.
+      const productUrls    = assets?.productImageUrls || []
+      const screenshotUrls = (brandScreenshots || []).map(s => s.url).filter(Boolean)
+      const allRealUrls    = [...productUrls, ...screenshotUrls]
+
+      if (allRealUrls.length > 0 && concept.scenes) {
+        let urlIdx = 0
+        concept.scenes.forEach(scene => {
+          // Only auto-assign to runway (non-heygen) scenes without a screenshotUrl already set
+          if (scene.generator !== 'heygen' && !scene.screenshotUrl) {
+            const label = (scene.label || '').toLowerCase()
+            // Solution and Transformation scenes should always show the real product
+            if (label === 'solution' || label === 'transformation') {
+              scene.screenshotUrl = allRealUrls[urlIdx % allRealUrls.length]
+              urlIdx++
+              console.log(`[storyboard] auto-assigned real image to ${scene.id} (${scene.label})`)
+            }
+          }
+        })
       }
 
       console.log(`[storyboard] ✓ concept ${n}: "${concept.title}" (${concept.scenes?.length} scenes, ${data.usage?.completion_tokens} tokens)`)
