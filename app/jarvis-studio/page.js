@@ -459,23 +459,22 @@ export default function JarvisStudio() {
     }
 
     for (const concept of board.concepts) {
-      const runwayScenes = concept.scenes
-        .filter(s => s.generator === 'runway')
-        .map(s => ({
-          id:               s.id,
-          dalle_prompt:     s.dalle_prompt,
-          visual_direction: s.visual_direction,
-          label:            s.label,
-          brand_anchors:    s.brand_anchors  || [],
-          brand_check:      s.brand_check    || '',
-          screenshotUrl:    s.screenshotUrl  || null,
-        }))
-      if (runwayScenes.length === 0) continue
+      const scenesToPreview = concept.scenes.map(s => ({
+        id:               s.id,
+        dalle_prompt:     s.dalle_prompt,
+        visual_direction: s.visual_direction,
+        visual_scene:     s.visual_scene,
+        label:            s.label,
+        brand_anchors:    s.brand_anchors  || [],
+        brand_check:      s.brand_check    || '',
+        screenshotUrl:    s.screenshotUrl  || null,
+      }))
+      if (scenesToPreview.length === 0) continue
       try {
         const r    = await fetch('/api/jarvis-studio/preview-scenes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenes: runwayScenes, brandContext }),
+          body: JSON.stringify({ scenes: scenesToPreview, brandContext }),
         })
         const pData = r.ok
           ? await r.json()
@@ -1566,10 +1565,10 @@ export default function JarvisStudio() {
                   </div>
                   <div style={{ display:'flex', gap:9, padding:'11px 18px 14px', overflowX:'auto' }}>
                     {concept.scenes.map(scene => {
-                      const imgUrl = previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)
+                      const imgUrl = previews[scene.id] || null
                       return (
                         <SceneThumb key={scene.id} scene={scene} imageUrl={imgUrl}
-                          errorMsg={!imgUrl && previewsDone && scene.generator === 'runway' ? previewErrors[scene.id] : null}
+                          errorMsg={!imgUrl && previewsDone ? previewErrors[scene.id] : null}
                           onOpen={imgUrl ? () => setLightbox({ imageUrl: imgUrl, scene, conceptTitle: concept.title }) : null} />
                       )
                     })}
@@ -1763,9 +1762,11 @@ function SceneThumb({ scene, imageUrl, errorMsg, onOpen }) {
             }
           </div>
         )}
-        <div style={{ position:'absolute', top:4, right:4, fontSize:8, padding:'2px 5px', borderRadius:3, background:'#000000bb', backdropFilter:'blur(4px)', color:scene.generator === 'heygen' ? '#c8a84b' : '#4aaba0', fontWeight:700 }}>
-          {scene.generator === 'heygen' ? 'Avatar' : 'Video'}
-        </div>
+        {scene.contains_ui && (
+          <div style={{ position:'absolute', top:4, right:4, fontSize:8, padding:'2px 5px', borderRadius:3, background:'#000000bb', backdropFilter:'blur(4px)', color:'#4aaba0', fontWeight:700 }}>
+            UI
+          </div>
+        )}
         <div style={{ position:'absolute', bottom:4, left:4, fontSize:8, padding:'2px 5px', borderRadius:3, background:'#000000bb', backdropFilter:'blur(4px)', color:'#555' }}>
           {scene.duration}s
         </div>

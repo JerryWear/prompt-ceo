@@ -22,7 +22,7 @@ function extractShortName(productStr) {
 function validateAndAnchorPrompt(scene, brandContext) {
   const anchors    = scene.brand_anchors || []
   const brandCheck = scene.brand_check   || ''
-  const raw        = scene.dalle_prompt  || scene.visual_direction || ''
+  const raw        = scene.dalle_prompt  || scene.visual_scene || scene.visual_direction || ''
 
   if (!brandContext?.productName) {
     return { prompt: raw, anchored: false, reason: 'no brand context' }
@@ -67,15 +67,17 @@ function validateAndAnchorPrompt(scene, brandContext) {
 
 function buildFinalPrompt(scene, brandContext) {
   const { prompt } = validateAndAnchorPrompt(scene, brandContext)
+  const base = prompt || `Cinematic vertical advertisement frame, ${scene.label || 'scene'}`
 
-  const safe = prompt
-    .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head|looking at camera)\b/gi, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
+  // UI scenes: strip people so product is the focus
+  // Human scenes (Hook/Problem/Transformation/CTA): keep people — that IS the scene
+  const isUiScene = scene.contains_ui || scene.label === 'Solution'
+  const safe = isUiScene
+    ? base.replace(/\b(talking head|looking at camera)\b/gi, '').replace(/\s{2,}/g, ' ').trim()
+    : base
 
-  const final = `${safe || `Cinematic vertical advertisement frame, ${scene.label || 'scene'}`}. No people, no faces, vertical format.`
-
-  console.log(`[preview] ✦  ${scene.id} prompt: "${final.slice(0, 140)}"`)
+  const final = `${safe}. Cinematic vertical 9:16 format, advertisement quality.`
+  console.log(`[preview] ✦  ${scene.id} (${scene.label}) prompt: "${final.slice(0, 140)}"`)
   return final
 }
 
