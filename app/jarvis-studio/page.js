@@ -138,6 +138,7 @@ export default function JarvisStudio() {
   const [creativeBrief,       setCreativeBrief]       = useState(null)
   const [brandScreenshots,    setBrandScreenshots]    = useState([]) // real product screenshots from capture-brand
   const [storyboard,      setStoryboard]      = useState(null)
+  const [previewsStarted, setPreviewsStarted] = useState(false)
   const [previews,        setPreviews]        = useState({})
   const [previewsDone,    setPreviewsDone]    = useState(false)
   const [previewError,    setPreviewError]    = useState('')
@@ -222,7 +223,7 @@ export default function JarvisStudio() {
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
     setAssessment(null); setCreativeBrief(null); setBrandScreenshots([])
-    setStoryboard(null); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
+    setStoryboard(null); setPreviewsStarted(false); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
     setAssembling(false); setAssembledUrl(null); setAssembleError(null)
     setUploadedFrameUrls([])
@@ -399,13 +400,12 @@ export default function JarvisStudio() {
   const handleApproveBrief = useCallback(async () => {
     setPhase('storyboard')
     setStoryboard(null)
+    setPreviewsStarted(false)
     setPreviews({})
     setPreviewsDone(false)
     setPreviewError('')
 
     try {
-      // Combine auto-captured screenshots + user-uploaded product images as brand ground truth.
-      // User-uploaded product images (screenshots of app, UI, etc.) work identically to auto-captured ones.
       const allBrandScreenshots = [
         ...brandScreenshots,
         ...(uploadedAssets?.productImageUrls || []).map((url, i) => ({
@@ -425,86 +425,93 @@ export default function JarvisStudio() {
       const sData = await sRes.json()
       if (!sData.storyboard?.concepts?.length) throw new Error(sData.error || 'Storyboard failed')
       setStoryboard(sData.storyboard)
-
-      // Generate previews sequentially — one concept at a time to stay under DALL-E 3 rate limits.
-      // Previews stream into the UI as each concept completes (~60s per concept).
-      let totalLoaded = 0
-      let firstError = ''
-
-      for (const concept of sData.storyboard.concepts) {
-        const runwayScenes = concept.scenes
-          .filter(s => s.generator === 'runway')
-          .map(s => ({
-            id:               s.id,
-            dalle_prompt:     s.dalle_prompt,
-            visual_direction: s.visual_direction,
-            label:            s.label,
-            brand_anchors:    s.brand_anchors  || [],
-            brand_check:      s.brand_check    || '',
-            screenshotUrl:    s.screenshotUrl  || null,
-          }))
-        if (runwayScenes.length === 0) continue
-        const brandContext = {
-          productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
-          keyMessages: creativeBrief?.keyMessages || [],
-          style:       creativeBrief?.recommendedStyle || '',
-          visualDNA: understanding ? [
-            understanding.brand?.visualStyle,
-            understanding.products?.designLanguage,
-            understanding.products?.keyVisuals,
-          ].filter(Boolean).join(' | ') : '',
-        }
-        try {
-          const r    = await fetch('/api/jarvis-studio/preview-scenes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scenes: runwayScenes, brandContext }),
-          })
-          const pData = r.ok
-            ? await r.json()
-            : await r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) })
-          if (pData.previews) {
-            const loaded = pData.previews.filter(p => p.imageUrl)
-            const failed = pData.previews.filter(p => !p.imageUrl && p.error)
-            totalLoaded += loaded.length
-            if (!firstError) {
-              firstError = failed[0]?.error || (loaded.length === 0 ? (pData.error || 'Image generation failed') : '')
-            }
-            if (loaded.length > 0) {
-              setPreviews(prev => {
-                const next = { ...prev }
-                loaded.forEach(p => { next[p.id] = p.imageUrl })
-                return next
-              })
-            }
-            if (failed.length > 0) {
-              setPreviewErrors(prev => {
-                const next = { ...prev }
-                failed.forEach(p => { next[p.id] = p.error })
-                return next
-              })
-            }
-          } else if (!firstError) {
-            firstError = pData.error || 'No previews returned'
-          }
-        } catch (err) {
-          if (!firstError) firstError = err.message || 'Preview fetch failed'
-        }
-      }
-
-      const totalRunwayScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
-      const totalHeygenScenes = sData.storyboard.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'heygen').length, 0)
-      if (totalLoaded < totalRunwayScenes) {
-        const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ''
-        setPreviewError(`${totalLoaded}/${totalRunwayScenes} video scenes previewed${totalHeygenScenes ? `, ${totalHeygenScenes} avatar scenes use your founder photo` : ''}${errSuffix}`)
-      }
-      setPreviewsDone(true)
+      // Storyboard shown for review — previews only start when user clicks "Generate Previews"
 
     } catch (err) {
       setError(err.message || 'Storyboard generation failed')
       setPhase('brief')
     }
-  }, [creativeBrief, uploadedAssets, intent])
+  }, [creativeBrief, uploadedAssets, intent, brandScreenshots, understanding, uploadedFrameUrls])
+
+  const handleGeneratePreviews = useCallback(async (storyboardData) => {
+    const board = storyboardData || storyboard
+    if (!board) return
+    setPreviewsStarted(true)
+    setPreviews({})
+    setPreviewsDone(false)
+    setPreviewError('')
+
+    let totalLoaded = 0
+    let firstError = ''
+
+    const brandContext = {
+      productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
+      keyMessages: creativeBrief?.keyMessages || [],
+      style:       creativeBrief?.recommendedStyle || '',
+      visualDNA: understanding ? [
+        understanding.brand?.visualStyle,
+        understanding.products?.designLanguage,
+        understanding.products?.keyVisuals,
+      ].filter(Boolean).join(' | ') : '',
+    }
+
+    for (const concept of board.concepts) {
+      const runwayScenes = concept.scenes
+        .filter(s => s.generator === 'runway')
+        .map(s => ({
+          id:               s.id,
+          dalle_prompt:     s.dalle_prompt,
+          visual_direction: s.visual_direction,
+          label:            s.label,
+          brand_anchors:    s.brand_anchors  || [],
+          brand_check:      s.brand_check    || '',
+          screenshotUrl:    s.screenshotUrl  || null,
+        }))
+      if (runwayScenes.length === 0) continue
+      try {
+        const r    = await fetch('/api/jarvis-studio/preview-scenes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenes: runwayScenes, brandContext }),
+        })
+        const pData = r.ok
+          ? await r.json()
+          : await r.json().then(d => { throw new Error(d.error || `HTTP ${r.status}`) })
+        if (pData.previews) {
+          const loaded = pData.previews.filter(p => p.imageUrl)
+          const failed = pData.previews.filter(p => !p.imageUrl && p.error)
+          totalLoaded += loaded.length
+          if (!firstError) firstError = failed[0]?.error || (loaded.length === 0 ? (pData.error || 'Image generation failed') : '')
+          if (loaded.length > 0) {
+            setPreviews(prev => {
+              const next = { ...prev }
+              loaded.forEach(p => { next[p.id] = p.imageUrl })
+              return next
+            })
+          }
+          if (failed.length > 0) {
+            setPreviewErrors(prev => {
+              const next = { ...prev }
+              failed.forEach(p => { next[p.id] = p.error })
+              return next
+            })
+          }
+        } else if (!firstError) {
+          firstError = pData.error || 'No previews returned'
+        }
+      } catch (err) {
+        if (!firstError) firstError = err.message || 'Preview fetch failed'
+      }
+    }
+
+    const totalRunway = board.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
+    const totalHeygen = board.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'heygen').length, 0)
+    if (totalLoaded < totalRunway) {
+      const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ''
+      setPreviewError(`${totalLoaded}/${totalRunway} video scenes previewed${totalHeygen ? `, ${totalHeygen} avatar scenes use your founder photo` : ''}${errSuffix}`)
+    }
+    setPreviewsDone(true)
+  }, [storyboard, creativeBrief, understanding])
 
   const handleProduce = useCallback(async (concept) => {
     setSelectedConcept(concept)
@@ -1486,7 +1493,8 @@ export default function JarvisStudio() {
                 {storyboard
                   ? `${storyboard.concepts.length} concepts · ${storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)} scenes`
                   : 'Designing concepts...'}
-                {storyboard && !previewsDone && (
+                {storyboard && !previewsStarted && <span style={{ marginLeft:10, color:C.gold }}>● Review creative direction below</span>}
+                {storyboard && previewsStarted && !previewsDone && (
                   <span style={{ marginLeft:10, color:C.gold }}>
                     <span style={{ display:'inline-block', animation:'pulse 1s infinite' }}>●</span>
                     {' '}Generating previews ({previewCount}/{storyboard.concepts.reduce((s,c) => s + c.scenes.length, 0)})
@@ -1514,7 +1522,80 @@ export default function JarvisStudio() {
             </div>
           )}
 
-          {storyboard && (
+          {/* ── Storyboard review — text-based, zero image credits spent ── */}
+          {storyboard && !previewsStarted && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14, animation:'fadeUp .4s ease both' }}>
+              <div style={{ padding:'16px 20px', borderRadius:12, border:`1px solid ${C.gold}33`, background:'#0d0b00', marginBottom:4 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:C.gold, textTransform:'uppercase', letterSpacing:2, marginBottom:6 }}>
+                  Creative Director Review
+                </div>
+                <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>
+                  Jarvis has written 5 advertising concepts. Review the creative direction below — each concept tells a different story. When you're satisfied, generate preview images to see them visually.
+                </div>
+                <div style={{ marginTop:14, display:'flex', gap:10, flexWrap:'wrap' }}>
+                  <button onClick={() => handleGeneratePreviews(storyboard)}
+                    style={{ padding:'10px 22px', borderRadius:8, background:C.gold, border:'none', color:'#000', cursor:'pointer', fontSize:12, fontWeight:800, letterSpacing:.5 }}>
+                    Generate Previews →
+                  </button>
+                  <button onClick={handleApproveBrief}
+                    style={{ padding:'10px 18px', borderRadius:8, background:'transparent', border:`1px solid ${C.border}`, color:C.ghost, cursor:'pointer', fontSize:11 }}>
+                    Regenerate Storyboard
+                  </button>
+                </div>
+              </div>
+
+              {storyboard.concepts.map((concept, ci) => {
+                const ANGLE_COLORS = [C.gold, '#c0c0c0', '#4aadff', '#d4a055', '#aaaaaa']
+                const accent = ANGLE_COLORS[ci] || C.ghost
+                return (
+                  <div key={concept.id} style={{ borderRadius:12, border:`1px solid ${C.border}`, background:C.surface, overflow:'hidden' }}>
+                    <div style={{ padding:'14px 18px 12px', borderBottom:`1px solid ${C.divide}`, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:10, color:accent, fontWeight:700 }}>0{ci + 1}</span>
+                          <span style={{ fontSize:15, fontWeight:700 }}>{concept.title}</span>
+                          <span style={{ fontSize:9, padding:'2px 7px', borderRadius:10, background:C.raised, color:C.ghost, textTransform:'uppercase', letterSpacing:1 }}>
+                            {(concept.angle || '').replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <div style={{ fontSize:12, color:C.muted, fontStyle:'italic' }}>"{concept.logline}"</div>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
+                      {concept.scenes.map((scene, si) => {
+                        const LABEL_COLORS = { Hook:'#c8a84b', Problem:'#c07070', Solution:'#70c090', Transformation:'#7090c8', CTA:'#c870a8' }
+                        const labelColor = LABEL_COLORS[scene.label] || C.ghost
+                        return (
+                          <div key={scene.id} style={{ flex:'0 0 20%', minWidth:140, padding:'12px 14px', borderRight: si < concept.scenes.length - 1 ? `1px solid ${C.divide}` : 'none' }}>
+                            <div style={{ fontSize:8, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:labelColor, marginBottom:5 }}>{scene.label}</div>
+                            <div style={{ fontSize:9, color:C.ghost, lineHeight:1.5, marginBottom:6 }}>
+                              {scene.visual_scene || scene.visual_direction || ''}
+                            </div>
+                            {scene.emotion_target && (
+                              <div style={{ fontSize:8, color:C.dim, fontStyle:'italic' }}>Emotion: {scene.emotion_target}</div>
+                            )}
+                            <div style={{ marginTop:6, fontSize:8, color:C.dim }}>
+                              {scene.duration}s · {scene.generator === 'heygen' ? '🎭 Avatar' : scene.screenshotUrl ? '📸 Real image' : '🎬 Generated'}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div style={{ display:'flex', gap:10, justifyContent:'center', paddingTop:8 }}>
+                <button onClick={() => handleGeneratePreviews(storyboard)}
+                  style={{ padding:'12px 32px', borderRadius:8, background:C.gold, border:'none', color:'#000', cursor:'pointer', fontSize:13, fontWeight:800, letterSpacing:.5 }}>
+                  Generate Previews →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Preview generation in progress or done ── */}
+          {storyboard && previewsStarted && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               {storyboard.concepts.map((concept, ci) => (
                 <div key={concept.id} style={{ borderRadius:12, border:`1px solid ${C.border}`, background:C.surface, overflow:'hidden', animation:`fadeUp .4s ease ${ci * .08}s both` }}>

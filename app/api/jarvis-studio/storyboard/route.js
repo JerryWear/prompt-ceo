@@ -174,36 +174,93 @@ ${lines}
     }
     const assetBlock = assetLines.join('\n\n')
 
-    // ── Concept directions — each concept has a unique narrative AND a unique visual palette ──
-    // Visual styles are mandatory per concept so preview images look distinct from each other.
+    // ── Visual palettes — one per concept, forced distinct ───────────────────
     const VISUAL_STYLES = [
-      'DARK LUXURY GOLD: deep black backgrounds (#0a0a0a), gold/amber accent (#c8a84b), dramatic single-source lighting, premium editorial. Every dalle_prompt must use this palette.',
-      'CLEAN MINIMAL WHITE: bright white or platinum backgrounds, cool silver tones, high-key even lighting, clinical precision. Stark contrast to the dark gold style. Every dalle_prompt must use this palette.',
-      'HIGH ENERGY ELECTRIC BLUE: deep navy or midnight blue backgrounds, neon/electric blue accents (#00aaff), high contrast, kinetic energy. Completely different from styles 1 and 2. Every dalle_prompt must use this palette.',
-      'WARM PREMIUM AMBER: rich warm browns, burnished copper, cream/ivory highlights, candlelight-warm tones. Feels trust-worthy and established. Every dalle_prompt must use this palette.',
-      'BOLD GRAPHIC MONOCHROME: high contrast pure black and white with one vivid accent color (deep red or electric green), editorial/magazine aesthetic. Every dalle_prompt must use this palette.',
+      'DARK LUXURY GOLD: deep black backgrounds (#0a0a0a), gold/amber accent (#c8a84b), dramatic single-source lighting, premium editorial.',
+      'CLEAN MINIMAL WHITE: bright white or platinum backgrounds, cool silver tones, high-key even lighting, clinical precision.',
+      'HIGH ENERGY ELECTRIC BLUE: deep navy or midnight blue backgrounds, neon/electric blue accents (#00aaff), high contrast, kinetic energy.',
+      'WARM PREMIUM AMBER: rich warm browns, burnished copper, cream/ivory highlights, candlelight-warm tones, feels trustworthy.',
+      'BOLD GRAPHIC MONOCHROME: high contrast pure black and white with one vivid accent color (deep red or electric green), editorial/magazine.',
     ]
 
-    const conceptDirections = []
-    if (intent === 'founder_ad' || intent === 'ugc') {
-      conceptDirections.push('Concept 1: Founder leads — opens with heygen hook, intercut runway visuals')
-      conceptDirections.push('Concept 2: Founder problem/solution — heygen problem statement, runway solution visuals, heygen CTA')
-      conceptDirections.push('Concept 3: Day in the life — all runway lifestyle, no founder')
-      conceptDirections.push('Concept 4: Social proof — founder gives testimonial format, runway shows results')
-      conceptDirections.push('Concept 5: Direct response — founder speaks full ad, minimal runway cuts')
-    } else if (intent === 'cinematic' || intent === 'product_demo') {
-      conceptDirections.push('Concept 1: Pure visual — all runway cinematic, no founder')
-      conceptDirections.push('Concept 2: Product hero — all runway product-focused closeups and demos')
-      conceptDirections.push('Concept 3: Before/after — runway contrast, founder closes if available')
-      conceptDirections.push('Concept 4: Lifestyle integration — runway shows product in aspirational context')
-      conceptDirections.push('Concept 5: Pattern interrupt — dramatic runway opener, founder CTA if available')
-    } else {
-      conceptDirections.push('Concept 1: Problem/Solution — opens with founder speaking (heygen hook), runway visuals for solution')
-      conceptDirections.push('Concept 2: Pure visual storytelling — all runway, no heygen')
-      conceptDirections.push('Concept 3: Social proof/testimonial — runway visuals, founder closes the ad (heygen CTA)')
-      conceptDirections.push('Concept 4: Pattern interrupt — dramatic runway opener, no heygen unless founder available')
-      conceptDirections.push('Concept 5: Transformation/aspirational — founder opens and closes (heygen), runway shows transformation')
-    }
+    // ── 5 genuinely different advertising angles ──────────────────────────────
+    // Each is a STORY with a specific narrative arc — not a production format.
+    // The audience should feel these are 5 completely different ads, not 5 themes.
+    const productPain  = understanding?.brand?.painPoints?.[0] || 'wasting time and money on slow, expensive creative'
+    const productValue = understanding?.brand?.valueProposition || summary?.keyBenefit || 'saves time and produces better results'
+    const audience     = understanding?.brand?.targetAudience || summary?.audience || 'marketers and business owners'
+
+    const CONCEPT_ANGLES = [
+      {
+        title: 'The Expensive Alternative',
+        angle: 'agency_replacement',
+        narrative: 'Old way (agencies/manual) → the cost → this product replaces it entirely',
+        direction: `Open on the COST of the old way — an agency invoice, a slow turnaround, wasted budget. The ${audience} is trapped paying for things that take forever and underdeliver. Then this product arrives and replaces the whole system. The transformation is about FREEDOM from dependency, not just faster output.
+SCENE GUIDE:
+Hook → An expensive invoice or slow process. The thing that costs money and time every month. NO product UI.
+Problem → The frustration of waiting. The gap between what was paid and what was delivered. NO product UI.
+Solution → This product doing in seconds what took weeks. THE ONLY SCENE WITH PRODUCT UI — use screenshotUrl.
+Transformation → The person who no longer depends on anyone. Full creative control. Faster. Cheaper. NO product UI.
+CTA → ${hasFounder ? 'Founder direct to camera: "Fire your agency."' : '"Why pay for what this does for free."'}`
+      },
+      {
+        title: 'The Midnight Deadline',
+        angle: 'urgency_speed',
+        narrative: 'A campaign needed NOW → panic → product saves the day in real time',
+        direction: `The entire story is about SPEED and PRESSURE. A campaign must go live in hours, not days. The audience feels the clock. They see the old way failing (no time). Then the product compresses time — idea to live campaign in the time it used to take to write a brief.
+SCENE GUIDE:
+Hook → DEADLINE PRESSURE. A clock, a blank calendar slot, a message saying "we need this NOW." NO product UI.
+Problem → Traditional workflow: brief writers, agencies, review rounds — days turning into weeks. All impossibly slow. NO product UI.
+Solution → This product running. Watch the campaign materializing in real time. THE ONLY SCENE WITH PRODUCT UI — use screenshotUrl.
+Transformation → Campaign live. Numbers climbing. Done before the old way would have even started. NO product UI.
+CTA → ${hasFounder ? 'Founder: "60 seconds. That\'s all it takes."' : '"Idea. 60 seconds. Live." Text on dark background.'}`
+      },
+      {
+        title: 'The Founder at 3AM',
+        angle: 'founder_burnout_rescue',
+        narrative: 'Solo founder drowning in work → product gives them their life back',
+        direction: `This concept speaks directly to the ${audience} who wears too many hats. The pain is OVERWHELM — too much to do, not enough hours, marketing eating all the time. The product doesn't just save time. It gives the founder back their creative confidence and their sanity.
+SCENE GUIDE:
+Hook → A person alone at a desk, late at night. Multiple screens. A pile of tasks. The weight of doing everything yourself. NO product UI.
+Problem → ${productPain}. Visualized as stacks, clutter, chaos, an overflowing inbox. NO product UI.
+Solution → The moment everything simplifies. One tool. THE ONLY SCENE WITH PRODUCT UI — use screenshotUrl.
+Transformation → The same person. Now calm. Focused. Presenting results confidently to a client. Work done in hours, not days. NO product UI.
+CTA → ${hasFounder ? 'Founder to camera: "I stopped drowning. This is why."' : '"Your creative team. Already hired."'}`
+      },
+      {
+        title: 'Results First',
+        angle: 'proof_reverse_reveal',
+        narrative: 'Start with impressive outcome → reveal how it was done → anyone can replicate it',
+        direction: `Reverse narrative. Open with the END RESULT — big numbers, successful campaign, winning output. Let the viewer wonder how it was done. Then reveal: one person, one tool. The product becomes aspirational because the RESULTS are shown first, not the features.
+SCENE GUIDE:
+Hook → IMPRESSIVE RESULTS. High engagement numbers, a campaign that performed, revenue impact. The viewer asks "how?". NO product UI.
+Problem → Reveal what it USED to take to produce results like this — agencies, teams, weeks of work. NO product UI.
+Solution → The reveal: this one tool. THE ONLY SCENE WITH PRODUCT UI — use screenshotUrl. The "ah-ha" moment.
+Transformation → One person achieving what used to require a whole team. The democratization of great marketing. NO product UI.
+CTA → ${hasFounder ? 'Founder: "This is how I did it. Your turn."' : '"Your turn." Clean. Simple. Direct.'}`
+      },
+      {
+        title: 'The Category Has Moved',
+        angle: 'category_leadership',
+        narrative: 'The best marketers have already changed how they work — this is the new standard',
+        direction: `Aspirational and slightly provocative. The serious players have already shifted to AI-powered creative. The old manual way is for people who haven't caught up yet. This product is what the top ${audience} use now. It positions the viewer to be a category leader, or risk being left behind.
+SCENE GUIDE:
+Hook → A CONTRAST. The confident, winning version of the target audience — premium environment, clarity, results. NO product UI.
+Problem → What separates them from the rest? Not talent. Systems. The people still doing it manually are falling behind. NO product UI.
+Solution → The tool that the best use. THE ONLY SCENE WITH PRODUCT UI — use screenshotUrl. This is their weapon.
+Transformation → The viewer on the winning side. Same tools, same results. The category shift has happened. NO product UI.
+CTA → ${hasFounder ? 'Founder: "This is the standard now. Are you using it?"' : '"This is marketing now."'}`
+      },
+    ]
+
+    // Overlay intent-based production guidance on top of the story angle
+    const intentGuide = intent === 'founder_ad' || intent === 'ugc'
+      ? 'PRODUCTION NOTE: Founder is available. Prioritize heygen for Hook and CTA scenes where direct human connection matters most. Runway for all visual narrative scenes.'
+      : intent === 'cinematic' || intent === 'product_demo'
+      ? 'PRODUCTION NOTE: Cinematic intent. All scenes runway-generated. High production value. No heygen unless founder image provided.'
+      : hasFounder
+      ? 'PRODUCTION NOTE: Founder image available. Use heygen for Hook and/or CTA — the human touch increases conversion. Runway for all other scenes.'
+      : 'PRODUCTION NOTE: No founder image. All scenes runway-generated. Rely on strong visuals and on-screen text.'
 
     // ── Shared system prompt ──────────────────────────────────────────────────
     const systemPrompt = `You are Jarvis — an elite creative director at a premium AI ad agency.
@@ -249,22 +306,68 @@ TECHNICAL RULES
 - First scene = hook. Last scene = CTA.
 - Return ONLY valid JSON.
 
-RUNWAY SCENES — NO PEOPLE:
-Runway AI CANNOT generate realistic human faces. For all runway scenes:
-- NEVER describe people, faces, smiling clients, or "person using product"
-- INSTEAD: describe what THIS SPECIFIC PRODUCT looks like in action, what it PRODUCES, what its world feels like
-- The dalle_prompt generates the preview image. Make it brand-specific and people-free.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SCENE VISUAL LAWS — VIOLATING THESE PRODUCES A BROKEN AD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-BRAND ANCHOR SYSTEM (mandatory):
-Every runway scene MUST be visually locked to "${productName}" specifically.
-Test: "If I removed the brand name, could this be an ad for 10 other products?" → If yes, rewrite it.
+An ad that shows dashboards in 4 out of 5 scenes is NOT an ad. It's a product tour.
+Nobody watches product tours. People watch STORIES.
 
-Valid anchors (use 2–3 per runway scene):
-• Product name or named feature shown in the visual environment
-• A specific workflow step visualized in concrete detail
-• The brand's color palette as the dominant aesthetic
-• A real output only this product generates, shown with specifics
-• A named screen, interface, or environment unique to this product
+Rule: 4 of 5 scenes must show human situations, emotions, objects, environments.
+Only 1 scene (Solution) is allowed to show the product UI.
+
+━━ HOOK (Scene 1) — NO PRODUCT UI ━━
+This scene makes the viewer feel something BEFORE they see the product.
+Show a human moment in the PAIN. A real situation the audience recognizes.
+Good: "A marketing manager's desk at midnight — laptop open, 11 browser tabs, invoice from agency, empty coffee cups"
+Good: "Hands holding a printout covered in red revision marks — third round of changes"
+Good: "A phone showing an email chain 40 messages long with an agency going in circles"
+BAD: "Dashboard showing campaign metrics" ← this is UI. Not allowed in Hook.
+BAD: "Software interface loading" ← this is UI. Not allowed in Hook.
+
+━━ PROBLEM (Scene 2) — NO PRODUCT UI ━━
+Visual metaphor for what the audience LOSES every day without this product.
+Show the cost: money burning, time slipping, complexity multiplying.
+Good: "A torn-up invoice, dollar bills scattered, a calendar with 'DEADLINE MISSED' stamped across it"
+Good: "Six different browser tabs open simultaneously — each a different tool, none talking to each other"
+Good: "A stack of papers labeled 'BRIEFS' — tall, unstable, threatening to fall"
+BAD: "Analytics panel showing poor results" ← this is UI. Not allowed in Problem.
+
+━━ SOLUTION (Scene 3) — THE ONLY SCENE WITH PRODUCT UI ━━
+This is the one scene where the viewer sees ${productName}.
+If screenshotUrl is available: USE IT. The real product is always better than a generated interpretation.
+Show one specific capability transforming — not a static screenshot. A BEFORE → AFTER within the frame.
+Good: "The PromptCEO dashboard — a blank brief on the left, five complete ad concepts appearing on the right"
+Good: "Product interface: single text input at top, 25 storyboard frames populating below it in real time"
+
+━━ TRANSFORMATION (Scene 4) — NO PRODUCT UI ━━
+Show the human RESULT. The same person from Scene 1, now winning.
+The product is invisible — only the outcome is visible.
+Good: "Same desk from Hook, now clean. A single screen, one focused window. Confident posture."
+Good: "Phone in hand showing campaign live and performing — engagement climbing"
+Good: "A founder presenting a deck to a client who looks impressed — the story of the campaign told visually"
+BAD: "Dashboard with green results" ← still UI. Show the PERSON who won, not the software they used.
+
+━━ CTA (Scene 5) — MINIMAL UI ━━
+Simple. Direct. One action. Human connection.
+Best options: founder to camera (heygen) / logo on dark background / one line of text + URL
+No complex software demos. The viewer has already seen the product in Scene 3.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DALL-E PROMPT RULES FOR EACH SCENE TYPE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For Hook / Problem / Transformation / CTA:
+→ Describe OBJECTS, ENVIRONMENTS, TEXTURES, LIGHTING, MOOD
+→ NEVER describe a screen, dashboard, or software interface
+→ "A desk strewn with papers, half-empty coffee cups, a phone face-down" ← correct
+→ "A software dashboard showing analytics" ← WRONG — not allowed outside Solution
+
+For Solution only:
+→ Describe the product interface using actual brand colors and visual patterns
+→ Show the TRANSFORMATION happening — input state and output state visible in the frame
+
+No people, no faces in any dalle_prompt. No realistic human portraits.
+Objects, environments, textures, light — these carry emotion without needing faces.
 
 Key features: ${keyFeatures || 'see brief above'}
 Visual identity: ${brandStyle || 'premium cinematic'}
@@ -332,11 +435,14 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
   "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
   "duration": 5,
   "script": "Exact words founder speaks (heygen only). null for runway.",
-  "visual_direction": "Cinematographer description built around USER ASSETS first, then brand specifics.",
-  "dalle_prompt": "Ultra-detailed. Photorealistic. Vertical 9:16. Informed by user assets and brand visuals. No people. No faces. Shot on RED. 8K cinematic.",
+  "visual_scene": "CINEMATIC DESCRIPTION of exactly what fills the frame. For Hook/Problem/Transformation: a human situation, object, environment, or emotion — NOT software. For Solution: the product capability in action. For CTA: logo or founder. This field drives the dalle_prompt.",
+  "emotion_target": "What the viewer feels watching this scene: stress | overwhelm | frustration | relief | excitement | confidence | aspiration | curiosity",
+  "contains_ui": false,
+  "visual_direction": "Director note for the cinematographer — built from visual_scene above.",
+  "dalle_prompt": "Photorealistic still image. Vertical 9:16. Shot on RED camera. 8K. NO people. NO faces. IMPORTANT: for Hook/Problem/Transformation/CTA — describe objects, environments, textures, lighting, mood. NEVER describe a software dashboard outside of Solution scene. For Solution: describe the product interface using brand-accurate colors and UI patterns.",
   "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
-  "brand_anchors": ["specific visual anchor 1 tying scene to ${productName}", "anchor 2"],
-  "brand_check": "How a viewer knows this is for ${productName} — not a competitor",
+  "brand_anchors": ["specific visual anchor tying scene to ${productName}", "anchor 2"],
+  "brand_check": "How a viewer knows this is for ${productName} — not a competitor. For Hook/Problem: the emotional anchor. For Solution: the product UI.",
   "capability_anchor": "The specific named ${productName} capability this scene demonstrates — not 'dashboard', the ACTUAL action",
   "proof_of_capability": "[input state] → [transformation] → [output state] the viewer watches happen",
   "screenshotUrl": ${screenshotUrlField},
@@ -345,33 +451,31 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
 }`
 
     // ── Generate one concept per call ─────────────────────────────────────────
-    async function generateOneConcept(conceptIndex, direction) {
+    async function generateOneConcept(conceptIndex, angle) {
       const n           = conceptIndex + 1
       const visualStyle = VISUAL_STYLES[conceptIndex]
       const userContent = `${briefContext}
 
-GENERATING CONCEPT ${n} OF 5.
-DIRECTION: ${direction}
-${!hasFounder ? 'NO HEYGEN — no founder image uploaded. All scenes must use generator: "runway".' : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GENERATING CONCEPT ${n} OF 5: "${angle.title}"
+ADVERTISING ANGLE: ${angle.angle}
+NARRATIVE ARC: ${angle.narrative}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${angle.direction}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${intentGuide}
+${!hasFounder ? '\nNO HEYGEN — no founder image uploaded. All scenes must use generator: "runway".' : ''}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MANDATORY VISUAL AESTHETIC FOR THIS CONCEPT — ${visualStyle.split(':')[0]}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY VISUAL AESTHETIC FOR THIS CONCEPT — ${visualStyle.split(':')[0]}:
 ${visualStyle}
+Every dalle_prompt in this concept must use THIS palette. Failure to do so makes the preview look identical to another concept.
 
-FAILURE: If any dalle_prompt in this concept uses "dark gold luxury" aesthetic AND this is not Concept 1 → rewrite it.
-FAILURE: If any dalle_prompt in this concept matches the visual style of another concept → rewrite it.
-Every concept is a different creative direction AND a different visual world. A viewer should instantly know which concept they're looking at from the image alone.
-
-OBEDIENCE CHECK BEFORE WRITING:
-1. Which user assets from LEVEL 1 above can this concept use?
-2. Does this direction match the user's stated hook/intent?
-3. Only invent where no asset or prompt covers it.
-
-CAPABILITY CHECK BEFORE WRITING:
-For each scene, answer: "What specific ${productName} capability will a viewer understand from this 5-second clip?"
-If the answer is "they'll see a dashboard" → that scene is capability-invisible → rewrite it before writing JSON.
-The 5 scenes of this concept should together demonstrate at least 3 distinct ${productName} capabilities.
+PRE-WRITE CHECKLIST (answer each before writing JSON):
+1. Hook visual_scene: What specific human moment shows the pain? (NOT a dashboard — a person/object/environment)
+2. Problem visual_scene: What visual metaphor shows what the audience loses without ${productName}? (NOT a dashboard)
+3. Solution visual_scene: What does the product ACTUALLY DO in this frame? (Only scene allowed to show UI — use screenshotUrl)
+4. Transformation visual_scene: What does the person's world look like AFTER? (NOT a dashboard — the human result)
+5. CTA visual_scene: What closes the story? (Founder to camera OR logo + text — minimal)
 
 Generate exactly 5 scenes. Durations sum to 30 seconds.
 
@@ -379,9 +483,9 @@ Return ONLY this JSON (one concept object):
 {
   "concept": {
     "id": "concept_${n}",
-    "title": "3-5 evocative words",
-    "logline": "Single punchy line",
-    "angle": "problem_solution | testimonial | day_in_life | pattern_interrupt | aspirational | direct_response",
+    "title": "${angle.title}",
+    "logline": "Single punchy line capturing this specific angle",
+    "angle": "${angle.angle}",
     "platform": "instagram_reels",
     "total_duration": 30,
     "scenes": [${sceneTemplate}]
@@ -497,7 +601,7 @@ Return ONLY this JSON (one concept object):
 
     // Run all 5 in parallel
     const results = await Promise.allSettled(
-      conceptDirections.map((dir, i) => generateOneConcept(i, dir))
+      CONCEPT_ANGLES.map((angle, i) => generateOneConcept(i, angle))
     )
 
     const concepts = results.map((r, i) => {
