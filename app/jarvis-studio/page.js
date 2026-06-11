@@ -136,6 +136,7 @@ export default function JarvisStudio() {
   const [missingUploaded,     setMissingUploaded]     = useState([])
   const [assessment,          setAssessment]          = useState(null)
   const [creativeBrief,       setCreativeBrief]       = useState(null)
+  const [story,               setStory]               = useState(null)
   const [brandScreenshots,    setBrandScreenshots]    = useState([]) // real product screenshots from capture-brand
   const [storyboard,      setStoryboard]      = useState(null)
   const [previewsStarted, setPreviewsStarted] = useState(false)
@@ -228,7 +229,7 @@ export default function JarvisStudio() {
     if (pollRef.current)  clearInterval(pollRef.current)
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
-    setAssessment(null); setCreativeBrief(null); setBrandScreenshots([])
+    setAssessment(null); setCreativeBrief(null); setStory(null); setBrandScreenshots([])
     setStoryboard(null); setPreviewsStarted(false); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setAdVideoUrl(null)
     setUploadedFrameUrls([])
@@ -381,28 +382,28 @@ export default function JarvisStudio() {
     startAnalysis(null)
   }, [hasAnyInput, websiteUrl, prompt, founderFile, productFiles, videoFiles, startAnalysis])
 
-  const handleBuildBrief = useCallback(async () => {
+  const handleBuildStory = useCallback(async () => {
     setPhase('analyzing')
-    setStatusItems([{ id: 'brief', label: 'Building creative brief...', status: 'active' }])
+    setStatusItems([{ id: 'story', label: 'Creative Director writing your story...', status: 'active' }])
     setError('')
     try {
-      const bRes  = await fetch('/api/jarvis-studio/creative-brief', {
+      const sRes  = await fetch('/api/jarvis-studio/story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ understanding, assets: uploadedAssets, intent, prompt: prompt.trim() || null, assessment }),
       })
-      if (!bRes.ok) throw new Error(`Brief generation failed (${bRes.status})`)
-      const bData = await bRes.json()
-      if (!bData.brief) throw new Error(bData.error || 'Brief generation failed')
-      setCreativeBrief(bData.brief)
-      setPhase('brief')
+      if (!sRes.ok) throw new Error(`Story generation failed (${sRes.status})`)
+      const sData = await sRes.json()
+      if (!sData.story) throw new Error(sData.error || 'Story generation failed')
+      setStory(sData.story)
+      setPhase('story')
     } catch (err) {
-      setError(err.message || 'Brief failed')
+      setError(err.message || 'Story failed')
       setPhase('assessment')
     }
   }, [understanding, uploadedAssets, intent, prompt, assessment])
 
-  const handleApproveBrief = useCallback(async () => {
+  const handleApproveStory = useCallback(async () => {
     setPhase('storyboard')
     setStoryboard(null)
     setPreviewsStarted(false)
@@ -421,22 +422,30 @@ export default function JarvisStudio() {
         })),
       ]
 
-      const sRes  = await fetch('/api/jarvis-studio/storyboard', {
+      const productUrls = uploadedAssets?.productImageUrls || []
+
+      const sbRes = await fetch('/api/jarvis-studio/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creativeBrief, assets: uploadedAssets, intent, brandScreenshots: allBrandScreenshots, understanding, videoFrameUrls: uploadedFrameUrls }),
+        body: JSON.stringify({
+          story,
+          assets:           uploadedAssets,
+          productUrls,
+          brandScreenshots: allBrandScreenshots,
+          understanding,
+          videoFrameUrls:   uploadedFrameUrls,
+        }),
       })
-      if (!sRes.ok) throw new Error(`Storyboard failed (${sRes.status})`)
-      const sData = await sRes.json()
-      if (!sData.storyboard?.concepts?.length) throw new Error(sData.error || 'Storyboard failed')
-      setStoryboard(sData.storyboard)
-      // Storyboard shown for review — previews only start when user clicks "Generate Previews"
+      if (!sbRes.ok) throw new Error(`Storyboard failed (${sbRes.status})`)
+      const sbData = await sbRes.json()
+      if (!sbData.storyboard?.concepts?.length) throw new Error(sbData.error || 'Storyboard failed')
+      setStoryboard(sbData.storyboard)
 
     } catch (err) {
       setError(err.message || 'Storyboard generation failed')
-      setPhase('brief')
+      setPhase('story')
     }
-  }, [creativeBrief, uploadedAssets, intent, brandScreenshots, understanding, uploadedFrameUrls])
+  }, [story, uploadedAssets, brandScreenshots, understanding, uploadedFrameUrls])
 
   const handleGeneratePreviews = useCallback(async (storyboardData) => {
     const board = storyboardData || storyboard
@@ -450,8 +459,12 @@ export default function JarvisStudio() {
     let firstError = ''
 
     const brandContext = {
-      productName: creativeBrief?.summary?.product?.split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
-      keyMessages: creativeBrief?.keyMessages || [],
+      productName: (
+        understanding?.brand?.name ||
+        creativeBrief?.summary?.product ||
+        ''
+      ).split(/[—.\n]/)[0]?.trim()?.slice(0, 60) || '',
+      keyMessages: story?.beats?.map(b => b.caption).filter(Boolean) || creativeBrief?.keyMessages || [],
       style:       creativeBrief?.recommendedStyle || '',
       visualDNA: understanding ? [
         understanding.brand?.visualStyle,
@@ -514,7 +527,7 @@ export default function JarvisStudio() {
       setPreviewError(`${totalLoaded}/${totalScenes} scenes previewed${errSuffix}`)
     }
     setPreviewsDone(true)
-  }, [storyboard, creativeBrief, understanding])
+  }, [storyboard, creativeBrief, story, understanding])
 
   const handleCreateAd = useCallback(async (concept) => {
     setSelectedConcept(concept)
@@ -529,6 +542,7 @@ export default function JarvisStudio() {
         imageUrl:      previews[s.id] || null,
         visual_scene:  s.visual_scene  || '',
         dalle_prompt:  s.dalle_prompt  || '',
+        caption:       s.caption       || '',
       }))
       .filter(s => s.imageUrl)
 
@@ -562,11 +576,17 @@ export default function JarvisStudio() {
       // ── Step 2: Compile clips into final ad ────────────────────────────────
       setCreatingStep('compiling')
 
+      // Merge captions from original scenes into Runway clip list
+      const clipsWithCaptions = clipsData.clips.map(clip => {
+        const orig = scenesWithImages.find(s => s.id === clip.id)
+        return { ...clip, caption: orig?.caption || '' }
+      })
+
       const compileRes  = await fetch('/api/jarvis-studio/compile-ad', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          scenes:       clipsData.clips,  // [{ id, label, videoUrl }]
+          scenes:       clipsWithCaptions,
           conceptTitle: concept.title,
           musicUrl:     uploadedAssets?.musicUrl || null,
         }),
@@ -1352,95 +1372,95 @@ export default function JarvisStudio() {
               style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
               Edit Inputs
             </button>
-            <button onClick={handleBuildBrief}
+            <button onClick={handleBuildStory}
               style={{ flex:1, padding:'12px 24px', borderRadius:8, border:'none', background:C.gold, color:'#000', cursor:'pointer', fontSize:13, fontWeight:800, textTransform:'uppercase', letterSpacing:1.5 }}>
-              Build My Campaign →
+              Build Story →
             </button>
           </div>
         </div>
       )}
 
-      {/* ── BRIEF ─────────────────────────────────────────────────────────────── */}
-      {phase === 'brief' && creativeBrief && (
+      {/* ── STORY ─────────────────────────────────────────────────────────────── */}
+      {phase === 'story' && story && (
         <div style={{ maxWidth:740, margin:'0 auto', padding:'32px 20px 80px', animation:'fadeUp .4s ease both' }}>
           <div style={{ marginBottom:22 }}>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ What Jarvis Understands</div>
-            <div style={{ fontSize:25, fontWeight:800, marginBottom:4 }}>
-              {creativeBrief.summary?.product || understanding?.brand?.name || 'Your Brand'}
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ Creative Director</div>
+            <div style={{ fontSize:25, fontWeight:800, marginBottom:6 }}>
+              {understanding?.brand?.name || 'Your Ad Story'}
             </div>
-            {creativeBrief.summary?.audience && (
-              <div style={{ fontSize:13, color:C.muted }}>For: {creativeBrief.summary.audience}</div>
-            )}
+            <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>{safeStr(story.hero)}</div>
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+          {/* Story DNA */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:16 }}>
             {[
-              { label:'Problem',          value:creativeBrief.summary?.problem },
-              { label:'Solution',         value:creativeBrief.summary?.solution },
-              { label:'Key Benefit',      value:creativeBrief.summary?.keyBenefit },
-              { label:'Production Style', value:creativeBrief.recommendedStyle },
+              { label:'The Pain',     value: story.pain },
+              { label:'The Solution', value: story.solution },
+              { label:'The Outcome',  value: story.outcome },
             ].filter(i => i.value).map(({ label, value }) => (
               <div key={label} style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface }}>
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:5 }}>{label}</div>
-                <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{value}</div>
+                <div style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{safeStr(value)}</div>
               </div>
             ))}
           </div>
 
-          {creativeBrief.hook && (
-            <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.goldBorder}`, background:C.goldBg, marginBottom:12 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:5 }}>Opening Hook</div>
-              <div style={{ fontSize:13, color:C.primary, fontStyle:'italic', lineHeight:1.6 }}>"{creativeBrief.hook}"</div>
+          {/* Transformation */}
+          {story.transformation && (
+            <div style={{ padding:'14px 18px', borderRadius:8, border:`1px solid ${C.gold}44`, background:`${C.gold}08`, marginBottom:18 }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.gold}88`, textTransform:'uppercase', marginBottom:5 }}>The Transformation</div>
+              <div style={{ fontSize:13, color:C.primary, fontStyle:'italic', lineHeight:1.7 }}>"{safeStr(story.transformation)}"</div>
             </div>
           )}
 
-          {creativeBrief.keyMessages?.length > 0 && (
-            <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface, marginBottom:12 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:8 }}>Key Messages</div>
-              {creativeBrief.keyMessages.map((msg, i) => (
-                <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:5 }}>
-                  <span style={{ color:C.gold, fontSize:9, marginTop:3, flexShrink:0 }}>✦</span>
-                  <span style={{ fontSize:12, color:C.secondary, lineHeight:1.6 }}>{msg}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {creativeBrief.assetPlan && (() => {
-            const entries = Object.entries(creativeBrief.assetPlan).filter(([, v]) => v?.role)
-            return entries.length ? (
-              <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface, marginBottom:12 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>How Each Asset Will Be Used</div>
-                {entries.map(([key, plan]) => (
-                  <div key={key} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:8 }}>
-                    <span style={{ fontSize:9, padding:'2px 7px', borderRadius:4, background:C.raised, color:C.ghost, textTransform:'uppercase', letterSpacing:1, flexShrink:0, marginTop:2, whiteSpace:'nowrap' }}>
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                    <div>
-                      <div style={{ fontSize:12, color:C.secondary, lineHeight:1.5 }}>{plan.role}</div>
-                      {plan.scenes && <div style={{ fontSize:11, color:C.ghost, marginTop:2 }}>{plan.scenes}</div>}
+          {/* 5 Acts */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:12 }}>The 5 Acts</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {(story.beats || []).map((beat, i) => {
+                const ACT_COLORS = ['#c8a84b', '#c07070', '#70c090', '#7090c8', '#c870a8']
+                const color  = ACT_COLORS[i] || C.ghost
+                const isReal = beat.visual_type === 'product_screenshot'
+                return (
+                  <div key={beat.act} style={{ display:'flex', gap:14, padding:'14px 16px', borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, alignItems:'flex-start' }}>
+                    <div style={{ width:28, height:28, borderRadius:'50%', background:C.raised, border:`1px solid ${color}44`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:11, fontWeight:800, color }}>
+                      {beat.act}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:11, fontWeight:700, color, textTransform:'uppercase', letterSpacing:1 }}>{beat.label}</span>
+                        <span style={{ fontSize:12, fontWeight:600, color:C.primary }}>{safeStr(beat.title)}</span>
+                        <span style={{ fontSize:8, padding:'2px 7px', borderRadius:10, fontWeight:700, letterSpacing:.5,
+                          background: isReal ? `${C.teal}22` : `${C.gold}22`,
+                          color:      isReal ? C.teal     : C.gold }}>
+                          {isReal ? '📸 Real Image' : '🎬 Cinematic'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize:12, color:C.muted, lineHeight:1.5, marginBottom: beat.caption ? 7 : 0 }}>
+                        {safeStr(beat.emotional_beat)}
+                      </div>
+                      {beat.caption && (
+                        <div style={{ fontSize:11, fontWeight:600, color:C.gold, padding:'4px 10px', borderRadius:5, background:`${C.gold}12`, display:'inline-block' }}>
+                          "{safeStr(beat.caption)}"
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : null
-          })()}
-
-          {creativeBrief.newContentNeeded?.length > 0 && (
-            <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.teal}22`, background:C.tealBg, marginBottom:20 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:`${C.teal}88`, textTransform:'uppercase', marginBottom:8 }}>Jarvis Will Generate</div>
-              {creativeBrief.newContentNeeded.map((item, i) => (
-                <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:4 }}>→ {safeStr(item)}</div>
-              ))}
+                )
+              })}
             </div>
-          )}
+          </div>
 
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => setPhase('input')}
               style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
               Edit Inputs
             </button>
-            <button onClick={handleApproveBrief}
+            <button onClick={() => setPhase('assessment')}
+              style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
+              ← Back
+            </button>
+            <button onClick={handleApproveStory}
               style={{ flex:1, padding:'12px 24px', borderRadius:8, border:'none', background:C.gold, color:'#000', cursor:'pointer', fontSize:13, fontWeight:800, textTransform:'uppercase', letterSpacing:1.5 }}>
               Approve & Create Storyboards →
             </button>
@@ -1455,7 +1475,7 @@ export default function JarvisStudio() {
             <div>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:8 }}>✦ Storyboard</div>
               <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>
-                {understanding?.brand?.name || creativeBrief?.summary?.product || '5 Ad Concepts'}
+                {understanding?.brand?.name || story?.hero?.slice(0, 40) || '5 Ad Concepts'}
               </div>
               <div style={{ fontSize:12, color:C.ghost }}>
                 {storyboard
@@ -1505,7 +1525,7 @@ export default function JarvisStudio() {
                     style={{ padding:'10px 22px', borderRadius:8, background:C.gold, border:'none', color:'#000', cursor:'pointer', fontSize:12, fontWeight:800, letterSpacing:.5 }}>
                     Generate Previews →
                   </button>
-                  <button onClick={handleApproveBrief}
+                  <button onClick={handleApproveStory}
                     style={{ padding:'10px 18px', borderRadius:8, background:'transparent', border:`1px solid ${C.border}`, color:C.ghost, cursor:'pointer', fontSize:11 }}>
                     Regenerate Storyboard
                   </button>
@@ -1531,7 +1551,7 @@ export default function JarvisStudio() {
                     </div>
                     <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
                       {concept.scenes.map((scene, si) => {
-                        const LABEL_COLORS = { Hook:'#c8a84b', Problem:'#c07070', Solution:'#70c090', Transformation:'#7090c8', CTA:'#c870a8' }
+                        const LABEL_COLORS = { Hook:'#c8a84b', Problem:'#c07070', Solution:'#70c090', Transformation:'#7090c8', CTA:'#c870a8', Setup:'#c8a84b', Conflict:'#c07070', Discovery:'#70c090', Resolution:'#c870a8' }
                         const labelColor = LABEL_COLORS[scene.label] || C.ghost
                         return (
                           <div key={scene.id} style={{ flex:'0 0 20%', minWidth:140, padding:'12px 14px', borderRight: si < concept.scenes.length - 1 ? `1px solid ${C.divide}` : 'none' }}>

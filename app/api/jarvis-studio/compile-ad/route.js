@@ -20,6 +20,20 @@ function resolveFfmpegPath() {
   return p
 }
 
+// Find a system font for drawtext — tries common Vercel/Linux/macOS paths
+function findSystemFont() {
+  const candidates = [
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    '/usr/share/fonts/liberation/LiberationSans-Bold.ttf',
+    '/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf',
+    '/System/Library/Fonts/Helvetica.ttc',
+    'C:\\Windows\\Fonts\\arialbd.ttf',
+  ]
+  return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } }) || null
+}
+
 export const maxDuration = 300
 
 async function makeSupabase() {
@@ -123,6 +137,37 @@ export async function POST(req) {
       filterParts.push(`[${prevLabel}][v${i}]xfade=transition=fade:duration=${fadeDur}:offset=${offset}[${outLabel}]`)
       prevLabel  = outLabel
       finalLabel = outLabel
+    }
+
+    // ── Caption drawtext overlays ─────────────────────────────────────────────
+    // Each scene can have a caption shown as a text overlay.
+    // Captions are the ONLY source of marketing copy — never burned into images.
+    const fontFile   = findSystemFont()
+    const hasCaptions = fontFile && activeScenes.some(s => s.caption?.trim())
+
+    if (hasCaptions) {
+      let captionLabel = finalLabel
+      activeScenes.forEach((scene, i) => {
+        const text = scene.caption?.trim()
+        if (!text) return
+        // Segment start time in the output timeline
+        const segStart = parseFloat(((segDur - fadeDur) * i).toFixed(3))
+        const showFrom = parseFloat((segStart + 0.35).toFixed(3))
+        const showTo   = parseFloat((segStart + segDur - 0.45).toFixed(3))
+        const outLabel = `cap${i}`
+        // Escape special characters for FFmpeg drawtext
+        const safeTxt = text.replace(/\\/g, '\\\\').replace(/'/g, "’").replace(/:/g, '\\:').replace(/,/g, '\\,')
+        filterParts.push(
+          `[${captionLabel}]drawtext=fontfile='${fontFile}':text='${safeTxt}':fontsize=44:fontcolor=white:` +
+          `x=(w-text_w)/2:y=h*0.82:box=1:boxcolor=black@0.55:boxborderw=16:` +
+          `enable='between(t\\,${showFrom}\\,${showTo})'[${outLabel}]`
+        )
+        captionLabel = outLabel
+      })
+      finalLabel = captionLabel
+      console.log(`[compile-ad] captions: ${activeScenes.filter(s => s.caption?.trim()).length} overlays using ${fontFile}`)
+    } else if (!fontFile) {
+      console.warn('[compile-ad] no system font found — captions skipped')
     }
 
     args.push('-filter_complex', filterParts.join(';'))
