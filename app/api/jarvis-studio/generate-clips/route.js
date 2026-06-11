@@ -1,5 +1,6 @@
 import { NextResponse }       from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { cookies }            from 'next/headers'
 
 export const maxDuration = 300
@@ -105,8 +106,19 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const runwayKey = process.env.RUNWAYML_API_SECRET
-    if (!runwayKey) return NextResponse.json({ error: 'Runway API key not configured on server' }, { status: 500 })
+    // Try platform key first, then fall back to user's own Runway key in DB
+    let runwayKey = process.env.RUNWAYML_API_SECRET
+    if (!runwayKey) {
+      const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      const { data } = await admin.from('user_integrations').select('runway_api_key').eq('user_id', user.id).single()
+      runwayKey = data?.runway_api_key || null
+    }
+    if (!runwayKey) {
+      return NextResponse.json({
+        error: 'No Runway API key found. Add RUNWAYML_API_SECRET to Vercel environment variables, or connect your Runway key in Account Settings.',
+      }, { status: 500 })
+    }
+    console.log(`[generate-clips] using ${process.env.RUNWAYML_API_SECRET ? 'platform' : 'user'} Runway key`)
 
     const { scenes = [] } = await req.json()
     const ready = scenes.filter(s => s.imageUrl)

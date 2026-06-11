@@ -550,7 +550,8 @@ export default function JarvisStudio() {
       })
       const clipsData = await clipsRes.json()
       if (!clipsRes.ok || !clipsData.clips?.length) {
-        throw new Error(clipsData.error || 'Clip generation failed — check Runway API key')
+        const detail = clipsData.failed?.[0]?.error || clipsData.error || 'Clip generation failed'
+        throw new Error(detail)
       }
 
       setClipsProgress({ done: clipsData.clips.length, total: scenesWithImages.length })
