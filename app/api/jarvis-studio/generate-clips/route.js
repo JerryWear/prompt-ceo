@@ -1,92 +1,87 @@
-import { NextResponse }       from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { NextResponse }            from 'next/server'
+import { createServerClient }      from '@supabase/ssr'
 import { createClient as createAdmin } from '@supabase/supabase-js'
-import { cookies }            from 'next/headers'
+import { cookies }                 from 'next/headers'
+import RunwayML                    from '@runwayml/sdk'
 
 export const maxDuration = 300
 
-// Motion language per scene type — drives Runway generation
+// Motion language per scene type
 const MOTION = {
-  Hook: {
-    camera: 'Slow cinematic push in. Camera moves forward with deliberate intent.',
-    mood:   'Tense. Dark. Something important is about to be revealed.',
-  },
-  Problem: {
-    camera: 'Slight handheld drift. Camera searches but finds no escape.',
-    mood:   'Heavy. Overwhelming. The weight of the problem fills the frame.',
-  },
-  Solution: {
-    camera: 'Smooth, precise forward motion. Clean and controlled.',
-    mood:   'Relief. Clarity. Everything snaps into focus.',
-  },
-  Transformation: {
-    camera: 'Camera slowly pulls back to reveal the full picture.',
-    mood:   'Triumphant. Light increases. Freedom and control.',
-  },
-  CTA: {
-    camera: 'Static shot with a subtle, slow zoom in.',
-    mood:   'Direct. Confident. No hesitation.',
-  },
+  Hook:           { camera: 'Slow cinematic push in. Camera moves forward with deliberate intent.',        mood: 'Tense. Dark. Something important is about to be revealed.' },
+  Problem:        { camera: 'Slight handheld drift. Camera searches but finds no escape.',                 mood: 'Heavy. Overwhelming. The weight of the problem fills the frame.' },
+  Solution:       { camera: 'Smooth, precise forward motion. Clean and controlled.',                       mood: 'Relief. Clarity. Everything snaps into focus.' },
+  Transformation: { camera: 'Camera slowly pulls back to reveal the full picture.',                        mood: 'Triumphant. Light increases. Freedom and control.' },
+  CTA:            { camera: 'Static shot with a subtle, slow zoom in.',                                    mood: 'Direct. Confident. No hesitation.' },
 }
 
-async function generateOneClip(scene, runwayKey) {
-  const m = MOTION[scene.label] || MOTION.Hook
+// If the preview was stored as a base64 data URI, upload it to Supabase
+// so Runway receives a real HTTPS URL it can fetch
+async function ensureHttpsUrl(imageUrl, sceneId, userId) {
+  if (!imageUrl?.startsWith('data:')) return imageUrl
 
-  // Combine scene visual description + motion direction
-  const visual   = (scene.visual_scene || scene.dalle_prompt || scene.visual_direction || '').slice(0, 250)
+  try {
+    const mimeMatch = imageUrl.match(/^data:([^;]+);base64,/)
+    const mime      = mimeMatch?.[1] || 'image/jpeg'
+    const b64       = imageUrl.split(',')[1]
+    const buf       = Buffer.from(b64, 'base64')
+    const ext       = mime.includes('png') ? 'png' : 'jpg'
+    const storagePath = `jarvis-previews/${userId}/${Date.now()}-${sceneId}.${ext}`
+
+    const admin   = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const storage = admin.storage.from('identity-images')
+    const { error } = await storage.upload(storagePath, buf, { contentType: mime, upsert: true })
+    if (error) throw new Error(error.message)
+
+    const { data: { publicUrl } } = storage.getPublicUrl(storagePath)
+    console.log(`[generate-clips] uploaded base64 → ${publicUrl.slice(0, 80)}`)
+    return publicUrl
+  } catch (e) {
+    console.warn(`[generate-clips] base64 upload failed for ${sceneId}: ${e.message} — using data URI`)
+    return imageUrl // fall back: let Runway try; it may reject, but we log it
+  }
+}
+
+async function generateOneClip(scene, runwayKey, userId) {
+  const m         = MOTION[scene.label] || MOTION.Hook
+  const visual    = (scene.visual_scene || scene.dalle_prompt || '').slice(0, 250)
   const promptText = `${visual}. ${m.camera} ${m.mood} Cinematic vertical advertisement. Professional commercial quality. 9:16.`
 
-  console.log(`[generate-clips] starting ${scene.label} (${scene.id}): "${promptText.slice(0, 100)}"`)
+  // Ensure Runway gets an HTTPS URL (base64 data URIs are rejected by the API)
+  const imageUrl = await ensureHttpsUrl(scene.imageUrl, scene.id, userId)
 
-  // ── Start Runway image-to-video task ────────────────────────────────────────
-  const startRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
-    method:  'POST',
-    headers: {
-      Authorization:      `Bearer ${runwayKey}`,
-      'Content-Type':     'application/json',
-      'X-Runway-Version': '2024-11-06',
-    },
-    body: JSON.stringify({
-      model:       'gen4_turbo',
-      promptText,
-      promptImage: scene.imageUrl,
-      ratio:       '768:1280', // 9:16 vertical
-      duration:    5,
-    }),
-    signal: AbortSignal.timeout(30_000),
+  console.log(`[generate-clips] starting ${scene.label} (${scene.id}) — image: ${imageUrl.slice(0, 60)} — prompt: "${promptText.slice(0, 80)}"`)
+
+  const client = new RunwayML({ apiKey: runwayKey })
+
+  // gen3a_turbo: proven stable API format — 5s vertical clips, image-to-video
+  const task = await client.imageToVideo.create({
+    model:       'gen3a_turbo',
+    promptText,
+    promptImage: imageUrl,
+    ratio:       '768:1280',
+    duration:    5,
   })
 
-  const startData = await startRes.json()
-  if (!startRes.ok) throw new Error(startData.message || startData.error || `Runway ${startRes.status}`)
-  const taskId = startData.id
-  if (!taskId) throw new Error('No task ID returned from Runway')
-
+  const taskId = task.id
   console.log(`[generate-clips] task ${taskId} queued for ${scene.label}`)
 
-  // ── Poll until SUCCEEDED or FAILED (max 150s) ───────────────────────────────
+  // Poll until SUCCEEDED or FAILED (max 150s)
   const deadline = Date.now() + 150_000
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 5_000))
-
-    const pollRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
-      headers: {
-        Authorization:      `Bearer ${runwayKey}`,
-        'X-Runway-Version': '2024-11-06',
-      },
-      signal: AbortSignal.timeout(15_000),
-    })
-    const poll = await pollRes.json()
+    const poll = await client.tasks.retrieve(taskId)
 
     if (poll.status === 'SUCCEEDED') {
       const videoUrl = poll.output?.[0]
       if (!videoUrl) throw new Error(`Runway SUCCEEDED but no output URL for ${scene.id}`)
-      console.log(`[generate-clips] ✓ ${scene.label} complete`)
+      console.log(`[generate-clips] ✓ ${scene.label} complete → ${videoUrl.slice(0, 60)}`)
       return { id: scene.id, label: scene.label, videoUrl, taskId }
     }
     if (poll.status === 'FAILED' || poll.status === 'CANCELLED') {
-      throw new Error(`Runway ${poll.status}: ${poll.failure || poll.failureCode || 'unknown reason'}`)
+      throw new Error(`Runway ${poll.status}: ${poll.failure || poll.failureCode || 'unknown'}`)
     }
-    console.log(`[generate-clips] ${scene.label} — ${poll.status} (progress: ${poll.progress ?? '?'})`)
+    console.log(`[generate-clips] ${scene.label} — ${poll.status} (${poll.progress ?? '?'})`)
   }
 
   throw new Error(`Clip timed out after 150s for ${scene.label}`)
@@ -106,7 +101,7 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    // Try platform key first, then fall back to user's own Runway key in DB
+    // Platform key first, then user's own Runway key from DB
     let runwayKey = process.env.RUNWAYML_API_SECRET
     if (!runwayKey) {
       const admin = createAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -125,9 +120,7 @@ export async function POST(req) {
     if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
 
     console.log(`[generate-clips] launching ${ready.length} clips in parallel`)
-
-    // All clips generated in parallel — Runway handles concurrency on their end
-    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey)))
+    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey, user.id)))
 
     const clips  = []
     const failed = []

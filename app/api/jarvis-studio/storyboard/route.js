@@ -422,7 +422,7 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
 
     // ── Scene template ────────────────────────────────────────────────────────
     const screenshotUrlField = (hasProducts || hasScreenshots)
-      ? `"REQUIRED for product/solution/transformation scenes: copy the exact URL from PRODUCT IMAGES or WEBSITE SCREENSHOTS above. null only for pure founder-speech or emotion-only scenes."`
+      ? `"REQUIRED for Solution scenes only: copy the exact URL from PRODUCT IMAGES above. All other scenes (Hook/Problem/Transformation/CTA) must be null — they show humans, not the product."`
       : 'null'
 
     const sceneTemplate = `{
@@ -578,8 +578,8 @@ Return ONLY this JSON (one concept object):
           // Only auto-assign to runway (non-heygen) scenes without a screenshotUrl already set
           if (scene.generator !== 'heygen' && !scene.screenshotUrl) {
             const label = (scene.label || '').toLowerCase()
-            // Solution and Transformation scenes should always show the real product
-            if (label === 'solution' || label === 'transformation') {
+            // Only Solution scenes show the real product — Transformation is a human emotion scene
+            if (label === 'solution') {
               scene.screenshotUrl = allRealUrls[urlIdx % allRealUrls.length]
               urlIdx++
               console.log(`[storyboard] auto-assigned real image to ${scene.id} (${scene.label})`)

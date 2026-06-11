@@ -38,9 +38,9 @@ export async function POST(req) {
 
     const admin = makeAdmin()
 
-    // Upload to edit-studio-exports bucket (guaranteed to exist)
+    // Upload to identity-images (public bucket — permanent URLs, accessible by Runway + browser)
     const { error } = await admin.storage
-      .from('edit-studio-exports')
+      .from('identity-images')
       .upload(path, buffer, {
         contentType: file.type || 'image/jpeg',
         upsert: true,
@@ -48,13 +48,9 @@ export async function POST(req) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const { data: signedData, error: signError } = await admin.storage
-      .from('edit-studio-exports')
-      .createSignedUrl(path, 86400) // 24 hours
+    const { data: urlData } = admin.storage.from('identity-images').getPublicUrl(path)
 
-    if (signError) return NextResponse.json({ error: signError.message }, { status: 500 })
-
-    return NextResponse.json({ status: 'success', publicUrl: signedData.signedUrl, storagePath: path, bucket: 'edit-studio-exports' })
+    return NextResponse.json({ status: 'success', publicUrl: urlData.publicUrl, storagePath: path, bucket: 'identity-images' })
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
