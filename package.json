@@ -27,5 +27,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "prisma": "^7.3.0"
+  },
+  "optionalDependencies": {
+    "@ffmpeg-builds/ffmpeg-linux-x64": "~6.0.0"
   }
 }
