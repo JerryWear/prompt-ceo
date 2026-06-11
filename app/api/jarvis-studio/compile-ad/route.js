@@ -39,7 +39,7 @@ async function downloadToFile(url, destPath) {
 }
 
 // POST /api/jarvis-studio/compile-ad
-// Body: { scenes: [{ id, imageUrl, label }], conceptTitle, musicUrl? }
+// Body: { scenes: [{ id, label, videoUrl? | imageUrl? }], conceptTitle, musicUrl? }
 // Returns: { status, videoUrl, durationS }
 export async function POST(req) {
   const supabase = await makeSupabase()
@@ -48,26 +48,30 @@ export async function POST(req) {
 
   const { scenes = [], conceptTitle = 'Ad', musicUrl } = await req.json()
 
-  // Only use scenes that have images
-  const imageScenes = scenes.filter(s => s.imageUrl)
-  if (imageScenes.length < 2) {
-    return NextResponse.json({ error: 'At least 2 scenes with images required to compile an ad' }, { status: 400 })
+  // Prefer videoUrl (Runway clips), fall back to imageUrl (stills)
+  const useVideo  = scenes.some(s => s.videoUrl)
+  const activeScenes = scenes.filter(s => s.videoUrl || s.imageUrl)
+  if (activeScenes.length < 2) {
+    return NextResponse.json({ error: 'At least 2 scenes required' }, { status: 400 })
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-compile-'))
-  console.log(`[compile-ad] starting "${conceptTitle}" — ${imageScenes.length} scenes — tmp: ${tmpDir}`)
+  console.log(`[compile-ad] "${conceptTitle}" — ${activeScenes.length} scenes — mode: ${useVideo ? 'VIDEO CLIPS' : 'IMAGES'} — tmp: ${tmpDir}`)
 
   try {
-    // ── 1. Download all scene images ─────────────────────────────────────────
-    const imgPaths = []
-    for (let i = 0; i < imageScenes.length; i++) {
-      const p = path.join(tmpDir, `scene${i}.jpg`)
-      await downloadToFile(imageScenes[i].imageUrl, p)
-      imgPaths.push(p)
-      console.log(`[compile-ad] downloaded scene ${i + 1}/${imageScenes.length}`)
+    // ── 1. Download scene files ───────────────────────────────────────────────
+    const filePaths = []
+    for (let i = 0; i < activeScenes.length; i++) {
+      const scene = activeScenes[i]
+      const ext   = useVideo && scene.videoUrl ? 'mp4' : 'jpg'
+      const url   = scene.videoUrl || scene.imageUrl
+      const p     = path.join(tmpDir, `scene${i}.${ext}`)
+      await downloadToFile(url, p)
+      filePaths.push(p)
+      console.log(`[compile-ad] downloaded scene ${i + 1}/${activeScenes.length} (${ext})`)
     }
 
-    // ── 2. Optional music download ────────────────────────────────────────────
+    // ── 2. Optional music ────────────────────────────────────────────────────
     let musicFilePath = null
     if (musicUrl) {
       try {
@@ -81,21 +85,23 @@ export async function POST(req) {
     }
 
     // ── 3. Build FFmpeg command ───────────────────────────────────────────────
-    const n       = imgPaths.length
-    const segDur  = 6.5   // seconds each image is shown
-    const fadeDur = 0.5   // cross-fade duration between scenes
+    const n        = filePaths.length
+    const segDur   = useVideo ? 5.0 : 6.5   // Runway clips are 5s; images shown 6.5s
+    const fadeDur  = 0.4
     const totalDur = segDur * n - fadeDur * (n - 1)
 
     const outPath = path.join(tmpDir, 'ad.mp4')
     const args    = []
 
-    // Inputs: one loop per image
-    for (const p of imgPaths) {
-      args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', p)
+    if (useVideo) {
+      // Video clip inputs — just reference the file
+      for (const p of filePaths) args.push('-i', p)
+    } else {
+      // Static image inputs — loop each for segDur
+      for (const p of filePaths) args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', p)
     }
     if (musicFilePath) args.push('-i', musicFilePath)
 
-    // Scale each input to 1080×1920, letterbox, pad black, normalize
     const scaleChain = [
       'scale=1080:1920:force_original_aspect_ratio=decrease',
       'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
@@ -109,8 +115,6 @@ export async function POST(req) {
       filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
     }
 
-    // Chain xfade transitions
-    // offset: scene i starts at (segDur - fadeDur) * i
     let prevLabel = 'v0'
     for (let i = 1; i < n; i++) {
       const offset   = parseFloat(((segDur - fadeDur) * i).toFixed(3))
@@ -122,8 +126,9 @@ export async function POST(req) {
     args.push('-filter_complex', filterParts.join(';'))
     args.push('-map', '[vout]')
 
+    const musicInputIdx = n  // index of the music input stream
     if (musicFilePath) {
-      args.push('-map', `${n}:a`)
+      args.push('-map', `${musicInputIdx}:a`)
       args.push('-c:a', 'aac', '-b:a', '128k')
       args.push('-af', `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(1)}:d=2`)
       args.push('-shortest')

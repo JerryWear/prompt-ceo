@@ -146,6 +146,8 @@ export default function JarvisStudio() {
   const [lightbox,        setLightbox]        = useState(null) // { imageUrl, scene }
   const [selectedConcept, setSelectedConcept] = useState(null)
   const [adVideoUrl,      setAdVideoUrl]      = useState(null)
+  const [creatingStep,    setCreatingStep]    = useState('') // 'clips' | 'compiling'
+  const [clipsProgress,   setClipsProgress]   = useState({ done: 0, total: 0 })
   const [uploadedFrameUrls, setUploadedFrameUrls] = useState([])
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -520,35 +522,64 @@ export default function JarvisStudio() {
     setAdVideoUrl(null)
     setError('')
 
-    // Collect scene images: use generated previews for all scenes
-    const scenes = concept.scenes.map(s => ({
-      id:       s.id,
-      label:    s.label,
-      imageUrl: previews[s.id] || (uploadedAssets?.founderImageUrl && s.source_used?.includes('founder_image') ? uploadedAssets.founderImageUrl : null),
-    })).filter(s => s.imageUrl)
+    const scenesWithImages = concept.scenes
+      .map(s => ({
+        id:            s.id,
+        label:         s.label,
+        imageUrl:      previews[s.id] || null,
+        visual_scene:  s.visual_scene  || '',
+        dalle_prompt:  s.dalle_prompt  || '',
+      }))
+      .filter(s => s.imageUrl)
 
-    if (scenes.length < 2) {
-      setError('Generate preview images first — at least 2 scenes need images to compile the ad.')
+    if (scenesWithImages.length < 2) {
+      setError('Generate preview images first — at least 2 scenes need images.')
       setPhase('storyboard')
       return
     }
 
     try {
-      const res  = await fetch('/api/jarvis-studio/compile-ad', {
-        method: 'POST',
+      // ── Step 1: Generate video clips via Runway ────────────────────────────
+      setCreatingStep('clips')
+      setClipsProgress({ done: 0, total: scenesWithImages.length })
+
+      const clipsRes  = await fetch('/api/jarvis-studio/generate-clips', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenes,
+        body:    JSON.stringify({ scenes: scenesWithImages }),
+      })
+      const clipsData = await clipsRes.json()
+      if (!clipsRes.ok || !clipsData.clips?.length) {
+        throw new Error(clipsData.error || 'Clip generation failed — check Runway API key')
+      }
+
+      setClipsProgress({ done: clipsData.clips.length, total: scenesWithImages.length })
+      if (clipsData.failed?.length) {
+        console.warn('[create-ad] some clips failed:', clipsData.failed)
+      }
+
+      // ── Step 2: Compile clips into final ad ────────────────────────────────
+      setCreatingStep('compiling')
+
+      const compileRes  = await fetch('/api/jarvis-studio/compile-ad', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          scenes:       clipsData.clips,  // [{ id, label, videoUrl }]
           conceptTitle: concept.title,
-          musicUrl: uploadedAssets?.musicUrl || null,
+          musicUrl:     uploadedAssets?.musicUrl || null,
         }),
       })
-      const data = await res.json()
-      if (!res.ok || !data.videoUrl) throw new Error(data.error || `Compile failed (${res.status})`)
-      setAdVideoUrl(data.videoUrl)
+      const compileData = await compileRes.json()
+      if (!compileRes.ok || !compileData.videoUrl) {
+        throw new Error(compileData.error || 'Ad compilation failed')
+      }
+
+      setAdVideoUrl(compileData.videoUrl)
       setPhase('complete')
+
     } catch (err) {
-      setError(err.message || 'Ad compilation failed')
+      setError(err.message || 'Ad creation failed')
       setPhase('storyboard')
     }
   }, [previews, uploadedAssets])
@@ -1584,11 +1615,33 @@ export default function JarvisStudio() {
       {phase === 'creating' && selectedConcept && (
         <div style={{ maxWidth:480, margin:'0 auto', padding:'80px 20px', animation:'fadeUp .35s ease both', textAlign:'center' }}>
           <div style={{ width:52, height:52, borderRadius:'50%', border:`2px solid ${C.gold}55`, borderTopColor:C.gold, animation:'spin 1s linear infinite', margin:'0 auto 28px' }} />
-          <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Compiling</div>
-          <div style={{ fontSize:20, fontWeight:800, marginBottom:6 }}>{selectedConcept.title}</div>
-          <div style={{ fontSize:12, color:C.ghost, lineHeight:1.7 }}>
-            Assembling your scenes into a single cinematic ad. Usually takes 30–60 seconds.
-          </div>
+
+          {creatingStep === 'clips' && (
+            <>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Step 1 of 2 — Generating Clips</div>
+              <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>{selectedConcept.title}</div>
+              <div style={{ fontSize:12, color:C.ghost, lineHeight:1.8, marginBottom:18 }}>
+                Runway is turning your 5 scene images into real video clips.<br/>Each clip gets cinematic motion. Takes 60–90 seconds.
+              </div>
+              {clipsProgress.total > 0 && (
+                <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
+                  {Array.from({ length: clipsProgress.total }).map((_, i) => (
+                    <div key={i} style={{ width:8, height:8, borderRadius:'50%', background: i < clipsProgress.done ? C.green : `${C.gold}33`, transition:'background .3s' }} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {creatingStep === 'compiling' && (
+            <>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Step 2 of 2 — Compiling Commercial</div>
+              <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>{selectedConcept.title}</div>
+              <div style={{ fontSize:12, color:C.ghost, lineHeight:1.8 }}>
+                All {clipsProgress.total} clips ready. Stitching into a single commercial with transitions and music. Under 60 seconds.
+              </div>
+            </>
+          )}
         </div>
       )}
 
