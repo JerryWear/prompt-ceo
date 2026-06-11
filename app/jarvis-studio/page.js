@@ -145,11 +145,7 @@ export default function JarvisStudio() {
   const [previewErrors,   setPreviewErrors]   = useState({})
   const [lightbox,        setLightbox]        = useState(null) // { imageUrl, scene }
   const [selectedConcept, setSelectedConcept] = useState(null)
-  const [productionJobs,  setProductionJobs]  = useState(null)
-  const [finalAd,         setFinalAd]         = useState(null)
-  const [assembling,      setAssembling]      = useState(false)
-  const [assembledUrl,    setAssembledUrl]    = useState(null)
-  const [assembleError,   setAssembleError]   = useState(null)
+  const [adVideoUrl,      setAdVideoUrl]      = useState(null)
   const [uploadedFrameUrls, setUploadedFrameUrls] = useState([])
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -232,8 +228,7 @@ export default function JarvisStudio() {
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
     setAssessment(null); setCreativeBrief(null); setBrandScreenshots([])
     setStoryboard(null); setPreviewsStarted(false); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
-    setSelectedConcept(null); setProductionJobs(null); setFinalAd(null)
-    setAssembling(false); setAssembledUrl(null); setAssembleError(null)
+    setSelectedConcept(null); setAdVideoUrl(null)
     setUploadedFrameUrls([])
     // Also clear founder/product/video inputs
     setFounderFile(null); setFounderBlobUrl(null)
@@ -512,118 +507,52 @@ export default function JarvisStudio() {
       }
     }
 
-    const totalRunway = board.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'runway').length, 0)
-    const totalHeygen = board.concepts.reduce((s, c) => s + c.scenes.filter(sc => sc.generator === 'heygen').length, 0)
-    if (totalLoaded < totalRunway) {
+    const totalScenes = board.concepts.reduce((s, c) => s + c.scenes.length, 0)
+    if (totalLoaded < totalScenes) {
       const errSuffix = firstError ? ` — ${firstError.slice(0, 200)}` : ''
-      setPreviewError(`${totalLoaded}/${totalRunway} video scenes previewed${totalHeygen ? `, ${totalHeygen} avatar scenes use your founder photo` : ''}${errSuffix}`)
+      setPreviewError(`${totalLoaded}/${totalScenes} scenes previewed${errSuffix}`)
     }
     setPreviewsDone(true)
   }, [storyboard, creativeBrief, understanding])
 
-  const handleProduce = useCallback(async (concept) => {
+  const handleCreateAd = useCallback(async (concept) => {
     setSelectedConcept(concept)
-    setPhase('producing')
-    setProductionJobs(null)
-    setFinalAd(null)
+    setPhase('creating')
+    setAdVideoUrl(null)
     setError('')
 
-    const scenePreviews = {}
-    concept.scenes.forEach(s => { if (previews[s.id]) scenePreviews[s.id] = previews[s.id] })
+    // Collect scene images: use generated previews for all scenes
+    const scenes = concept.scenes.map(s => ({
+      id:       s.id,
+      label:    s.label,
+      imageUrl: previews[s.id] || (uploadedAssets?.founderImageUrl && s.source_used?.includes('founder_image') ? uploadedAssets.founderImageUrl : null),
+    })).filter(s => s.imageUrl)
+
+    if (scenes.length < 2) {
+      setError('Generate preview images first — at least 2 scenes need images to compile the ad.')
+      setPhase('storyboard')
+      return
+    }
 
     try {
-      const res  = await fetch('/api/jarvis-studio/produce', {
+      const res  = await fetch('/api/jarvis-studio/compile-ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          concept, assets: uploadedAssets, scenePreviews,
-          musicTrackId: uploadedAssets?.musicTrackId || null,
-          musicUrl:     uploadedAssets?.musicUrl     || null,
+          scenes,
+          conceptTitle: concept.title,
+          musicUrl: uploadedAssets?.musicUrl || null,
         }),
       })
-      if (!res.ok) throw new Error(`Production request failed (${res.status}) — try again`)
       const data = await res.json()
-      if (!data.jobs) throw new Error(data.error || 'Production failed to start')
-      setProductionJobs(data.jobs)
-
-      let currentJobs  = data.jobs
-      let pollFailures = 0
-      if (pollRef.current) clearInterval(pollRef.current)
-      pollRef.current = setInterval(async () => {
-        try {
-          const pRes  = await fetch('/api/jarvis-studio/produce-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jobs: currentJobs }),
-          })
-          if (!pRes.ok) {
-            pollFailures++
-            if (pollFailures >= 5) {
-              clearInterval(pollRef.current)
-              setError('Lost connection during production — production may still be running. Refresh to check.')
-              setPhase('storyboard')
-            }
-            return
-          }
-          pollFailures = 0
-          const pData = await pRes.json()
-          if (pData.jobs) { currentJobs = pData.jobs; setProductionJobs(pData.jobs) }
-          if (pData.overallStatus === 'complete' || pData.overallStatus === 'partial') {
-            clearInterval(pollRef.current); setFinalAd(pData.finalAd); setPhase('complete')
-          } else if (pData.overallStatus === 'failed') {
-            clearInterval(pollRef.current); setPhase('failed')
-          }
-        } catch {
-          pollFailures++
-          if (pollFailures >= 5) {
-            clearInterval(pollRef.current)
-            setError('Network error during production — check your connection and try again.')
-            setPhase('storyboard')
-          }
-        }
-      }, 8000)
-
+      if (!res.ok || !data.videoUrl) throw new Error(data.error || `Compile failed (${res.status})`)
+      setAdVideoUrl(data.videoUrl)
+      setPhase('complete')
     } catch (err) {
-      setError(err.message || 'Production failed')
+      setError(err.message || 'Ad compilation failed')
       setPhase('storyboard')
     }
   }, [previews, uploadedAssets])
-
-  const handleAssemble = useCallback(async () => {
-    if (!finalAd?.clips?.length) return
-    setAssembling(true)
-    setAssembleError(null)
-    setAssembledUrl(null)
-    try {
-      const res = await fetch('/api/jarvis-studio/assemble', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clips:        finalAd.clips,
-          musicUrl:     productionJobs?.musicUrl || null,
-          conceptId:    selectedConcept?.id,
-          conceptTitle: selectedConcept?.title,
-        }),
-      })
-      const data = await res.json()
-      if (data.status === 'complete' && data.assembledUrl) {
-        setAssembledUrl(data.assembledUrl)
-      } else if (data.status === 'no_ffmpeg') {
-        setAssembleError('Auto-assembly not available in this environment. Download individual clips above.')
-      } else {
-        setAssembleError(data.error || 'Assembly failed')
-      }
-    } catch (err) {
-      setAssembleError(err.message)
-    } finally {
-      setAssembling(false)
-    }
-  }, [finalAd, productionJobs, selectedConcept])
-
-  const handleCancelProduction = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current)
-    setPhase('storyboard')
-  }, [])
 
   // ── Render ────────────────────────────────────────────────────────────────
   const previewCount = Object.keys(previews).length
@@ -891,7 +820,7 @@ export default function JarvisStudio() {
             Understand & Create Ads →
           </button>
           <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:C.dim }}>
-            Understand → Brief → 5 Concepts → Produce → Download
+            Understand → Brief → 5 Concepts → Create Ad → Download
           </div>
         </div>
       )}
@@ -1628,9 +1557,11 @@ export default function JarvisStudio() {
                       </div>
                       <div style={{ fontSize:12, color:C.muted, fontStyle:'italic' }}>"{concept.logline}"</div>
                     </div>
-                    <button className="produce-btn" onClick={() => handleProduce(concept)}
-                      style={{ padding:'8px 16px', borderRadius:7, flexShrink:0, border:`1px solid ${C.border}`, background:C.raised, color:C.ghost, cursor:'pointer', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, transition:'all .15s', whiteSpace:'nowrap' }}>
-                      Produce →
+                    <button className="produce-btn"
+                      onClick={() => handleCreateAd(concept)}
+                      disabled={!concept.scenes?.some(s => previews[s.id])}
+                      style={{ padding:'8px 16px', borderRadius:7, flexShrink:0, border:`1px solid ${C.border}`, background:C.raised, color:C.ghost, cursor: concept.scenes?.some(s => previews[s.id]) ? 'pointer' : 'not-allowed', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, transition:'all .15s', whiteSpace:'nowrap', opacity: concept.scenes?.some(s => previews[s.id]) ? 1 : 0.4 }}>
+                      Create Ad →
                     </button>
                   </div>
                   <div style={{ display:'flex', gap:9, padding:'11px 18px 14px', overflowX:'auto' }}>
@@ -1650,126 +1581,38 @@ export default function JarvisStudio() {
         </div>
       )}
 
-      {/* ── PRODUCING ─────────────────────────────────────────────────────────── */}
-      {phase === 'producing' && selectedConcept && (
-        <div style={{ maxWidth:580, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .35s ease both' }}>
-          <div style={{ marginBottom:22, display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
-            <div>
-              <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>✦ Producing</div>
-              <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>{selectedConcept.title}</div>
-              <div style={{ fontSize:12, color:C.ghost }}>{selectedConcept.logline}</div>
-            </div>
-            <button onClick={handleCancelProduction}
-              style={{ padding:'7px 14px', borderRadius:7, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:11, flexShrink:0, marginTop:22 }}>
-              Cancel
-            </button>
-          </div>
-
-          {productionJobs?.heygenKey === 'missing' && (
-            <div style={{ padding:'11px 14px', borderRadius:8, background:'#120a00', border:`1px solid ${C.gold}33`, marginBottom:14, fontSize:12, color:C.gold }}>
-              ⚠ HeyGen not connected — founder clips will be skipped.{' '}
-              <a href="/account" style={{ color:C.gold, textDecoration:'underline' }}>Connect in Settings</a>
-            </div>
-          )}
-          {productionJobs?.runwayKey === 'missing' && (
-            <div style={{ padding:'11px 14px', borderRadius:8, background:'#050a0a', border:`1px solid ${C.teal}33`, marginBottom:14, fontSize:12, color:C.teal }}>
-              ⚠ Runway not connected — visual clips will be skipped.{' '}
-              <a href="/account" style={{ color:C.teal, textDecoration:'underline' }}>Connect in Settings</a>
-            </div>
-          )}
-          {productionJobs?.avatarError && (
-            <div style={{ padding:'11px 14px', borderRadius:8, background:C.redBg, border:`1px solid ${C.red}33`, marginBottom:14, fontSize:12, color:'#e08080' }}>
-              ⚠ {productionJobs.avatarError}
-            </div>
-          )}
-
-          <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom:22 }}>
-            {selectedConcept.scenes.map(scene => {
-              const job    = productionJobs?.sceneJobs?.find(j => j.sceneId === scene.id)
-              const status = job?.status || 'queued'
-              const isActive = ['generating', 'awaiting_avatar', 'starting', 'avatar_ready_needs_start'].includes(status)
-              const dotColor = status === 'complete' ? C.green : status === 'error' ? C.red : isActive ? C.gold : C.dim
-              const statusLabel = {
-                queued:                   'Queued',
-                generating:               'Generating...',
-                awaiting_avatar:          `Waiting for avatar${productionJobs?.pollCount > 5 ? ` (${productionJobs.pollCount} polls)` : '...'}`,
-                complete:                 'Done ✓',
-                error:                    job?.error ? `Error: ${job.error.slice(0, 60)}` : 'Error',
-                skipped:                  'Skipped',
-                skipped_no_key:           'No API key',
-                avatar_ready_needs_start: 'Starting...',
-                starting:                 'Starting...',
-              }[status] || status
-              return (
-                <div key={scene.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, background:C.surface, border:`1px solid ${status === 'error' ? `${C.red}33` : C.border}` }}>
-                  <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background:dotColor, animation: isActive ? 'pulse .9s infinite' : 'none' }} />
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:C.secondary }}>{scene.label}</div>
-                    <div style={{ fontSize:10, color:C.ghost, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {scene.script || (scene.visual_direction?.slice(0, 70) + '...') || ''}
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                    <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, fontWeight:700, background:scene.generator === 'heygen' ? C.goldBg : C.tealBg, color:scene.generator === 'heygen' ? C.gold : C.teal }}>
-                      {scene.generator === 'heygen' ? 'HeyGen' : 'Runway'}
-                    </span>
-                    <span style={{ fontSize:10, color: status === 'complete' ? C.green : status === 'error' ? C.red : C.ghost, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {productionJobs?.pollCount > 0 && (
-            <div style={{ fontSize:11, color:C.dim, textAlign:'center', marginBottom:14 }}>
-              {productionJobs.pollCount < 45
-                ? `Checking status... poll ${productionJobs.pollCount} of 45 max`
-                : 'Timeout reached — resolving stuck scenes'}
-            </div>
-          )}
-
-          <div style={{ fontSize:12, color:C.dim, textAlign:'center', lineHeight:1.7 }}>
-            HeyGen avatar creation takes 5–15 minutes. System will wait up to 12 minutes. If it still hangs, cancel and try a Runway-only concept.
+      {/* ── CREATING ──────────────────────────────────────────────────────────── */}
+      {phase === 'creating' && selectedConcept && (
+        <div style={{ maxWidth:480, margin:'0 auto', padding:'80px 20px', animation:'fadeUp .35s ease both', textAlign:'center' }}>
+          <div style={{ width:52, height:52, borderRadius:'50%', border:`2px solid ${C.gold}55`, borderTopColor:C.gold, animation:'spin 1s linear infinite', margin:'0 auto 28px' }} />
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.gold}77`, textTransform:'uppercase', marginBottom:10 }}>Compiling</div>
+          <div style={{ fontSize:20, fontWeight:800, marginBottom:6 }}>{selectedConcept.title}</div>
+          <div style={{ fontSize:12, color:C.ghost, lineHeight:1.7 }}>
+            Assembling your scenes into a single cinematic ad. Usually takes 30–60 seconds.
           </div>
         </div>
       )}
 
-      {/* ── FAILED ────────────────────────────────────────────────────────────── */}
-      {phase === 'failed' && selectedConcept && (
-        <div style={{ maxWidth:560, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .35s ease both' }}>
+      {/* ── COMPLETE ──────────────────────────────────────────────────────────── */}
+      {phase === 'complete' && adVideoUrl && (
+        <div style={{ maxWidth:540, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .4s ease both' }}>
           <div style={{ textAlign:'center', marginBottom:24 }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:C.redBg, border:`1px solid ${C.red}44`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>✕</div>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:`${C.red}88`, textTransform:'uppercase', marginBottom:8 }}>Production Failed</div>
-            <div style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>{selectedConcept.title}</div>
-            <div style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>All scenes either errored or were skipped. No clips were produced.</div>
+            <div style={{ width:44, height:44, borderRadius:'50%', background:C.greenBg, border:`1px solid ${C.green}44`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>✓</div>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color:C.green, textTransform:'uppercase', marginBottom:8 }}>Ad Ready</div>
+            <div style={{ fontSize:22, fontWeight:800 }}>{selectedConcept?.title}</div>
           </div>
 
-          {/* Show what failed and why */}
-          {productionJobs?.sceneJobs?.length > 0 && (
-            <div style={{ borderRadius:10, border:`1px solid ${C.border}`, background:C.surface, padding:'14px 16px', marginBottom:18 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Scene Diagnostics</div>
-              {productionJobs.sceneJobs.map((job, i) => (
-                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:8, paddingBottom:8, borderBottom: i < productionJobs.sceneJobs.length - 1 ? `1px solid ${C.divide}` : 'none' }}>
-                  <span style={{ fontSize:10, color: job.status === 'error' ? C.red : C.dim, flexShrink:0 }}>{job.status === 'error' ? '✕' : '—'}</span>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12, color:C.secondary }}>{job.sceneId} · {job.generator}</div>
-                    <div style={{ fontSize:11, color:C.ghost }}>{job.error || job.status}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${C.border}`, background:'#000', marginBottom:14 }}>
+            <video src={adVideoUrl} controls playsInline autoPlay muted style={{ width:'100%', display:'block', maxHeight:520 }} />
+          </div>
 
-          {productionJobs?.avatarError && (
-            <div style={{ padding:'11px 14px', borderRadius:8, background:C.redBg, border:`1px solid ${C.red}33`, marginBottom:18, fontSize:12, color:'#e08080' }}>
-              Avatar error: {productionJobs.avatarError}
-            </div>
-          )}
+          <a href={adVideoUrl} download={`${(selectedConcept?.title || 'ad').replace(/[^a-z0-9]/gi,'_').toLowerCase()}.mp4`} target="_blank" rel="noopener noreferrer"
+            style={{ display:'block', textAlign:'center', padding:'13px 0', borderRadius:8, background:C.gold, color:'#000', textDecoration:'none', fontSize:13, fontWeight:800, marginBottom:14 }}>
+            ↓ Download Ad (.mp4)
+          </a>
 
           <div style={{ display:'flex', gap:10 }}>
-            <button onClick={() => setPhase('storyboard')}
+            <button onClick={() => { setPhase('storyboard'); setAdVideoUrl(null) }}
               style={{ flex:1, padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.secondary, cursor:'pointer', fontSize:12 }}>
               ← Try Another Concept
             </button>
@@ -1778,103 +1621,6 @@ export default function JarvisStudio() {
               New Project
             </button>
           </div>
-        </div>
-      )}
-
-      {/* ── COMPLETE ──────────────────────────────────────────────────────────── */}
-      {phase === 'complete' && (
-        <div style={{ maxWidth:640, margin:'0 auto', padding:'52px 20px', animation:'fadeUp .4s ease both' }}>
-          <div style={{ textAlign:'center', marginBottom:24 }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:finalAd?.partial ? '#0a0700' : C.greenBg, border:`1px solid ${finalAd?.partial ? `${C.gold}44` : `${C.green}44`}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:18 }}>
-              {finalAd?.partial ? '⚡' : '✓'}
-            </div>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:4, color: finalAd?.partial ? C.gold : C.green, textTransform:'uppercase', marginBottom:8 }}>
-              {finalAd?.partial ? 'Partial Complete' : 'Clips Ready'}
-            </div>
-            <div style={{ fontSize:22, fontWeight:800 }}>{selectedConcept?.title}</div>
-            {finalAd?.partial && (
-              <div style={{ fontSize:12, color:C.muted, marginTop:6 }}>
-                {finalAd.sceneCount} of {finalAd.totalScenes} scenes produced — download what's ready
-              </div>
-            )}
-          </div>
-
-          {/* Show each completed clip individually */}
-          {finalAd?.clips?.length > 0 && (
-            <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
-              {finalAd.clips.map((clip, i) => (
-                <div key={i} style={{ borderRadius:10, overflow:'hidden', border:`1px solid ${C.border}`, background:C.surface }}>
-                  <video src={clip.videoUrl} controls playsInline style={{ width:'100%', display:'block', background:'#000', maxHeight:420 }} />
-                  <div style={{ padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:11, color:C.ghost }}>Scene {i + 1}{clip.sceneId ? ` — ${clip.sceneId}` : ''}</span>
-                    <a href={clip.videoUrl} download target="_blank" rel="noopener noreferrer"
-                      style={{ padding:'6px 14px', borderRadius:6, background:C.gold, color:'#000', textDecoration:'none', fontSize:11, fontWeight:800 }}>
-                      Download
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── Assembly — stitch all clips into one video ── */}
-          {finalAd?.clips?.length > 1 && (
-            <div style={{ marginBottom:18, padding:'16px', borderRadius:10, border:`1px solid ${C.border}`, background:C.surface }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Final Ad</div>
-              {assembledUrl ? (
-                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                  <video src={assembledUrl} controls playsInline style={{ width:'100%', borderRadius:8, background:'#000' }} />
-                  <a href={assembledUrl} download={`${selectedConcept?.title || 'ad'}.mp4`} target="_blank" rel="noopener noreferrer"
-                    style={{ display:'block', textAlign:'center', padding:'10px 0', borderRadius:7, background:C.gold, color:'#000', textDecoration:'none', fontSize:12, fontWeight:800 }}>
-                    ↓ Download Full Ad (.mp4)
-                  </a>
-                </div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>
-                    Stitch all {finalAd.clips.length} clips into a single ad video{productionJobs?.musicUrl ? ' with music mixed in' : ''}.
-                  </div>
-                  {assembleError && <div style={{ fontSize:12, color:'#e08080', padding:'8px 12px', borderRadius:6, background:'rgba(200,60,60,0.08)', border:'1px solid rgba(200,60,60,0.2)' }}>{assembleError}</div>}
-                  <button onClick={handleAssemble} disabled={assembling}
-                    style={{ width:'100%', padding:'11px 0', borderRadius:7, background: assembling ? C.raised : C.gold, color: assembling ? C.muted : '#000', border:'none', cursor: assembling ? 'not-allowed' : 'pointer', fontSize:12, fontWeight:800, transition:'opacity .15s' }}>
-                    {assembling ? '⟳ Assembling clips…' : `Assemble ${finalAd.clips.length} Clips into One Ad →`}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ display:'flex', gap:10, marginBottom:18 }}>
-            <button onClick={() => setPhase('storyboard')} style={{ flex:1, padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.secondary, cursor:'pointer', fontSize:12 }}>
-              ← Other Concepts
-            </button>
-            <button onClick={resetAll} style={{ padding:'12px 18px', borderRadius:8, border:`1px solid ${C.border}`, background:'transparent', color:C.ghost, cursor:'pointer', fontSize:12 }}>
-              New Project
-            </button>
-          </div>
-
-          {selectedConcept?.scenes?.some(s => s.script) && (
-            <div style={{ padding:'13px 16px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface, marginBottom:12 }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:10 }}>Script</div>
-              {selectedConcept.scenes.filter(s => s.script).map((s, i) => (
-                <div key={i} style={{ marginBottom:10 }}>
-                  <div style={{ fontSize:9, color:C.dim, textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>{s.label}</div>
-                  <div style={{ fontSize:12, color:C.secondary, lineHeight:1.65 }}>"{s.script}"</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {finalAd && (
-            <div style={{ padding:'12px 14px', borderRadius:8, border:`1px solid ${C.border}`, background:C.surface }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:1.5, color:C.ghost, textTransform:'uppercase', marginBottom:8 }}>Production Summary</div>
-              <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
-                <div style={{ fontSize:12, color:C.muted }}>{finalAd.sceneCount} scene{finalAd.sceneCount !== 1 ? 's' : ''} completed</div>
-                {finalAd.partial && <div style={{ fontSize:12, color:C.gold }}>{finalAd.totalScenes - finalAd.sceneCount} scenes errored</div>}
-                {finalAd.musicUsed && <div style={{ fontSize:12, color:C.muted }}>Music: selected (not mixed)</div>}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

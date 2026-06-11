@@ -24,8 +24,8 @@ function computeCompliance(concept, inv) {
   const deductions = []
 
   if (inv.hasFounder) {
-    const used = sources.includes('founder_image') || scenes.some(s => s.generator === 'heygen')
-    if (!used) { score -= 25; deductions.push('founder image not used (-25)') }
+    const used = sources.includes('founder_image')
+    if (!used) { score -= 15; deductions.push('founder image not referenced (-15)') }
   }
   if (inv.hasProducts) {
     const used = sources.some(s => s === 'product_image' || s === 'uploaded_image') ||
@@ -98,6 +98,8 @@ export async function POST(req) {
 
     // Asset inventory — passed to compliance scorer and system prompt
     const assetInventory = { hasFounder, hasProducts, hasVideo, hasScreenshots }
+    // HeyGen/Runway are removed from the pipeline. All scenes generate still images.
+    // The compile-ad route assembles them into a single video with FFmpeg.
 
     const productName = (summary?.product || 'this brand').split(/[—.\n]/)[0].trim().slice(0, 60)
     const keyFeatures = (keyMessages || []).slice(0, 6).join(' | ')
@@ -131,8 +133,8 @@ MANDATORY FOR EVERY dalle_prompt:
     const assetLines = []
     if (hasFounder) {
       assetLines.push(`FOUNDER IMAGE ✓ AVAILABLE
-→ Use for heygen scenes where founder speaks directly to camera
-→ Set generator: "heygen", populate script field
+→ Use the founder's visual appearance to inform Hook and CTA scene directions
+→ In Hook/CTA scenes describe the founder's energy, style, and presence in the visual_scene field
 → source_used must include "founder_image"`)
     }
     if (hasProducts) {
@@ -148,13 +150,13 @@ These are real screenshots of the client's actual product. A real image is ALWAY
 → For every Solution scene: set screenshotUrl to product_image_0 (or rotate through available images)
 → For every Transformation scene: set screenshotUrl to one of these URLs
 → For Hook or Problem scenes that show the product: set screenshotUrl
-→ ONLY set screenshotUrl to null on founder (heygen) scenes or pure lifestyle/emotion scenes with no product
+→ ONLY set screenshotUrl to null on pure lifestyle/emotion scenes with no product
 → When screenshotUrl is set, the client sees their REAL product in the ad preview — not a fake
 → source_used must include "product_image"`)
     }
     if (hasVideo) {
       assetLines.push(`VIDEO FOOTAGE ✓ AVAILABLE (${assets.videoUrls.length} video${assets.videoUrls.length > 1 ? 's' : ''})
-→ Reference the footage style, content, and visual language in runway scenes
+→ Reference the footage style, content, and visual language in scene directions
 → Set assetAssignment.sourceType: "video_footage"
 → source_used must include "uploaded_video"`)
     }
@@ -253,14 +255,10 @@ CTA → ${hasFounder ? 'Founder: "This is the standard now. Are you using it?"' 
       },
     ]
 
-    // Overlay intent-based production guidance on top of the story angle
-    const intentGuide = intent === 'founder_ad' || intent === 'ugc'
-      ? 'PRODUCTION NOTE: Founder is available. Prioritize heygen for Hook and CTA scenes where direct human connection matters most. Runway for all visual narrative scenes.'
-      : intent === 'cinematic' || intent === 'product_demo'
-      ? 'PRODUCTION NOTE: Cinematic intent. All scenes runway-generated. High production value. No heygen unless founder image provided.'
-      : hasFounder
-      ? 'PRODUCTION NOTE: Founder image available. Use heygen for Hook and/or CTA — the human touch increases conversion. Runway for all other scenes.'
-      : 'PRODUCTION NOTE: No founder image. All scenes runway-generated. Rely on strong visuals and on-screen text.'
+    // Intent guide — all scenes generate still images. No Runway or HeyGen.
+    const intentGuide = hasFounder
+      ? 'PRODUCTION NOTE: Founder image available. Use the founder\'s visual appearance to inform Hook and CTA scene visual descriptions — describe their energy, style, and presence. All 5 scenes generate still images.'
+      : 'PRODUCTION NOTE: All 5 scenes generate still images. No talking heads. Focus on powerful cinematic visuals that tell the story.'
 
     // ── Shared system prompt ──────────────────────────────────────────────────
     const systemPrompt = `You are Jarvis — an elite creative director at a premium AI ad agency.
@@ -278,8 +276,7 @@ YOUR FIRST QUESTION for every scene must be:
 NOT: "What can I imagine for this scene?"
 
 If an asset exists and a scene ignores it → that is a failure.
-If product images exist and a runway scene describes generic visuals → that is a failure.
-If a founder image exists and no heygen scene appears in the concept → that is a failure (unless direction says no founder).
+If product images exist and a scene describes generic visuals → that is a failure.
 
 LEVEL 2 — USER PROMPT / STATED DIRECTION
 The user has specified: "${hook}"
@@ -393,7 +390,7 @@ GOOD — capability-driven (shows the software WORKS):
 ✓ capability: "Storyboard creation" → proof: "Concept selected → 25 scene frames with scripts and visuals appear"
 ✓ capability: "One-brief to full campaign" → proof: "Single idea typed → complete campaign ready in under 60 seconds"
 ✓ capability: "AI Creative Direction" → proof: "PromptCEO writes scripts, directs shots, generates visuals — zero agency needed"
-✓ capability: "Ad production" → proof: "Storyboard approved → Runway + HeyGen clips render and assemble into MP4"
+✓ capability: "Ad production" → proof: "5 scene images compiled into one 30-second cinematic video in under 60 seconds"
 
 Test for every scene: "After watching only this 5-second clip, does a viewer know ONE SPECIFIC THING ${productName} can do?"
 If NO → capability is invisible → rewrite the scene.
@@ -403,7 +400,7 @@ REQUIRED FIELDS on every scene:
 "proof_of_capability": "[input state] → [transformation] → [output state] — what the viewer watches happen"
 
 source_used values (use the correct ones):
-• "founder_image" — scene built around the uploaded founder photo (heygen scenes)
+• "founder_image" — scene visual direction informed by the uploaded founder photo
 • "product_image" — scene references uploaded product images
 • "uploaded_video" — scene references uploaded video footage
 • "website_screenshot" — scene uses brand reference from website screenshots
@@ -431,23 +428,18 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
   "id": "sN_M",
   "index": 0,
   "label": "Hook | Problem | Solution | Transformation | CTA",
-  "type": "founder | product | lifestyle | pain_point | cta | transformation",
-  "generator": "${hasFounder ? 'heygen | runway' : 'runway'}",
-  "duration": 5,
-  "script": "Exact words founder speaks (heygen only). null for runway.",
-  "visual_scene": "CINEMATIC DESCRIPTION of exactly what fills the frame. For Hook/Problem/Transformation: a human situation, object, environment, or emotion — NOT software. For Solution: the product capability in action. For CTA: logo or founder. This field drives the dalle_prompt.",
-  "emotion_target": "What the viewer feels watching this scene: stress | overwhelm | frustration | relief | excitement | confidence | aspiration | curiosity",
+  "type": "pain_point | problem | product | transformation | cta",
+  "duration": 6,
+  "visual_scene": "EXACT cinematic description of what fills the frame. Hook/Problem/Transformation/CTA: human situation, objects, environment, emotion — NOT software UI. Solution only: product capability in action.",
+  "emotion_target": "stress | overwhelm | frustration | relief | excitement | confidence | aspiration | curiosity",
   "contains_ui": false,
-  "visual_direction": "Director note for the cinematographer — built from visual_scene above.",
-  "dalle_prompt": "Photorealistic still image. Vertical 9:16. Shot on RED camera. 8K. NO people. NO faces. IMPORTANT: for Hook/Problem/Transformation/CTA — describe objects, environments, textures, lighting, mood. NEVER describe a software dashboard outside of Solution scene. For Solution: describe the product interface using brand-accurate colors and UI patterns.",
+  "dalle_prompt": "Photorealistic still image. Vertical 9:16. Shot on RED camera. 8K. NO people. NO faces. Hook/Problem/Transformation/CTA: objects, environments, textures, lighting, mood — NO dashboards. Solution: product interface with brand-accurate colors.",
   "shot": "extreme_close_up | close_up | medium_close_up | medium | wide | overhead",
-  "brand_anchors": ["specific visual anchor tying scene to ${productName}", "anchor 2"],
-  "brand_check": "How a viewer knows this is for ${productName} — not a competitor. For Hook/Problem: the emotional anchor. For Solution: the product UI.",
-  "capability_anchor": "The specific named ${productName} capability this scene demonstrates — not 'dashboard', the ACTUAL action",
-  "proof_of_capability": "[input state] → [transformation] → [output state] the viewer watches happen",
+  "brand_anchors": ["specific visual element anchoring this scene to ${productName}", "anchor 2"],
+  "capability_anchor": "Specific ${productName} capability this scene demonstrates (not 'dashboard' — the ACTUAL action)",
+  "proof_of_capability": "[input state] → [transformation] → [output state]",
   "screenshotUrl": ${screenshotUrlField},
-  "source_used": ["founder_image | product_image | uploaded_video | website_screenshot | user_prompt | brand_knowledge | jarvis_generated"],
-  "assetAssignment": { "sourceType": "heygen | runway | product_image | video_footage | generated", "sourceIndex": null, "note": "Which user asset this scene builds on and why" }
+  "source_used": ["founder_image | product_image | uploaded_video | website_screenshot | user_prompt | brand_knowledge | jarvis_generated"]
 }`
 
     // ── Generate one concept per call ─────────────────────────────────────────
@@ -464,7 +456,7 @@ NARRATIVE ARC: ${angle.narrative}
 ${angle.direction}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${intentGuide}
-${!hasFounder ? '\nNO HEYGEN — no founder image uploaded. All scenes must use generator: "runway".' : ''}
+${hasFounder ? '' : '\nNO FOUNDER IMAGE — rely on cinematic visuals, not personal presence.'}
 
 MANDATORY VISUAL AESTHETIC FOR THIS CONCEPT — ${visualStyle.split(':')[0]}:
 ${visualStyle}
@@ -496,7 +488,7 @@ Return ONLY this JSON (one concept object):
       const visionContent = [{ type: 'text', text: userContent }]
 
       if (assets?.founderImageUrl) {
-        visionContent.push({ type: 'text', text: 'FOUNDER IMAGE (you can see this person — use their appearance for HeyGen scene direction):' })
+        visionContent.push({ type: 'text', text: 'FOUNDER IMAGE (you can see this person — use their visual appearance to inform Hook and CTA scene descriptions):' })
         visionContent.push({ type: 'image_url', image_url: { url: assets.founderImageUrl, detail: 'high' } })
       }
       if (assets?.productImageUrls?.length) {
@@ -616,17 +608,17 @@ Return ONLY this JSON (one concept object):
       return NextResponse.json({ error: 'All 5 concept generations failed — check OpenAI logs' }, { status: 500 })
     }
 
-    // Enforce: strip any heygen scenes if no founder image was uploaded
-    if (!hasFounder) {
-      concepts.forEach(concept => {
-        concept.scenes?.forEach(scene => {
-          if (scene.generator === 'heygen') {
-            scene.generator = 'runway'
-            scene.script    = null
-          }
-        })
+    // Remove generator/script fields — all scenes are image-based in the new pipeline
+    concepts.forEach(concept => {
+      concept.scenes?.forEach(scene => {
+        delete scene.generator
+        delete scene.script
+        // Quality gate: flag concepts with too many UI scenes
+        const uiScenes = concept.scenes.filter(s => s.contains_ui || (s.label || '').toLowerCase() === 'solution')
+        concept.ui_scene_count    = uiScenes.length
+        concept.passes_quality_gate = uiScenes.length <= 1
       })
-    }
+    })
 
     // Compute compliance score for each concept
     concepts.forEach(concept => {
