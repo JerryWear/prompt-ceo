@@ -15,11 +15,7 @@ async function makeSupabase() {
 }
 
 // ─── Brand Anchor Validation ─────────────────────────────────────────────────
-// Checks if a scene's dalle_prompt is locked to the specific brand.
-// If not, prepends brand anchors before sending to xAI — no extra AI call needed.
-
 function extractShortName(productStr) {
-  // "PromptCEO — AI Creative OS" → "PromptCEO"
   return (productStr || '').split(/[—.\n]/)[0].trim().slice(0, 40)
 }
 
@@ -29,14 +25,12 @@ function validateAndAnchorPrompt(scene, brandContext) {
   const raw        = scene.dalle_prompt  || scene.visual_direction || ''
 
   if (!brandContext?.productName) {
-    // No brand context — can't validate, proceed as-is
     return { prompt: raw, anchored: false, reason: 'no brand context' }
   }
 
   const shortName = extractShortName(brandContext.productName)
   const text      = raw.toLowerCase()
 
-  // Check brand presence
   const mentionsProduct  = shortName && text.includes(shortName.toLowerCase())
   const hasAnchors       = anchors.length > 0
   const checkIsSpecific  = brandCheck.length > 30 &&
@@ -51,7 +45,6 @@ function validateAndAnchorPrompt(scene, brandContext) {
     return { prompt: raw, anchored: false, reason: 'already brand-specific' }
   }
 
-  // Strengthen: prepend brand anchors to the prompt
   const anchorText = anchors.length > 0
     ? anchors.join(', ')
     : brandContext.keyMessages?.slice(0, 2).join(' | ') || shortName
@@ -61,8 +54,8 @@ function validateAndAnchorPrompt(scene, brandContext) {
     : brandContext.style
       ? ` — ${brandContext.style.slice(0, 60)}`
       : ''
-  const prefix    = `${shortName}${styleHint}: ${anchorText}. `
-  const anchored  = `${prefix}${raw}`
+  const prefix  = `${shortName}${styleHint}: ${anchorText}. `
+  const anchored = `${prefix}${raw}`
 
   console.log(`[preview] ⚠️  ${scene.id} brand weak — anchoring`)
   console.log(`[preview]    brand_check: "${brandCheck.slice(0, 80) || '(none)'}"`)
@@ -75,15 +68,14 @@ function validateAndAnchorPrompt(scene, brandContext) {
 function buildFinalPrompt(scene, brandContext) {
   const { prompt } = validateAndAnchorPrompt(scene, brandContext)
 
-  // Strip people/face words — xAI content policy
   const safe = prompt
     .replace(/\b(person|people|man|woman|human|face|portrait|smil\w*|testimonial|candid|interview|talking head|looking at camera)\b/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  const final = `${safe || `Cinematic vertical advertisement frame, ${scene.label || 'scene'}`}. No people, no faces, vertical 9:16 format.`
+  const final = `${safe || `Cinematic vertical advertisement frame, ${scene.label || 'scene'}`}. No people, no faces, vertical format.`
 
-  console.log(`[preview] ✦  ${scene.id} → xAI prompt: "${final.slice(0, 140)}"`)
+  console.log(`[preview] ✦  ${scene.id} prompt: "${final.slice(0, 140)}"`)
   return final
 }
 
@@ -99,56 +91,86 @@ function buildScenePlaceholder(scene) {
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64')
 }
 
-async function generatePreviewImage(scene, brandContext, userId, storageClient) {
-  const prompt = buildFinalPrompt(scene, brandContext)
-
-  // ── Try xAI — download server-side, store in Supabase, return permanent URL ─
-  // xAI CDN URLs require server-side access; we store in Supabase so the browser
-  // gets a stable public URL rather than megabytes of base64 in the JSON response.
-  const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
-  if (xaiKey) {
-    try {
-      const xaiRes  = await fetch('https://api.x.ai/v1/images/generations', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
-        body:    JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
-        signal:  AbortSignal.timeout(25000),
-      })
-      const xaiData = await xaiRes.json()
-      if (xaiRes.ok) {
-        const xaiUrl = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
-        if (xaiUrl) {
-          const imgRes = await fetch(xaiUrl, { signal: AbortSignal.timeout(15000) })
-          if (imgRes.ok) {
-            const buf  = await imgRes.arrayBuffer()
-            const mime = imgRes.headers.get('content-type') || 'image/jpeg'
-            const ext  = mime.includes('png') ? 'png' : 'jpg'
-            // Upload to Supabase → permanent URL, tiny JSON response, no base64 bloat
-            if (storageClient && userId) {
-              const path = `jarvis-previews/${userId}/${Date.now()}-${scene.id}.${ext}`
-              const { error: uploadErr } = await storageClient.upload(path, Buffer.from(buf), { contentType: mime, upsert: true })
-              if (!uploadErr) {
-                const { data: urlData } = storageClient.getPublicUrl(path)
-                if (urlData?.publicUrl) {
-                  console.log(`[preview] ✅ xAI → Supabase: ${scene.id}`)
-                  return urlData.publicUrl
-                }
-              } else {
-                console.warn(`[preview] storage upload failed: ${uploadErr.message}`)
-              }
-            }
-            // Fallback: base64 (works but large)
-            console.log(`[preview] ✅ xAI base64: ${scene.id} (${Math.round(buf.byteLength / 1024)}KB)`)
-            return `data:${mime};base64,${Buffer.from(buf).toString('base64')}`
-          }
-        }
-        console.warn(`[preview] xAI 200 no usable URL ${scene.id}: ${JSON.stringify(xaiData).slice(0, 120)}`)
-      } else {
-        console.warn(`[preview] xAI ${xaiRes.status} ${scene.id}: ${xaiData.error?.message || ''}`)
+// ── Upload buffer to Supabase, return public URL (or base64 fallback) ─────────
+async function storeImage(buf, mime, scene, userId, storageClient) {
+  const ext = mime.includes('png') ? 'png' : 'jpg'
+  if (storageClient && userId) {
+    const path = `jarvis-previews/${userId}/${Date.now()}-${scene.id}.${ext}`
+    const { error } = await storageClient.upload(path, buf, { contentType: mime, upsert: true })
+    if (!error) {
+      const { data } = storageClient.getPublicUrl(path)
+      if (data?.publicUrl) {
+        console.log(`[preview] ✅ stored: ${scene.id} → Supabase`)
+        return data.publicUrl
       }
-    } catch (e) {
-      console.warn(`[preview] xAI ${scene.id}: ${e.message}`)
     }
+    console.warn(`[preview] Supabase upload failed for ${scene.id}: ${error?.message}`)
+  }
+  // Fallback: base64 data URL (works but adds size to JSON response)
+  return `data:${mime};base64,${buf.toString('base64')}`
+}
+
+async function generatePreviewImage(scene, brandContext, userId, storageClient) {
+  const prompt    = buildFinalPrompt(scene, brandContext)
+  const openaiKey = process.env.OPENAI_API_KEY
+
+  if (!openaiKey) {
+    console.warn('[preview] OPENAI_API_KEY not set')
+    return buildScenePlaceholder(scene)
+  }
+
+  // ── gpt-image-1 — preview quality: fast, cheap, concept-level accuracy ───────
+  // Returns b64_json by default. 1024x1024 for previews (user approves concept
+  // then a separate "Produce" step generates the full-quality 9:16 asset).
+  try {
+    const res  = await fetch('https://api.openai.com/v1/images/generations', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+      body:    JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size: '1024x1024', quality: 'low' }),
+      signal:  AbortSignal.timeout(45000),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      const b64 = data.data?.[0]?.b64_json
+      if (b64) {
+        return await storeImage(Buffer.from(b64, 'base64'), 'image/png', scene, userId, storageClient)
+      }
+      // gpt-image-1 may return a url on some account tiers
+      const url = data.data?.[0]?.url
+      if (url) {
+        const imgRes = await fetch(url, { signal: AbortSignal.timeout(15000) })
+        if (imgRes.ok) {
+          const buf  = await imgRes.arrayBuffer()
+          const mime = imgRes.headers.get('content-type') || 'image/jpeg'
+          return await storeImage(Buffer.from(buf), mime, scene, userId, storageClient)
+        }
+      }
+    } else {
+      console.warn(`[preview] gpt-image-1 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
+    }
+  } catch (e) {
+    console.warn(`[preview] gpt-image-1 ${scene.id}: ${e.message}`)
+  }
+
+  // ── dall-e-3 fallback — b64_json to avoid CDN URL access issues ───────────────
+  try {
+    const res  = await fetch('https://api.openai.com/v1/images/generations', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+      body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'b64_json' }),
+      signal:  AbortSignal.timeout(45000),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      const b64 = data.data?.[0]?.b64_json
+      if (b64) {
+        return await storeImage(Buffer.from(b64, 'base64'), 'image/jpeg', scene, userId, storageClient)
+      }
+    } else {
+      console.warn(`[preview] dall-e-3 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
+    }
+  } catch (e) {
+    console.warn(`[preview] dall-e-3 ${scene.id}: ${e.message}`)
   }
 
   // ── SVG placeholder — always works, loads in <1ms ─────────────────────────
@@ -157,10 +179,7 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
 }
 
 // POST /api/jarvis-studio/preview-scenes
-// Body: {
-//   scenes: [{ id, dalle_prompt, visual_direction, label, brand_anchors?, brand_check? }],
-//   brandContext?: { productName, keyMessages, style }
-// }
+// Body: { scenes: [{ id, dalle_prompt, visual_direction, label, brand_anchors?, brand_check? }], brandContext? }
 // Returns: { status, previews: [{ id, imageUrl, error?, anchored? }] }
 export async function POST(req) {
   try {
@@ -169,7 +188,7 @@ export async function POST(req) {
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     // Admin client for storage uploads — same pattern as generate-image route
-    const adminClient  = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const adminClient   = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const storageClient = adminClient.storage.from('identity-images')
 
     const { scenes, brandContext } = await req.json()
@@ -181,12 +200,12 @@ export async function POST(req) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
     }
 
-    // Generate sequentially — each xAI call takes ~10-15s, naturally under rate limits.
+    // Generate sequentially — each call takes ~5-15s, naturally under rate limits
     const previews = []
     for (const scene of scenes) {
-      // Product Reality Engine: if scene has a real screenshot, use it directly — skip xAI entirely.
+      // Product Reality Engine: real screenshot → skip generation entirely
       if (scene.screenshotUrl) {
-        console.log(`[preview] 📸 ${scene.id} real screenshot → skipping xAI: ${scene.screenshotUrl.slice(0, 80)}`)
+        console.log(`[preview] 📸 ${scene.id} real screenshot`)
         previews.push({ id: scene.id, imageUrl: scene.screenshotUrl, isReal: true })
         continue
       }
