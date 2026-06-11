@@ -115,16 +115,18 @@ export async function POST(req) {
       filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
     }
 
-    let prevLabel = 'v0'
+    let prevLabel  = 'v0'
+    let finalLabel = 'v0'
     for (let i = 1; i < n; i++) {
       const offset   = parseFloat(((segDur - fadeDur) * i).toFixed(3))
       const outLabel = i === n - 1 ? 'vout' : `x${i}`
       filterParts.push(`[${prevLabel}][v${i}]xfade=transition=fade:duration=${fadeDur}:offset=${offset}[${outLabel}]`)
-      prevLabel = outLabel
+      prevLabel  = outLabel
+      finalLabel = outLabel
     }
 
     args.push('-filter_complex', filterParts.join(';'))
-    args.push('-map', '[vout]')
+    args.push('-map', `[${finalLabel}]`)
 
     const musicInputIdx = n  // index of the music input stream
     if (musicFilePath) {

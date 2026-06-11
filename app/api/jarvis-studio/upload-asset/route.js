@@ -33,24 +33,25 @@ export async function POST(req) {
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    const ext = (file.name || 'image.jpg').split('.').pop().toLowerCase()
-    const path = `jarvis-assets/${user.id}/${Date.now()}.${ext}`
+    const nameParts = (file.name || 'image.jpg').split('.')
+    const ext = nameParts.length > 1 ? nameParts.pop().toLowerCase() : 'jpg'
+    const storagePath = `jarvis-assets/${user.id}/${Date.now()}.${ext}`
+
+    const MIME_BY_EXT = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4' }
+    const contentType = file.type || MIME_BY_EXT[ext] || 'application/octet-stream'
 
     const admin = makeAdmin()
 
     // Upload to identity-images (public bucket — permanent URLs, accessible by Runway + browser)
     const { error } = await admin.storage
       .from('identity-images')
-      .upload(path, buffer, {
-        contentType: file.type || 'image/jpeg',
-        upsert: true,
-      })
+      .upload(storagePath, buffer, { contentType, upsert: true })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const { data: urlData } = admin.storage.from('identity-images').getPublicUrl(path)
+    const { data: urlData } = admin.storage.from('identity-images').getPublicUrl(storagePath)
 
-    return NextResponse.json({ status: 'success', publicUrl: urlData.publicUrl, storagePath: path, bucket: 'identity-images' })
+    return NextResponse.json({ status: 'success', publicUrl: urlData.publicUrl, storagePath, bucket: 'identity-images' })
 
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })

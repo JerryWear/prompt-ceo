@@ -610,15 +610,15 @@ Return ONLY this JSON (one concept object):
     }
 
     // Remove generator/script fields — all scenes are image-based in the new pipeline
+    // Quality gate computed once per concept, outside the scene loop
     concepts.forEach(concept => {
       concept.scenes?.forEach(scene => {
         delete scene.generator
         delete scene.script
-        // Quality gate: flag concepts with too many UI scenes
-        const uiScenes = concept.scenes.filter(s => s.contains_ui || (s.label || '').toLowerCase() === 'solution')
-        concept.ui_scene_count    = uiScenes.length
-        concept.passes_quality_gate = uiScenes.length <= 1
       })
+      const uiScenes = (concept.scenes || []).filter(s => s.contains_ui || (s.label || '').toLowerCase() === 'solution')
+      concept.ui_scene_count      = uiScenes.length
+      concept.passes_quality_gate = uiScenes.length <= 1
     })
 
     // Compute compliance score for each concept

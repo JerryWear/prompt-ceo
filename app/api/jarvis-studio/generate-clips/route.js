@@ -78,9 +78,8 @@ async function generateOneClip(scene, runwayKey, userId) {
       console.log(`[generate-clips] ✓ ${scene.label} complete → ${videoUrl.slice(0, 60)}`)
       return { id: scene.id, label: scene.label, videoUrl, taskId }
     }
-    if (poll.status === 'FAILED' || poll.status === 'CANCELLED') {
-      throw new Error(`Runway ${poll.status}: ${poll.failure || poll.failureCode || 'unknown'}`)
-    }
+    if (poll.status === 'FAILED')    throw new Error(`Runway FAILED: ${poll.failure || poll.failureCode || 'unknown'}`)
+    if (poll.status === 'CANCELLED') throw new Error(`Runway CANCELLED: task was cancelled (check account limits or content policy)`)
     console.log(`[generate-clips] ${scene.label} — ${poll.status} (${poll.progress ?? '?'})`)
   }
 

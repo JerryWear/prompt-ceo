@@ -213,8 +213,8 @@ export async function POST(req) {
       }
 
       try {
-        const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
         const { anchored } = validateAndAnchorPrompt(scene, brandContext)
+        const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
         previews.push({ id: scene.id, imageUrl, anchored })
       } catch (e) {
         console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)

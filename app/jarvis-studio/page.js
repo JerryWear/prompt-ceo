@@ -1543,7 +1543,7 @@ export default function JarvisStudio() {
                               <div style={{ fontSize:8, color:C.dim, fontStyle:'italic' }}>Emotion: {scene.emotion_target}</div>
                             )}
                             <div style={{ marginTop:6, fontSize:8, color:C.dim }}>
-                              {scene.duration}s · {scene.generator === 'heygen' ? '🎭 Avatar' : scene.screenshotUrl ? '📸 Real image' : '🎬 Generated'}
+                              {scene.duration}s · {scene.screenshotUrl ? '📸 Real image' : '🎬 Generated'}
                             </div>
                           </div>
                         )
@@ -1590,8 +1590,8 @@ export default function JarvisStudio() {
                     </div>
                     <button className="produce-btn"
                       onClick={() => handleCreateAd(concept)}
-                      disabled={!concept.scenes?.some(s => previews[s.id])}
-                      style={{ padding:'8px 16px', borderRadius:7, flexShrink:0, border:`1px solid ${C.border}`, background:C.raised, color:C.ghost, cursor: concept.scenes?.some(s => previews[s.id]) ? 'pointer' : 'not-allowed', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, transition:'all .15s', whiteSpace:'nowrap', opacity: concept.scenes?.some(s => previews[s.id]) ? 1 : 0.4 }}>
+                      disabled={(concept.scenes?.filter(s => previews[s.id]).length || 0) < 2}
+                      style={{ padding:'8px 16px', borderRadius:7, flexShrink:0, border:`1px solid ${C.border}`, background:C.raised, color:C.ghost, cursor: (concept.scenes?.filter(s => previews[s.id]).length || 0) >= 2 ? 'pointer' : 'not-allowed', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, transition:'all .15s', whiteSpace:'nowrap', opacity: (concept.scenes?.filter(s => previews[s.id]).length || 0) >= 2 ? 1 : 0.4 }}>
                       Create Ad →
                     </button>
                   </div>
@@ -1721,10 +1721,10 @@ export default function JarvisStudio() {
                   <div style={{ fontSize:12, color:'#888', fontStyle:'italic' }}>{lightbox.scene.emotion_target}</div>
                 </div>
               )}
-              {lightbox.scene?.script && (
+              {lightbox.scene?.visual_scene && (
                 <div style={{ borderTop:'1px solid #1a1a1a', paddingTop:10 }}>
-                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:4 }}>Script</div>
-                  <div style={{ fontSize:12, color:'#aaa', lineHeight:1.6, fontStyle:'italic' }}>"{lightbox.scene.script}"</div>
+                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:4 }}>Visual Direction</div>
+                  <div style={{ fontSize:12, color:'#aaa', lineHeight:1.6, fontStyle:'italic' }}>"{lightbox.scene.visual_scene}"</div>
                 </div>
               )}
               {lightbox.scene?.capability_anchor && (
@@ -1734,8 +1734,8 @@ export default function JarvisStudio() {
                 </div>
               )}
               <div style={{ marginTop:'auto', display:'flex', gap:8, alignItems:'center' }}>
-                <span style={{ fontSize:9, padding:'3px 8px', borderRadius:4, background:lightbox.scene?.generator === 'heygen' ? '#1a1300' : '#001a18', color:lightbox.scene?.generator === 'heygen' ? '#c8a84b' : '#4aaba0', fontWeight:700 }}>
-                  {lightbox.scene?.generator === 'heygen' ? 'HeyGen Avatar' : 'Runway Video'}
+                <span style={{ fontSize:9, padding:'3px 8px', borderRadius:4, background: lightbox.scene?.screenshotUrl ? '#1a1300' : '#001a18', color: lightbox.scene?.screenshotUrl ? '#c8a84b' : '#4aaba0', fontWeight:700 }}>
+                  {lightbox.scene?.screenshotUrl ? 'Real Image' : 'Runway Video'}
                 </span>
                 <span style={{ fontSize:10, color:'#444' }}>{lightbox.scene?.duration}s</span>
               </div>
