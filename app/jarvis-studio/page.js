@@ -143,6 +143,7 @@ export default function JarvisStudio() {
   const [previewsDone,    setPreviewsDone]    = useState(false)
   const [previewError,    setPreviewError]    = useState('')
   const [previewErrors,   setPreviewErrors]   = useState({})
+  const [lightbox,        setLightbox]        = useState(null) // { imageUrl, scene }
   const [selectedConcept, setSelectedConcept] = useState(null)
   const [productionJobs,  setProductionJobs]  = useState(null)
   const [finalAd,         setFinalAd]         = useState(null)
@@ -162,6 +163,13 @@ export default function JarvisStudio() {
       if (pollRef.current)  clearInterval(pollRef.current)
     }
   }, [])
+
+  // ── Lightbox keyboard dismiss ─────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setLightbox(null) }
+    if (lightbox) window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   // ── Load music library on demand ─────────────────────────────────────────
   useEffect(() => {
@@ -1626,11 +1634,14 @@ export default function JarvisStudio() {
                     </button>
                   </div>
                   <div style={{ display:'flex', gap:9, padding:'11px 18px 14px', overflowX:'auto' }}>
-                    {concept.scenes.map(scene => (
-                      <SceneThumb key={scene.id} scene={scene}
-                        imageUrl={previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)}
-                        errorMsg={!previews[scene.id] && previewsDone && scene.generator === 'runway' ? previewErrors[scene.id] : null} />
-                    ))}
+                    {concept.scenes.map(scene => {
+                      const imgUrl = previews[scene.id] || (scene.generator === 'heygen' ? uploadedAssets?.founderImageUrl : null)
+                      return (
+                        <SceneThumb key={scene.id} scene={scene} imageUrl={imgUrl}
+                          errorMsg={!imgUrl && previewsDone && scene.generator === 'runway' ? previewErrors[scene.id] : null}
+                          onOpen={imgUrl ? () => setLightbox({ imageUrl: imgUrl, scene, conceptTitle: concept.title }) : null} />
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -1866,6 +1877,77 @@ export default function JarvisStudio() {
           )}
         </div>
       )}
+
+      {/* ── Lightbox modal ───────────────────────────────────────────────────── */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position:'fixed', inset:0, zIndex:9999,
+            background:'rgba(0,0,0,.92)', backdropFilter:'blur(12px)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            padding:20, cursor:'zoom-out',
+          }}
+        >
+          <div onClick={e => e.stopPropagation()}
+            style={{ display:'flex', gap:20, alignItems:'flex-start', maxHeight:'90vh', cursor:'default' }}>
+            {/* Image */}
+            <img
+              src={lightbox.imageUrl}
+              alt={lightbox.scene?.label || ''}
+              style={{ maxHeight:'85vh', maxWidth:'min(480px, 70vw)', objectFit:'contain', borderRadius:10, flexShrink:0 }}
+            />
+            {/* Scene info panel */}
+            <div style={{ width:260, flexShrink:0, display:'flex', flexDirection:'column', gap:12 }}>
+              <div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:2, color:'#555', textTransform:'uppercase', marginBottom:4 }}>
+                  {lightbox.scene?.label}
+                </div>
+                <div style={{ fontSize:20, fontWeight:800, color:'#fff', lineHeight:1.2, marginBottom:8 }}>
+                  {lightbox.conceptTitle || ''}
+                </div>
+                {lightbox.scene?.logline && (
+                  <div style={{ fontSize:12, color:'#888', fontStyle:'italic', marginBottom:12 }}>"{lightbox.scene.logline}"</div>
+                )}
+              </div>
+              {lightbox.scene?.visual_scene && (
+                <div style={{ borderTop:'1px solid #1a1a1a', paddingTop:12 }}>
+                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:5 }}>Scene</div>
+                  <div style={{ fontSize:12, color:'#aaa', lineHeight:1.6 }}>{lightbox.scene.visual_scene}</div>
+                </div>
+              )}
+              {lightbox.scene?.emotion_target && (
+                <div style={{ borderTop:'1px solid #1a1a1a', paddingTop:10 }}>
+                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:4 }}>Emotion</div>
+                  <div style={{ fontSize:12, color:'#888', fontStyle:'italic' }}>{lightbox.scene.emotion_target}</div>
+                </div>
+              )}
+              {lightbox.scene?.script && (
+                <div style={{ borderTop:'1px solid #1a1a1a', paddingTop:10 }}>
+                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:4 }}>Script</div>
+                  <div style={{ fontSize:12, color:'#aaa', lineHeight:1.6, fontStyle:'italic' }}>"{lightbox.scene.script}"</div>
+                </div>
+              )}
+              {lightbox.scene?.capability_anchor && (
+                <div style={{ borderTop:'1px solid #1a1a1a', paddingTop:10 }}>
+                  <div style={{ fontSize:9, letterSpacing:1.5, color:'#444', textTransform:'uppercase', marginBottom:4 }}>Capability</div>
+                  <div style={{ fontSize:12, color:'#888' }}>{lightbox.scene.capability_anchor}</div>
+                </div>
+              )}
+              <div style={{ marginTop:'auto', display:'flex', gap:8, alignItems:'center' }}>
+                <span style={{ fontSize:9, padding:'3px 8px', borderRadius:4, background:lightbox.scene?.generator === 'heygen' ? '#1a1300' : '#001a18', color:lightbox.scene?.generator === 'heygen' ? '#c8a84b' : '#4aaba0', fontWeight:700 }}>
+                  {lightbox.scene?.generator === 'heygen' ? 'HeyGen Avatar' : 'Runway Video'}
+                </span>
+                <span style={{ fontSize:10, color:'#444' }}>{lightbox.scene?.duration}s</span>
+              </div>
+              <button onClick={() => setLightbox(null)}
+                style={{ padding:'8px 0', borderRadius:7, border:'1px solid #222', background:'transparent', color:'#555', cursor:'pointer', fontSize:11, width:'100%' }}>
+                Close  esc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1880,9 +1962,10 @@ function safeStr(v) {
 }
 
 // ── Scene thumbnail ───────────────────────────────────────────────────────────
-function SceneThumb({ scene, imageUrl, errorMsg }) {
+function SceneThumb({ scene, imageUrl, errorMsg, onOpen }) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError]   = useState(false)
+  const [hovered, setHovered]     = useState(false)
   const imgRef = useRef(null)
 
   useEffect(() => {
@@ -1894,9 +1977,21 @@ function SceneThumb({ scene, imageUrl, errorMsg }) {
     }
   }, [imageUrl])
 
+  const canOpen = !!(imageUrl && imgLoaded && !imgError && onOpen)
+
   return (
     <div style={{ flexShrink:0, width:106, display:'flex', flexDirection:'column', gap:6 }}>
-      <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:`1px solid ${(errorMsg || imgError) ? '#5a1a1a' : '#1a1a1a'}` }}>
+      <div
+        onClick={canOpen ? onOpen : undefined}
+        onMouseEnter={() => canOpen && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative',
+          background:'#0a0a0a', border:`1px solid ${(errorMsg || imgError) ? '#5a1a1a' : hovered ? '#3a3a3a' : '#1a1a1a'}`,
+          cursor: canOpen ? 'zoom-in' : 'default',
+          transition:'border-color .15s, transform .15s',
+          transform: hovered ? 'scale(1.03)' : 'scale(1)',
+        }}>
         {imageUrl && !imgError ? (
           <>
             {/* Always render img — overlay sits on top until onLoad fires */}
@@ -1905,6 +2000,12 @@ function SceneThumb({ scene, imageUrl, errorMsg }) {
             {!imgLoaded && (
               <div style={{ position:'absolute', inset:0, background:'#0a0a0a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, animation:'shimmer 1.6s ease-in-out infinite' }}>
                 <span style={{ fontSize:9, color:'#2a2a2a', textAlign:'center' }}>Generating…</span>
+              </div>
+            )}
+            {/* Zoom hint on hover */}
+            {hovered && imgLoaded && (
+              <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.35)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ fontSize:18, color:'rgba(255,255,255,.8)' }}>⤢</span>
               </div>
             )}
           </>
