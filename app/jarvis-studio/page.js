@@ -735,23 +735,35 @@ export default function JarvisStudio() {
                   minHeight:110, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8,
                   transition:'border-color .2s, background .2s',
                 }}>
-                <input ref={productInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => handleProductFiles(e.target.files)} />
+                <input ref={productInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { handleProductFiles(e.target.files); e.target.value = '' }} />
                 {productFiles.length ? (
                   <>
                     <div style={{ display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center' }}>
-                      {productFiles.slice(0,4).map((p,i) => (
-                        <img key={i} src={p.blobUrl} alt="" style={{ width:32, height:32, borderRadius:4, objectFit:'cover', border:`1px solid ${C.teal}33` }} />
+                      {productFiles.map((p,i) => (
+                        <div key={i} style={{ position:'relative' }}>
+                          <img src={p.blobUrl} alt="" style={{ width:36, height:36, borderRadius:4, objectFit:'cover', border:`1px solid ${C.teal}33`, display:'block' }} />
+                          <button
+                            onClick={e => { e.stopPropagation(); setProductFiles(prev => prev.filter((_,j) => j !== i)) }}
+                            style={{ position:'absolute', top:-4, right:-4, width:14, height:14, borderRadius:'50%', background:'#333', border:`1px solid #555`, color:'#aaa', fontSize:8, lineHeight:'14px', textAlign:'center', cursor:'pointer', padding:0 }}
+                          >✕</button>
+                        </div>
                       ))}
+                      {productFiles.length < 6 && (
+                        <div
+                          onClick={e => { e.stopPropagation(); productInputRef.current?.click() }}
+                          style={{ width:36, height:36, borderRadius:4, border:`1px dashed ${C.teal}55`, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:C.teal, fontSize:16, fontWeight:300 }}
+                        >+</div>
+                      )}
                     </div>
                     <span style={{ fontSize:9, color:C.teal, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>
-                      {productFiles.length} Product{productFiles.length > 1 ? 's' : ''} ✓
+                      {productFiles.length}/6 Product{productFiles.length > 1 ? 's' : ''} ✓
                     </span>
                   </>
                 ) : (
                   <>
                     <span style={{ fontSize:20, opacity:.2 }}>🖼</span>
                     <span style={{ fontSize:10, fontWeight:700, color:C.ghost, textTransform:'uppercase', letterSpacing:1 }}>Product</span>
-                    <span style={{ fontSize:9, color:C.dim }}>Up to 6 images</span>
+                    <span style={{ fontSize:9, color:C.dim }}>Up to 6 images — click or drag</span>
                   </>
                 )}
               </div>
