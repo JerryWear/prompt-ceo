@@ -163,7 +163,16 @@ ${lines}
     }
     const assetBlock = assetLines.join('\n\n')
 
-    // ── Concept directions based on intent ──────────────────────────────────
+    // ── Concept directions — each concept has a unique narrative AND a unique visual palette ──
+    // Visual styles are mandatory per concept so preview images look distinct from each other.
+    const VISUAL_STYLES = [
+      'DARK LUXURY GOLD: deep black backgrounds (#0a0a0a), gold/amber accent (#c8a84b), dramatic single-source lighting, premium editorial. Every dalle_prompt must use this palette.',
+      'CLEAN MINIMAL WHITE: bright white or platinum backgrounds, cool silver tones, high-key even lighting, clinical precision. Stark contrast to the dark gold style. Every dalle_prompt must use this palette.',
+      'HIGH ENERGY ELECTRIC BLUE: deep navy or midnight blue backgrounds, neon/electric blue accents (#00aaff), high contrast, kinetic energy. Completely different from styles 1 and 2. Every dalle_prompt must use this palette.',
+      'WARM PREMIUM AMBER: rich warm browns, burnished copper, cream/ivory highlights, candlelight-warm tones. Feels trust-worthy and established. Every dalle_prompt must use this palette.',
+      'BOLD GRAPHIC MONOCHROME: high contrast pure black and white with one vivid accent color (deep red or electric green), editorial/magazine aesthetic. Every dalle_prompt must use this palette.',
+    ]
+
     const conceptDirections = []
     if (intent === 'founder_ad' || intent === 'ugc') {
       conceptDirections.push('Concept 1: Founder leads — opens with heygen hook, intercut runway visuals')
@@ -326,12 +335,22 @@ Key Messages: ${(keyMessages || []).join(' | ')}`
 
     // ── Generate one concept per call ─────────────────────────────────────────
     async function generateOneConcept(conceptIndex, direction) {
-      const n = conceptIndex + 1
+      const n           = conceptIndex + 1
+      const visualStyle = VISUAL_STYLES[conceptIndex]
       const userContent = `${briefContext}
 
 GENERATING CONCEPT ${n} OF 5.
 DIRECTION: ${direction}
 ${!hasFounder ? 'NO HEYGEN — no founder image uploaded. All scenes must use generator: "runway".' : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY VISUAL AESTHETIC FOR THIS CONCEPT — ${visualStyle.split(':')[0]}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${visualStyle}
+
+FAILURE: If any dalle_prompt in this concept uses "dark gold luxury" aesthetic AND this is not Concept 1 → rewrite it.
+FAILURE: If any dalle_prompt in this concept matches the visual style of another concept → rewrite it.
+Every concept is a different creative direction AND a different visual world. A viewer should instantly know which concept they're looking at from the image alone.
 
 OBEDIENCE CHECK BEFORE WRITING:
 1. Which user assets from LEVEL 1 above can this concept use?
@@ -343,7 +362,7 @@ For each scene, answer: "What specific ${productName} capability will a viewer u
 If the answer is "they'll see a dashboard" → that scene is capability-invisible → rewrite it before writing JSON.
 The 5 scenes of this concept should together demonstrate at least 3 distinct ${productName} capabilities.
 
-Generate exactly 5 scenes. Durations sum to 30 seconds. This concept must feel COMPLETELY DIFFERENT from the other 4 concepts.
+Generate exactly 5 scenes. Durations sum to 30 seconds.
 
 Return ONLY this JSON (one concept object):
 {
@@ -431,6 +450,12 @@ Return ONLY this JSON (one concept object):
       // Verify source_used is populated on every scene
       const missing = (concept.scenes || []).filter(s => !s.source_used?.length)
       if (missing.length) console.warn(`[storyboard] concept ${n}: ${missing.length} scene(s) missing source_used`)
+
+      // CRITICAL: enforce globally unique scene IDs — GPT often reuses s1_1..s1_5 across all concepts,
+      // causing the frontend previews dict to overwrite earlier concepts with later ones.
+      if (concept.scenes) {
+        concept.scenes.forEach((scene, idx) => { scene.id = `c${n}_s${idx + 1}` })
+      }
 
       console.log(`[storyboard] ✓ concept ${n}: "${concept.title}" (${concept.scenes?.length} scenes, ${data.usage?.completion_tokens} tokens)`)
       return concept
