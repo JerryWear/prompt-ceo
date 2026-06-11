@@ -101,7 +101,8 @@ function buildScenePlaceholder(scene) {
 async function generatePreviewImage(scene, brandContext) {
   const prompt = buildFinalPrompt(scene, brandContext)
 
-  // ── Try xAI (20s timeout — never hang on a dead API call) ────────────────
+  // ── Try xAI — download the image server-side so browser can display it ──────
+  // xAI URLs require server-side access; browser <img> tags cannot load them directly.
   const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
   if (xaiKey) {
     try {
@@ -109,13 +110,22 @@ async function generatePreviewImage(scene, brandContext) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${xaiKey}` },
         body:    JSON.stringify({ model: 'grok-imagine-image-quality', prompt, aspect_ratio: '9:16' }),
-        signal:  AbortSignal.timeout(20000),
+        signal:  AbortSignal.timeout(25000),
       })
       const xaiData = await xaiRes.json()
       if (xaiRes.ok) {
-        const url = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
-        if (url) { console.log(`[preview] ✅ xAI: ${scene.id}`); return url }
-        console.warn(`[preview] xAI 200 no URL ${scene.id}: ${JSON.stringify(xaiData).slice(0, 150)}`)
+        const xaiUrl = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
+        if (xaiUrl) {
+          // Download from xAI CDN and return as base64 data URL — browser displays instantly
+          const imgRes = await fetch(xaiUrl, { signal: AbortSignal.timeout(15000) })
+          if (imgRes.ok) {
+            const buf  = await imgRes.arrayBuffer()
+            const mime = imgRes.headers.get('content-type') || 'image/jpeg'
+            console.log(`[preview] ✅ xAI: ${scene.id} (${Math.round(buf.byteLength / 1024)}KB)`)
+            return `data:${mime};base64,${Buffer.from(buf).toString('base64')}`
+          }
+        }
+        console.warn(`[preview] xAI 200 no usable URL ${scene.id}: ${JSON.stringify(xaiData).slice(0, 120)}`)
       } else {
         console.warn(`[preview] xAI ${xaiRes.status} ${scene.id}: ${xaiData.error?.message || ''}`)
       }
