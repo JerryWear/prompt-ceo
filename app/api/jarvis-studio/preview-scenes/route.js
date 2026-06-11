@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export const maxDuration = 300
@@ -98,11 +99,12 @@ function buildScenePlaceholder(scene) {
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64')
 }
 
-async function generatePreviewImage(scene, brandContext) {
+async function generatePreviewImage(scene, brandContext, userId, storageClient) {
   const prompt = buildFinalPrompt(scene, brandContext)
 
-  // ── Try xAI — download the image server-side so browser can display it ──────
-  // xAI URLs require server-side access; browser <img> tags cannot load them directly.
+  // ── Try xAI — download server-side, store in Supabase, return permanent URL ─
+  // xAI CDN URLs require server-side access; we store in Supabase so the browser
+  // gets a stable public URL rather than megabytes of base64 in the JSON response.
   const xaiKey = String(process.env.XAI_API_KEY || '').replace(/^Bearer\s+/i, '')
   if (xaiKey) {
     try {
@@ -116,12 +118,27 @@ async function generatePreviewImage(scene, brandContext) {
       if (xaiRes.ok) {
         const xaiUrl = xaiData.data?.[0]?.url || xaiData.images?.[0]?.url || xaiData.url
         if (xaiUrl) {
-          // Download from xAI CDN and return as base64 data URL — browser displays instantly
           const imgRes = await fetch(xaiUrl, { signal: AbortSignal.timeout(15000) })
           if (imgRes.ok) {
             const buf  = await imgRes.arrayBuffer()
             const mime = imgRes.headers.get('content-type') || 'image/jpeg'
-            console.log(`[preview] ✅ xAI: ${scene.id} (${Math.round(buf.byteLength / 1024)}KB)`)
+            const ext  = mime.includes('png') ? 'png' : 'jpg'
+            // Upload to Supabase → permanent URL, tiny JSON response, no base64 bloat
+            if (storageClient && userId) {
+              const path = `jarvis-previews/${userId}/${Date.now()}-${scene.id}.${ext}`
+              const { error: uploadErr } = await storageClient.upload(path, Buffer.from(buf), { contentType: mime, upsert: true })
+              if (!uploadErr) {
+                const { data: urlData } = storageClient.getPublicUrl(path)
+                if (urlData?.publicUrl) {
+                  console.log(`[preview] ✅ xAI → Supabase: ${scene.id}`)
+                  return urlData.publicUrl
+                }
+              } else {
+                console.warn(`[preview] storage upload failed: ${uploadErr.message}`)
+              }
+            }
+            // Fallback: base64 (works but large)
+            console.log(`[preview] ✅ xAI base64: ${scene.id} (${Math.round(buf.byteLength / 1024)}KB)`)
             return `data:${mime};base64,${Buffer.from(buf).toString('base64')}`
           }
         }
@@ -151,6 +168,10 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+    // Admin client for storage uploads — same pattern as generate-image route
+    const adminClient  = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const storageClient = adminClient.storage.from('identity-images')
+
     const { scenes, brandContext } = await req.json()
     if (!Array.isArray(scenes) || scenes.length === 0) {
       return NextResponse.json({ error: 'scenes array required' }, { status: 400 })
@@ -171,7 +192,7 @@ export async function POST(req) {
       }
 
       try {
-        const imageUrl = await generatePreviewImage(scene, brandContext)
+        const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
         const { anchored } = validateAndAnchorPrompt(scene, brandContext)
         previews.push({ id: scene.id, imageUrl, anchored })
       } catch (e) {

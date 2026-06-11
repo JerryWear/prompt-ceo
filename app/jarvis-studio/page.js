@@ -1790,17 +1790,27 @@ function safeStr(v) {
 function SceneThumb({ scene, imageUrl, errorMsg }) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError]   = useState(false)
-  useEffect(() => { setImgLoaded(false); setImgError(false) }, [imageUrl])
+  const imgRef = useRef(null)
+
+  useEffect(() => {
+    setImgLoaded(false)
+    setImgError(false)
+    // data: URLs (base64, SVG) can load synchronously before React attaches onLoad
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImgLoaded(true)
+    }
+  }, [imageUrl])
 
   return (
     <div style={{ flexShrink:0, width:106, display:'flex', flexDirection:'column', gap:6 }}>
       <div style={{ width:106, height:188, borderRadius:8, overflow:'hidden', position:'relative', background:'#0a0a0a', border:`1px solid ${(errorMsg || imgError) ? '#5a1a1a' : '#1a1a1a'}` }}>
         {imageUrl && !imgError ? (
           <>
-            <img src={imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display: imgLoaded ? 'block' : 'none' }}
+            {/* Always render img — overlay sits on top until onLoad fires */}
+            <img ref={imgRef} src={imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
             {!imgLoaded && (
-              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, animation:'shimmer 1.6s ease-in-out infinite' }}>
+              <div style={{ position:'absolute', inset:0, background:'#0a0a0a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, animation:'shimmer 1.6s ease-in-out infinite' }}>
                 <span style={{ fontSize:9, color:'#2a2a2a', textAlign:'center' }}>Generating…</span>
               </div>
             )}
