@@ -62,6 +62,15 @@ export async function POST(req) {
     const { url, brandDNA } = await req.json()
     if (!url?.trim()) return NextResponse.json({ error: 'url is required' }, { status: 400 })
 
+    // Block social platform URLs — they are login-gated and will never return usable content
+    const lowerUrl = url.trim().toLowerCase()
+    if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('facebook.com') || lowerUrl.includes('instagram.com')) {
+      return NextResponse.json(
+        { error: 'Social platform URLs are login-protected. Paste the ad copy text directly into the URL field instead — or use Facebook Ad Library URLs from facebook.com/ads/library' },
+        { status: 400 }
+      )
+    }
+
     // Fetch the target URL
     let pageText = ''
     try {
@@ -76,8 +85,11 @@ export async function POST(req) {
       return NextResponse.json({ error: `Could not fetch URL: ${e.message}` }, { status: 400 })
     }
 
-    if (!pageText.length) {
-      return NextResponse.json({ error: 'No readable content found at that URL' }, { status: 400 })
+    if (!pageText.length || pageText.length < 200) {
+      return NextResponse.json(
+        { error: 'This page blocks content extraction. Try pasting the ad text directly instead of the URL.' },
+        { status: 400 }
+      )
     }
 
     const brandSection = brandDNA
