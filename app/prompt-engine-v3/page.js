@@ -7,6 +7,7 @@ import { useJarvisContext } from '../components/JarvisRail/JarvisContext'
 import React, { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
 import { buildPromptV3 } from './index.js'
 import MusicSelector from './components/MusicSelector.js'
+import ViralAnalyzer from '../components/jarvis/ViralAnalyzer'
 import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMusicRecommendationForStage } from './ad-system/musicIntelligence.js'
 import { recommendMusicForAd } from './ad-system/musicRecommendation.js'
 import { buildVoiceInjectionContext } from './ad-system/brandVoiceTrainer.js'
@@ -815,6 +816,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [dnaProfiles,   setDnaProfiles]    = useState([])
   const [dnaName,       setDnaName]        = useState('')
   const [dnaSaveOpen,   setDnaSaveOpen]    = useState(false)
+  // Viral Content Analyzer
+  const [viralAnalyzerOpen, setViralAnalyzerOpen] = useState(false)
 
   // Load DNA profiles on mount
   useEffect(() => {
@@ -2051,6 +2054,29 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     } catch {}
     finally { setHooksLibLoading(false) }
   }
+
+  const handleViralApply = useCallback((result) => {
+    // Set the selected hook to the extracted hook text
+    if (result.hookText) setSelectedHook(result.hookText)
+    // Map ViralAnalyzer archetype → Ad Studio hook type selector
+    const ARCHETYPE_TO_HOOK_TYPE = {
+      emotional_open:       'pain',
+      urgency:              'pain',
+      aspiration:           'desire',
+      transformation_story: 'desire',
+      curiosity_gap:        'curiosity',
+      pattern_break:        'curiosity',
+      bold_claim:           'curiosity',
+      visual_hook:          'luxury',
+      direct_offer:         'directOffer',
+      social_proof:         'directOffer',
+    }
+    if (result.hookArchetype && ARCHETYPE_TO_HOOK_TYPE[result.hookArchetype]) {
+      setActiveHookType(ARCHETYPE_TO_HOOK_TYPE[result.hookArchetype])
+    }
+    // TODO: wire to brief fields when campaignPhase selector is added to Ad Studio
+    console.log('[ViralAnalyzer] onApply:', result)
+  }, [])
 
   const saveHook = async (hookText, hookType = 'general', source = 'ad-studio') => {
     if (!hookText?.trim() || hooksSaving) return
@@ -5415,6 +5441,32 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
         {/* ── HOOKS TAB ── */}
         {adOutputTab === 'hooks' && (<>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* ── Viral Content Analyzer ───────────────────────────── */}
+            <div>
+              <button
+                onClick={() => setViralAnalyzerOpen(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 11, fontWeight: 700, color: C.gold,
+                  padding: '4px 0', letterSpacing: 0.3,
+                }}
+              >
+                ✦ Analyze Viral Content
+                <span style={{ fontSize: 9, color: C.muted, fontWeight: 400 }}>
+                  {viralAnalyzerOpen ? '▲' : '▼'}
+                </span>
+              </button>
+              {viralAnalyzerOpen && (
+                <div style={{ marginTop: 8 }}>
+                  <ViralAnalyzer
+                    brandDNA={null}
+                    onApply={handleViralApply}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Generate ALL 5 types at once */}
             <button
