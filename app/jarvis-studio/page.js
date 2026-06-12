@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
+import ViralAnalyzer   from '../components/jarvis/ViralAnalyzer'
 
 const C = {
   void: '#020202', base: '#060606', surface: '#0c0c0c', raised: '#111',
@@ -104,6 +105,7 @@ export default function JarvisStudio() {
   // ── Input state ──────────────────────────────────────────────────────────
   const [websiteUrl,     setWebsiteUrl]     = useState('')
   const [prompt,         setPrompt]         = useState('')
+  const [viralOpen,      setViralOpen]      = useState(false)
   const [founderFile,    setFounderFile]    = useState(null)
   const [founderBlobUrl, setFounderBlobUrl] = useState(null)
   const [productFiles,   setProductFiles]   = useState([]) // [{ file, blobUrl }]
@@ -864,6 +866,24 @@ export default function JarvisStudio() {
                 </>
               )}
             </div>
+          </div>
+
+          {/* ── Viral Analyzer ──────────────────────────────────────────────── */}
+          <div style={{ marginTop:16 }}>
+            <button onClick={() => setViralOpen(v => !v)}
+              style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 0', display:'flex', alignItems:'center', gap:6, color:C.gold, fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase' }}>
+              ✦ Analyze Viral Content {viralOpen ? '▲' : '▼'}
+            </button>
+            {viralOpen && (
+              <div style={{ marginTop:10 }}>
+                <ViralAnalyzer
+                  onApply={(result) => {
+                    if (result.hookText) setPrompt(prev => prev ? `${prev}\n\nHook inspiration: ${result.hookText}` : result.hookText)
+                    setViralOpen(false)
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <button onClick={handleStart}
