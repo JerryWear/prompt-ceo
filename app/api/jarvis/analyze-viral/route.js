@@ -62,9 +62,14 @@ export async function POST(req) {
     const { url, brandDNA } = await req.json()
     if (!url?.trim()) return NextResponse.json({ error: 'url is required' }, { status: 400 })
 
-    // Block social platform URLs — they are login-gated and will never return usable content
+    // Block login-gated social URLs — facebook.com/ads/library is public and allowed through
     const lowerUrl = url.trim().toLowerCase()
-    if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('facebook.com') || lowerUrl.includes('instagram.com')) {
+    const isBlocked =
+      lowerUrl.includes('instagram.com') ||
+      lowerUrl.includes('tiktok.com/business/creativecenter') ||
+      lowerUrl.includes('facebook.com/l.php') ||
+      lowerUrl.includes('facebook.com/share')
+    if (isBlocked) {
       return NextResponse.json(
         { error: 'Social platform URLs are login-protected. Paste the ad copy text directly into the URL field instead — or use Facebook Ad Library URLs from facebook.com/ads/library' },
         { status: 400 }
