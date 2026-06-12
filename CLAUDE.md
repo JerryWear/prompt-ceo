@@ -17,6 +17,15 @@ We are building the operating system for AI-native businesses.
 
 ---
 
+## Current Session State
+Last updated: [DATE]
+Last completed: [what was finished]
+In progress: [exact file/feature being worked on]
+Next atomic task: [one sentence, one file]
+DO NOT touch: [anything off limits this session]
+
+---
+
 ## Product Mission
 
 Give creators and marketers the AI intelligence stack that only Fortune 500 companies with dedicated creative teams could previously afford.
