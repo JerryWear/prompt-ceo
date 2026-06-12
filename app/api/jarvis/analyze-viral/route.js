@@ -16,23 +16,8 @@ async function makeSupabase() {
   )
 }
 
-// Strip HTML tags and collapse whitespace — keeps visible text only
-function extractText(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-    .slice(0, 6000)  // cap tokens — GPT-4o context is large but we keep this focused
-}
-
 // POST /api/jarvis/analyze-viral
-// Body: { url: string, brandDNA?: object }
+// Body: { content: string, brandDNA?: object }
 // Returns: { hookArchetype, hookText, structure, pacing, emotionalTrigger, visualStyle, campaignPhase, whyItWorks, applyToBrand }
 export async function POST(req) {
   try {
@@ -59,49 +44,19 @@ export async function POST(req) {
       )
     }
 
-    const { url, brandDNA } = await req.json()
-    if (!url?.trim()) return NextResponse.json({ error: 'url is required' }, { status: 400 })
+    const { content, brandDNA } = await req.json()
+    if (!content?.trim()) return NextResponse.json({ error: 'content is required' }, { status: 400 })
 
-    // Block login-gated social URLs — facebook.com/ads/library is public and allowed through
-    const lowerUrl = url.trim().toLowerCase()
-    const isBlocked =
-      lowerUrl.includes('instagram.com') ||
-      lowerUrl.includes('tiktok.com/business/creativecenter') ||
-      lowerUrl.includes('facebook.com/l.php') ||
-      lowerUrl.includes('facebook.com/share')
-    if (isBlocked) {
-      return NextResponse.json(
-        { error: 'Social platform URLs are login-protected. Paste the ad copy text directly into the URL field instead — or use Facebook Ad Library URLs from facebook.com/ads/library' },
-        { status: 400 }
-      )
-    }
-
-    // Fetch the target URL
-    let pageText = ''
-    try {
-      const pageRes = await fetch(url.trim(), {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PromptCEO-Analyzer/1.0)' },
-        signal:  AbortSignal.timeout(15000),
-      })
-      if (!pageRes.ok) throw new Error(`HTTP ${pageRes.status}`)
-      const html = await pageRes.text()
-      pageText   = extractText(html)
-    } catch (e) {
-      return NextResponse.json({ error: `Could not fetch URL: ${e.message}` }, { status: 400 })
-    }
-
-    if (!pageText.length || pageText.length < 200) {
-      return NextResponse.json(
-        { error: 'This page blocks content extraction. Try pasting the ad text directly instead of the URL.' },
-        { status: 400 }
-      )
+    const trimmedContent = content.trim().slice(0, 6000)
+    if (trimmedContent.length < 20) {
+      return NextResponse.json({ error: 'Please paste more content to analyze' }, { status: 400 })
     }
 
     const brandSection = brandDNA
       ? `\n\nBRAND DNA:\n${JSON.stringify(brandDNA, null, 2).slice(0, 1000)}`
       : ''
 
-    const userPrompt = `URL: ${url}\n\nCONTENT:\n${pageText}${brandSection}\n\nAnalyze this content and return the JSON schema exactly as specified. Be specific and tactical — reference actual phrases or moments from the content.`
+    const userPrompt = `AD CONTENT:\n${trimmedContent}${brandSection}\n\nAnalyze this content and return the JSON schema exactly as specified. Be specific and tactical — reference actual phrases or moments from the content.`
 
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method:  'POST',
@@ -149,7 +104,7 @@ export async function POST(req) {
       applyToBrand:     String(result.applyToBrand     || ''),
     }
 
-    return NextResponse.json({ status: 'success', analysis, url })
+    return NextResponse.json({ status: 'success', analysis })
 
   } catch (err) {
     console.error('[analyze-viral] error:', err.message)

@@ -21,13 +21,13 @@ function titleCase(str) {
 //   brandDNA  — object (optional) — passed to the API for brand-aware apply advice
 //   onApply   — function(result)  — called when the user clicks "Use This Hook"
 export default function ViralAnalyzer({ brandDNA, onApply }) {
-  const [url,      setUrl]      = useState('')
+  const [content,  setContent]  = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [result,   setResult]   = useState(null)
 
   async function handleAnalyze() {
-    const trimmed = url.trim()
+    const trimmed = content.trim()
     if (!trimmed) return
     setLoading(true)
     setError('')
@@ -37,13 +37,13 @@ export default function ViralAnalyzer({ brandDNA, onApply }) {
       const res  = await fetch('/api/jarvis/analyze-viral', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url: trimmed, brandDNA: brandDNA || undefined }),
+        body:    JSON.stringify({ content: trimmed, brandDNA: brandDNA || undefined }),
       })
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`)
       setResult(data.analysis)
     } catch (err) {
-      setError(err.message || 'Analysis failed. Check the URL and try again.')
+      setError(err.message || 'Analysis failed. Try again.')
     } finally {
       setLoading(false)
     }
@@ -52,32 +52,30 @@ export default function ViralAnalyzer({ brandDNA, onApply }) {
   function handleReset() {
     setResult(null)
     setError('')
-    setUrl('')
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !loading && url.trim()) handleAnalyze()
+    setContent('')
   }
 
   return (
     <div className={styles.panel}>
-      {/* URL input — always visible */}
-      <div className={styles.inputRow}>
-        <input
-          type="url"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Paste any viral ad, post, or video URL..."
-          className={styles.urlInput}
+      {/* Textarea input — always visible */}
+      <div className={styles.inputBlock}>
+        <textarea
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          placeholder="Paste the ad copy, script, caption, or hook text here..."
+          className={styles.contentInput}
           disabled={loading}
+          rows={5}
         />
+        <div className={styles.helperText}>
+          Copy any ad caption, video script, hook, or post text and paste it here
+        </div>
         <button
           onClick={handleAnalyze}
-          disabled={loading || !url.trim()}
+          disabled={loading || !content.trim()}
           className={styles.analyzeBtn}
         >
-          Analyze
+          {loading ? 'Analyzing...' : 'Analyze'}
         </button>
       </div>
 
