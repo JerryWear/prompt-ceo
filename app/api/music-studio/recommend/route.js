@@ -14,6 +14,17 @@ export async function POST(req) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     )
 
+    // Full library request — skip scorer, return every active track
+    if (topN >= 100) {
+      const { data: allTracks, error: allErr } = await admin
+        .from('music_tracks')
+        .select('*')
+        .eq('is_active', true)
+        .order('featured', { ascending: false })
+      if (allErr) throw new Error(allErr.message)
+      return NextResponse.json({ status: 'success', recommendedTracks: allTracks || [] })
+    }
+
     let query = admin
       .from('music_tracks')
       .select(TRACK_SELECT)
