@@ -244,18 +244,19 @@ async function renderJarvisAd(plan, workDir, jobId) {
     const clipPath = path.join(workDir, `clip${i}.mp4`)
     const p1Args = []
 
-    if (isVideo) {
-      p1Args.push('-i', filePaths[i])
-    } else {
-      p1Args.push('-framerate', '30', '-loop', '1', '-t', String(segDur), '-i', filePaths[i])
-    }
+    p1Args.push('-i', filePaths[i])
+
+    // stills: tpad clones the last frame to reach segDur (works with single-frame PNG/JPG inputs)
+    // videos: plain scale filter, no tpad
+    const vf = isVideo
+      ? 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p'
+      : `scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,tpad=stop_mode=clone:stop_duration=${segDur}`
 
     p1Args.push(
-      '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p',
+      '-vf', vf,
       '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-bufsize', '4M',
       '-r', '30',
     )
-    if (!isVideo) p1Args.push('-t', String(segDur))
     p1Args.push('-an', '-y', clipPath)
 
     log('info', `Pass 1: clip ${i + 1}/${filePaths.length}`, jobId)
