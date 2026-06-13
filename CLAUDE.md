@@ -19,10 +19,10 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-13
-Last completed: Full voiceover pipeline — TTS generation, music mix, Ken Burns, voiceScript wired
+Last completed: Full Jarvis Studio pipeline built — voiceover, Ken Burns, music, assets wired. compile-ad times out on Vercel — needs Railway worker.
 In progress: none
-Next atomic task: Full end-to-end test with voiceover
-DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
+Next atomic task: Create jarvis_render_jobs table + add Jarvis job type to Railway worker
+DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer, existing Edit Studio render worker
 
 ---
 
