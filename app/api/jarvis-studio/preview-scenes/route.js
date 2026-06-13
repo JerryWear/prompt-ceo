@@ -207,14 +207,21 @@ export async function POST(req) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
     }
 
-    // Generate all scenes in parallel — Replicate billing active, no rate limit
+    // Generate in parallel with index-based stagger to avoid gpt-image-1 rate limits.
+    // map() is synchronous so staggerIdx increments before any awaits fire — each
+    // non-screenshot scene gets its delay assigned at map time, then all run concurrently.
+    let staggerIdx = 0
     const previews = await Promise.all(
       scenes.map(async (scene) => {
-        // Product Reality Engine: real screenshot → skip generation entirely
+        // Product Reality Engine: real screenshot → fires immediately, no delay
         if (scene.screenshotUrl) {
           console.log(`[preview] 📸 ${scene.id} real screenshot`)
           return { id: scene.id, imageUrl: scene.screenshotUrl, isReal: true }
         }
+
+        const delay = staggerIdx * 2000
+        staggerIdx++
+        if (delay > 0) await new Promise(r => setTimeout(r, delay))
 
         try {
           const { anchored } = validateAndAnchorPrompt(scene, brandContext)
