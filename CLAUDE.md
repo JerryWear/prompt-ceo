@@ -19,10 +19,10 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-13
-Last completed: Full Jarvis Studio pipeline built — voiceover, Ken Burns, music, assets wired. compile-ad times out on Vercel — needs Railway worker.
+Last completed: Jarvis Railway worker pipeline complete — workers/jarvis-render-worker.mjs created, submit-render + render-status API routes created, page.js wired to submit job + poll. compile-ad route kept intact.
 In progress: none
-Next atomic task: Create jarvis_render_jobs table + add Jarvis job type to Railway worker
-DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer, existing Edit Studio render worker
+Next atomic task: Deploy jarvis-render-worker to Railway as a new Worker service (separate from Edit Studio worker). Required env vars on Railway: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY. Also set JARVIS_SKIP_RUNWAY=true in Vercel dashboard.
+DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer, workers/edit-render-worker.mjs
 
 ---
 

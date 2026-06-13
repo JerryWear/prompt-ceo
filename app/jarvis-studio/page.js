@@ -607,7 +607,7 @@ export default function JarvisStudio() {
         })
       }
 
-      const compileRes  = await fetch('/api/jarvis-studio/compile-ad', {
+      const submitRes  = await fetch('/api/jarvis-studio/submit-render', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
@@ -617,13 +617,38 @@ export default function JarvisStudio() {
           voiceScript:  voiceScript || null,
         }),
       })
-      const compileData = await safeJson(compileRes)
-      if (!compileRes.ok || !compileData.videoUrl) {
-        throw new Error(compileData.error || 'Ad compilation failed')
+      const submitData = await safeJson(submitRes)
+      if (!submitRes.ok || !submitData.jobId) {
+        throw new Error(submitData.error || 'Failed to queue render job')
       }
 
-      setAdVideoUrl(compileData.videoUrl)
-      setPhase('complete')
+      // Poll render-status every 5s — Railway worker handles the FFmpeg render
+      const jobId = submitData.jobId
+      await new Promise((resolve, reject) => {
+        const poll = setInterval(async () => {
+          try {
+            const statusRes  = await fetch(`/api/jarvis-studio/render-status?jobId=${jobId}`)
+            const statusData = await safeJson(statusRes)
+            if (statusData.status === 'completed') {
+              clearInterval(poll)
+              pollRef.current = null
+              setAdVideoUrl(statusData.exportUrl)
+              setPhase('complete')
+              resolve()
+            } else if (statusData.status === 'failed') {
+              clearInterval(poll)
+              pollRef.current = null
+              reject(new Error(statusData.errorMessage || 'Render job failed'))
+            }
+            // queued or processing — keep polling
+          } catch (err) {
+            clearInterval(poll)
+            pollRef.current = null
+            reject(err)
+          }
+        }, 5000)
+        pollRef.current = poll
+      })
 
     } catch (err) {
       setError(err.message || 'Ad creation failed')
