@@ -91,6 +91,8 @@ Act 3: Product name only — "PromptCEO" / "One brief." / "Enter your product."
 Act 4: The result — "Campaign done in 60 seconds." / "Five complete ads. One input."
 Act 5: CTA — "Start free today." / "Fire your agency. → promptceo.com"
 
+Also generate a voiceScript field at the top level: a 75-word maximum voiceover narration for a 30-second video ad that follows the 5-act story arc. Write in second person, present tense. Punchy, cinematic, no filler words. Start with the hook.
+
 Return only valid JSON.`
 
     const userContent = `Product: ${productName}
@@ -163,7 +165,8 @@ Return this exact JSON:
         "dalle_prompt": "Full cinematic description of the hero's transformed world. Confident, successful, in control. NO software, NO UI, NO readable text. Vertical 9:16. Photorealistic."
       }
     ]
-  }
+  },
+  "voiceScript": "75-word max voiceover for the 30-second ad. Second person, present tense. Punchy, cinematic. Start with the hook. No filler words."
 }`
 
     const visionContent = [{ type: 'text', text: userContent }]
@@ -213,8 +216,10 @@ Return this exact JSON:
       }
     })
 
+    const voiceScript = (parsed.voiceScript || '').trim() || null
+    if (voiceScript) console.log(`[story] ✓ voiceScript (${voiceScript.split(' ').length} words)`)
     console.log(`[story] ✓ "${productName}" — hero: "${story.hero?.slice(0, 60)}"`)
-    return NextResponse.json({ status: 'success', story })
+    return NextResponse.json({ status: 'success', story, voiceScript })
 
   } catch (err) {
     console.error('[story] error:', err.message)

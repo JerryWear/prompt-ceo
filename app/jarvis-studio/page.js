@@ -139,6 +139,7 @@ export default function JarvisStudio() {
   const [assessment,          setAssessment]          = useState(null)
   const [creativeBrief,       setCreativeBrief]       = useState(null)
   const [story,               setStory]               = useState(null)
+  const [voiceScript,         setVoiceScript]         = useState(null)
   const [brandScreenshots,    setBrandScreenshots]    = useState([]) // real product screenshots from capture-brand
   const [storyboard,      setStoryboard]      = useState(null)
   const [previewsStarted, setPreviewsStarted] = useState(false)
@@ -231,7 +232,7 @@ export default function JarvisStudio() {
     if (pollRef.current)  clearInterval(pollRef.current)
     setPhase('input'); setIntent(null); setError(''); setStatusItems([])
     setUploadedAssets(null); setUnderstanding(null); setAssetManifest(null); setMissingUploaded([])
-    setAssessment(null); setCreativeBrief(null); setStory(null); setBrandScreenshots([])
+    setAssessment(null); setCreativeBrief(null); setStory(null); setVoiceScript(null); setBrandScreenshots([])
     setStoryboard(null); setPreviewsStarted(false); setPreviews({}); setPreviewErrors({}); setPreviewsDone(false); setPreviewError('')
     setSelectedConcept(null); setAdVideoUrl(null)
     setUploadedFrameUrls([])
@@ -398,6 +399,7 @@ export default function JarvisStudio() {
       const sData = await sRes.json()
       if (!sData.story) throw new Error(sData.error || 'Story generation failed')
       setStory(sData.story)
+      if (sData.voiceScript) setVoiceScript(sData.voiceScript)
       setPhase('story')
     } catch (err) {
       setError(err.message || 'Story failed')
@@ -602,6 +604,7 @@ export default function JarvisStudio() {
           scenes:       clipsWithCaptions,
           conceptTitle: concept.title,
           musicUrl:     uploadedAssets?.musicUrl || null,
+          voiceScript:  voiceScript || null,
         }),
       })
       const compileData = await compileRes.json()
