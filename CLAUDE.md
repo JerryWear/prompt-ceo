@@ -19,10 +19,10 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-14
-Last completed: Performance Memory Step 2 — save button wired into prompt-engine-v3
-In progress: Nothing active — session complete
-Next atomic task: Performance Memory Step 3 — Jarvis pattern injection into new ad briefs
-DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer, performance-memory routes
+Last completed: Performance Memory — full feature complete (save + button + injection)
+In progress: none
+Next atomic task: Test full loop — generate ad, mark performed well, generate new ad, verify pattern injection
+DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
 
 ---
 
@@ -252,11 +252,12 @@ Credit system: Users purchase credit packs ($50/$100/$250/$500) for generation b
 
 ---
 
-## Current Priorities (as of 2026-06-13)
+## Current Priorities (as of 2026-06-14)
 
-1. **Viral Content Analyzer** — SHIPPED. Text-paste interface in Ad Studio (Hooks tab) + Jarvis Studio (intake screen). API route `app/api/jarvis/analyze-viral/route.js`. Component `app/components/jarvis/ViralAnalyzer.js`. Studio Pro+ gate.
-2. **Jarvis Studio story-first pipeline** — SHIPPED. Assessment → Story (5-act) → Storyboard → Previews → Runway clips → FFmpeg compile with caption overlays.
-3. **Edit Studio v0.2:** UX rebuild after v0.1 production render validated
+1. **Performance Memory** — SHIPPED. Full loop: save button in Ad Studio → `performance_memory` table → `getPerformanceContext()` injected into `generate-ad-text` system prompt. Files: `app/lib/jarvis/performanceInjector.js`, `app/api/jarvis/performance-memory/save/`, `app/api/jarvis/performance-memory/patterns/`.
+2. **Viral Content Analyzer** — SHIPPED. Text-paste interface in Ad Studio (Hooks tab) + Jarvis Studio (intake screen). API route `app/api/jarvis/analyze-viral/route.js`. Component `app/components/jarvis/ViralAnalyzer.js`. Studio Pro+ gate.
+3. **Jarvis Studio story-first pipeline** — SHIPPED. Assessment → Story (5-act) → Storyboard → Previews → Runway clips → FFmpeg compile with caption overlays.
+4. **Edit Studio v0.2:** UX rebuild after v0.1 production render validated
 4. **Campaign Intelligence:** Next evolution of Campaign Brain with cross-project learning
 5. **Music Studio Phase 3:** Credit transactions + usage analytics
 6. **Jarvis Foundation:** Architecture defined, no implementation yet
