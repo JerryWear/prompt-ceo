@@ -838,9 +838,16 @@ export default function JarvisStudio() {
                       onClick={() => {
                         const newId = musicTrackId === track.id ? null : track.id
                         setMusicTrackId(newId)
+                        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
+                          process.env.NEXT_PUBLIC_BASE_URL ||
+                          (typeof window !== 'undefined' ? window.location.origin : 'https://app.promptceo.io')
                         setUploadedAssets(prev => ({
                           ...prev,
-                          musicUrl: newId ? (track.preview_file_url || null) : null,
+                          musicUrl: newId && track.preview_file_url
+                            ? (track.preview_file_url.startsWith('http')
+                                ? track.preview_file_url
+                                : `${baseUrl}${track.preview_file_url}`)
+                            : null,
                         }))
                       }}
                       style={{
