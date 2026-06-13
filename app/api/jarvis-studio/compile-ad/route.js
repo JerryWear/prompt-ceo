@@ -62,22 +62,22 @@ export async function POST(req) {
 
   const { scenes = [], conceptTitle = 'Ad', musicUrl, voiceScript } = await req.json()
 
-  // Prefer videoUrl (Runway clips), fall back to imageUrl (stills)
-  const useVideo  = scenes.some(s => s.videoUrl)
   const activeScenes = scenes.filter(s => s.videoUrl || s.imageUrl)
   if (activeScenes.length < 2) {
     return NextResponse.json({ error: 'At least 2 scenes required' }, { status: 400 })
   }
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-compile-'))
-  console.log(`[compile-ad] "${conceptTitle}" — ${activeScenes.length} scenes — mode: ${useVideo ? 'VIDEO CLIPS' : 'IMAGES'} — tmp: ${tmpDir}`)
+  const tmpDir     = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-compile-'))
+  const videoCount = activeScenes.filter(s => s.videoUrl).length
+  const stillCount = activeScenes.length - videoCount
+  console.log(`[compile-ad] "${conceptTitle}" — ${activeScenes.length} scenes (${videoCount} video, ${stillCount} still) — tmp: ${tmpDir}`)
 
   try {
     // ── 1. Download scene files ───────────────────────────────────────────────
     const filePaths = []
     for (let i = 0; i < activeScenes.length; i++) {
       const scene = activeScenes[i]
-      const ext   = useVideo && scene.videoUrl ? 'mp4' : 'jpg'
+      const ext   = scene.videoUrl ? 'mp4' : 'jpg'
       const url   = scene.videoUrl || scene.imageUrl
       const p     = path.join(tmpDir, `scene${i}.${ext}`)
       await downloadToFile(url, p)
@@ -128,19 +128,21 @@ export async function POST(req) {
 
     // ── 3. Build FFmpeg command ───────────────────────────────────────────────
     const n        = filePaths.length
-    const segDur   = useVideo ? 5.0 : 6.5   // Runway clips are 5s; images shown 6.5s
+    const hasVideo = activeScenes.some(s => s.videoUrl)
+    const segDur   = hasVideo ? 5.0 : 6.5   // Runway clips are 5s; pure-still mode uses 6.5s
     const fadeDur  = 0.4
     const totalDur = segDur * n - fadeDur * (n - 1)
 
     const outPath = path.join(tmpDir, 'ad.mp4')
     const args    = []
 
-    if (useVideo) {
-      // Video clip inputs — just reference the file
-      for (const p of filePaths) args.push('-i', p)
-    } else {
-      // Static image inputs — loop each for segDur
-      for (const p of filePaths) args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', p)
+    // Per-scene input: video clips need no loop flag; stills need -loop 1 -t
+    for (let i = 0; i < n; i++) {
+      if (activeScenes[i].videoUrl) {
+        args.push('-i', filePaths[i])
+      } else {
+        args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', filePaths[i])
+      }
     }
     if (musicFilePath) args.push('-i', musicFilePath)
     if (voiceFilePath) args.push('-i', voiceFilePath)
@@ -153,9 +155,15 @@ export async function POST(req) {
       'format=yuv420p',
     ].join(',')
 
+    const kbFrames    = Math.round(segDur * 30)  // zoompan duration in frames for Ken Burns
     const filterParts = []
     for (let i = 0; i < n; i++) {
-      filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
+      if (activeScenes[i].videoUrl) {
+        filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
+      } else {
+        // Ken Burns slow zoom on stills — zoompan handles scale + motion in one filter
+        filterParts.push(`[${i}:v]zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${kbFrames}:s=1080x1920,fps=30[v${i}]`)
+      }
     }
 
     let prevLabel  = 'v0'
