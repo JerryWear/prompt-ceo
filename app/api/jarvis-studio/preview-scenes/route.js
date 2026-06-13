@@ -112,8 +112,40 @@ async function storeImage(buf, mime, scene, userId, storageClient) {
   return `data:${mime};base64,${buf.toString('base64')}`
 }
 
-async function generatePreviewImage(scene, brandContext, userId, storageClient) {
-  const prompt       = buildFinalPrompt(scene, brandContext)
+// Labels treated as human/character scenes — founder description gets injected
+const HUMAN_SCENE_LABELS = ['Setup', 'Conflict', 'Resolution']
+
+// gpt-4o-mini vision call — called once per batch, result cached by caller
+async function describeFounder(founderImageUrl, openaiKey) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      model:      'gpt-4o-mini',
+      max_tokens: 80,
+      messages: [{
+        role:    'user',
+        content: [
+          { type: 'image_url', image_url: { url: founderImageUrl, detail: 'low' } },
+          { type: 'text',      text: 'Describe this person\'s appearance in 2 sentences for use in an image generation prompt. Focus on: gender, age range, hair, style, clothing aesthetic. Be specific and concise.' },
+        ],
+      }],
+    }),
+    signal: AbortSignal.timeout(15000),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error?.message || 'founder describe failed')
+  return data.choices[0].message.content.trim()
+}
+
+async function generatePreviewImage(scene, brandContext, userId, storageClient, founderDescription) {
+  let prompt = buildFinalPrompt(scene, brandContext)
+
+  // Inject founder appearance into human scene prompts
+  if (founderDescription && HUMAN_SCENE_LABELS.includes(scene.label)) {
+    prompt = `${founderDescription} ${prompt}`
+    console.log(`[preview] founder injected into ${scene.id} (${scene.label})`)
+  }
   const openaiKey    = process.env.OPENAI_API_KEY
   const replicateKey = process.env.REPLICATE_API_TOKEN
 
@@ -198,13 +230,25 @@ export async function POST(req) {
     const adminClient   = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const storageClient = adminClient.storage.from('identity-images')
 
-    const { scenes, brandContext } = await req.json()
+    const { scenes, brandContext, founderImageUrl } = await req.json()
     if (!Array.isArray(scenes) || scenes.length === 0) {
       return NextResponse.json({ error: 'scenes array required' }, { status: 400 })
     }
 
     if (brandContext?.productName) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
+    }
+
+    // Describe founder image once — reused for all human scenes in this batch
+    const openaiKey = process.env.OPENAI_API_KEY
+    let founderDescription = null
+    if (founderImageUrl && openaiKey) {
+      try {
+        founderDescription = await describeFounder(founderImageUrl, openaiKey)
+        console.log(`[preview-scenes] founder described: "${founderDescription?.slice(0, 100)}"`)
+      } catch (e) {
+        console.warn('[preview-scenes] founder description failed:', e.message)
+      }
     }
 
     // Generate in parallel with index-based stagger to avoid gpt-image-1 rate limits.
@@ -225,7 +269,7 @@ export async function POST(req) {
 
         try {
           const { anchored } = validateAndAnchorPrompt(scene, brandContext)
-          const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
+          const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient, founderDescription)
           return { id: scene.id, imageUrl, anchored }
         } catch (e) {
           console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
