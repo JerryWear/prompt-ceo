@@ -272,9 +272,25 @@ async function renderJarvisAd(plan, workDir, jobId) {
     clipPaths.push(clipPath)
   }
 
+  // Diagnostic: verify tmp writes and clip files before concat
+  const testFile = path.join(workDir, 'test.txt')
+  fs.writeFileSync(testFile, 'test')
+  const testStat = fs.statSync(testFile)
+  console.log('[jarvis-worker] Write test:', testStat.size, 'bytes at', workDir)
+
+  for (let i = 0; i < clipPaths.length; i++) {
+    const clipPath = path.join(workDir, `clip${i}.mp4`)
+    if (fs.existsSync(clipPath)) {
+      console.log(`[jarvis-worker] clip${i} exists:`, fs.statSync(clipPath).size, 'bytes')
+    } else {
+      console.log(`[jarvis-worker] clip${i} MISSING`)
+    }
+  }
+
   // 6. PASS 2 — Concat clips + audio
   const concatFile = path.join(workDir, 'clips.txt')
   fs.writeFileSync(concatFile, clipPaths.map(p => `file '${p}'`).join('\n'))
+  console.log('[jarvis-worker] Concat file:', fs.readFileSync(concatFile, 'utf8'))
 
   const outPath  = path.join(workDir, 'ad.mp4')
   const p2Args   = ['-f', 'concat', '-safe', '0', '-i', concatFile]
@@ -294,6 +310,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
   p2Args.push('-movflags', '+faststart', '-y', outPath)
 
   log('info', `Pass 2: concat ${clipPaths.length} clips, voice=${!!voiceFilePath}, music=${!!musicFilePath}`, jobId)
+  console.log('[jarvis-worker] Pass 2 args:', p2Args.join(' '))
   try {
     await execFileAsync('ffmpeg', p2Args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
   } catch (err) {
