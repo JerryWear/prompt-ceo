@@ -55,6 +55,13 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+    console.log('[understand] env check:', {
+      hasOpenAI:   !!process.env.OPENAI_API_KEY,
+      hasReplicate: !!process.env.REPLICATE_API_KEY,
+      hasSupabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasFirecrawl: !!process.env.FIRECRAWL_API_KEY,
+    })
+
     const { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, videoFrameUrls = [], prompt, intent } = await req.json()
 
     // 1. Scrape website + transcribe video in parallel
@@ -239,6 +246,7 @@ export async function POST(req) {
     return NextResponse.json({ status: 'success', understanding })
 
   } catch (err) {
+    console.error('[understand] FATAL ERROR:', err.message, err.stack)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
