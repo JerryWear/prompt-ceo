@@ -579,10 +579,21 @@ export default function JarvisStudio() {
       setCreatingStep('compiling')
 
       // Merge captions from original scenes into Runway clip list
-      const clipsWithCaptions = clipsData.clips.map(clip => {
+      let clipsWithCaptions = clipsData.clips.map(clip => {
         const orig = scenesWithImages.find(s => s.id === clip.id)
         return { ...clip, caption: orig?.caption || '' }
       })
+
+      // Inject uploaded video as Discovery scene if available
+      const uploadedVideoUrl = uploadedAssets?.videoUrl || uploadedAssets?.videoUrls?.[0] || null
+      if (uploadedVideoUrl) {
+        clipsWithCaptions = clipsWithCaptions.map(clip => {
+          if (clip.label === 'Discovery' && !clip.videoUrl) {
+            return { ...clip, videoUrl: uploadedVideoUrl }
+          }
+          return clip
+        })
+      }
 
       const compileRes  = await fetch('/api/jarvis-studio/compile-ad', {
         method:  'POST',
