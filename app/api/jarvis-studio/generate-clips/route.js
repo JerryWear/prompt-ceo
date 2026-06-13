@@ -18,6 +18,16 @@ const MOTION = {
   CTA:            { camera: 'Static shot with a subtle, slow zoom in.',                                    mood: 'Direct. Confident. No hesitation.' },
 }
 
+// HEAD-check that Runway's servers can actually fetch this URL
+async function isUrlAccessible(url) {
+  try {
+    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // If the preview was stored as a base64 data URI, upload it to Supabase
 // so Runway receives a real HTTPS URL it can fetch
 async function ensureHttpsUrl(imageUrl, sceneId, userId) {
@@ -125,9 +135,20 @@ export async function POST(req) {
     const ready = scenes.filter(s => s.imageUrl)
     if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
 
+    let validatedFounderUrl = null
+    if (founderImageUrl) {
+      const accessible = await isUrlAccessible(founderImageUrl)
+      if (accessible) {
+        validatedFounderUrl = founderImageUrl
+        console.log('[generate-clips] founder image validated ✓')
+      } else {
+        console.warn('[generate-clips] founder image not accessible — falling back to scene images')
+      }
+    }
+
     console.log(`[generate-clips] launching ${ready.length} clips in parallel`)
-    if (founderImageUrl) console.log(`[generate-clips] founder photo active — will use for: ${FOUNDER_SCENES.join(', ')}`)
-    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey, user.id, founderImageUrl)))
+    if (validatedFounderUrl) console.log(`[generate-clips] founder photo active — will use for: ${FOUNDER_SCENES.join(', ')}`)
+    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey, user.id, validatedFounderUrl)))
 
     const clips  = []
     const failed = []
