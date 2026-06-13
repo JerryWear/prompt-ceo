@@ -1,3 +1,6 @@
+export const maxDuration = 300
+export const runtime = 'nodejs'
+
 import { NextResponse }           from 'next/server'
 import { createServerClient }     from '@supabase/ssr'
 import { createClient as createAdmin } from '@supabase/supabase-js'
@@ -33,8 +36,6 @@ function findSystemFont() {
   ]
   return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } }) || null
 }
-
-export const maxDuration = 300
 
 async function makeSupabase() {
   const cookieStore = await cookies()
