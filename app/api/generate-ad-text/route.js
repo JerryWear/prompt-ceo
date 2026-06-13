@@ -17,6 +17,7 @@ import { buildStyledGenerationPrompt } from '../../prompt-engine-v3/ad-system/co
 import { buildVariationPrompt }        from '../../prompt-engine-v3/ad-system/adVariations.js'
 import { buildMusicAwarePromptContext } from '../../prompt-engine-v3/ad-system/musicIntelligence.js'
 import { buildVoiceInjectionContext }  from '../../prompt-engine-v3/ad-system/brandVoiceTrainer.js'
+import { getPerformanceContext }       from '../../lib/jarvis/performanceInjector.js'
 
 function clean(v) { return String(v || '').trim() }
 
@@ -196,8 +197,12 @@ export async function POST(req) {
       } catch {}
     }
 
+    // ── Performance Memory injection ────────────────────────
+    const perfContext = await getPerformanceContext(user.id)
+
     // ── Build prompt ────────────────────────────────────────
     let systemPrompt = `You are a world-class advertising strategist and direct-response copywriter. CRITICAL RULE: respond with ONLY raw valid JSON — no markdown, no code fences, no preamble, no explanation. Your entire response must start with [ or { and end with ] or }. Never add text before or after the JSON.${brainContext}`
+    if (perfContext) systemPrompt += '\n\n' + perfContext
     let userPrompt   = ''
 
     // Platform instruction appended to all content-generating types
