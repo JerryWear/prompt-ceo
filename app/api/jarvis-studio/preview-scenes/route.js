@@ -114,7 +114,7 @@ async function storeImage(buf, mime, scene, userId, storageClient) {
 
 async function generatePreviewImage(scene, brandContext, userId, storageClient) {
   const prompt       = buildFinalPrompt(scene, brandContext)
-  const replicateKey = process.env.REPLICATE_API_SECRET
+  const replicateKey = process.env.REPLICATE_API_TOKEN
   const openaiKey    = process.env.OPENAI_API_KEY
 
   // ── FLUX-1.1-pro via Replicate — 9:16 native, cinematic quality ──────────
@@ -156,7 +156,7 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
       console.error('FLUX failed for scene:', scene.id, err.message)
     }
   } else {
-    console.warn('[preview] REPLICATE_API_SECRET not set — falling back to dall-e-3')
+    console.warn('[preview] REPLICATE_API_TOKEN not set — falling back to dall-e-3')
   }
 
   // ── dall-e-3 fallback — no response_format, fetch URL, upload buffer ────────
