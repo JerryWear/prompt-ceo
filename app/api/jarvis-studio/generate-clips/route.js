@@ -117,6 +117,22 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+    const { scenes = [], founderImageUrl = null } = await req.json()
+    const ready = scenes.filter(s => s.imageUrl)
+    if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
+
+    // Skip Runway entirely — compile-ad applies Ken Burns to all stills instead.
+    // Triggered by JARVIS_SKIP_RUNWAY=true or absence of platform Runway key.
+    const skipRunway = !process.env.RUNWAYML_API_SECRET || process.env.JARVIS_SKIP_RUNWAY === 'true'
+    if (skipRunway) {
+      console.log('[generate-clips] Runway skipped — returning imageUrl-only scenes for Ken Burns render')
+      return NextResponse.json({
+        status:  'success',
+        clips:   ready.map(s => ({ id: s.id, label: s.label, imageUrl: s.imageUrl })),
+        skipped: true,
+      })
+    }
+
     // Platform key first, then user's own Runway key from DB
     let runwayKey = process.env.RUNWAYML_API_SECRET
     if (!runwayKey) {
@@ -130,10 +146,6 @@ export async function POST(req) {
       }, { status: 500 })
     }
     console.log(`[generate-clips] using ${process.env.RUNWAYML_API_SECRET ? 'platform' : 'user'} Runway key`)
-
-    const { scenes = [], founderImageUrl = null } = await req.json()
-    const ready = scenes.filter(s => s.imageUrl)
-    if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
 
     let validatedFounderUrl = null
     if (founderImageUrl) {
