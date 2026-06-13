@@ -302,6 +302,10 @@ async function renderJarvisAd(plan, workDir, jobId) {
     log('warn', 'No system font found — captions skipped', jobId)
   }
 
+  // Force yuv420p at the filter graph boundary — ensures encoder always gets a compatible format
+  filterParts.push(`[${finalLabel}]format=yuv420p[finalv]`)
+  finalLabel = 'finalv'
+
   // Audio indices: voice always at n (pushed first), music at n+1 if voice present else n
   const voiceIdx = n
   const musicIdx = voiceFilePath ? n + 1 : n
@@ -327,7 +331,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
     args.push('-an')
   }
 
-  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-pix_fmt', 'yuv420p')
+  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26')
   args.push('-r', '30', '-movflags', '+faststart')
   args.push('-y', outPath)
 
