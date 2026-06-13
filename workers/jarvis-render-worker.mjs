@@ -247,8 +247,8 @@ async function renderJarvisAd(plan, workDir, jobId) {
       args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', filePaths[i])
     }
   }
-  if (musicFilePath) args.push('-i', musicFilePath)
-  if (voiceFilePath) args.push('-i', voiceFilePath)
+  if (voiceFilePath) args.push('-i', voiceFilePath)  // index n (always first after scenes)
+  if (musicFilePath) args.push('-i', musicFilePath)  // index n+1 if voice present, n if voice absent
 
   // Per-scene video filters: video → scaleChain, still → Ken Burns zoompan
   const scaleChain = [
@@ -302,9 +302,12 @@ async function renderJarvisAd(plan, workDir, jobId) {
     log('warn', 'No system font found — captions skipped', jobId)
   }
 
-  // Audio: voice+music → amix in filter_complex; music-only → direct map; voice-only → direct map
+  // Audio indices: voice always at n (pushed first), music at n+1 if voice present else n
+  const voiceIdx = n
+  const musicIdx = voiceFilePath ? n + 1 : n
+
+  // voice+music → amix in filter_complex (must live in same -filter_complex as video)
   if (voiceFilePath && musicFilePath) {
-    const musicIdx = n, voiceIdx = n + 1
     filterParts.push(`[${musicIdx}:a]volume=0.15[quietmusic]`)
     filterParts.push(`[${voiceIdx}:a][quietmusic]amix=inputs=2:duration=first[aout]`)
   }
@@ -314,12 +317,12 @@ async function renderJarvisAd(plan, workDir, jobId) {
 
   if (voiceFilePath && musicFilePath) {
     args.push('-map', '[aout]', '-c:a', 'aac', '-b:a', '128k')
+  } else if (voiceFilePath) {
+    args.push('-map', `${voiceIdx}:a`, '-c:a', 'aac', '-b:a', '128k')
   } else if (musicFilePath) {
-    args.push('-map', `${n}:a`, '-c:a', 'aac', '-b:a', '128k')
+    args.push('-map', `${musicIdx}:a`, '-c:a', 'aac', '-b:a', '128k')
     args.push('-af', `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(1)}:d=2`)
     args.push('-shortest')
-  } else if (voiceFilePath) {
-    args.push('-map', `${n}:a`, '-c:a', 'aac', '-b:a', '128k')
   } else {
     args.push('-an')
   }
@@ -332,7 +335,8 @@ async function renderJarvisAd(plan, workDir, jobId) {
   try {
     await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
   } catch (err) {
-    console.error('[jarvis-worker] FFmpeg stderr:', err.stderr?.slice(-500))
+    console.error('[jarvis-worker] FFmpeg full stderr:', err.stderr)
+    console.error('[jarvis-worker] FFmpeg stderr (tail):', err.stderr?.slice(-500))
     console.error('[jarvis-worker] FFmpeg stdout:', err.stdout?.slice(-200))
     throw new Error(`FFmpeg failed: ${err.stderr?.slice(-200) || err.message}`)
   }
