@@ -1,1 +1,13 @@
-{}
+{
+  "functions": {
+    "app/api/jarvis-studio/compile-ad/route.js": {
+      "maxDuration": 300
+    },
+    "app/api/jarvis-studio/generate-clips/route.js": {
+      "maxDuration": 300
+    },
+    "app/api/jarvis-studio/preview-scenes/route.js": {
+      "maxDuration": 300
+    }
+  }
+}
