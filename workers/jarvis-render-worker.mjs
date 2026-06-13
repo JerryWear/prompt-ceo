@@ -298,7 +298,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
   if (voiceFilePath) p2Args.push('-i', voiceFilePath)
   if (musicFilePath) p2Args.push('-i', musicFilePath)
 
-  p2Args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-pix_fmt', 'yuv420p')
+  p2Args.push('-c:v', 'copy')
 
   const hasAudio = voiceFilePath || musicFilePath
   if (hasAudio) {
