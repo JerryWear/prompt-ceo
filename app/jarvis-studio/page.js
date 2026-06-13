@@ -491,7 +491,7 @@ export default function JarvisStudio() {
         const r    = await fetch('/api/jarvis-studio/preview-scenes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenes: scenesToPreview, brandContext, founderImageUrl: uploadedAssets?.founderImageUrl || null }),
+          body: JSON.stringify({ scenes: scenesToPreview, brandContext, founderImageUrl: uploadedAssets?.founderImageUrl || null, productImageUrls: uploadedAssets?.productImageUrls || [] }),
         })
         const pData = r.ok
           ? await r.json()

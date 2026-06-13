@@ -138,13 +138,51 @@ async function describeFounder(founderImageUrl, openaiKey) {
   return data.choices[0].message.content.trim()
 }
 
-async function generatePreviewImage(scene, brandContext, userId, storageClient, founderDescription) {
+// gpt-4o-mini vision call for product — called once per batch, result cached by caller
+async function describeProduct(productImageUrls, openaiKey) {
+  if (!productImageUrls?.length) return null
+  try {
+    const imageInputs = productImageUrls.slice(0, 3).map(url => ({
+      type: 'image_url',
+      image_url: { url, detail: 'low' },
+    }))
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        model:      'gpt-4o-mini',
+        max_tokens: 80,
+        messages: [{
+          role:    'user',
+          content: [
+            ...imageInputs,
+            { type: 'text', text: 'Describe this product in 2 sentences for image generation. Focus on: what it is, its visual appearance, colors, and style. Be specific and concise.' },
+          ],
+        }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content?.trim() || null
+  } catch (err) {
+    console.warn('[preview] product description failed:', err.message)
+    return null
+  }
+}
+
+async function generatePreviewImage(scene, brandContext, userId, storageClient, founderDescription, productDescription) {
   let prompt = buildFinalPrompt(scene, brandContext)
 
   // Inject founder appearance into human scene prompts
   if (founderDescription && HUMAN_SCENE_LABELS.includes(scene.label)) {
     prompt = `${founderDescription} ${prompt}`
     console.log(`[preview] founder injected into ${scene.id} (${scene.label})`)
+  }
+
+  // Inject product description into Transformation scene
+  if (productDescription && scene.label === 'Transformation') {
+    prompt = `PRODUCT FEATURED IN SCENE: ${productDescription} ${prompt}`
+    console.log(`[preview] product injected into ${scene.id} (${scene.label})`)
   }
   const openaiKey    = process.env.OPENAI_API_KEY
   const replicateKey = process.env.REPLICATE_API_TOKEN
@@ -230,7 +268,7 @@ export async function POST(req) {
     const adminClient   = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const storageClient = adminClient.storage.from('identity-images')
 
-    const { scenes, brandContext, founderImageUrl } = await req.json()
+    const { scenes, brandContext, founderImageUrl, productImageUrls } = await req.json()
     if (!Array.isArray(scenes) || scenes.length === 0) {
       return NextResponse.json({ error: 'scenes array required' }, { status: 400 })
     }
@@ -239,7 +277,7 @@ export async function POST(req) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
     }
 
-    // Describe founder image once — reused for all human scenes in this batch
+    // Describe founder + product images once — reused across all scenes in this batch
     const openaiKey = process.env.OPENAI_API_KEY
     let founderDescription = null
     if (founderImageUrl && openaiKey) {
@@ -249,6 +287,11 @@ export async function POST(req) {
       } catch (e) {
         console.warn('[preview-scenes] founder description failed:', e.message)
       }
+    }
+    let productDescription = null
+    if (productImageUrls?.length && openaiKey) {
+      productDescription = await describeProduct(productImageUrls, openaiKey)
+      if (productDescription) console.log(`[preview-scenes] product described: "${productDescription.slice(0, 100)}"`)
     }
 
     // Generate in parallel with index-based stagger to avoid gpt-image-1 rate limits.
@@ -269,7 +312,7 @@ export async function POST(req) {
 
         try {
           const { anchored } = validateAndAnchorPrompt(scene, brandContext)
-          const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient, founderDescription)
+          const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient, founderDescription, productDescription)
           return { id: scene.id, imageUrl, anchored }
         } catch (e) {
           console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
