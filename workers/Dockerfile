@@ -26,8 +26,9 @@ WORKDIR /app
 COPY workers/package.json ./
 RUN npm install --omit=dev
 
-# Copy worker and shared render engine (worker imports from lib/)
+# Copy workers and shared render engine
 COPY workers/edit-render-worker.mjs ./
+COPY workers/jarvis-render-worker.mjs ./workers/
 COPY workers/render-utils.mjs* ./
 COPY lib/ ./lib/
 

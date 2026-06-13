@@ -5,7 +5,7 @@
     "dockerfilePath": "workers/Dockerfile"
   },
   "deploy": {
-    "startCommand": "node edit-render-worker.mjs",
+    "startCommand": "node workers/jarvis-render-worker.mjs",
     "restartPolicyType": "ALWAYS",
     "restartPolicyMaxRetries": 10
   }
