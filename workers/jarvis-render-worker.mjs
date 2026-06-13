@@ -292,19 +292,27 @@ async function renderJarvisAd(plan, workDir, jobId) {
   fs.writeFileSync(concatFile, clipPaths.map(p => `file '${p}'`).join('\n'))
   console.log('[jarvis-worker] Concat file:', fs.readFileSync(concatFile, 'utf8'))
 
-  const outPath  = path.join(workDir, 'ad.mp4')
-  const p2Args   = ['-f', 'concat', '-safe', '0', '-i', concatFile]
+  const outPath = path.join(workDir, 'ad.mp4')
+  const p2Args  = ['-f', 'concat', '-safe', '0', '-i', concatFile]
 
-  if (voiceFilePath) p2Args.push('-i', voiceFilePath)
-  if (musicFilePath) p2Args.push('-i', musicFilePath)
-
-  p2Args.push('-c:v', 'copy')
-
-  const hasAudio = voiceFilePath || musicFilePath
-  if (hasAudio) {
-    p2Args.push('-c:a', 'aac', '-b:a', '128k', '-shortest')
+  if (voiceFilePath && musicFilePath) {
+    // voice at index 1, music at index 2 — amix to blend
+    p2Args.push('-i', voiceFilePath, '-i', musicFilePath)
+    p2Args.push('-filter_complex', '[1:a][2:a]amix=inputs=2:duration=first:weights=2 1[aout]')
+    p2Args.push('-map', '0:v:0', '-map', '[aout]')
+    p2Args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest')
+  } else if (voiceFilePath) {
+    // voice at index 1
+    p2Args.push('-i', voiceFilePath)
+    p2Args.push('-map', '0:v:0', '-map', '1:a:0')
+    p2Args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest')
+  } else if (musicFilePath) {
+    // music at index 1
+    p2Args.push('-i', musicFilePath)
+    p2Args.push('-map', '0:v:0', '-map', '1:a:0')
+    p2Args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest')
   } else {
-    p2Args.push('-an')
+    p2Args.push('-c:v', 'copy', '-an')
   }
 
   p2Args.push('-movflags', '+faststart', '-y', outPath)
