@@ -19,9 +19,9 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-13
-Last completed: gpt-image-1 primary in Jarvis Studio preview-scenes, FLUX as fallback, dall-e-3 removed
+Last completed: Music library fixed — selection wired to compile-ad, all tracks showing, scrollable
 In progress: none
-Next atomic task: Full 25-scene test
+Next atomic task: Full Jarvis Studio end-to-end test with music
 DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
 
 ---

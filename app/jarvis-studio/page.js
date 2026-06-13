@@ -179,10 +179,10 @@ export default function JarvisStudio() {
     fetch('/api/music-studio/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mood: 'energetic', goal: 'ad' }),
+      body: JSON.stringify({ mood: 'energetic', goal: 'ad', topN: 100 }),
     })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.recommendedTracks)) setMusicTracks(d.recommendedTracks.slice(0, 8)) })
+      .then(d => { if (Array.isArray(d.recommendedTracks)) setMusicTracks(d.recommendedTracks) })
       .catch(() => {})
       .finally(() => setMusicLoading(false))
   }, [musicMode])
@@ -830,12 +830,19 @@ export default function JarvisStudio() {
               )}
 
               {musicMode === 'library' && (
-                <div>
+                <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
                   {musicLoading && <div style={{ fontSize:12, color:C.dim }}>Loading tracks...</div>}
                   {!musicLoading && !musicTracks.length && <div style={{ fontSize:12, color:C.dim }}>No tracks available.</div>}
                   {musicTracks.map(track => (
                     <div key={track.id} className="music-track"
-                      onClick={() => setMusicTrackId(musicTrackId === track.id ? null : track.id)}
+                      onClick={() => {
+                        const newId = musicTrackId === track.id ? null : track.id
+                        setMusicTrackId(newId)
+                        setUploadedAssets(prev => ({
+                          ...prev,
+                          musicUrl: newId ? (track.preview_file_url || null) : null,
+                        }))
+                      }}
                       style={{
                         display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:7, cursor:'pointer',
                         background: musicTrackId === track.id ? C.goldBg : 'transparent',
