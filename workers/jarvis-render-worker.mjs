@@ -329,7 +329,13 @@ async function renderJarvisAd(plan, workDir, jobId) {
   args.push('-y', outPath)
 
   log('info', `FFmpeg: ${n} scenes, ~${totalDur.toFixed(0)}s, hasVideo=${hasVideo}`, jobId)
-  await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
+  try {
+    await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
+  } catch (err) {
+    console.error('[jarvis-worker] FFmpeg stderr:', err.stderr?.slice(-500))
+    console.error('[jarvis-worker] FFmpeg stdout:', err.stdout?.slice(-200))
+    throw new Error(`FFmpeg failed: ${err.stderr?.slice(-200) || err.message}`)
+  }
 
   if (!fs.existsSync(outPath)) throw new Error('FFmpeg exited 0 but no output file was created')
   const sizeMB = (fs.statSync(outPath).size / 1024 / 1024).toFixed(1)
