@@ -120,6 +120,7 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
   // ── FLUX-1.1-pro via Replicate — 9:16 native, cinematic quality ──────────
   if (replicateKey) {
     try {
+      console.log('FLUX generating scene:', scene.id, 'prompt length:', prompt.length)
       const replicateRes = await fetch(
         'https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions',
         {
@@ -142,6 +143,7 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
         }
       )
       const replicateData = await replicateRes.json()
+      console.log('FLUX response status:', replicateRes.status, 'output:', replicateData.output, 'error:', replicateData.error, 'detail:', replicateData.detail)
       if (!replicateRes.ok || !replicateData.output) {
         throw new Error(replicateData.detail || 'Replicate generation failed')
       }
@@ -150,8 +152,8 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
       if (!imageRes.ok) throw new Error(`Image download failed: ${imageRes.status}`)
       const imageBuffer = Buffer.from(await imageRes.arrayBuffer())
       return await storeImage(imageBuffer, 'image/jpeg', scene, userId, storageClient)
-    } catch (e) {
-      console.warn(`[preview] FLUX ${scene.id}: ${e.message}`)
+    } catch (err) {
+      console.error('FLUX failed for scene:', scene.id, err.message)
     }
   } else {
     console.warn('[preview] REPLICATE_API_KEY not set — falling back to dall-e-3')
