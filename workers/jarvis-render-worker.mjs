@@ -324,7 +324,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
     args.push('-an')
   }
 
-  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26')
+  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-pix_fmt', 'yuv420p')
   args.push('-r', '30', '-movflags', '+faststart')
   args.push('-y', outPath)
 
