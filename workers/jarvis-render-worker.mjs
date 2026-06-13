@@ -256,16 +256,13 @@ async function renderJarvisAd(plan, workDir, jobId) {
     'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
     'setsar=1', 'fps=30', 'format=yuv420p',
   ].join(',')
-  const kbFrames    = Math.round(segDur * 30)
   const filterParts = []
 
   for (let i = 0; i < n; i++) {
     if (activeScenes[i].videoUrl) {
       filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
     } else {
-      filterParts.push(
-        `[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[scaled${i}];[scaled${i}]zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${kbFrames}:s=1080x1920,fps=30[v${i}]`
-      )
+      filterParts.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p[v${i}]`)
     }
   }
 
