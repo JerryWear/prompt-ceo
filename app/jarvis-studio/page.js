@@ -98,6 +98,16 @@ async function extractVideoFrames(videoFile) {
   })
 }
 
+async function safeJson(res) {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.error('Non-JSON response:', text.slice(0, 200))
+    throw new Error('Server error — please try again')
+  }
+}
+
 export default function JarvisStudio() {
   const router   = useRouter()
   const supabase = createClient()
@@ -566,7 +576,7 @@ export default function JarvisStudio() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ scenes: scenesWithImages, founderImageUrl: uploadedAssets?.founderImageUrl || null }),
       })
-      const clipsData = await clipsRes.json()
+      const clipsData = await safeJson(clipsRes)
       if (!clipsRes.ok || !clipsData.clips?.length) {
         const detail = clipsData.failed?.[0]?.error || clipsData.error || 'Clip generation failed'
         throw new Error(detail)
@@ -607,7 +617,7 @@ export default function JarvisStudio() {
           voiceScript:  voiceScript || null,
         }),
       })
-      const compileData = await compileRes.json()
+      const compileData = await safeJson(compileRes)
       if (!compileRes.ok || !compileData.videoUrl) {
         throw new Error(compileData.error || 'Ad compilation failed')
       }
