@@ -60,7 +60,7 @@ export async function POST(req) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { scenes = [], conceptTitle = 'Ad', musicUrl } = await req.json()
+  const { scenes = [], conceptTitle = 'Ad', musicUrl, voiceScript } = await req.json()
 
   // Prefer videoUrl (Runway clips), fall back to imageUrl (stills)
   const useVideo  = scenes.some(s => s.videoUrl)
@@ -104,6 +104,28 @@ export async function POST(req) {
       }
     }
 
+    // ── 2b. Optional TTS voiceover ───────────────────────────────────────────
+    let voiceFilePath = null
+    if (voiceScript && process.env.OPENAI_API_KEY) {
+      try {
+        const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
+          method:  'POST',
+          headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ model: 'tts-1', voice: 'onyx', input: voiceScript, response_format: 'mp3' }),
+        })
+        if (ttsRes.ok) {
+          voiceFilePath = path.join(tmpDir, 'voice.mp3')
+          const buffer  = Buffer.from(await ttsRes.arrayBuffer())
+          fs.writeFileSync(voiceFilePath, buffer)
+          console.log('[compile-ad] TTS voiceover generated ✓')
+        } else {
+          console.warn('[compile-ad] TTS API error:', ttsRes.status)
+        }
+      } catch (err) {
+        console.warn('[compile-ad] TTS failed — continuing without voiceover:', err.message)
+      }
+    }
+
     // ── 3. Build FFmpeg command ───────────────────────────────────────────────
     const n        = filePaths.length
     const segDur   = useVideo ? 5.0 : 6.5   // Runway clips are 5s; images shown 6.5s
@@ -121,6 +143,7 @@ export async function POST(req) {
       for (const p of filePaths) args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', p)
     }
     if (musicFilePath) args.push('-i', musicFilePath)
+    if (voiceFilePath) args.push('-i', voiceFilePath)
 
     const scaleChain = [
       'scale=1080:1920:force_original_aspect_ratio=decrease',
@@ -176,15 +199,29 @@ export async function POST(req) {
       console.warn('[compile-ad] no system font found — captions skipped')
     }
 
+    // Audio mix lives in the same filter_complex as video — FFmpeg only allows one.
+    // Input indices: scenes = 0..n-1, music = n (if present), voice = n (voice-only) or n+1 (both).
+    if (voiceFilePath && musicFilePath) {
+      const musicIdx = n
+      const voiceIdx = n + 1
+      filterParts.push(`[${musicIdx}:a]volume=0.15[quietmusic]`)
+      filterParts.push(`[${voiceIdx}:a][quietmusic]amix=inputs=2:duration=first[aout]`)
+    }
+
     args.push('-filter_complex', filterParts.join(';'))
     args.push('-map', `[${finalLabel}]`)
 
-    const musicInputIdx = n  // index of the music input stream
-    if (musicFilePath) {
-      args.push('-map', `${musicInputIdx}:a`)
+    if (voiceFilePath && musicFilePath) {
+      args.push('-map', '[aout]')
+      args.push('-c:a', 'aac', '-b:a', '128k')
+    } else if (musicFilePath) {
+      args.push('-map', `${n}:a`)
       args.push('-c:a', 'aac', '-b:a', '128k')
       args.push('-af', `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(1)}:d=2`)
       args.push('-shortest')
+    } else if (voiceFilePath) {
+      args.push('-map', `${n}:a`)
+      args.push('-c:a', 'aac', '-b:a', '128k')
     } else {
       args.push('-an')
     }
