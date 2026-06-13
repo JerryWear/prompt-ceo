@@ -159,20 +159,23 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
     console.warn('[preview] REPLICATE_API_SECRET not set — falling back to dall-e-3')
   }
 
-  // ── dall-e-3 fallback — b64_json to avoid CDN URL access issues ──────────
+  // ── dall-e-3 fallback — fetch URL then download to buffer for Supabase ──────
   if (openaiKey) {
     try {
       const res  = await fetch('https://api.openai.com/v1/images/generations', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'b64_json' }),
+        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'url' }),
         signal:  AbortSignal.timeout(45000),
       })
       const data = await res.json()
       if (res.ok) {
-        const b64 = data.data?.[0]?.b64_json
-        if (b64) {
-          return await storeImage(Buffer.from(b64, 'base64'), 'image/jpeg', scene, userId, storageClient)
+        const url = data.data?.[0]?.url
+        if (url) {
+          const imgRes = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          if (!imgRes.ok) throw new Error(`dall-e-3 image download failed: ${imgRes.status}`)
+          const buf = Buffer.from(await imgRes.arrayBuffer())
+          return await storeImage(buf, 'image/jpeg', scene, userId, storageClient)
         }
       } else {
         console.warn(`[preview] dall-e-3 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
@@ -211,9 +214,11 @@ export async function POST(req) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
     }
 
-    // Generate sequentially — each call takes ~5-15s, naturally under rate limits
+    // Generate sequentially with delay to respect Replicate rate limit (6/min)
     const previews = []
-    for (const scene of scenes) {
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i]
+
       // Product Reality Engine: real screenshot → skip generation entirely
       if (scene.screenshotUrl) {
         console.log(`[preview] 📸 ${scene.id} real screenshot`)
@@ -228,6 +233,11 @@ export async function POST(req) {
       } catch (e) {
         console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
         previews.push({ id: scene.id, imageUrl: null, error: e.message })
+      }
+
+      // Wait 11s between FLUX calls to respect 6/min rate limit
+      if (process.env.REPLICATE_API_SECRET && i < scenes.length - 1) {
+        await new Promise(r => setTimeout(r, 11000))
       }
     }
 

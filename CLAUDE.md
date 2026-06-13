@@ -19,9 +19,9 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-13
-Last completed: FLUX-1.1-pro integrated into Jarvis Studio preview-scenes, music pipeline bug fixed in compile-ad
+Last completed: Fixed FLUX rate limiting (11s delay between calls) and DALL-E fallback (url response format)
 In progress: none
-Next atomic task: Test full Jarvis Studio run with FLUX images
+Next atomic task: Add $5 Replicate credit to remove rate limit
 DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
 
 ---
