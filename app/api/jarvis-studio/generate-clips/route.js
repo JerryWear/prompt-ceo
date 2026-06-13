@@ -128,7 +128,13 @@ export async function POST(req) {
       console.log('[generate-clips] Runway skipped — returning imageUrl-only scenes for Ken Burns render')
       return NextResponse.json({
         status:  'success',
-        clips:   ready.map(s => ({ id: s.id, label: s.label, imageUrl: s.imageUrl })),
+        clips:   ready.map(s => ({
+          id:       s.id,
+          label:    s.label    || '',
+          imageUrl: s.imageUrl || null,
+          videoUrl: null,
+          caption:  s.caption  || '',
+        })),
         skipped: true,
       })
     }
