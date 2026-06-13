@@ -339,6 +339,14 @@ async function processJob(admin, job) {
   const userId = job.user_id
   const plan   = job.render_plan
 
+  console.log('[jarvis-worker] render plan:', JSON.stringify({
+    scenesCount:       plan.scenes?.length,
+    hasVoiceScript:    !!plan.voiceScript,
+    voiceScriptLength: plan.voiceScript?.length,
+    hasMusicUrl:       !!plan.musicUrl,
+    conceptTitle:      plan.conceptTitle,
+  }))
+
   log('info', 'Job claimed', jobId, {
     userId,
     conceptTitle: plan?.conceptTitle,
