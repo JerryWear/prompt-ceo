@@ -19,10 +19,10 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-14
-Last completed: Performance Memory — full feature complete (save + button + injection)
+Last completed: Jarvis Context Bar — live in Ad Studio
 In progress: none
-Next atomic task: Test full loop — generate ad, mark performed well, generate new ad, verify pattern injection
-DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
+Next atomic task: Build /api/jarvis/recommend endpoint for director's note
+DO NOT touch: renderEngine.js, webhook handler, performance-memory routes
 
 ---
 
