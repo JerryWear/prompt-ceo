@@ -159,29 +159,24 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
     console.warn('[preview] REPLICATE_API_SECRET not set — falling back to dall-e-3')
   }
 
-  // ── dall-e-3 fallback — fetch URL then download to buffer for Supabase ──────
+  // ── dall-e-3 fallback — no response_format, fetch URL, upload buffer ────────
   if (openaiKey) {
     try {
-      const res  = await fetch('https://api.openai.com/v1/images/generations', {
+      const dalleRes = await fetch('https://api.openai.com/v1/images/generations', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'url' }),
+        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
         signal:  AbortSignal.timeout(45000),
       })
-      const data = await res.json()
-      if (res.ok) {
-        const url = data.data?.[0]?.url
-        if (url) {
-          const imgRes = await fetch(url, { signal: AbortSignal.timeout(15000) })
-          if (!imgRes.ok) throw new Error(`dall-e-3 image download failed: ${imgRes.status}`)
-          const buf = Buffer.from(await imgRes.arrayBuffer())
-          return await storeImage(buf, 'image/jpeg', scene, userId, storageClient)
-        }
-      } else {
-        console.warn(`[preview] dall-e-3 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
-      }
-    } catch (e) {
-      console.warn(`[preview] dall-e-3 ${scene.id}: ${e.message}`)
+      const dalleData = await dalleRes.json()
+      if (!dalleRes.ok) throw new Error(dalleData.error?.message || 'DALL-E failed')
+      const imageUrl = dalleData.data[0].url
+      const imgRes   = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) })
+      if (!imgRes.ok) throw new Error(`dall-e-3 image download failed: ${imgRes.status}`)
+      const buffer = Buffer.from(await imgRes.arrayBuffer())
+      return await storeImage(buffer, 'image/jpeg', scene, userId, storageClient)
+    } catch (dalleErr) {
+      console.error('[preview] dall-e-3 fatal:', scene.id, dalleErr.message)
     }
   } else {
     console.warn('[preview] OPENAI_API_KEY not set')
