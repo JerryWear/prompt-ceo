@@ -62,7 +62,20 @@ export async function POST(req) {
       hasFirecrawl: !!process.env.FIRECRAWL_API_KEY,
     })
 
-    const { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, videoFrameUrls = [], prompt, intent } = await req.json()
+    let { websiteUrl, founderImageUrl, productImageUrls = [], videoUrl, videoFrameUrls = [], prompt, intent } = await req.json()
+
+    // Validate founder image is reachable before passing to GPT-4o vision.
+    // OpenAI fetches it server-side — if the URL is inaccessible it returns
+    // "Failed to download image" and the entire understand step crashes.
+    if (founderImageUrl) {
+      try {
+        const testRes = await fetch(founderImageUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) })
+        if (!testRes.ok) throw new Error(`HTTP ${testRes.status}`)
+      } catch (err) {
+        console.warn('[understand] founder image fetch failed — continuing without:', err.message)
+        founderImageUrl = null
+      }
+    }
 
     // 1. Scrape website + transcribe video in parallel
     const [webContent, videoTranscript] = await Promise.all([
