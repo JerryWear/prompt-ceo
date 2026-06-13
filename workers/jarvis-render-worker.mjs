@@ -244,7 +244,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
     if (activeScenes[i].videoUrl) {
       args.push('-i', filePaths[i])
     } else {
-      args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', filePaths[i])
+      args.push('-framerate', '30', '-loop', '1', '-t', String(segDur), '-i', filePaths[i])
     }
   }
   if (voiceFilePath) args.push('-i', voiceFilePath)  // index n (always first after scenes)
@@ -262,7 +262,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
     if (activeScenes[i].videoUrl) {
       filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
     } else {
-      filterParts.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p[v${i}]`)
+      filterParts.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,fps=30[v${i}]`)
     }
   }
 

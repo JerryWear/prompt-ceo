@@ -654,7 +654,7 @@ export default function JarvisStudio() {
       setError(err.message || 'Ad creation failed')
       setPhase('storyboard')
     }
-  }, [previews, uploadedAssets])
+  }, [previews, uploadedAssets, voiceScript])
 
   // ── Render ────────────────────────────────────────────────────────────────
   const previewCount = Object.keys(previews).length
