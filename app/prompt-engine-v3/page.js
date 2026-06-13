@@ -7,7 +7,8 @@ import { useJarvisContext } from '../components/JarvisRail/JarvisContext'
 import React, { useState, useCallback, useMemo, useRef, useEffect, Fragment } from 'react'
 import { buildPromptV3 } from './index.js'
 import MusicSelector from './components/MusicSelector.js'
-import ViralAnalyzer from '../components/jarvis/ViralAnalyzer'
+import ViralAnalyzer      from '../components/jarvis/ViralAnalyzer'
+import JarvisContextBar  from '../components/jarvis/JarvisContextBar'
 import { getSoundtrackIdentity, getStageMusic, getMusicAdaptedStoryboard, getMusicRecommendationForStage } from './ad-system/musicIntelligence.js'
 import { recommendMusicForAd } from './ad-system/musicRecommendation.js'
 import { buildVoiceInjectionContext } from './ad-system/brandVoiceTrainer.js'
@@ -3496,6 +3497,7 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
 
   return (
     <>
+    <JarvisContextBar brandDNA={activeBrandProfile} refreshTrigger={perfSaved} />
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '280px 1fr', overflow: 'hidden' }}>
 
       {/* ══ LEFT — Config ════════════════════════════════ */}

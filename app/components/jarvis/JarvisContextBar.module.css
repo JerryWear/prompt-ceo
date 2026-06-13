@@ -1,0 +1,115 @@
+/* ── JarvisContextBar — persistent intelligence strip ─────────────────────── */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  background: #0a0a0a;
+  border-bottom: 1px solid rgba(200, 168, 75, 0.15);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── Logo ────────────────────────────────────────────────────────────────── */
+
+.logo {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #c8a84b;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(200, 168, 75, 0.15);
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+
+/* ── Data points ─────────────────────────────────────────────────────────── */
+
+.dataPoint {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.dpLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #5a5248;
+  line-height: 1;
+}
+
+.dpValue {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8a84b;
+  line-height: 1;
+}
+
+/* ── Director's note ─────────────────────────────────────────────────────── */
+
+.directorNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.directorLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #5a5248;
+  flex-shrink: 0;
+}
+
+.directorText {
+  font-size: 11px;
+  color: #8a8070;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.empty {
+  font-size: 11px;
+  color: #3a3530;
+  font-style: italic;
+  flex: 1;
+  text-align: center;
+}
+
+/* ── Mobile — hide data points, keep logo + count ───────────────────────── */
+
+@media (max-width: 640px) {
+  .dataPoint,
+  .directorNote,
+  .divider {
+    display: none;
+  }
+
+  .dataPoint:last-of-type {
+    display: flex;
+  }
+}
