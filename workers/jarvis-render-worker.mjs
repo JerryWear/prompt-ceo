@@ -105,17 +105,25 @@ async function downloadToFile(url, destPath) {
 async function generateTts(voiceScript, workDir) {
   if (!voiceScript || !OPENAI_API_KEY) return null
   try {
+    console.log('[jarvis-worker] TTS starting, script length:', voiceScript?.length, 'hasKey:', !!process.env.OPENAI_API_KEY)
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body:    JSON.stringify({ model: 'tts-1', voice: 'onyx', input: voiceScript, response_format: 'mp3' }),
     })
-    if (!res.ok) { log('warn', `TTS API error: ${res.status}`); return null }
+    console.log('[jarvis-worker] TTS response:', res.status, res.statusText)
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('[jarvis-worker] TTS error body:', errText)
+      log('warn', `TTS API error: ${res.status}`)
+      return null
+    }
     const voicePath = path.join(workDir, 'voice.mp3')
     fs.writeFileSync(voicePath, Buffer.from(await res.arrayBuffer()))
     log('info', 'TTS voiceover generated')
     return voicePath
   } catch (err) {
+    console.error('[jarvis-worker] TTS exception:', err.message)
     log('warn', `TTS failed — continuing without voiceover: ${err.message}`)
     return null
   }
