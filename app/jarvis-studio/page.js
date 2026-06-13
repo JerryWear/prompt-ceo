@@ -562,7 +562,7 @@ export default function JarvisStudio() {
       const clipsRes  = await fetch('/api/jarvis-studio/generate-clips', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ scenes: scenesWithImages }),
+        body:    JSON.stringify({ scenes: scenesWithImages, founderImageUrl: uploadedAssets?.founderImageUrl || null }),
       })
       const clipsData = await clipsRes.json()
       if (!clipsRes.ok || !clipsData.clips?.length) {

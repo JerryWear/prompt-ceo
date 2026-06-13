@@ -6,6 +6,9 @@ import RunwayML                    from '@runwayml/sdk'
 
 export const maxDuration = 300
 
+// Human scenes — founder photo replaces AI image as Runway promptImage
+const FOUNDER_SCENES = ['Setup', 'Conflict', 'Resolution']
+
 // Motion language per scene type
 const MOTION = {
   Hook:           { camera: 'Slow cinematic push in. Camera moves forward with deliberate intent.',        mood: 'Tense. Dark. Something important is about to be revealed.' },
@@ -42,13 +45,17 @@ async function ensureHttpsUrl(imageUrl, sceneId, userId) {
   }
 }
 
-async function generateOneClip(scene, runwayKey, userId) {
-  const m         = MOTION[scene.label] || MOTION.Hook
-  const visual    = (scene.visual_scene || scene.dalle_prompt || '').slice(0, 250)
-  const promptText = `${visual}. ${m.camera} ${m.mood} Cinematic vertical advertisement. Professional commercial quality. 9:16.`
+async function generateOneClip(scene, runwayKey, userId, founderImageUrl = null) {
+  const m            = MOTION[scene.label] || MOTION.Hook
+  const visual       = (scene.visual_scene || scene.dalle_prompt || '').slice(0, 250)
+  const isFounderScene = founderImageUrl && FOUNDER_SCENES.includes(scene.label)
+  const promptText   = isFounderScene
+    ? `Cinematic animation of this person. ${visual}. ${m.camera} ${m.mood} Cinematic vertical advertisement. Professional commercial quality. 9:16.`
+    : `${visual}. ${m.camera} ${m.mood} Cinematic vertical advertisement. Professional commercial quality. 9:16.`
 
-  // Ensure Runway gets an HTTPS URL (base64 data URIs are rejected by the API)
-  const imageUrl = await ensureHttpsUrl(scene.imageUrl, scene.id, userId)
+  // Founder scenes use the uploaded photo as promptImage; others use the AI preview
+  const rawImageUrl = isFounderScene ? founderImageUrl : scene.imageUrl
+  const imageUrl    = await ensureHttpsUrl(rawImageUrl, scene.id, userId)
 
   console.log(`[generate-clips] starting ${scene.label} (${scene.id}) — image: ${imageUrl.slice(0, 60)} — prompt: "${promptText.slice(0, 80)}"`)
 
@@ -114,12 +121,13 @@ export async function POST(req) {
     }
     console.log(`[generate-clips] using ${process.env.RUNWAYML_API_SECRET ? 'platform' : 'user'} Runway key`)
 
-    const { scenes = [] } = await req.json()
+    const { scenes = [], founderImageUrl = null } = await req.json()
     const ready = scenes.filter(s => s.imageUrl)
     if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
 
     console.log(`[generate-clips] launching ${ready.length} clips in parallel`)
-    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey, user.id)))
+    if (founderImageUrl) console.log(`[generate-clips] founder photo active — will use for: ${FOUNDER_SCENES.join(', ')}`)
+    const results = await Promise.allSettled(ready.map(s => generateOneClip(s, runwayKey, user.id, founderImageUrl)))
 
     const clips  = []
     const failed = []
