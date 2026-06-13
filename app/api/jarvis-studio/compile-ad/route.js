@@ -91,7 +91,13 @@ export async function POST(req) {
       try {
         musicFilePath = path.join(tmpDir, 'music.mp3')
         await downloadToFile(musicUrl, musicFilePath)
-        console.log('[compile-ad] music downloaded')
+        const musicExists = fs.existsSync(musicFilePath) && fs.statSync(musicFilePath).size > 0
+        if (!musicExists) {
+          console.warn('[compile-ad] music file empty or missing — skipping music')
+          musicFilePath = null
+        } else {
+          console.log('[compile-ad] music downloaded')
+        }
       } catch (e) {
         console.warn('[compile-ad] music download failed — continuing without:', e.message)
         musicFilePath = null

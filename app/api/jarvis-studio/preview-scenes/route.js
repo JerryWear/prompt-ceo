@@ -113,66 +113,73 @@ async function storeImage(buf, mime, scene, userId, storageClient) {
 }
 
 async function generatePreviewImage(scene, brandContext, userId, storageClient) {
-  const prompt    = buildFinalPrompt(scene, brandContext)
-  const openaiKey = process.env.OPENAI_API_KEY
+  const prompt       = buildFinalPrompt(scene, brandContext)
+  const replicateKey = process.env.REPLICATE_API_KEY
+  const openaiKey    = process.env.OPENAI_API_KEY
 
-  if (!openaiKey) {
-    console.warn('[preview] OPENAI_API_KEY not set')
-    return buildScenePlaceholder(scene)
-  }
-
-  // ── gpt-image-1 — preview quality: fast, cheap, concept-level accuracy ───────
-  // Returns b64_json by default. 1024x1024 for previews (user approves concept
-  // then a separate "Produce" step generates the full-quality 9:16 asset).
-  try {
-    const res  = await fetch('https://api.openai.com/v1/images/generations', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-      body:    JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size: '1024x1024', quality: 'low' }),
-      signal:  AbortSignal.timeout(45000),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      const b64 = data.data?.[0]?.b64_json
-      if (b64) {
-        return await storeImage(Buffer.from(b64, 'base64'), 'image/png', scene, userId, storageClient)
-      }
-      // gpt-image-1 may return a url on some account tiers
-      const url = data.data?.[0]?.url
-      if (url) {
-        const imgRes = await fetch(url, { signal: AbortSignal.timeout(15000) })
-        if (imgRes.ok) {
-          const buf  = await imgRes.arrayBuffer()
-          const mime = imgRes.headers.get('content-type') || 'image/jpeg'
-          return await storeImage(Buffer.from(buf), mime, scene, userId, storageClient)
+  // ── FLUX-1.1-pro via Replicate — 9:16 native, cinematic quality ──────────
+  if (replicateKey) {
+    try {
+      const replicateRes = await fetch(
+        'https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions',
+        {
+          method:  'POST',
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type':  'application/json',
+            'Prefer':        'wait',
+          },
+          body: JSON.stringify({
+            input: {
+              prompt,
+              aspect_ratio:    '9:16',
+              output_format:   'jpg',
+              output_quality:  90,
+              safety_tolerance: 2,
+            },
+          }),
+          signal: AbortSignal.timeout(60000),
         }
+      )
+      const replicateData = await replicateRes.json()
+      if (!replicateRes.ok || !replicateData.output) {
+        throw new Error(replicateData.detail || 'Replicate generation failed')
       }
-    } else {
-      console.warn(`[preview] gpt-image-1 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
+      // replicateData.output is a direct image URL — download it
+      const imageRes = await fetch(replicateData.output, { signal: AbortSignal.timeout(15000) })
+      if (!imageRes.ok) throw new Error(`Image download failed: ${imageRes.status}`)
+      const imageBuffer = Buffer.from(await imageRes.arrayBuffer())
+      return await storeImage(imageBuffer, 'image/jpeg', scene, userId, storageClient)
+    } catch (e) {
+      console.warn(`[preview] FLUX ${scene.id}: ${e.message}`)
     }
-  } catch (e) {
-    console.warn(`[preview] gpt-image-1 ${scene.id}: ${e.message}`)
+  } else {
+    console.warn('[preview] REPLICATE_API_KEY not set — falling back to dall-e-3')
   }
 
-  // ── dall-e-3 fallback — b64_json to avoid CDN URL access issues ───────────────
-  try {
-    const res  = await fetch('https://api.openai.com/v1/images/generations', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-      body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'b64_json' }),
-      signal:  AbortSignal.timeout(45000),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      const b64 = data.data?.[0]?.b64_json
-      if (b64) {
-        return await storeImage(Buffer.from(b64, 'base64'), 'image/jpeg', scene, userId, storageClient)
+  // ── dall-e-3 fallback — b64_json to avoid CDN URL access issues ──────────
+  if (openaiKey) {
+    try {
+      const res  = await fetch('https://api.openai.com/v1/images/generations', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard', response_format: 'b64_json' }),
+        signal:  AbortSignal.timeout(45000),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const b64 = data.data?.[0]?.b64_json
+        if (b64) {
+          return await storeImage(Buffer.from(b64, 'base64'), 'image/jpeg', scene, userId, storageClient)
+        }
+      } else {
+        console.warn(`[preview] dall-e-3 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
       }
-    } else {
-      console.warn(`[preview] dall-e-3 ${res.status} ${scene.id}: ${data.error?.message || ''}`)
+    } catch (e) {
+      console.warn(`[preview] dall-e-3 ${scene.id}: ${e.message}`)
     }
-  } catch (e) {
-    console.warn(`[preview] dall-e-3 ${scene.id}: ${e.message}`)
+  } else {
+    console.warn('[preview] OPENAI_API_KEY not set')
   }
 
   // ── SVG placeholder — always works, loads in <1ms ─────────────────────────
