@@ -66,7 +66,7 @@ export async function POST(req) {
         messages: [
           {
             role:    'system',
-            content: 'You are a viral content analyst and creative strategist. Analyze the provided content and extract its structural DNA — the hook, pacing, emotional trigger, and why it works. Be specific and tactical, not generic. Output only valid JSON matching the schema provided. No preamble, no markdown.',
+            content: 'You are a viral content analyst. Analyze the ad copy provided and return ONLY a valid JSON object with these exact fields filled in — no empty strings allowed:\n- hookText: the exact opening line or most powerful hook sentence from the content\n- hookArchetype: one of: pattern_break, curiosity_gap, bold_claim, visual_hook, emotional_open, transformation_story, aspiration, direct_offer, urgency, social_proof\n- structure: describe the content structure in one sentence (opening, middle, close)\n- pacing: one of: fast_cut, story_driven, cinematic, fast, slow\n- emotionalTrigger: the core emotion being activated (e.g. fear, curiosity, aspiration, urgency)\n- visualStyle: describe the visual approach in one sentence\n- campaignPhase: one of: attention, emotional_connection, desire_escalation, conversion, retargeting\n- whyItWorks: exactly 2 sentences explaining why this ad is effective\n- applyToBrand: one sentence on how to adapt this pattern for the user\'s brand\n\nReturn only JSON. No markdown. No preamble. Every field must have a non-empty value.',
           },
           {
             role:    'user',

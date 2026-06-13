@@ -42,6 +42,7 @@ export default function ViralAnalyzer({ brandDNA, onApply }) {
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`)
       setResult(data.analysis)
+      console.log('[ViralAnalyzer] result:', data.analysis)
     } catch (err) {
       setError(err.message || 'Analysis failed. Try again.')
     } finally {
