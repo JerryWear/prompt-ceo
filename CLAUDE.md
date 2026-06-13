@@ -18,11 +18,11 @@ We are building the operating system for AI-native businesses.
 ---
 
 ## Current Session State
-Last updated: 2026-06-13
-Last completed: Viral Content Analyzer — full build + all bug fixes shipped and pushed
+Last updated: 2026-06-14
+Last completed: Performance Memory Step 2 — save button wired into prompt-engine-v3
 In progress: Nothing active — session complete
-Next atomic task: Wire brandDNA into ViralAnalyzer onApply (Ad Studio) when campaignPhase selector is added
-DO NOT touch: Stripe webhook handler, Supabase RLS policies, Edit Studio render pipeline
+Next atomic task: Performance Memory Step 3 — Jarvis pattern injection into new ad briefs
+DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer, performance-memory routes
 
 ---
 
