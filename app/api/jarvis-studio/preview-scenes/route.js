@@ -214,32 +214,25 @@ export async function POST(req) {
       console.log(`[preview-scenes] brand context: "${brandContext.productName}"`)
     }
 
-    // Generate sequentially with delay to respect Replicate rate limit (6/min)
-    const previews = []
-    for (let i = 0; i < scenes.length; i++) {
-      const scene = scenes[i]
+    // Generate all scenes in parallel — Replicate billing active, no rate limit
+    const previews = await Promise.all(
+      scenes.map(async (scene) => {
+        // Product Reality Engine: real screenshot → skip generation entirely
+        if (scene.screenshotUrl) {
+          console.log(`[preview] 📸 ${scene.id} real screenshot`)
+          return { id: scene.id, imageUrl: scene.screenshotUrl, isReal: true }
+        }
 
-      // Product Reality Engine: real screenshot → skip generation entirely
-      if (scene.screenshotUrl) {
-        console.log(`[preview] 📸 ${scene.id} real screenshot`)
-        previews.push({ id: scene.id, imageUrl: scene.screenshotUrl, isReal: true })
-        continue
-      }
-
-      try {
-        const { anchored } = validateAndAnchorPrompt(scene, brandContext)
-        const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
-        previews.push({ id: scene.id, imageUrl, anchored })
-      } catch (e) {
-        console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
-        previews.push({ id: scene.id, imageUrl: null, error: e.message })
-      }
-
-      // Wait 11s between FLUX calls to respect 6/min rate limit
-      if (process.env.REPLICATE_API_SECRET && i < scenes.length - 1) {
-        await new Promise(r => setTimeout(r, 11000))
-      }
-    }
+        try {
+          const { anchored } = validateAndAnchorPrompt(scene, brandContext)
+          const imageUrl = await generatePreviewImage(scene, brandContext, user.id, storageClient)
+          return { id: scene.id, imageUrl, anchored }
+        } catch (e) {
+          console.error('[preview-scenes] scene', scene.id, 'failed:', e.message)
+          return { id: scene.id, imageUrl: null, error: e.message }
+        }
+      })
+    )
 
     const loaded = previews.filter(p => p.imageUrl).length
     console.log(`[preview-scenes] ${loaded}/${previews.length} images generated`)
