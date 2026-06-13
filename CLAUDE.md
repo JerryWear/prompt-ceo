@@ -18,11 +18,11 @@ We are building the operating system for AI-native businesses.
 ---
 
 ## Current Session State
-Last updated: [DATE]
-Last completed: [what was finished]
-In progress: [exact file/feature being worked on]
-Next atomic task: [one sentence, one file]
-DO NOT touch: [anything off limits this session]
+Last updated: 2026-06-13
+Last completed: Viral Content Analyzer — full build + all bug fixes shipped and pushed
+In progress: Nothing active — session complete
+Next atomic task: Wire brandDNA into ViralAnalyzer onApply (Ad Studio) when campaignPhase selector is added
+DO NOT touch: Stripe webhook handler, Supabase RLS policies, Edit Studio render pipeline
 
 ---
 
@@ -252,15 +252,15 @@ Credit system: Users purchase credit packs ($50/$100/$250/$500) for generation b
 
 ---
 
-## Current Priorities (as of 2026-06-03)
+## Current Priorities (as of 2026-06-13)
 
-1. **Infrastructure:** GitHub MCP + Playwright MCP operational (in progress)
-2. **CLAUDE.md:** This file — living handbook (in progress)
-3. **Jarvis Foundation:** Architecture defined, no implementation yet
-4. **Memory Layer:** pgvector architecture designed, not yet implemented
-5. **Edit Studio v0.2:** UX rebuild after v0.1 production render validated
-6. **Campaign Intelligence:** Next evolution of Campaign Brain with cross-project learning
-7. **Music Studio Phase 3:** Credit transactions + usage analytics
+1. **Viral Content Analyzer** — SHIPPED. Text-paste interface in Ad Studio (Hooks tab) + Jarvis Studio (intake screen). API route `app/api/jarvis/analyze-viral/route.js`. Component `app/components/jarvis/ViralAnalyzer.js`. Studio Pro+ gate.
+2. **Jarvis Studio story-first pipeline** — SHIPPED. Assessment → Story (5-act) → Storyboard → Previews → Runway clips → FFmpeg compile with caption overlays.
+3. **Edit Studio v0.2:** UX rebuild after v0.1 production render validated
+4. **Campaign Intelligence:** Next evolution of Campaign Brain with cross-project learning
+5. **Music Studio Phase 3:** Credit transactions + usage analytics
+6. **Jarvis Foundation:** Architecture defined, no implementation yet
+7. **Memory Layer:** pgvector architecture designed, not yet implemented
 
 ---
 
