@@ -117,7 +117,10 @@ export async function POST(req) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-    const { scenes = [], founderImageUrl = null } = await req.json()
+    let body
+    try { body = await req.json() }
+    catch (err) { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
+    const { scenes = [], founderImageUrl = null } = body
     const ready = scenes.filter(s => s.imageUrl)
     if (ready.length < 2) return NextResponse.json({ error: 'At least 2 scenes with images required' }, { status: 400 })
 
@@ -188,7 +191,7 @@ export async function POST(req) {
     return NextResponse.json({ status: 'success', clips, failed, total: ready.length })
 
   } catch (err) {
-    console.error('[generate-clips] route error:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('[generate-clips] FATAL:', err.message, err.stack)
+    return NextResponse.json({ status: 'error', error: err.message, clips: [], skipped: false }, { status: 500 })
   }
 }
