@@ -190,7 +190,9 @@ async function reclaimStaleJobs(admin) {
   return data.length
 }
 
-// ─── FFmpeg render — mirrors compile-ad/route.js exactly ─────────────────────
+// ─── FFmpeg render — two-pass approach to avoid OOM ──────────────────────────
+// Pass 1: convert each image to a short clip individually (low peak memory)
+// Pass 2: concat all clips + add audio (simple cuts, no xfade)
 
 async function renderJarvisAd(plan, workDir, jobId) {
   const { scenes = [], musicUrl, voiceScript } = plan
@@ -230,119 +232,65 @@ async function renderJarvisAd(plan, workDir, jobId) {
   // 3. Generate TTS voiceover
   const voiceFilePath = voiceScript ? await generateTts(voiceScript, workDir) : null
 
-  // 4. Build FFmpeg command
-  const n        = filePaths.length
-  const hasVideo = activeScenes.some(s => s.videoUrl)
-  const segDur   = hasVideo ? 5.0 : 6.5
-  const fadeDur  = 0.4
-  const totalDur = segDur * n - fadeDur * (n - 1)
+  // 4. PASS 1 — Convert each scene to a normalised clip individually
+  const segDur   = 6.5
+  const clipPaths = []
+  for (let i = 0; i < filePaths.length; i++) {
+    const isVideo = !!activeScenes[i].videoUrl
+    const clipPath = path.join(workDir, `clip${i}.mp4`)
+    const p1Args = []
+
+    if (isVideo) {
+      p1Args.push('-i', filePaths[i])
+    } else {
+      p1Args.push('-framerate', '30', '-loop', '1', '-t', String(segDur), '-i', filePaths[i])
+    }
+
+    p1Args.push(
+      '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      '-r', '30',
+    )
+    if (!isVideo) p1Args.push('-t', String(segDur))
+    p1Args.push('-an', '-y', clipPath)
+
+    log('info', `Pass 1: clip ${i + 1}/${filePaths.length}`, jobId)
+    try {
+      await execFileAsync('ffmpeg', p1Args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
+    } catch (err) {
+      console.error(`[jarvis-worker] Pass 1 clip ${i} stderr:`, err.stderr)
+      throw new Error(`Pass 1 clip ${i} failed: ${err.stderr?.slice(-200) || err.message}`)
+    }
+    clipPaths.push(clipPath)
+  }
+
+  // 5. PASS 2 — Concat clips + audio
+  const concatFile = path.join(workDir, 'clips.txt')
+  fs.writeFileSync(concatFile, clipPaths.map(p => `file '${p}'`).join('\n'))
+
   const outPath  = path.join(workDir, 'ad.mp4')
-  const args     = []
+  const p2Args   = ['-f', 'concat', '-safe', '0', '-i', concatFile]
 
-  // Per-scene inputs: videos get plain -i, stills get -loop 1 -t
-  for (let i = 0; i < n; i++) {
-    if (activeScenes[i].videoUrl) {
-      args.push('-i', filePaths[i])
-    } else {
-      args.push('-framerate', '30', '-loop', '1', '-t', String(segDur), '-i', filePaths[i])
-    }
-  }
-  if (voiceFilePath) args.push('-i', voiceFilePath)  // index n (always first after scenes)
-  if (musicFilePath) args.push('-i', musicFilePath)  // index n+1 if voice present, n if voice absent
+  if (voiceFilePath) p2Args.push('-i', voiceFilePath)
+  if (musicFilePath) p2Args.push('-i', musicFilePath)
 
-  // Per-scene video filters: video → scaleChain, still → Ken Burns zoompan
-  const scaleChain = [
-    'scale=1080:1920:force_original_aspect_ratio=decrease',
-    'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
-    'setsar=1', 'fps=30', 'format=yuv420p',
-  ].join(',')
-  const filterParts = []
+  p2Args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-pix_fmt', 'yuv420p')
 
-  for (let i = 0; i < n; i++) {
-    if (activeScenes[i].videoUrl) {
-      filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
-    } else {
-      filterParts.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,fps=30[v${i}]`)
-    }
-  }
-
-  // xfade transition chain
-  let prevLabel = 'v0', finalLabel = 'v0'
-  for (let i = 1; i < n; i++) {
-    const offset   = parseFloat(((segDur - fadeDur) * i).toFixed(3))
-    const outLabel = i === n - 1 ? 'vout' : `x${i}`
-    filterParts.push(`[${prevLabel}][v${i}]xfade=transition=fade:duration=${fadeDur}:offset=${offset}[${outLabel}]`)
-    prevLabel  = outLabel
-    finalLabel = outLabel
-  }
-
-  // Caption drawtext overlays
-  const fontFile    = findSystemFont()
-  const hasCaptions = fontFile && activeScenes.some(s => s.caption?.trim())
-  if (hasCaptions) {
-    let captionLabel = finalLabel
-    activeScenes.forEach((scene, i) => {
-      const text = scene.caption?.trim()
-      if (!text) return
-      const segStart = parseFloat(((segDur - fadeDur) * i).toFixed(3))
-      const showFrom = parseFloat((segStart + 0.35).toFixed(3))
-      const showTo   = parseFloat((segStart + segDur - 0.45).toFixed(3))
-      const outLabel = `cap${i}`
-      const safeTxt  = text.replace(/\\/g, '\\\\').replace(/'/g, "'").replace(/:/g, '\\:').replace(/,/g, '\\,')
-      filterParts.push(
-        `[${captionLabel}]drawtext=fontfile='${fontFile}':text='${safeTxt}':fontsize=44:fontcolor=white:` +
-        `x=(w-text_w)/2:y=h*0.82:box=1:boxcolor=black@0.55:boxborderw=16:` +
-        `enable='between(t\\,${showFrom}\\,${showTo})'[${outLabel}]`
-      )
-      captionLabel = outLabel
-    })
-    finalLabel = captionLabel
-    log('info', `Captions: ${activeScenes.filter(s => s.caption?.trim()).length} overlays`, jobId)
-  } else if (!fontFile) {
-    log('warn', 'No system font found — captions skipped', jobId)
-  }
-
-  // Force yuv420p at the filter graph boundary — ensures encoder always gets a compatible format
-  filterParts.push(`[${finalLabel}]format=yuv420p[finalv]`)
-  finalLabel = 'finalv'
-
-  // Audio indices: voice always at n (pushed first), music at n+1 if voice present else n
-  const voiceIdx = n
-  const musicIdx = voiceFilePath ? n + 1 : n
-
-  // voice+music → amix in filter_complex (must live in same -filter_complex as video)
-  if (voiceFilePath && musicFilePath) {
-    filterParts.push(`[${musicIdx}:a]volume=0.15[quietmusic]`)
-    filterParts.push(`[${voiceIdx}:a][quietmusic]amix=inputs=2:duration=first[aout]`)
-  }
-
-  args.push('-filter_complex', filterParts.join(';'))
-  args.push('-map', `[${finalLabel}]`)
-
-  if (voiceFilePath && musicFilePath) {
-    args.push('-map', '[aout]', '-c:a', 'aac', '-b:a', '128k')
-  } else if (voiceFilePath) {
-    args.push('-map', `${voiceIdx}:a`, '-c:a', 'aac', '-b:a', '128k')
-  } else if (musicFilePath) {
-    args.push('-map', `${musicIdx}:a`, '-c:a', 'aac', '-b:a', '128k')
-    args.push('-af', `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(1)}:d=2`)
-    args.push('-shortest')
+  const hasAudio = voiceFilePath || musicFilePath
+  if (hasAudio) {
+    p2Args.push('-c:a', 'aac', '-b:a', '128k', '-shortest')
   } else {
-    args.push('-an')
+    p2Args.push('-an')
   }
 
-  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26')
-  args.push('-r', '30', '-movflags', '+faststart')
-  args.push('-y', outPath)
+  p2Args.push('-movflags', '+faststart', '-y', outPath)
 
-  log('info', `FFmpeg: ${n} scenes, ~${totalDur.toFixed(0)}s, hasVideo=${hasVideo}`, jobId)
+  log('info', `Pass 2: concat ${clipPaths.length} clips, voice=${!!voiceFilePath}, music=${!!musicFilePath}`, jobId)
   try {
-    await execFileAsync('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
+    await execFileAsync('ffmpeg', p2Args, { timeout: FFMPEG_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 })
   } catch (err) {
-    console.error('[jarvis-worker] FFmpeg full stderr:', err.stderr)
-    console.error('[jarvis-worker] FFmpeg stderr (tail):', err.stderr?.slice(-500))
-    console.error('[jarvis-worker] FFmpeg stdout:', err.stdout?.slice(-200))
-    throw new Error(`FFmpeg failed: ${err.stderr?.slice(-200) || err.message}`)
+    console.error('[jarvis-worker] Pass 2 stderr:', err.stderr)
+    throw new Error(`Pass 2 failed: ${err.stderr?.slice(-200) || err.message}`)
   }
 
   if (!fs.existsSync(outPath)) throw new Error('FFmpeg exited 0 but no output file was created')
