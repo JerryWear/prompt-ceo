@@ -12,7 +12,7 @@
  * Required env vars: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY
  */
 
-import { execFile }  from 'child_process'
+import { execFile, execSync } from 'child_process'
 import { promisify } from 'util'
 import fs             from 'fs'
 import path           from 'path'
@@ -82,10 +82,8 @@ function findSystemFont() {
 
 // ─── Working directory ────────────────────────────────────────────────────────
 
-function makeWorkDir(jobId) {
-  const dir = path.join(os.tmpdir(), 'jarvis-renders', jobId)
-  fs.mkdirSync(dir, { recursive: true })
-  return dir
+function makeWorkDir() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-'))
 }
 
 function cleanup(workDir) {
@@ -232,7 +230,13 @@ async function renderJarvisAd(plan, workDir, jobId) {
   // 3. Generate TTS voiceover
   const voiceFilePath = voiceScript ? await generateTts(voiceScript, workDir) : null
 
-  // 4. PASS 1 — Convert each scene to a normalised clip individually
+  // 4. Disk space check
+  try {
+    const df = execSync('df -h /tmp').toString()
+    console.log('[jarvis-worker] Disk space:', df)
+  } catch (e) {}
+
+  // 5. PASS 1 — Convert each scene to a normalised clip individually
   const segDur   = 6.5
   const clipPaths = []
   for (let i = 0; i < filePaths.length; i++) {
@@ -248,7 +252,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
 
     p1Args.push(
       '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p',
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-bufsize', '4M',
       '-r', '30',
     )
     if (!isVideo) p1Args.push('-t', String(segDur))
@@ -261,10 +265,13 @@ async function renderJarvisAd(plan, workDir, jobId) {
       console.error(`[jarvis-worker] Pass 1 clip ${i} stderr:`, err.stderr)
       throw new Error(`Pass 1 clip ${i} failed: ${err.stderr?.slice(-200) || err.message}`)
     }
+    const clipStat = fs.statSync(clipPath)
+    console.log(`[jarvis-worker] clip${i} size: ${clipStat.size} bytes`)
+    if (clipStat.size === 0) throw new Error(`clip${i} is empty — disk write failed`)
     clipPaths.push(clipPath)
   }
 
-  // 5. PASS 2 — Concat clips + audio
+  // 6. PASS 2 — Concat clips + audio
   const concatFile = path.join(workDir, 'clips.txt')
   fs.writeFileSync(concatFile, clipPaths.map(p => `file '${p}'`).join('\n'))
 
