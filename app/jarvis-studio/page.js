@@ -854,10 +854,10 @@ export default function JarvisStudio() {
                           (typeof window !== 'undefined' ? window.location.origin : 'https://app.promptceo.io')
                         setUploadedAssets(prev => ({
                           ...prev,
-                          musicUrl: newId && track.preview_file_url
-                            ? (track.preview_file_url.startsWith('http')
-                                ? track.preview_file_url
-                                : `${baseUrl}${track.preview_file_url}`)
+                          musicUrl: newId && (track.full_file_url || track.preview_file_url)
+                            ? ((track.full_file_url || track.preview_file_url).startsWith('http')
+                                ? (track.full_file_url || track.preview_file_url)
+                                : `${baseUrl}${track.full_file_url || track.preview_file_url}`)
                             : null,
                         }))
                       }}
@@ -867,7 +867,7 @@ export default function JarvisStudio() {
                         border: musicTrackId === track.id ? `1px solid ${C.goldBorder}` : '1px solid transparent',
                         transition:'background .15s', marginBottom:3,
                       }}>
-                      <button onClick={e => { e.stopPropagation(); track.preview_url && toggleTrack(track.id, track.preview_url) }}
+                      <button onClick={e => { e.stopPropagation(); track.preview_file_url && toggleTrack(track.id, track.preview_file_url) }}
                         style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:4, color:C.ghost, cursor:'pointer', padding:'2px 7px', fontSize:10 }}>
                         {playingTrackId === track.id ? '■' : '▶'}
                       </button>

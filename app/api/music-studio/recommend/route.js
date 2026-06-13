@@ -7,7 +7,7 @@ import { rankTracks, buildMusicSummary, buildTimingPlan, TRACK_SELECT } from '..
 export async function POST(req) {
   try {
     const body = await req.json()
-    const { platform, goal, directorAnalysis, videoLength, mood, energy } = body
+    const { platform, goal, directorAnalysis, videoLength, mood, energy, topN } = body
 
     const admin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,6 +31,7 @@ export async function POST(req) {
 
     const recommendedTracks = rankTracks(dbTracks || [], {
       platform, goal, directorMood, directorPacing, editDuration: videoLength || null,
+      ...(topN ? { topN } : {}),
     })
     const topTrack     = recommendedTracks[0]
     const timingPlan   = topTrack ? buildTimingPlan(topTrack, platform, videoLength || null) : {}
