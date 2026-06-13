@@ -19,9 +19,9 @@ We are building the operating system for AI-native businesses.
 
 ## Current Session State
 Last updated: 2026-06-13
-Last completed: Full parallel FLUX generation restored (Replicate billing active)
+Last completed: gpt-image-1 primary in Jarvis Studio preview-scenes, FLUX as fallback, dall-e-3 removed
 In progress: none
-Next atomic task: Full end-to-end Jarvis Studio test with FLUX images
+Next atomic task: Full 25-scene test
 DO NOT touch: renderEngine.js, webhook handler, ViralAnalyzer
 
 ---

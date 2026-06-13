@@ -114,10 +114,32 @@ async function storeImage(buf, mime, scene, userId, storageClient) {
 
 async function generatePreviewImage(scene, brandContext, userId, storageClient) {
   const prompt       = buildFinalPrompt(scene, brandContext)
-  const replicateKey = process.env.REPLICATE_API_TOKEN
   const openaiKey    = process.env.OPENAI_API_KEY
+  const replicateKey = process.env.REPLICATE_API_TOKEN
 
-  // ── FLUX-1.1-pro via Replicate — 9:16 native, cinematic quality ──────────
+  // ── PRIMARY — gpt-image-1 (b64_json, fast, no URL fetch needed) ──────────
+  if (openaiKey) {
+    try {
+      console.log('[preview] gpt-image-1 generating scene:', scene.id, 'prompt length:', prompt.length)
+      const res = await fetch('https://api.openai.com/v1/images/generations', {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size: '1024x1024', quality: 'medium' }),
+        signal:  AbortSignal.timeout(60000),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error?.message || 'gpt-image-1 failed')
+      const b64    = data.data[0].b64_json
+      const buffer = Buffer.from(b64, 'base64')
+      return await storeImage(buffer, 'image/png', scene, userId, storageClient)
+    } catch (err) {
+      console.error('[preview] gpt-image-1 failed for scene:', scene.id, err.message)
+    }
+  } else {
+    console.warn('[preview] OPENAI_API_KEY not set — falling back to FLUX')
+  }
+
+  // ── FALLBACK — FLUX-1.1-pro via Replicate ────────────────────────────────
   if (replicateKey) {
     try {
       console.log('FLUX generating scene:', scene.id, 'prompt length:', prompt.length)
@@ -133,9 +155,9 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
           body: JSON.stringify({
             input: {
               prompt,
-              aspect_ratio:    '9:16',
-              output_format:   'jpg',
-              output_quality:  90,
+              aspect_ratio:     '9:16',
+              output_format:    'jpg',
+              output_quality:   90,
               safety_tolerance: 2,
             },
           }),
@@ -147,7 +169,6 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
       if (!replicateRes.ok || !replicateData.output) {
         throw new Error(replicateData.detail || 'Replicate generation failed')
       }
-      // replicateData.output is a direct image URL — download it
       const imageRes = await fetch(replicateData.output, { signal: AbortSignal.timeout(15000) })
       if (!imageRes.ok) throw new Error(`Image download failed: ${imageRes.status}`)
       const imageBuffer = Buffer.from(await imageRes.arrayBuffer())
@@ -156,33 +177,10 @@ async function generatePreviewImage(scene, brandContext, userId, storageClient) 
       console.error('FLUX failed for scene:', scene.id, err.message)
     }
   } else {
-    console.warn('[preview] REPLICATE_API_TOKEN not set — falling back to dall-e-3')
+    console.warn('[preview] REPLICATE_API_TOKEN not set')
   }
 
-  // ── dall-e-3 fallback — no response_format, fetch URL, upload buffer ────────
-  if (openaiKey) {
-    try {
-      const dalleRes = await fetch('https://api.openai.com/v1/images/generations', {
-        method:  'POST',
-        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1792', quality: 'standard' }),
-        signal:  AbortSignal.timeout(45000),
-      })
-      const dalleData = await dalleRes.json()
-      if (!dalleRes.ok) throw new Error(dalleData.error?.message || 'DALL-E failed')
-      const imageUrl = dalleData.data[0].url
-      const imgRes   = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) })
-      if (!imgRes.ok) throw new Error(`dall-e-3 image download failed: ${imgRes.status}`)
-      const buffer = Buffer.from(await imgRes.arrayBuffer())
-      return await storeImage(buffer, 'image/jpeg', scene, userId, storageClient)
-    } catch (dalleErr) {
-      console.error('[preview] dall-e-3 fatal:', scene.id, dalleErr.message)
-    }
-  } else {
-    console.warn('[preview] OPENAI_API_KEY not set')
-  }
-
-  // ── SVG placeholder — always works, loads in <1ms ─────────────────────────
+  // ── FINAL FALLBACK — SVG placeholder, loads in <1ms ──────────────────────
   console.log(`[preview] SVG placeholder: ${scene.id}`)
   return buildScenePlaceholder(scene)
 }
