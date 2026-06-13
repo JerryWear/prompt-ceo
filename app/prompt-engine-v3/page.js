@@ -817,7 +817,11 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   const [dnaName,       setDnaName]        = useState('')
   const [dnaSaveOpen,   setDnaSaveOpen]    = useState(false)
   // Viral Content Analyzer
-  const [viralAnalyzerOpen, setViralAnalyzerOpen] = useState(false)
+  const [viralAnalyzerOpen,    setViralAnalyzerOpen]    = useState(false)
+  const [viralAnalysisResult,  setViralAnalysisResult]  = useState(null)
+  // Performance Memory
+  const [perfSaved,            setPerfSaved]            = useState(false)
+  const [perfSaving,           setPerfSaving]           = useState(false)
 
   // Load DNA profiles on mount
   useEffect(() => {
@@ -2056,9 +2060,8 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
   }
 
   const handleViralApply = useCallback((result) => {
-    // Set the selected hook to the extracted hook text
     if (result.hookText) setSelectedHook(result.hookText)
-    // Map ViralAnalyzer archetype → Ad Studio hook type selector
+    setViralAnalysisResult(result)
     const ARCHETYPE_TO_HOOK_TYPE = {
       emotional_open:       'pain',
       urgency:              'pain',
@@ -2074,9 +2077,35 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
     if (result.hookArchetype && ARCHETYPE_TO_HOOK_TYPE[result.hookArchetype]) {
       setActiveHookType(ARCHETYPE_TO_HOOK_TYPE[result.hookArchetype])
     }
-    // TODO: wire to brief fields when campaignPhase selector is added to Ad Studio
+    setPerfSaved(false)
     console.log('[ViralAnalyzer] onApply:', result)
   }, [])
+
+  const handleSavePerformance = async (signal = 'performed_well') => {
+    setPerfSaving(true)
+    try {
+      const res = await fetch('/api/jarvis/performance-memory/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId:        s.activeProjectId || null,
+          hookText:         selectedHook || '',
+          hookArchetype:    viralAnalysisResult?.hookArchetype    || '',
+          campaignPhase:    viralAnalysisResult?.campaignPhase    || '',
+          emotionalTrigger: viralAnalysisResult?.emotionalTrigger || '',
+          pacing:           viralAnalysisResult?.pacing           || '',
+          visualStyle:      viralAnalysisResult?.visualStyle      || '',
+          performanceSignal: signal,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') setPerfSaved(true)
+    } catch (err) {
+      console.error('[Performance Memory] save failed:', err)
+    } finally {
+      setPerfSaving(false)
+    }
+  }
 
   const saveHook = async (hookText, hookType = 'general', source = 'ad-studio') => {
     if (!hookText?.trim() || hooksSaving) return
@@ -5668,6 +5697,28 @@ function AdStudioView({ s, set, merge, generateAdImage, generateAdVideo, generat
             {/* Creative Director Note — Hooks */}
             {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).length > 0 && (
               <DirectorNote noteKey={`hooks_${activeHookType}`} />
+            )}
+
+            {/* This Performed Well — save hook pattern to Performance Memory */}
+            {(s.adTextResults?.[`hooks_${activeHookType}`]?.hooks || []).length > 0 && selectedHook && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                <button
+                  onClick={() => handleSavePerformance('performed_well')}
+                  disabled={perfSaving || perfSaved}
+                  style={{
+                    padding: '5px 12px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                    cursor: perfSaving || perfSaved ? 'not-allowed' : 'pointer',
+                    border: `1px solid ${C.goldDim}`,
+                    background: C.deep,
+                    color: perfSaved ? C.green : C.gold,
+                    opacity: perfSaving ? 0.6 : 1,
+                    transition: 'color 0.2s, opacity 0.2s',
+                  }}
+                >
+                  {perfSaved ? '✓ Saved to Memory' : perfSaving ? '...' : '⚡ This Performed Well'}
+                </button>
+                <span style={{ fontSize: 9, color: C.ghost, letterSpacing: 0.3 }}>Saves this pattern to Jarvis memory</span>
+              </div>
             )}
 
             {/* Continue to Captions */}
