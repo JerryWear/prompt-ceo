@@ -125,6 +125,18 @@ async function downloadFile(url, dest) {
   return dest
 }
 
+function findSystemFont() {
+  const candidates = [
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    '/usr/share/fonts/liberation/LiberationSans-Bold.ttf',
+    '/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf',
+    '/System/Library/Fonts/Helvetica.ttc',
+  ]
+  return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } }) || null
+}
+
 // ─── Music URL resolution ─────────────────────────────────────────────────────
 // fileUrl may be a relative /api/stream-track/<id> — resolve via Supabase instead.
 
@@ -399,6 +411,101 @@ function buildArgs(plan, inputPath, captionPath, musicPath, outputPath, logoPath
     '-r',String(plan.fps||30),'-movflags','+faststart',...durationArgs,'-y',outputPath]
 }
 
+// ─── Jarvis FFmpeg args builder ───────────────────────────────────────────────
+// scenes: [{ videoUrl?, imageUrl?, localPath, caption? }]
+
+function buildJarvisFFmpegArgs(scenes, musicPath, voicePath, outputPath) {
+  const n        = scenes.length
+  const hasVideo = scenes.some(s => s.videoUrl)
+  const segDur   = hasVideo ? 5.0 : 6.5
+  const fadeDur  = 0.4
+  const totalDur = segDur * n - fadeDur * (n - 1)
+  const args     = []
+
+  for (let i = 0; i < n; i++) {
+    if (scenes[i].videoUrl) {
+      args.push('-i', scenes[i].localPath)
+    } else {
+      args.push('-loop', '1', '-t', String(segDur + 0.1), '-i', scenes[i].localPath)
+    }
+  }
+  if (musicPath) args.push('-i', musicPath)
+  if (voicePath) args.push('-i', voicePath)
+
+  const scaleChain = [
+    'scale=1080:1920:force_original_aspect_ratio=decrease',
+    'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
+    'setsar=1', 'fps=30', 'format=yuv420p',
+  ].join(',')
+  const kbFrames    = Math.round(segDur * 30)
+  const filterParts = []
+
+  for (let i = 0; i < n; i++) {
+    if (scenes[i].videoUrl) {
+      filterParts.push(`[${i}:v]${scaleChain}[v${i}]`)
+    } else {
+      filterParts.push(`[${i}:v]zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${kbFrames}:s=1080x1920,fps=30[v${i}]`)
+    }
+  }
+
+  let prevLabel = 'v0', finalLabel = 'v0'
+  for (let i = 1; i < n; i++) {
+    const offset   = parseFloat(((segDur - fadeDur) * i).toFixed(3))
+    const outLabel = i === n - 1 ? 'vout' : `x${i}`
+    filterParts.push(`[${prevLabel}][v${i}]xfade=transition=fade:duration=${fadeDur}:offset=${offset}[${outLabel}]`)
+    prevLabel  = outLabel
+    finalLabel = outLabel
+  }
+
+  const fontFile = findSystemFont()
+  if (fontFile && scenes.some(s => s.caption?.trim())) {
+    let captionLabel = finalLabel
+    scenes.forEach((scene, i) => {
+      const text = scene.caption?.trim()
+      if (!text) return
+      const segStart = parseFloat(((segDur - fadeDur) * i).toFixed(3))
+      const showFrom = parseFloat((segStart + 0.35).toFixed(3))
+      const showTo   = parseFloat((segStart + segDur - 0.45).toFixed(3))
+      const outLabel = `cap${i}`
+      const safeTxt  = text.replace(/\\/g, '\\\\').replace(/'/g, "'").replace(/:/g, '\\:').replace(/,/g, '\\,')
+      filterParts.push(
+        `[${captionLabel}]drawtext=fontfile='${fontFile}':text='${safeTxt}':fontsize=44:fontcolor=white:` +
+        `x=(w-text_w)/2:y=h*0.82:box=1:boxcolor=black@0.55:boxborderw=16:` +
+        `enable='between(t\\,${showFrom}\\,${showTo})'[${outLabel}]`
+      )
+      captionLabel = outLabel
+    })
+    finalLabel = captionLabel
+  }
+
+  if (voicePath && musicPath) {
+    const musicIdx = n, voiceIdx = n + 1
+    filterParts.push(`[${musicIdx}:a]volume=0.15[quietmusic]`)
+    filterParts.push(`[${voiceIdx}:a][quietmusic]amix=inputs=2:duration=first[aout]`)
+  }
+
+  args.push('-filter_complex', filterParts.join(';'))
+  args.push('-map', `[${finalLabel}]`)
+
+  if (voicePath && musicPath) {
+    args.push('-map', '[aout]', '-c:a', 'aac', '-b:a', '128k')
+  } else if (musicPath) {
+    args.push('-map', `${n}:a`, '-c:a', 'aac', '-b:a', '128k')
+    args.push('-af', `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(1)}:d=2`)
+    args.push('-shortest')
+  } else if (voicePath) {
+    args.push('-map', `${n}:a`, '-c:a', 'aac', '-b:a', '128k')
+  } else {
+    args.push('-an')
+  }
+
+  args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '26')
+  args.push('-r', '30', '-movflags', '+faststart')
+  args.push('-y', outputPath)
+
+  return args
+}
+
 // ─── Storage upload ───────────────────────────────────────────────────────────
 
 async function uploadExport(localPath, storagePath) {
@@ -584,6 +691,109 @@ async function executeJob(job) {
   }
 }
 
+// ─── Jarvis job execution ─────────────────────────────────────────────────────
+
+async function processJarvisJob(job) {
+  const { id, user_id, render_plan } = job
+
+  await db.from('jarvis_render_jobs')
+    .update({ status: 'processing', updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  log('INFO', id, 'Jarvis job started', { scenes: render_plan?.scenes?.length, hasMusic: !!render_plan?.musicUrl, hasVoice: !!render_plan?.voiceScript })
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-'))
+
+  try {
+    const { scenes = [], musicUrl, voiceScript } = render_plan
+
+    // Download scene images / videos
+    const downloadedScenes = []
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i]
+      const url   = scene.videoUrl || scene.imageUrl
+      if (!url) continue
+      const ext  = scene.videoUrl ? 'mp4' : 'jpg'
+      const dest = path.join(tmpDir, `scene${i}.${ext}`)
+      try {
+        await downloadFile(url, dest)
+        downloadedScenes.push({ ...scene, localPath: dest })
+      } catch (err) {
+        log('WARN', id, `Scene ${i} skipped: ${err.message}`)
+      }
+    }
+
+    if (downloadedScenes.length < 2) throw new Error(`Need at least 2 scenes — only ${downloadedScenes.length} downloaded`)
+
+    // Download music
+    let musicPath = null
+    if (musicUrl) {
+      try {
+        musicPath = path.join(tmpDir, 'music.mp3')
+        await downloadFile(musicUrl, musicPath)
+        if (!fs.existsSync(musicPath) || fs.statSync(musicPath).size === 0) musicPath = null
+      } catch (err) {
+        log('WARN', id, `Music skipped: ${err.message}`)
+        musicPath = null
+      }
+    }
+
+    // Generate TTS voiceover
+    let voicePath = null
+    if (voiceScript && process.env.OPENAI_API_KEY) {
+      try {
+        const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
+          method:  'POST',
+          headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ model: 'tts-1', voice: 'onyx', input: voiceScript, response_format: 'mp3' }),
+        })
+        if (ttsRes.ok) {
+          voicePath = path.join(tmpDir, 'voice.mp3')
+          fs.writeFileSync(voicePath, Buffer.from(await ttsRes.arrayBuffer()))
+          log('INFO', id, 'TTS voiceover generated')
+        } else {
+          log('WARN', id, `TTS API error: ${ttsRes.status}`)
+        }
+      } catch (err) {
+        log('WARN', id, `TTS failed: ${err.message}`)
+      }
+    }
+
+    // Build and run FFmpeg
+    const outputPath = path.join(tmpDir, 'output.mp4')
+    const args       = buildJarvisFFmpegArgs(downloadedScenes, musicPath, voicePath, outputPath)
+    log('INFO', id, 'Running FFmpeg', { scenes: downloadedScenes.length })
+    await execFileAsync('ffmpeg', args, { timeout: 300_000, maxBuffer: 50 * 1024 * 1024 })
+
+    if (!fs.existsSync(outputPath)) throw new Error('FFmpeg exited 0 but no output file')
+    log('INFO', id, 'FFmpeg complete', { sizeMB: (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1) })
+
+    // Upload to Supabase
+    const storagePath = `jarvis-ads/${user_id}/${id}.mp4`
+    const fileBuffer  = fs.readFileSync(outputPath)
+    const { error: uploadError } = await db.storage
+      .from('identity-images')
+      .upload(storagePath, fileBuffer, { contentType: 'video/mp4', upsert: true })
+    if (uploadError) throw new Error(uploadError.message)
+
+    const { data: { publicUrl } } = db.storage.from('identity-images').getPublicUrl(storagePath)
+
+    await db.from('jarvis_render_jobs')
+      .update({ status: 'completed', export_url: publicUrl, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    log('INFO', id, 'Jarvis job complete', { publicUrl: publicUrl.slice(0, 60) + '…' })
+  } catch (err) {
+    log('ERROR', id, `Jarvis job failed: ${err.message}`)
+    await db.from('jarvis_render_jobs')
+      .update({ status: 'failed', error_message: err.message, updated_at: new Date().toISOString() })
+      .eq('id', id)
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch {}
+    activeJobs--
+  }
+}
+
 // ─── Poll ─────────────────────────────────────────────────────────────────────
 
 async function poll() {
@@ -609,6 +819,22 @@ async function poll() {
     }
     activeJobs++
     executeJob(job) // fire-and-forget; activeJobs tracks concurrency
+  }
+
+  // Poll Jarvis render jobs — one at a time, awaited
+  if (activeJobs < MAX_CONCURRENT) {
+    const { data: jarvisJob } = await db
+      .from('jarvis_render_jobs')
+      .select('*')
+      .eq('status', 'queued')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+
+    if (jarvisJob) {
+      activeJobs++
+      await processJarvisJob(jarvisJob)
+    }
   }
 }
 
