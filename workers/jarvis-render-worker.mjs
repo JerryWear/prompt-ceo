@@ -308,7 +308,7 @@ async function renderJarvisAd(plan, workDir, jobId) {
   if (voiceFilePath && musicFilePath) {
     // voice at index 1, music at index 2 — amix to blend
     p2Args.push('-i', voiceFilePath, '-i', musicFilePath)
-    p2Args.push('-filter_complex', '[2:a]volume=0.15[music];[1:a][music]amix=inputs=2:duration=first[aout]')
+    p2Args.push('-filter_complex', '[2:a]volume=0.1[music];[1:a][music]amix=inputs=2:duration=first[aout]')
     p2Args.push('-map', '0:v:0', '-map', '[aout]')
     p2Args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest')
   } else if (voiceFilePath) {
