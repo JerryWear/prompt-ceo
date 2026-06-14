@@ -94,7 +94,7 @@ function cleanup(workDir) {
 
 async function downloadToFile(url, destPath) {
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
-  if (!res.ok) throw new Error(`Download failed ${res.status}: ${url.slice(0, 80)}`)
+  if (!res.ok) throw new Error(`Download failed ${res.status}: ${url}`)
   const buf = Buffer.from(await res.arrayBuffer())
   fs.writeFileSync(destPath, buf)
   return buf.length
@@ -124,6 +124,8 @@ async function generateTts(voiceScript, workDir) {
     return voicePath
   } catch (err) {
     console.error('[jarvis-worker] TTS exception:', err.message)
+    console.error('[jarvis-worker] TTS exception cause:', err.cause)
+    console.error('[jarvis-worker] TTS exception code:', err.cause?.code || err.code)
     log('warn', `TTS failed — continuing without voiceover: ${err.message}`)
     return null
   }
