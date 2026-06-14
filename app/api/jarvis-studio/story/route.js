@@ -67,15 +67,16 @@ DALL-E CANNOT render: software UI, app screens, dashboards, readable text, brand
 Asking DALL-E to show software produces hallucinated garbage. We have REAL screenshots for that. Use them (Acts 3 and 4).
 
 CORRECT dalle_prompt:
-✓ "A startup founder at a cluttered desk, 2am, holding an agency invoice with red revision marks. Empty coffee cups. A single desk lamp. Exhausted expression. Vertical 9:16. Cinematic photography. Shot on ARRI. No readable text anywhere."
-✓ "An overhead view of a desk covered in sticky notes, crossed-out notebook pages, three different laptops, empty takeaway cups. No person visible — only the evidence of too much work. Vertical 9:16 format. No readable text."
-✓ "Same founder now at a clean minimal desk. Single laptop open, screen too blurred to read. Confident posture. Morning light through window. Relaxed. In control. Vertical 9:16. Cinematic. No readable text."
+✓ Ground every prompt in the actual brand context — the industry, the protagonist's world, the specific emotion of this beat. A fitness coach, a restaurant owner, and a logistics manager each live in a different physical world. Show that world.
+✓ Be specific to the scene: name the objects, environment, lighting, and body language that embody THIS brand's pain or transformation. Generic is wrong. "Person looking stressed at a desk" is generic. "A restaurant manager staring at a whiteboard covered in crossed-out staff schedules, 11pm, kitchen quiet behind her" is specific.
+✓ Use the uploaded assets as your reference point. If a founder image was provided, their energy, age, and presence should shape Acts 1 and 5. If product images were provided, the visual aesthetic of the product should inform the world around the protagonist.
 
 WRONG dalle_prompt (these will fail):
-✗ "Dashboard showing campaign metrics" — software, won't look right
-✗ "PromptCEO interface loading" — our real product exists, use it
-✗ "Screen with text saying Campaign Ready" — DALL-E can't render text
-✗ "AI platform generating ads" — abstract concept, produces garbage
+✗ "Dashboard showing campaign metrics" — software UI, won't render correctly
+✗ "[Product name] interface loading" — the real product's screenshots are used for Acts 3 and 4, not DALL-E
+✗ "Screen with text saying [result]" — DALL-E cannot render readable text accurately
+✗ "AI platform generating [output]" — abstract concepts produce garbage; show people and environments instead
+✗ Generic stock-photo scenes unrelated to this brand's world — every prompt must earn its specificity from the brand context provided
 
 Acts 3 and 4: visual_type = "product_screenshot" → dalle_prompt = null. Always. No exceptions.
 
@@ -84,12 +85,12 @@ CAPTION RULES:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Captions are TEXT OVERLAYS added in post-production. They are NEVER in the DALL-E image.
 Keep captions to 3-8 words. Punchy. Direct. Specific to this brand.
-Examples:
-Act 1: "Still paying $8,500 per campaign?" / "The agency takes 3 weeks." / "43 browser tabs. One campaign."
-Act 2: "You have the ideas. Not the time." / "3 tools. 4 agencies. 0 results."
-Act 3: Product name only — "PromptCEO" / "One brief." / "Enter your product."
-Act 4: The result — "Campaign done in 60 seconds." / "Five complete ads. One input."
-Act 5: CTA — "Start free today." / "Fire your agency. → promptceo.com"
+Structure (replace every bracket with content specific to this brand — never copy these verbatim):
+Act 1: "[Specific cost or time the target audience is losing right now]" — name a real number or real situation
+Act 2: "[The gap between what they want and what they have]" — make it visceral, not abstract
+Act 3: "[The product name or the single thing it does]" — short, declarative
+Act 4: "[The measurable result this product produces]" — specific outcome, not a feature
+Act 5: "[Action-led CTA with brand domain or core offer]" — direct, no hedging
 
 Also generate a voiceScript field at the top level: a 75-word maximum voiceover narration for a 30-second video ad that follows the 5-act story arc. Write in second person, present tense. Punchy, cinematic, no filler words. Start with the hook.
 
