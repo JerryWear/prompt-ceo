@@ -31,9 +31,16 @@ export async function POST(req) {
       'this product'
     ).split(/[—.\n]/)[0].trim().slice(0, 60)
 
-    const audience = understanding?.brand?.targetAudience || 'marketers and business owners'
-    const pain     = understanding?.brand?.painPoints?.[0] || 'wasting time on slow, expensive processes'
-    const value    = understanding?.brand?.valueProposition || 'saves time and produces better results'
+    const audience = understanding?.brand?.targetAudience || 'people looking for a better solution to their problem'
+    const pain     = understanding?.brand?.painPoints?.[0] || 'the current approach is slow, expensive, or frustrating'
+    const value    = understanding?.brand?.valueProposition || 'a faster, simpler way to get the result they want'
+    if (!understanding?.brand?.targetAudience || !understanding?.brand?.painPoints?.[0] || !understanding?.brand?.valueProposition) {
+      console.warn('[story] Using generic fallback(s) — understanding data incomplete:', {
+        audienceFallback: !understanding?.brand?.targetAudience,
+        painFallback:     !understanding?.brand?.painPoints?.[0],
+        valueFallback:    !understanding?.brand?.valueProposition,
+      })
+    }
     const hasFounder = !!assets?.founderImageUrl
     const hasProduct = (assets?.productImageUrls?.length || 0) > 0
 
