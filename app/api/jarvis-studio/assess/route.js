@@ -415,19 +415,24 @@ Return ONLY valid JSON — do NOT include a missingUploadedAssets field (the sys
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: `Here is the brand analysis context:\n\n${analysisContext.join('\n\n')}\n\nWrite the full strategic assessment. Cite evidence. Make judgments. Name direct competitors first.` },
         ],
-        max_tokens: 4000,
+        max_tokens: 8000,
         temperature: 0.75,
         response_format: { type: 'json_object' },
       }),
     })
 
     const gptData = await gptRes.json()
-    if (!gptRes.ok) return NextResponse.json({ error: gptData.error?.message || 'OpenAI error' }, { status: 500 })
+    if (!gptRes.ok) {
+      console.error('[assess] OpenAI API error:', gptData.error)
+      return NextResponse.json({ error: gptData.error?.message || 'OpenAI error' }, { status: 500 })
+    }
 
     let assessment
     try {
       assessment = JSON.parse(gptData.choices[0].message.content)
     } catch {
+      console.error('[assess] finish_reason:', gptData.choices?.[0]?.finish_reason)
+      console.error('[assess] Failed to parse assessment. Raw content:', gptData.choices?.[0]?.message?.content)
       return NextResponse.json({ error: 'Failed to parse assessment' }, { status: 500 })
     }
 
