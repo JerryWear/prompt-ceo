@@ -287,7 +287,9 @@ export default function JarvisStudio() {
         videoUrls:          videoAssets.map(a => a.publicUrl),
         // video fallback: if upload timed out, trust the file the user added
         videoProvided:      videoFiles.length > 0,
-        musicUrl:           musicUploadUrl,
+        musicUrl:           musicMode === 'upload'
+          ? musicUploadUrl
+          : (musicTrackId ? musicTracks.find(t => t.id === musicTrackId)?.full_file_url || null : null),
         musicTrackId:       musicMode === 'library' ? musicTrackId : null,
       }
       setUploadedAssets(assets)
